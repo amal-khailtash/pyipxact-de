@@ -131,6 +131,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Ruff
+.ruff_cache
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -167,4 +170,3 @@ cython_debug/
 
 # Others
 .temp/
-
