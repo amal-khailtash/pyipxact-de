@@ -1,22 +1,47 @@
 [project]
-name = "pyipxact"
+name = "pyipxact-de"
 version = "0.1.0"
-description = "Accellera IP-XACT CLI Tool"
+description = "Accellera IP-XACT DE (Design Environment)"
 readme = "README.md"
+license = { text = "MIT License" }
 authors = [
     { name = "Amal Khailtash", email = "amal.khailtash@gmail.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "xsdata[cli,lxml]",
+    # "fastapi[standard]>=0.116.1",
+    # "click>=8.1.8",
+    "rich>=14.1.0",
+    "loguru>=0.7.3",
+    "xsdata[cli,lxml,soap]>=24.11",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.3",
+    # "toml>=0.10.2",
+    "uvicorn>=0.35.0",
+]
+
+[project.optional-dependencies]
+gui = [
+    "pyqt5>=5.15.11",
+    "qtawesome>=1.4.0",
+    "qtpy>=2.4.3",
+]
+web = [
+    "pydantic>=2.11.7",
+    "fastapi>=0.116.1",
+]
+all = ["pyipxact-de[gui, web]"]
 
 # [tool.setuptools.packages.find]
 
 [project.scripts]
-# ipxact_validate = "amal.eda.ipxact.cli:main"
-# ipxact_convert = "amal.eda.ipxact.cli:main"
-ipxact = "amal.eda.ipxact_cli.__main__:main"
+ipxact-de = "amal.eda.ipxact_de.cli.__main__:main"
+# ipxact-de = "amal.eda.ipxact_de.cli.click_app:main"
+# ipxact-wb = "amal.eda.ipxact_de.cli.click_app:main"
+ipxact-wb = "amal.eda.ipxact_de.web:app"
 
 [tool.hatch.build.targets.sdist]
 # include = []
@@ -26,9 +51,6 @@ exclude = [
     "PyXB/",
     "test-*",
 ]
-
-[tool.ruff]
-line-length = 100
 
 [tool.uv.sources]
 xsdata = { git = "https://github.com/tefra/xsdata" }
@@ -43,8 +65,73 @@ packages = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[dependency-groups]
-dev = [
-    "pytest>=8.3.3",
-    "xsdata[cli,lxml,soap]>=24.11",
+# [tool.isort]
+# profile = "black"
+# line_length = 120
+# src_paths = ["isort", "test"]
+# known_third_party = [
+#     "loguru",
+#     "rich",
+#     "xsdata",
+# ]
+# known_first_party = ["amal", "org.accellera"]
+# import_heading_future = "Future Imports"
+# import_heading_stdlib = "Standard Library Imports"
+# import_heading_thirdparty = "Third-Party Imports"
+# import_heading_firstparty = "First-Party Imports"
+# import_heading_localfolder = "Local Imports"
+
+[tool.ruff]
+# Allow lines to be as long as 120.
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    "src"
+]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+]
+markers = [
+    "golden_file: marks tests as golden file tests",
+    "batch_mode: marks tests as batch mode tests",
+]
+
+# -------------------------------------------------------------------------------------------------
+# PyreFly configuration: force the language server to use this workspace's venv and src import root
+# See: https://pyrefly.org/en/docs/configuration/
+[tool.pyrefly]
+# Make imports resolve from our `src` layout
+# search-path = ["src"]
+project-includes = [
+    "src"
+]
+# # Ensure PyreFly queries the correct interpreter and site-packages from this repo's venv
+python-interpreter = ".venv/bin/python3"
+site-package-path = [
+    ".venv/lib/python3.13/site-packages"
+]
+
+# [build-system]
+# requires = ["uv_build>=0.8.6,<0.9.0"]
+# build-backend = "uv_build"
