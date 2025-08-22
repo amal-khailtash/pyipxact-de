@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 // Description : pcix_1.0.internal.xml
-// Original Author : SPIRIT Schema Working Group 
-// Version: 1.0 
-// 
-// Copyright 2006-2013 Accellera Systems Initiative 
-// 
-// Licensed under the Apache License, Version 2.0 (the "License"); 
+// Original Author : SPIRIT Schema Working Group
+// Version: 1.0
+//
+// Copyright 2006-2013 Accellera Systems Initiative
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at 
+// You may obtain a copy of the License at
 //
 //       http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software 
-// distributed under the License is distributed on an "AS IS" BASIS, 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and 
+// See the License for the specific language governing permissions and
 // limitations under the License.
 -->
-<spirit:busDefinition xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2" 
-							xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+<spirit:busDefinition xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
+							xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 							xsi:schemaLocation="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2
 																http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2/index.xsd">
 
@@ -27,18 +27,18 @@
 	<spirit:library>busdef.pcisig</spirit:library>
 	<spirit:name>pcix_1.0.internal</spirit:name>
 	<spirit:version>1.0</spirit:version>
-	
+
 	<spirit:directConnection>true</spirit:directConnection>
 	<spirit:maxMasters>1</spirit:maxMasters>
 	<spirit:maxSlaves>1</spirit:maxSlaves>
-	
+
 	<spirit:signals>
 		<spirit:signal>
 			<spirit:logicalName>CLK_in</spirit:logicalName>
 			<spirit:isClock>true</spirit:isClock>
 			<spirit:onSystem>
 				<spirit:group>system_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -58,10 +58,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -73,10 +73,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -85,7 +85,7 @@
 			<spirit:isReset>true</spirit:isReset>
 			<spirit:onSystem>
 				<spirit:group>system_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -105,10 +105,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -120,10 +120,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -265,7 +265,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -275,7 +275,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -297,7 +297,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -307,7 +307,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -318,7 +318,7 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -351,7 +351,7 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -395,7 +395,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -405,15 +405,15 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
-		
+
 		<spirit:signal>
 			<spirit:logicalName>IDSEL_n_in</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>idsel_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -432,10 +432,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -446,10 +446,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -460,7 +460,7 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -494,38 +494,38 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>REQ_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>arbitration_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>REQ_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>arbitration_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -533,14 +533,14 @@
 			<spirit:logicalName>GNT_n_in</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>arbitration_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
 				<spirit:direction>in</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -551,10 +551,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -565,10 +565,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -626,7 +626,7 @@
 			<spirit:logicalName>SERR_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>error_reporting_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -641,7 +641,7 @@
 			<spirit:logicalName>SERR_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>error_reporting_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -661,17 +661,17 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>INTA_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -686,7 +686,7 @@
 			<spirit:logicalName>INTA_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -706,17 +706,17 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>INTB_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -731,7 +731,7 @@
 			<spirit:logicalName>INTB_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -751,17 +751,17 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>INTC_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -776,7 +776,7 @@
 			<spirit:logicalName>INTC_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -796,17 +796,17 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>INTD_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -821,7 +821,7 @@
 			<spirit:logicalName>INTD_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>interrupt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -885,7 +885,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -895,7 +895,7 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -906,7 +906,7 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -985,7 +985,7 @@
 			<spirit:logicalName>M66EN_in</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>system_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -1004,10 +1004,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -1018,10 +1018,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 
@@ -1033,17 +1033,17 @@
 				<spirit:direction>in</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
 			<spirit:logicalName>PME_n_out</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>power_mgmt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -1058,7 +1058,7 @@
 			<spirit:logicalName>PME_n_en</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>power_mgmt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -1074,7 +1074,7 @@
 			<spirit:logicalName>Vaux33_in</spirit:logicalName>
 			<spirit:onSystem>
 				<spirit:group>power_mgmt_group</spirit:group>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSystem>
 			<spirit:onMaster>
 				<spirit:bitWidth>1</spirit:bitWidth>
@@ -1093,10 +1093,10 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 		<spirit:signal>
@@ -1107,12 +1107,12 @@
 				<spirit:direction>out</spirit:direction>
 			</spirit:onSystem>
 			<spirit:onMaster>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onMaster>
 			<spirit:onSlave>
-				<spirit:direction>illegal</spirit:direction>
+				<!-- <spirit:direction>illegal</spirit:direction> -->
 			</spirit:onSlave>
 		</spirit:signal>
 	</spirit:signals>
-	
+
 </spirit:busDefinition>
