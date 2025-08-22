@@ -10,11 +10,11 @@ MAKEFILE_DIR  = $(patsubst %/,%,$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 UV:=$(shell uv --version)
 ifdef UV
-        VENV := uv venv
-        PIP  := uv pip
+	VENV := uv venv
+	PIP  := uv pip
 else
-        VENV := python -m venv
-        PIP  := python -m pip
+	VENV := python -m venv
+	PIP  := python -m pip
 endif
 
 run     := uv run
@@ -65,7 +65,15 @@ venv: .venv
 # ----------------------------------------------------------------------------------------------------------------------
 .PHONY: uv-sync
 uv-sync:
-	uv sync
+	uv sync --all-extras
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# uv-sync-upgrade: ## Upgrade all project dependencies
+# ----------------------------------------------------------------------------------------------------------------------
+.PHONY: uv-sync-upgrade
+uv-sync-upgrade:
+	uv sync --all-extras --upgrade
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -74,6 +82,14 @@ uv-sync:
 .PHONY: uv-lock
 uv-lock:
 	uv lock
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# uv-list-outdated: ## List outdated dependencies.
+# ----------------------------------------------------------------------------------------------------------------------
+.PHONY: uv-list-outdated
+uv-list-outdated:
+	uv pip list --outdated
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -96,8 +112,8 @@ uv-lock:
   XSDATA_OPTIONS += --structure-style $(XSDATA_STRUCTURE_STYLE)
 # XSDATA_OPTIONS += --unnest-classes
 
-  # XML_SCHEMAS_ROOT := http://www.accellera.org/XMLSchema
-  XML_SCHEMAS_ROOT := ../submodules/accellera-schemas
+# XML_SCHEMAS_ROOT ?= http://www.accellera.org/XMLSchema
+  XML_SCHEMAS_ROOT ?= ../submodules/accellera-schemas
 
 .PHONY: generate-bindings
 generate-bindings:
@@ -169,3 +185,41 @@ generate-bindings:
 # #         "type": "Attribute",
 
 # 	@uv run ruff format src/org
+
+test:
+	uv run pytest -v tests/test_versions.py
+	uv run pytest -v tests/test_xml.py
+	uv run pytest -v tests/test_xml_validator.py
+#	uv run pytest -v tests/test_xml_transformer.py
+
+
+cli:
+	@echo "========================================================================================================================"
+	@echo "Running the CLI ..."
+	@echo "========================================================================================================================"
+	@uv run -m amal.eda.ipxact_de.cli --help
+
+
+gui:
+	@echo "========================================================================================================================"
+	@echo "Running the GUI App ..."
+	@echo "========================================================================================================================"
+	@uv run -m amal.eda.ipxact_de.gui
+
+
+web:
+	@echo "========================================================================================================================"
+	@echo "Running the WEB App ..."
+	@echo "========================================================================================================================"
+	@uv run -m amal.eda.ipxact_de.web
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# vars: ## Print the vars used in the Makefile
+# ----------------------------------------------------------------------------------------------------------------------
+.PHONY: vars
+vars:
+	@echo -e "$(BOLD)MAKEFILE_DIR$(RESET)     : $(MAKEFILE_DIR)"
+	@echo -e "$(BOLD)VENV$(RESET)             : $(VENV)"
+	@echo -e "$(BOLD)PIP$(RESET)              : $(PIP)"
+	@echo -e "$(BOLD)XML_SCHEMAS_ROOT$(RESET) : $(XML_SCHEMAS_ROOT)"
