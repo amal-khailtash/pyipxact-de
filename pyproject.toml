@@ -20,6 +20,10 @@ dependencies = [
 dev = [
     "pytest>=8.3.3",
     # "toml>=0.10.2",
+    "sphinx>=8.2.3",
+    "sphinx-contributors>=0.2.7",
+    "sphinx-github-changelog>=1.7.1",
+    "sphinx-rtd-theme>=3.0.2",
     "uvicorn>=0.35.0",
 ]
 
