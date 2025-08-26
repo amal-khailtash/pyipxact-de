@@ -1,7 +1,7 @@
 # pyipxact-de - Accellera SPIRIT/IP-XACT DE (Design Environment) and Python Bindings
 
 <p align="center">
-   <img src="https://github.com/amal-khailtash/pyipxact-de/docs/_static/logo-256-256.svg" alt="IP-XACT DE" width="256"/>
+   <img src="https://github.com/amal-khailtash/pyipxact-de/raw/refs/heads/main/docs/_static/logo-256x256.svg" alt="IP-XACT DE" width="256"/>
 </p>
 
 [![github](https://img.shields.io/badge/pyipxact--de-29b6f6.svg?longCache=true&logo=GitHub&labelColor=0277bd)](https://github.com/amal-khailtash/pyipxact-de/)
