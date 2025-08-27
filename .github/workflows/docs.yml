@@ -59,10 +59,13 @@ jobs:
 
       - name: Build Sphinx API and HTML
         shell: bash
+        env:
+          # Use the workflow's GITHUB_TOKEN for GitHub API calls in sphinx-github-changelog
+          SPHINX_GITHUB_CHANGELOG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           source .venv/bin/activate
-          make -C docs api html
+          make -C docs -j"$(nproc)" api html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

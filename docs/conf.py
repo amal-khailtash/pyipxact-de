@@ -3,9 +3,9 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
 import sys
 from pathlib import Path
-
 
 # def _add_src_to_sys_path() -> None:
 #     """Add the repository src/ directory to sys.path for autodoc imports.
@@ -46,10 +46,19 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_contributors',
     'sphinx_github_changelog',
+    # Enable Markdown (MyST) support so we can include README.md
+    'myst_parser',
 ]
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+# Avoid duplicate section labels like "Subpackages" across different documents
+# by prefixing labels with the document path (e.g., api/amal.eda:Subpackages).
+# This resolves warnings such as:
+#   WARNING: duplicate label subpackages, other instance in docs/api/amal.rst
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 2
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -64,6 +73,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 html_theme = 'sphinx_rtd_theme'
 
 html_static_path = ['_static']
+html_css_files = [
+    'css/custom.css',
+]
+html_js_files = [
+    'js/sidebar-resize.js',
+    'js/theme-toggle.js',
+]
 
 
 # -- Extension configuration -------------------------------------------------
@@ -108,6 +124,21 @@ autodoc_default_options: dict[str, bool] = {
 autodoc_typehints: str = "description"  # keep signatures clean
 napoleon_google_docstring: bool = True
 napoleon_numpy_docstring: bool = False
+
+# -- sphinx-github-changelog configuration ---------------------------------
+# Pick up the GitHub token from environment so the changelog can be built
+# both locally and in CI without hardcoding secrets.
+# See: https://pypi.org/project/sphinx-github-changelog/
+sphinx_github_changelog_token: str | None = os.getenv("SPHINX_GITHUB_CHANGELOG_TOKEN")
+
+# -- MyST (Markdown) configuration -----------------------------------------
+# Keep configuration minimal; we only need mdinclude to pull in README.md
+# You can enable more extensions later if needed.
+# Example (commented):
+# myst_enable_extensions = [
+#     "colon_fence",
+#     "deflist",
+# ]
 
 # # Mock optional/heavy imports that may not be present at doc build time.
 # def _compute_autodoc_mock_imports(modules: list[str]) -> list[str]:
