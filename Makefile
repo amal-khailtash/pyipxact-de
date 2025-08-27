@@ -186,10 +186,71 @@ generate-bindings:
 
 # 	@uv run ruff format src/org
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# generate-app: ## Generate FastAPI app
+# ----------------------------------------------------------------------------------------------------------------------
+
+.PHONY: generate-app
+generate-app:
+	mkdri -p .temp/
+	fastapi-codegen \
+		--input <(curl --silent $(XML_SCHEMAS_ROOT)/IPXACT/1685-2022/TGI/TGI.yaml) \
+		--python-version 3.13 \
+		--generate-routers \
+		--output .temp/app \
+		--output-model-type pydantic_v2.BaseModel
+
+#		--specify-tags "TGI" \
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# run-app: ## Run FastAPI app
+# ----------------------------------------------------------------------------------------------------------------------
+.PHONY: run-app
+run-app:
+	uv run uvicorn --host ${HOSTNAME} --app-dir src amal.eda.ipxact_webapp.main:app --reload
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# run-app-gen: ## Run FastAPI app (generated)
+# ----------------------------------------------------------------------------------------------------------------------
+.PHONY: run-app-gen
+run-app-gen:
+	uv run uvicorn --host ${HOSTNAME} --app-dir .temp/app main:app --reload
+
+
+.PHONY: docs
+docs:
+	@make -C docs html
+
+.PHONY: view-docs
+view-docs: docs/_build/html/index.html
+	@xdg-open docs/_build/html/index.html
+
+.PHONY: svg-convert
+svg-convert:
+	@rsvg-convert -w 320 -h 300 -o docs/_static/logo.png        docs/_static/logo.svg
+	@rsvg-convert -w 256 -h  40 -o docs/_static/logo-navbar.png docs/_static/logo-navbar.svg
+
+
+# # Generate PNG icons
+# for s in 128 64 32 16; do
+#   rsvg-convert -w "$s" -h "$s" docs/_static/logo.svg -o "docs/_static/icon-${s}.png"
+# done
+# # Create a multi-resolution favicon.ico
+# magick docs/_static/icon-16.png docs/_static/icon-32.png docs/_static/icon-64.png docs/_static/icon-128.png docs/_static/favicon.ico
+# Multi-size favicon directly from SVG
+# magick -background none -density 1024 docs/_static/logo.svg -define icon:auto-resize=16,32,64,128 docs/_static/favicon.ico
+
+
+
+
 test:
-	uv run pytest -v tests/test_versions.py
-	uv run pytest -v tests/test_xml.py
-	uv run pytest -v tests/test_xml_validator.py
+	uv run pytest -q
+#	uv run pytest -v tests/test_versions.py
+#	uv run pytest -v tests/test_xml.py
+#	uv run pytest -v tests/test_xml_validator.py
 #	uv run pytest -v tests/test_xml_transformer.py
 
 
