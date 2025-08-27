@@ -1,14 +1,14 @@
 name: Docs
 
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'docs/**'
-      - 'src/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/docs.yml'
+  # push:
+  #   branches: [ "main" ]
+  #   paths:
+  #     - 'docs/**'
+  #     - 'src/**'
+  #     - 'pyproject.toml'
+  #     - 'uv.lock'
+  #     - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Sphinx site
+    name: Build Sphinx documentation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
