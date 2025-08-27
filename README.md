@@ -4,16 +4,21 @@
    <img src="https://github.com/amal-khailtash/pyipxact-de/raw/refs/heads/main/docs/_static/logo-256x256.svg" alt="IP-XACT DE" width="256"/>
 </p>
 
+<div align="center">
+
 [![github](https://img.shields.io/badge/pyipxact--de-29b6f6.svg?longCache=true&logo=GitHub&labelColor=0277bd)](https://github.com/amal-khailtash/pyipxact-de/)
-![GitHub forks](https://img.shields.io/github/forks/amal-khailtash/pyipxact-de?longCache=true)
-![GitHub Repo stars](https://img.shields.io/github/stars/amal-khailtash/pyipxact-de?longCache=true)
+![GitHub forks](https://img.shields.io/github/forks/amal-khailtash/pyipxact-de?longCache=true&logoColor=0277bd&labelColor=0277bd)
+![GitHub Repo stars](https://img.shields.io/github/stars/amal-khailtash/pyipxact-de?longCache=true&logoColor=0277bd&labelColor=0277bd)
+![GitHub contributors](https://img.shields.io/github/contributors/amal-khailtash/pyipxact-de)
 [![Commit activity](https://img.shields.io/github/commit-activity/m/amal-khailtash/pyipxact-de)](https://img.shields.io/github/commit-activity/m/amal-khailtash/pyipxact-de)
 
-<!--
-[![Docs](https://img.shields.io/github/deployments/amal-khailtash/pyipxact-de/github-pages?label=docs&logo=github)](https://amal-khailtash.github.io/pyipxact-de/)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/amal-khailtash/pyipxact-de/.github%2Fworkflows%2Fdocs.yml?label=Documentation%20Build%20Status)
 
 [![Documentation](https://img.shields.io/website?longCache=true&label=amal-khailtash.github.io%2Fpyipxact-de&logo=GitHub&logoColor=fff&up_color=blueviolet&up_message=Read%20now%20%E2%9E%9A&url=https%3A%2F%2Famal-khailtash.github.io%2Fpyipxact-de%2Findex.html)](https://amal-khailtash.github.io/pyipxact-de/)
 
+[![Documentation (GitHub deployments)](https://img.shields.io/github/deployments/amal-khailtash/pyipxact-de/github-pages?label=Documentation:%20amal-khailtash.github.io/pyipxact-de&logo=github)](https://amal-khailtash.github.io/pyipxact-de/)
+
+<!--
 ![Read the Docs](https://img.shields.io/readthedocs/pyipxact-de?logo=readthedocs)
 ![Read the Docs (version)](https://img.shields.io/readthedocs/:packageName/:version)
  -->
@@ -48,8 +53,8 @@
 
 ![Codecov](https://img.shields.io/codecov/c/github/amal-khailtash/pyipxact-de?longCache=true&logo=Codecov)
 
-[![Codacy - Quality](https://img.shields.io/codacy/grade/c924eeffd4cc49ed9ebbbe3a89b6fa76?longCache=true&logo=Codecov)](https://app.codacy.com/gh/amal-khailtash/pyipxact-de)
-[![Codacy - Coverage](https://img.shields.io/codacy/coverage/c924eeffd4cc49ed9ebbbe3a89b6fa76?longCache=true&logo=Codecov)](https://app.codacy.com/gh/amal-khailtash/pyipxact-de)
+[![Codacy - Quality](https://img.shields.io/codacy/grade/xxxxxxxxxxxxxxxxxxxxxxxx?longCache=true&logo=Codecov)](https://app.codacy.com/gh/amal-khailtash/pyipxact-de)
+[![Codacy - Coverage](https://img.shields.io/codacy/coverage/xxxxxxxxxxxxxxxxxxxxxxxx?longCache=true&logo=Codecov)](https://app.codacy.com/gh/amal-khailtash/pyipxact-de)
 [![Codecov - Branch Coverage](https://img.shields.io/codecov/c/github/amal-khailtash/pyipxact-de?longCache=true&logo=Codecov)](https://codecov.io/gh/amal-khailtash/pyipxact-de)
 -->
 
@@ -83,6 +88,7 @@
 ---
 [![FastAPI](https://img.shields.io/badge/FastAPI-116.1-009688.svg?logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
 -->
+</div>
 
 
 `pyipxact-de` is a Python-based Design Environment and bindings for Accellera SPIRIT/IP-XACT.  It targets SPIRIT v1.x and IP-XACT 1685-2009/2014/2022, enabling parsing, validation, transformation, and programmatic manipulation of IP-XACT artifacts (components, buses, designs, memory maps).
@@ -96,6 +102,8 @@ Key features:
 See the documentation for detailed guides, examples, and API references.
 
 ## Documentation
+
+Documentation can be found [here](https://amal-khailtash.github.io/pyipxact-de/).
 
 # Installation
 ```bash

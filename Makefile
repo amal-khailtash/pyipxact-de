@@ -222,7 +222,7 @@ run-app-gen:
 
 .PHONY: docs
 docs:
-	@make -C docs html
+	@make -C docs -j $(shell nproc) html
 
 .PHONY: view-docs
 view-docs: docs/_build/html/index.html

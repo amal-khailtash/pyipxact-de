@@ -65,4 +65,8 @@ Accellera IP-XACT DE (Design Environment) documentation
     :width: 40%
     :align: center
 
+
 ``ipxact-de`` is a Python-based Design Environment and bindings for Accellera SPIRIT/IP-XACT.
+
+.. mdinclude:: ../README.md
+   :heading-offset: 1
