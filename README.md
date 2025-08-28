@@ -12,18 +12,17 @@
 ![GitHub contributors](https://img.shields.io/github/contributors/amal-khailtash/pyipxact-de)
 [![Commit activity](https://img.shields.io/github/commit-activity/m/amal-khailtash/pyipxact-de)](https://img.shields.io/github/commit-activity/m/amal-khailtash/pyipxact-de)
 
+<!--
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/amal-khailtash/pyipxact-de/.github%2Fworkflows%2Fdocs.yml?label=Documentation%20Build%20Status)
+ -->
 
-[![Documentation](https://img.shields.io/website?longCache=true&label=amal-khailtash.github.io%2Fpyipxact-de&logo=GitHub&logoColor=fff&up_color=blueviolet&up_message=Read%20now%20%E2%9E%9A&url=https%3A%2F%2Famal-khailtash.github.io%2Fpyipxact-de%2Findex.html)](https://amal-khailtash.github.io/pyipxact-de/)
-
-[![Documentation (GitHub deployments)](https://img.shields.io/github/deployments/amal-khailtash/pyipxact-de/github-pages?label=Documentation:%20amal-khailtash.github.io/pyipxact-de&logo=github)](https://amal-khailtash.github.io/pyipxact-de/)
+[![GitHub - License](https://img.shields.io/github/license/amal-khailtash/pyipxact-de?longCache=true)](LICENSE)
+[![Documentation](https://img.shields.io/website?longCache=true&label=amal-khailtash.github.io%2Fpyipxact-de&logo=GitHub&logoColor=fff&up_color=blueviolet&up_message=Read%20now%20%E2%9E%9A&url=https%3A%2F%2Famal-khailtash.github.io%2Fpyipxact-de%2Findex.html)](https://amal-khailtash.github.io/pyipxact-de/)[![Documentation (GitHub deployments)](https://img.shields.io/github/deployments/amal-khailtash/pyipxact-de/github-pages?label=)](https://amal-khailtash.github.io/pyipxact-de/)
 
 <!--
 ![Read the Docs](https://img.shields.io/readthedocs/pyipxact-de?logo=readthedocs)
 ![Read the Docs (version)](https://img.shields.io/readthedocs/:packageName/:version)
  -->
-
-[![GitHub - License](https://img.shields.io/github/license/amal-khailtash/pyipxact-de?longCache=true)](LICENSE)
 
 <!--
 [![GitHub - License](https://img.shields.io/github/license/amal-khailtash/pyipxact-de?longCache=true&logo=Apache)](LICENSE)
