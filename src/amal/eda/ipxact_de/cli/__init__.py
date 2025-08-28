@@ -40,7 +40,7 @@ class HelpSection:
     priority: int = 100
 
 
-_COMMANDS_ORDER: list[str] = ["identify", "validate", "convert", "standards", "help", "version"]
+_COMMANDS_ORDER: list[str] = ["standards", "identify", "validate", "convert", "help", "version"]
 _ACTION_METADATA: dict[int, tuple[str, int]] = {}
 
 
