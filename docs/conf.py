@@ -7,19 +7,6 @@ import os
 import sys
 from pathlib import Path
 
-# def _add_src_to_sys_path() -> None:
-#     """Add the repository src/ directory to sys.path for autodoc imports.
-
-#     This makes packages under src/ (e.g., amal.utilities, amal.eda.ipxact_de, accellera.*)
-#     importable when Sphinx imports modules for autodoc.
-#     """
-#     src = (Path(__file__).resolve().parents[1] / "src")
-#     src_str = str(src)
-#     if src_str not in sys.path:
-#         sys.path.insert(0, src_str)
-
-# _add_src_to_sys_path()
-
 src = (Path(__file__).resolve().parents[1] / "src")
 sys.path.insert(0, str(src))
 
@@ -52,6 +39,13 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+# Treat broken references strictly to keep docs healthy, but suppress known noisy duplicates
+nitpicky = False  # set True later once docs are clean
+suppress_warnings = [
+    # Autodoc can emit duplicate object descriptions for attributes when both class and members are documented
+    'autodoc.object',
+]
 
 # Avoid duplicate section labels like "Subpackages" across different documents
 # by prefixing labels with the document path (e.g., api/amal.eda:Subpackages).
@@ -115,15 +109,29 @@ html_favicon = '_static/logo.svg'
 # -- autodoc configuration -------------------------------------------------
 
 # Make autodoc more helpful and resilient.
-autodoc_default_options: dict[str, bool] = {
+# Note: values can be bool or str (e.g., for 'member-order' or 'exclude-members'),
+# so keep the type broad enough.
+autodoc_default_options: dict[str, object] = {
     "members": True,
     "undoc-members": True,
     "inherited-members": True,
     "show-inheritance": True,
+    # Exclude auto-generated inner classes that frequently collide across modules
+    # and produce duplicate object description warnings. This keeps the index clean
+    # while preserving primary classes and functions.
+    "exclude-members": (
+        "Meta, Value, Group, TransportMethods, TransportMethod, "
+        "ApiType, AccessType, SubsetOnly, AccessHandles, Bank, BankDefinitionRef, LgiAccessType"
+    ),
 }
 autodoc_typehints: str = "description"  # keep signatures clean
 napoleon_google_docstring: bool = True
 napoleon_numpy_docstring: bool = False
+napoleon_use_ivar: bool = True
+napoleon_use_admonition_for_examples: bool = True
+napoleon_custom_sections: list[tuple[str, str]] = [
+    ("Attributes", "other"),  # render Attributes as plain section to avoid duplicate attribute targets
+]
 
 # -- sphinx-github-changelog configuration ---------------------------------
 # Pick up the GitHub token from environment so the changelog can be built
