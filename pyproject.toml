@@ -8,6 +8,24 @@ authors = [
     { name = "Amal Khailtash", email = "amal.khailtash@gmail.com" }
 ]
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Environment :: X11 Applications :: Qt",
+    "Framework :: FastAPI",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
 dependencies = [
     # "fastapi[standard]>=0.116.1",
     # "click>=8.1.8",
