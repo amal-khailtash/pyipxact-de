@@ -67,13 +67,13 @@ autosectionlabel_maxdepth = 2
 html_theme = 'sphinx_rtd_theme'
 
 html_static_path = ['_static']
-html_css_files = [
-    'css/custom.css',
-]
-html_js_files = [
-    'js/sidebar-resize.js',
-    'js/theme-toggle.js',
-]
+# html_css_files = [
+#     'css/custom.css',
+# ]
+# html_js_files = [
+#     'js/sidebar-resize.js',
+#     'js/theme-toggle.js',
+# ]
 
 
 # -- Extension configuration -------------------------------------------------
@@ -89,11 +89,22 @@ html_theme_options = {
     'style_external_links': False,
     'style_nav_header_background': '#2980B9',
     # Toc options
-    'collapse_navigation': True,
+    # Keep navigation expanded so deep API pages don't cause the sidebar to disappear
+    'collapse_navigation': False,
     'sticky_navigation': True,
-    'navigation_depth': 2,
+    # Show deeper levels so package -> module -> class hierarchies remain in the sidebar
+    'navigation_depth': 4,
     'includehidden': True,
     'titles_only': False,
+}
+
+# Always render a global ToC in the left sidebar so navigation doesn't disappear
+html_sidebars = {
+    "**": [
+        "globaltoc.html",
+        "relations.html",
+        "searchbox.html",
+    ]
 }
 
 html_context = {
@@ -148,30 +159,30 @@ sphinx_github_changelog_token: str | None = os.getenv("SPHINX_GITHUB_CHANGELOG_T
 #     "deflist",
 # ]
 
-# # Mock optional/heavy imports that may not be present at doc build time.
-# def _compute_autodoc_mock_imports(modules: list[str]) -> list[str]:
-#     """Return the subset of modules that are not importable and should be mocked."""
-#     missing: list[str] = []
-#     for mod in modules:
-#         try:
-#             __import__(mod)
-#         except Exception:
-#             missing.append(mod)
-#     return missing
+# Mock optional/heavy imports that may not be present at doc build time.
+def _compute_autodoc_mock_imports(modules: list[str]) -> list[str]:
+    """Return the subset of modules that are not importable and should be mocked."""
+    missing: list[str] = []
+    for mod in modules:
+        try:
+            __import__(mod)
+        except Exception:
+            missing.append(mod)
+    return missing
 
-# # Extend this list as needed if autodoc import warnings appear.
-# _optional_modules: list[str] = [
-#     "PyQt5",
-#     "qtpy",
-#     "qtawesome",
-#     "fastapi",
-#     "pydantic",
-#     "uvicorn",
-#     "starlette",
-#     "anyio",
-#     "sniffio",
-#     "orjson",
-#     "ujson",
-#     "lxml",  # if not installed locally
-# ]
-# autodoc_mock_imports: list[str] = _compute_autodoc_mock_imports(_optional_modules)
+# Extend this list as needed if autodoc import warnings appear.
+_optional_modules: list[str] = [
+    "anyio",
+    "fastapi",
+    "lxml",  # if not installed locally
+    "orjson",
+    "pydantic",
+    "PyQt5",
+    "qtawesome",
+    "qtpy",
+    "sniffio",
+    "starlette",
+    "ujson",
+    "uvicorn",
+]
+autodoc_mock_imports: list[str] = _compute_autodoc_mock_imports(_optional_modules)

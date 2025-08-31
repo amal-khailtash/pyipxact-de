@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           source .venv/bin/activate
-          make -C docs -j"$(nproc)" api html
+          SPHINXOPTS="-j auto" make -C docs -j"$(nproc)" api html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
