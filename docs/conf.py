@@ -3,8 +3,12 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import json
 import os
 import sys
+import tomllib
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 src = (Path(__file__).resolve().parents[1] / "src")
@@ -17,8 +21,72 @@ project = 'Accellera IP-XACT DE (Design Environment)'
 copyright = '©2025, Amal Khailtash'
 author = 'Amal Khailtash'
 # The full version, including alpha/beta/rc tags
-version = "__version__"
-release = "get_pypi_version(project)"
+
+def _read_pyproject_metadata(pyproject_path: Path) -> tuple[str, str]:
+    """Read project name and version from a pyproject.toml file.
+
+    Args:
+        pyproject_path: Absolute path to the repository's pyproject.toml.
+
+    Returns:
+        A tuple of (package_name, version). Empty strings are returned if missing.
+    """
+    try:
+        with pyproject_path.open("rb") as f:
+            data: dict = tomllib.load(f)
+    except Exception:
+        return "", ""
+
+    proj: dict | None = data.get("project") if isinstance(data, dict) else None
+    if not isinstance(proj, dict):
+        return "", ""
+    name: str = str(proj.get("name") or "")
+    ver: str = str(proj.get("version") or "")
+    return name, ver
+
+
+def _get_pypi_version(package_name: str, timeout: float = 2.5) -> str | None:
+    """Return the latest published version for a package on PyPI.
+
+    This uses PyPI's simple JSON API. Network errors or missing packages
+    return None so doc builds remain resilient offline or before first release.
+
+    Args:
+        package_name: The PyPI package name to query.
+        timeout: Timeout in seconds for the HTTP request.
+
+    Returns:
+        The version string if available, otherwise None.
+    """
+    if not package_name:
+        return None
+    url: str = f"https://pypi.org/pypi/{package_name}/json"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            payload: dict = json.load(resp)
+        info: dict | None = payload.get("info") if isinstance(payload, dict) else None
+        ver: str | None = None
+        if isinstance(info, dict):
+            raw = info.get("version")
+            if isinstance(raw, str) and raw.strip():
+                ver = raw.strip()
+        return ver
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError):
+        return None
+    except Exception:
+        # Be conservative: never crash docs for unexpected issues
+        return None
+
+
+# Resolve versions: local (from pyproject) and latest published (from PyPI)
+_repo_root: Path = Path(__file__).resolve().parents[1]
+_pyproject_toml: Path = _repo_root / "pyproject.toml"
+_pkg_name, _local_version = _read_pyproject_metadata(_pyproject_toml)
+
+# Sphinx semantics: "version" is typically the project version, "release" is the full release string.
+# We use the local version for "version" and the latest published PyPI version for "release" when available.
+version = _local_version or "__version__"
+release = _get_pypi_version(_pkg_name) or version
 
 
 # -- General configuration ---------------------------------------------------
