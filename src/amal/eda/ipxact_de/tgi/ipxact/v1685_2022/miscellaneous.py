@@ -535,7 +535,7 @@ def isSetElement(elementID: str) -> bool:  # F.7.60.4
     return resolve_handle(elementID) is not None
 
 
-def registerCatalogVLNVs(vlnvEntries: Iterable[Sequence[str]]) -> list[bool]:  # F.7.60.6
+def registerCatalogVLNVs(vlnvEntries: Iterable[Sequence[str] | str]) -> list[bool]:  # F.7.60.6
     """Register multiple catalog VLNV entries (no roots known yet).
 
     Section: F.7.60.6. Each entry is a 4-tuple; returns success flags.
@@ -552,7 +552,7 @@ def registerCatalogVLNVs(vlnvEntries: Iterable[Sequence[str]]) -> list[bool]:  #
     return results
 
 
-def registerVLNV(elementID: Any, vlnv: Sequence[str]) -> bool:  # F.7.60.7
+def registerVLNV(elementID: Any, vlnv: Sequence[str] | str) -> bool:  # F.7.60.7
     """Register a single VLNV for an element.
 
     Section: F.7.60.7. Accepts either a handle string *or* the object
@@ -676,7 +676,7 @@ def removePartSelectRange(partSelectID: str) -> bool:  # F.7.60.17
     return True
 
 
-def unregisterCatalogVLNVs(vlnvEntries: Iterable[Sequence[str]]) -> list[bool]:  # F.7.60.18
+def unregisterCatalogVLNVs(vlnvEntries: Iterable[Sequence[str] | str]) -> list[bool]:  # F.7.60.18
     """Unregister multiple VLNVs returning success flags.
 
     Section: F.7.60.18.
@@ -690,7 +690,7 @@ def unregisterCatalogVLNVs(vlnvEntries: Iterable[Sequence[str]]) -> list[bool]: 
     return results
 
 
-def unregisterVLNV(vlnv: Sequence[str]) -> bool:  # F.7.60.19
+def unregisterVLNV(vlnv: Sequence[str] | str) -> bool:  # F.7.60.19
     """Unregister a single VLNV mapping.
 
     Section: F.7.60.19.

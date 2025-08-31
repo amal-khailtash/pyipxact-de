@@ -164,8 +164,31 @@ def detach_child_by_handle(child_handle: str) -> bool:  # pragma: no cover - thi
 VLNV = tuple[str, str, str, str]
 
 
-def vlnv_to_tuple(vlnv_like: Sequence[str]) -> VLNV:
-    """Normalize sequence to a VLNV tuple."""
+def vlnv_to_tuple(vlnv_like: Sequence[str] | str) -> VLNV:
+    """Normalize input to a 4-item VLNV tuple.
+
+    Accepts either:
+    - A sequence of four strings: (vendor, library, name, version)
+    - A single string delimited by ';' or ':' (e.g. "vendor;library;name;version"
+      or "vendor:library:name:version")
+
+    Raises:
+        TgiError: If the input cannot be parsed as exactly four parts.
+    """
+    # String form: try ';' first, then ':' as a fallback
+    if isinstance(vlnv_like, str):
+        s = vlnv_like.strip()
+        parts = [p.strip() for p in s.split(";")]
+        if len(parts) != 4:
+            parts = [p.strip() for p in s.split(":")]
+        if len(parts) != 4:
+            raise TgiError(
+                "VLNV must be vendor, library, name, version",
+                TgiFaultCode.INVALID_ARGUMENT,
+            )
+        return tuple(parts)  # type: ignore[return-value]
+
+    # Sequence form
     if len(vlnv_like) != 4:
         raise TgiError("VLNV must be vendor, library, name, version", TgiFaultCode.INVALID_ARGUMENT)
     return tuple(vlnv_like)  # type: ignore[return-value]
@@ -192,7 +215,7 @@ class VlnvRegistry:
     def register(
         self,
         element: Any,
-        vlnv_like: Sequence[str],
+        vlnv_like: Sequence[str] | str,
         file_name: str | None = None,
         replace: bool = False,
     ) -> bool:
@@ -200,7 +223,8 @@ class VlnvRegistry:
 
         Args:
             element: Root model object.
-            vlnv_like: Sequence of (vendor, library, name, version).
+            vlnv_like: VLNV as a sequence of (vendor, library, name, version)
+                or a single string delimited by ';' or ':'.
             file_name: Optional file name the object originated from.
             replace: If True, replace existing entry silently.
 
@@ -218,7 +242,7 @@ class VlnvRegistry:
             self._by_handle[handle] = entry
             return True
 
-    def unregister(self, vlnv_like: Sequence[str]) -> bool:
+    def unregister(self, vlnv_like: Sequence[str] | str) -> bool:
         """Remove an existing VLNV mapping.
 
         Args:
@@ -235,7 +259,7 @@ class VlnvRegistry:
             self._by_handle.pop(get_handle(entry.root), None)
             return True
 
-    def get_id(self, vlnv_like: Sequence[str]) -> str | None:
+    def get_id(self, vlnv_like: Sequence[str] | str) -> str | None:
         """Return handle for VLNV if registered else ``None``."""
         vlnv = vlnv_to_tuple(vlnv_like)
         entry = self._by_vlnv.get(vlnv)
