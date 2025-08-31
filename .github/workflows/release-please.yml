@@ -1,31 +1,20 @@
-name: Release Please
+name: 1. Open Release PR (manual)
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-    inputs:
-      release_as:
-        description: 'Force release version (e.g., 0.2.0). Leave empty to auto-calc from commits.'
-        type: string
-        required: false
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  release-please:
+  open-release-pr:
     runs-on: ubuntu-latest
     steps:
-      - name: Release Please
-        id: release
+      - name: Open/Update Release PR
         uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: python
-      - name: Echo created tag
-        if: ${{ steps.release.outputs.release_created == 'true' }}
-        run: |
-          echo "Release created: ${{ steps.release.outputs.tag_name }}"
+          skip-github-release: true
+
