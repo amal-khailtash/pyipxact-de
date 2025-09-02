@@ -20,16 +20,16 @@ Design choices:
     available the fragment is parsed and the element stored; otherwise a
     fallback simple object capturing tag/text/attributes is produced.
 """
-from types import SimpleNamespace  # ruff: noqa: I001
-from xml.etree import ElementTree as ET  # ruff: noqa: I001
-from typing import Any  # ruff: noqa: I001
+from types import SimpleNamespace
+from typing import Any
+from xml.etree import ElementTree as ET
 
 from .core import (
     TgiError,
     TgiFaultCode,
-    resolve_handle,
     get_handle,
     register_parent,
+    resolve_handle,
 )
 
 __all__: list[str] = [

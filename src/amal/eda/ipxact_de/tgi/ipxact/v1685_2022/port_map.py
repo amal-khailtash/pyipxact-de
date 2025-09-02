@@ -13,7 +13,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, cast
 
-from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes as _ATModule, Range
+from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes as _ATModule
+from org.accellera.ipxact.v1685_2022.abstraction_types import Range
 from org.accellera.ipxact.v1685_2022.left import Left
 from org.accellera.ipxact.v1685_2022.part_select import PartSelect
 from org.accellera.ipxact.v1685_2022.right import Right

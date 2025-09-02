@@ -9,7 +9,7 @@ fault signaling. EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ID`` for unknown handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 """
-from types import SimpleNamespace  # ruff: noqa: I001
+from types import SimpleNamespace
 from typing import Any, cast
 
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
@@ -17,10 +17,10 @@ from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 from .core import (
     TgiError,
     TgiFaultCode,
-    get_handle,
-    resolve_handle,
-    register_parent,
     detach_child_by_handle,
+    get_handle,
+    register_parent,
+    resolve_handle,
 )
 
 __all__ = [

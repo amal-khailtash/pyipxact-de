@@ -23,7 +23,7 @@ from typing import Any
 from org.accellera.ipxact.v1685_2022.executable_image import ExecutableImage
 from org.accellera.ipxact.v1685_2022.linker_command_file import LinkerCommandFile
 
-from .core import TgiError, TgiFaultCode, resolve_handle, get_handle, register_parent, detach_child_by_handle
+from .core import TgiError, TgiFaultCode, detach_child_by_handle, get_handle, register_parent, resolve_handle
 
 __all__ = [
     # BASE (F.7.45.x)
