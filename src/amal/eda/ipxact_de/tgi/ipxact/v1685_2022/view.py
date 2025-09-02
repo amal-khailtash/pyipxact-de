@@ -19,10 +19,10 @@ Notes / assumptions:
   ``TgiFaultCode.INVALID_ID`` (unknown handle) or
   ``TgiFaultCode.INVALID_ARGUMENT`` (semantic issues).
 """
-from typing import Any  # ruff: noqa: I001
-from types import SimpleNamespace  # ruff: noqa: I001
+from types import SimpleNamespace
+from typing import Any
 
-from .core import (  # ruff: noqa: I001
+from .core import (
     TgiError,
     TgiFaultCode,
     detach_child_by_handle,

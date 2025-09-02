@@ -22,7 +22,7 @@ from .core import (
     get_handle,
     register_parent,
     resolve_handle,
-)  # noqa: WPS347
+)
 
 __all__ = [
     # BASE (F.7.19)

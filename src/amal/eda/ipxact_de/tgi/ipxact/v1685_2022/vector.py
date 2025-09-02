@@ -14,7 +14,7 @@ Design notes:
 * Some schema objects embed a nested object (e.g. ``vector``) containing
   ``left`` and ``right``; we transparently descend if necessary.
 """
-from types import SimpleNamespace  # ruff: noqa: I001
+from types import SimpleNamespace
 from typing import Any
 
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
