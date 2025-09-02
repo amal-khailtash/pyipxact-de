@@ -96,7 +96,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.autodoc',
     'sphinx.ext.githubpages',
-    'sphinx.ext.autosectionlabel',
+    # 'sphinx.ext.autosectionlabel',
     'sphinx_rtd_theme',
     'sphinx.ext.napoleon',
     'sphinx_contributors',
@@ -135,9 +135,9 @@ autosectionlabel_maxdepth = 2
 html_theme = 'sphinx_rtd_theme'
 
 html_static_path = ['_static']
-# html_css_files = [
-#     'css/custom.css',
-# ]
+html_css_files = [
+    'css/custom.css',
+]
 # html_js_files = [
 #     'js/sidebar-resize.js',
 #     'js/theme-toggle.js',
@@ -222,9 +222,10 @@ sphinx_github_changelog_token: str | None = os.getenv("SPHINX_GITHUB_CHANGELOG_T
 # Keep configuration minimal; we only need mdinclude to pull in README.md
 # You can enable more extensions later if needed.
 # Example (commented):
-# myst_enable_extensions = [
-#     "colon_fence",
-#     "deflist",
+# myst_enable_extensions: list[str] = [
+#     "footnote",
+#     # "colon_fence",
+#     # "deflist",
 # ]
 
 # Mock optional/heavy imports that may not be present at doc build time.

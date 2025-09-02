@@ -54,16 +54,19 @@
 ..   api/org
 
 
-Accellera IP-XACT DE (Design Environment) documentation
-=======================================================
+.. Accellera IP-XACT DE (Design Environment) documentation
+.. =======================================================
 
-.. image:: _static/logo-256x256.png
-    :width: 40%
-    :align: center
+.. .. image:: _static/logo-256x256.png
+..     :width: 40%
+..     :align: center
 
 
-``ipxact-de`` is a Python-based Design Environment and bindings for Accellera SPIRIT/IP-XACT.
+.. ``ipxact-de`` is a Python-based Design Environment and bindings for Accellera SPIRIT/IP-XACT.
 
 .. .. mdinclude:: ../README.md
 .. .. include:: ../README.md
 ..    :heading-offset: 1
+
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_

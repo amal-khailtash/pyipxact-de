@@ -116,6 +116,23 @@
   border-color: var(--border) !important;
 }
 
+
+/* --- Width tweaks: widen main content area for RTD theme --- */
+.wy-nav-content {
+  max-width: 1200px; /* default is ~800px; widen for readability */
+}
+
+@media screen and (min-width: 1400px) {
+  .wy-nav-content {
+    max-width: 1400px;
+  }
+}
+
+/* Prevent overflow on small screens */
+.rst-content .highlight, .rst-content pre {
+  overflow-x: auto;
+}
+
 :root[data-theme='dark'] .admonition,
 :root[data-theme='dark'] .note,
 :root[data-theme='dark'] .warning,

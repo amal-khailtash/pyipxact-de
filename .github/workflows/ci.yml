@@ -1,4 +1,4 @@
-name: 0. CI (auto on PR and merges)
+name: 0. CI (auto on PR & merges)
 
 on:
   pull_request:
