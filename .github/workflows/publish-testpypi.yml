@@ -1,4 +1,4 @@
-name: 3. Publish to TestPyPI (manual)
+name: 1. Publish to TestPyPI (manual)
 
 on:
   workflow_dispatch:
@@ -35,6 +35,15 @@ jobs:
           # Build sdist and wheel using hatchling via uv
           uv build
           ls -l dist
+
+      - name: Validate CHANGELOG Unreleased section is present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -qE "^## \[Unreleased\]$" CHANGELOG.md; then
+            echo "CHANGELOG.md is missing the Unreleased section." >&2
+            exit 1
+          fi
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1

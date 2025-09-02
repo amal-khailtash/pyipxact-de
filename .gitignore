@@ -169,3 +169,12 @@ cython_debug/
 # Others
 .temp/
 .vscode/cache/
+
+# TEMPORARY
+.github/instructions/
+.ipxact-de-cache.json
+.pre-commit-config.yaml
+RELEASING.md
+scripts/
+src/amal/eda/ipxact_de/gui
+src/amal/eda/ipxact_de/web

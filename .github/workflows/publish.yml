@@ -46,6 +46,17 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate CHANGELOG contains current version section
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${{ steps.v.outputs.version }}"
+          if ! grep -qE "^## \[${VER}\] - " CHANGELOG.md; then
+            echo "CHANGELOG.md is missing section for ${VER}." >&2
+            echo "Please finalize the changelog (scripts/changelog.py finalize --version ${VER}) before releasing." >&2
+            exit 1
+          fi
+
       - name: Create GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v2
         with:
