@@ -201,6 +201,7 @@ class RegisteredElement:
     vlnv: VLNV
     root: Any
     file_name: str | None = None
+    element_type: str | None = None
 
 
 class VlnvRegistry:
@@ -212,12 +213,26 @@ class VlnvRegistry:
         self._by_vlnv: dict[VLNV, RegisteredElement] = {}
         self._by_handle: dict[str, RegisteredElement] = {}
 
+    def clear(self) -> None:
+        """Clear all registry entries.
+
+        This resets both VLNV and handle indices. Handles for previously
+        registered objects remain valid for direct object resolution via the
+        handle manager, but they will no longer have administrative VLNV
+        associations.
+        """
+        with self._lock:
+            self._by_vlnv.clear()
+            self._by_handle.clear()
+
     def register(
         self,
         element: Any,
         vlnv_like: Sequence[str] | str,
         file_name: str | None = None,
         replace: bool = False,
+    *,
+    element_type: str | None = None,
     ) -> bool:
         """Register (or optionally replace) the VLNV mapping for an element.
 
@@ -237,7 +252,9 @@ class VlnvRegistry:
             exists = vlnv in self._by_vlnv
             if exists and not replace:
                 raise TgiError("VLNV already registered", TgiFaultCode.ALREADY_EXISTS)
-            entry = RegisteredElement(vlnv=vlnv, root=element, file_name=file_name)
+            entry = RegisteredElement(
+                vlnv=vlnv, root=element, file_name=file_name, element_type=element_type
+            )
             self._by_vlnv[vlnv] = entry
             self._by_handle[handle] = entry
             return True
@@ -269,6 +286,18 @@ class VlnvRegistry:
         """Return VLNV tuple for a registered handle else ``None``."""
         entry = self._by_handle.get(handle)
         return entry.vlnv if entry else None
+
+    def get_element_type(self, handle: str) -> str | None:
+        """Return the element type name for a registered handle.
+
+        Args:
+            handle: Registered element handle.
+
+        Returns:
+            Type name such as "Component" or "Catalog", if available.
+        """
+        entry = self._by_handle.get(handle)
+        return entry.element_type if entry else None
 
     def iter_by_predicate(self, predicate) -> Iterable[str]:  # predicate(root) -> bool
         """Yield handles whose root object satisfies ``predicate``.
