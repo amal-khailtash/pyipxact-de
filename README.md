@@ -149,6 +149,18 @@ src/
 │   │       │       └── v1685_2022
 │   │       └── web
 │   └── utilities
+├── amal
+│   ├── eda
+│   │   └── ipxact_de
+│   │       ├── cli
+│   │       ├── gui
+│   │       │   └── ui
+│   │       │       └── icons
+│   │       ├── tgi
+│   │       │   └── ipxact
+│   │       │       └── v1685_2022
+│   │       └── web
+│   └── utilities
 └── org
     └── accellera
         ├── ipxact

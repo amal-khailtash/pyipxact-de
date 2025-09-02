@@ -29,7 +29,7 @@ from org.accellera.ipxact.v1685_2022.field_map import FieldMap
 from org.accellera.ipxact.v1685_2022.part_select import PartSelect
 from org.accellera.ipxact.v1685_2022.sub_port_reference import SubPortReference
 
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent
+from .core import TgiError, TgiFaultCode, get_handle, register_parent, resolve_handle
 
 __all__ = [
     # BASE (F.7.67)

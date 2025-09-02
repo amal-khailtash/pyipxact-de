@@ -3,7 +3,7 @@
 Implements BASE (F.7.83) and EXTENDED (F.7.84) vector functions. A *vector*
 is any element with left/right sub-elements representing integer or
 expression endpoints. The spec defines an API that allows traversal of
-vector endpoints and mutation (setting / removing ends) in EXTENDED mode.
+vector endpoints and mutation (setting/ removing ends) in EXTENDED mode.
 
 Design notes:
 * BASE getters are tolerant: invalid handles yield neutral values (``None``
@@ -14,7 +14,7 @@ Design notes:
 * Some schema objects embed a nested object (e.g. ``vector``) containing
   ``left`` and ``right``; we transparently descend if necessary.
 """
-from types import SimpleNamespace  # ruff: noqa: I001
+from types import SimpleNamespace
 from typing import Any
 
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle

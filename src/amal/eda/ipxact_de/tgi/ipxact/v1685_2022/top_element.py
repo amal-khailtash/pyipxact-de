@@ -34,10 +34,10 @@ from org.accellera.ipxact.v1685_2022 import (
 from .core import (
     TgiError,
     TgiFaultCode,
-    resolve_handle,
     get_handle,
     register_parent,
     registry,
+    resolve_handle,
 )
 
 __all__ = [
