@@ -41,10 +41,10 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitE
 from .core import (
     TgiError,
     TgiFaultCode,
-    get_handle,
-    resolve_handle,
-    register_parent,
     detach_child_by_handle,
+    get_handle,
+    register_parent,
+    resolve_handle,
 )
 
 __all__ = [
