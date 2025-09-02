@@ -1,4 +1,4 @@
-name: 3. Publish to TestPyPI (manual)
+name: 1. Publish to TestPyPI (manual)
 
 on:
   workflow_dispatch:
