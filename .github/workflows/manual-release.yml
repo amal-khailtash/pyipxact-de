@@ -104,6 +104,15 @@ jobs:
             echo "tag=$TAG"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Advisory - Unreleased section check
+        if: ${{ github.event.inputs.bump != 'release-as' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -qE "^## \[Unreleased\]$" CHANGELOG.md; then
+            echo "::warning::CHANGELOG.md does not contain an Unreleased section. You may want to prepare notes before finalizing releases."
+          fi
+
       - name: Open pull request and label it
         uses: actions/github-script@v7
         with:
