@@ -4,23 +4,22 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: https://keepachangelog.com
 - Semantic Versioning: https://semver.org
 
-<!-- Template Release
 ## [Unreleased]
-### Added:
-### Changed:
-### Deprecated:
-### Removed:
-### Fixed:
-### Security:
-### Docs:
-### Build/CI:
-- No changes recorded since the last release.
--->
 
-## [Unreleased]
+
+## [0.2.0] - 2025-09-01
+
+### Added
+- enhance documentation configuration and update project classifiers (bfb3f16)
 
 ### Changed
-- Commented out "illegal" signal directions in XML files to avoid schema violations.
+- commented out "illegal" signal directions in XML files to avoid schema violations.
+
+### Build/CI:
+- validation for `CHANGELOG.md` Unreleased section in manual release workflows (fba4a99)
+- update workflow names for consistency and remove obsolete workflows (99f193d)
+- update CI workflow name for consistency, enhance README with project badges, and improve documentation styling (0e7abfc)
+
 
 ## [0.1.0] - 2024-12-01
 
@@ -43,6 +42,7 @@ This document lists notable changes for each release and follows:
 ### Docs
 - Updated text. (95ae72c)
 
+
 ## [0.0.0] - 2016-11-15
 
 ### Added
@@ -50,7 +50,8 @@ This document lists notable changes for each release and follows:
 - Generated bindings snapshot.
 
 
-[Unreleased]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/amal-khailtash/pyipxact-de/releases/tag/v0.1.0
 [0.0.0]: https://github.com/amal-khailtash/pyipxact-de/tree/b55e147
 
