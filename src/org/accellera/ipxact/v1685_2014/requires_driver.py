@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2014.requires_driver_driver_type import (
@@ -7,14 +9,15 @@ from org.accellera.ipxact.v1685_2014.requires_driver_driver_type import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RequiresDriver:
-    """Specifies if a port requires a driver.
+    """
+    Specifies if a port requires a driver.
 
     Default is false. The attribute driverType can further qualify what
     type of driver is required. Undefined behaviour if direction is not
-    input or inout. Driver type any indicates that any unspecified type
-    of driver must be connected
+    input or inout. Driver type any indicates that any unspecified type of
+    driver must be connected.
 
     :ivar value:
     :ivar driver_type: Defines the type of driver that is required. The
@@ -26,12 +29,7 @@ class RequiresDriver:
         name = "requiresDriver"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    value: bool = field(
-        default=False,
-        metadata={
-            "required": True,
-        },
-    )
+    value: bool = field(default=False)
     driver_type: RequiresDriverDriverType = field(
         default=RequiresDriverDriverType.ANY,
         metadata={

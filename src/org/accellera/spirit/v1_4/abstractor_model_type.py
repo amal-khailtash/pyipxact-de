@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.abstractor_port_type import AbstractorPortType
 from org.accellera.spirit.v1_4.abstractor_view_type import AbstractorViewType
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_4.name_value_type_type import NameValueTypeType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorModelType:
     """
     Model information for an abstractor.
@@ -22,21 +23,21 @@ class AbstractorModelType:
     class Meta:
         name = "abstractorModelType"
 
-    views: Optional["AbstractorModelType.Views"] = field(
+    views: None | AbstractorModelType.Views = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    ports: Optional["AbstractorModelType.Ports"] = field(
+    ports: None | AbstractorModelType.Ports = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    model_parameters: Optional["AbstractorModelType.ModelParameters"] = field(
+    model_parameters: None | AbstractorModelType.ModelParameters = field(
         default=None,
         metadata={
             "name": "modelParameters",
@@ -45,13 +46,13 @@ class AbstractorModelType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
         """
         :ivar view: Single view of an abstractor
         """
 
-        view: Iterable[AbstractorViewType] = field(
+        view: Sequence[AbstractorViewType] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -59,9 +60,9 @@ class AbstractorModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Ports:
-        port: Iterable[AbstractorPortType] = field(
+        port: Sequence[AbstractorPortType] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -69,7 +70,7 @@ class AbstractorModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModelParameters:
         """
         :ivar model_parameter: A model parameter name value pair. The
@@ -81,7 +82,7 @@ class AbstractorModelType:
             model parameter is to be used.
         """
 
-        model_parameter: Iterable[NameValueTypeType] = field(
+        model_parameter: Sequence[NameValueTypeType] = field(
             default_factory=list,
             metadata={
                 "name": "modelParameter",

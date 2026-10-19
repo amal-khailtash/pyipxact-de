@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.delay_value_unit_type import (
     DelayValueUnitType,
@@ -12,7 +13,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ClockDriverType:
     """
     :ivar clock_period: Clock period in units defined by the units
@@ -28,45 +29,35 @@ class ClockDriverType:
     class Meta:
         name = "clockDriverType"
 
-    clock_period: Optional["ClockDriverType.ClockPeriod"] = field(
-        default=None,
+    clock_period: ClockDriverType.ClockPeriod = field(
         metadata={
             "name": "clockPeriod",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    clock_pulse_offset: Optional["ClockDriverType.ClockPulseOffset"] = field(
-        default=None,
+    clock_pulse_offset: ClockDriverType.ClockPulseOffset = field(
         metadata={
             "name": "clockPulseOffset",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    clock_pulse_value: Optional[UnsignedBitExpression] = field(
-        default=None,
+    clock_pulse_value: UnsignedBitExpression = field(
         metadata={
             "name": "clockPulseValue",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    clock_pulse_duration: Optional["ClockDriverType.ClockPulseDuration"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "clockPulseDuration",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
-        )
+    clock_pulse_duration: ClockDriverType.ClockPulseDuration = field(
+        metadata={
+            "name": "clockPulseDuration",
+            "type": "Element",
+            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -74,7 +65,7 @@ class ClockDriverType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPeriod(RealExpression):
         units: DelayValueUnitType = field(
             default=DelayValueUnitType.NS,
@@ -83,7 +74,7 @@ class ClockDriverType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPulseOffset(RealExpression):
         units: DelayValueUnitType = field(
             default=DelayValueUnitType.NS,
@@ -92,7 +83,7 @@ class ClockDriverType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPulseDuration(RealExpression):
         units: DelayValueUnitType = field(
             default=DelayValueUnitType.NS,

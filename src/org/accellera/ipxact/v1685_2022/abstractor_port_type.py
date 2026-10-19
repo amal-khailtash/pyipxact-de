@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.abstractor_port_transactional_type import (
     AbstractorPortTransactionalType,
@@ -21,19 +22,17 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorPortType:
     """
-    A port description, giving a name and an access type for high level ports.
+    A port description, giving a name and an access type for high level
+    ports.
 
     :ivar name: Unique name
     :ivar display_name:
     :ivar short_description:
     :ivar description:
-    :ivar wire: Defines a port whose type resolves to simple bits.
-    :ivar transactional: Defines a port that implements or uses a
-        service that can be implemented with functions or methods.
-    :ivar structured: Represents a port that has subport structure.
+    :ivar wire_or_transactional_or_structured:
     :ivar arrays:
     :ivar access: Port access characteristics.
     :ivar parameters:
@@ -44,17 +43,15 @@ class AbstractorPortType:
     class Meta:
         name = "abstractorPortType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
             "white_space": "collapse",
             "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -62,7 +59,7 @@ class AbstractorPortType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -70,56 +67,63 @@ class AbstractorPortType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    wire: Optional[AbstractorPortWireType] = field(
+    wire_or_transactional_or_structured: (
+        None
+        | AbstractorPortWireType
+        | AbstractorPortTransactionalType
+        | AbstractorPortStructuredType
+    ) = field(
+        default=None,
+        metadata={
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "wire",
+                    "type": AbstractorPortWireType,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "transactional",
+                    "type": AbstractorPortTransactionalType,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "structured",
+                    "type": AbstractorPortStructuredType,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+            ),
+        },
+    )
+    arrays: None | Arrays = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    transactional: Optional[AbstractorPortTransactionalType] = field(
+    access: None | PortAccessType1 = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    structured: Optional[AbstractorPortStructuredType] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    arrays: Optional[Arrays] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    access: Optional[PortAccessType1] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    parameters: Optional[Parameters] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -127,7 +131,7 @@ class AbstractorPortType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

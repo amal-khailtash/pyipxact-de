@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.payload import Payload
 from org.accellera.ipxact.v1685_2022.protocol_type_type import ProtocolTypeType
@@ -7,41 +8,35 @@ from org.accellera.ipxact.v1685_2022.protocol_type_type import ProtocolTypeType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Protocol:
-    """Defines the protocol type.
+    """
+    defines the protocol type.
 
-    Defaults to tlm_base_protocol_type for TLM sockets
+    Defaults to tlm_base_protocol_type for TLM sockets.
     """
 
     class Meta:
         name = "protocol"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    protocol_type: Optional["Protocol.ProtocolType"] = field(
-        default=None,
+    protocol_type: Protocol.ProtocolType = field(
         metadata={
             "name": "protocolType",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    payload: Optional[Payload] = field(
+    payload: None | Payload = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ProtocolType:
-        value: Optional[ProtocolTypeType] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
-        custom: Optional[str] = field(
+        value: ProtocolTypeType = field()
+        custom: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

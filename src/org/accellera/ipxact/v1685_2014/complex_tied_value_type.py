@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Optional, Union
 
 from org.accellera.ipxact.v1685_2014.simple_tied_value_type_value import (
     SimpleTiedValueTypeValue,
@@ -9,10 +10,11 @@ from org.accellera.ipxact.v1685_2014.simple_tied_value_type_value import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComplexTiedValueType:
-    """An unsigned longint expression that resolves to the value set {0, 1, ...} or
-    open or default.
+    """
+    An unsigned longint expression that resolves to the value set {0, 1,
+    ...} or open or default.
 
     It is derived from longintExpression and it supports an expression
     value.
@@ -30,7 +32,7 @@ class ComplexTiedValueType:
     class Meta:
         name = "complexTiedValueType"
 
-    value: Union[str, SimpleTiedValueTypeValue] = field(
+    value: str | SimpleTiedValueTypeValue = field(
         default="",
         metadata={
             "white_space": "collapse",
@@ -43,13 +45,13 @@ class ComplexTiedValueType:
             "namespace": "##other",
         },
     )
-    minimum: Optional[int] = field(
+    minimum: None | int = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    maximum: Optional[int] = field(
+    maximum: None | int = field(
         default=None,
         metadata={
             "type": "Attribute",

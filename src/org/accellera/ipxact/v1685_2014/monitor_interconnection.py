@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.description import Description
 from org.accellera.ipxact.v1685_2014.display_name import DisplayName
@@ -12,10 +13,11 @@ from org.accellera.ipxact.v1685_2014.monitor_interface_type import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MonitorInterconnection:
-    """Describes a connection from the interface of one component to any number of
-    monitor interfaces in the design.
+    """
+    Describes a connection from the interface of one component to any
+    number of monitor interfaces in the design.
 
     An active interface can be connected to unlimited number of monitor
     interfaces.
@@ -40,42 +42,38 @@ class MonitorInterconnection:
         name = "monitorInterconnection"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
             "type": "Element",
         },
     )
-    monitored_active_interface: Optional[MonitorInterfaceType] = field(
-        default=None,
+    monitored_active_interface: MonitorInterfaceType = field(
         metadata={
             "name": "monitoredActiveInterface",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    monitor_interface: Iterable["MonitorInterconnection.MonitorInterface"] = (
+    monitor_interface: Sequence[MonitorInterconnection.MonitorInterface] = (
         field(
             default_factory=list,
             metadata={
@@ -86,9 +84,9 @@ class MonitorInterconnection:
         )
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MonitorInterface(MonitorInterfaceType):
-        is_present: Optional[IsPresent] = field(
+        is_present: None | IsPresent = field(
             default=None,
             metadata={
                 "name": "isPresent",

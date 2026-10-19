@@ -1,10 +1,12 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class VendorExtensions:
     """
     Container for vendor specific extensions.
@@ -17,7 +19,7 @@ class VendorExtensions:
         name = "vendorExtensions"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    any_element: Iterable[object] = field(
+    any_element: Sequence[object] = field(
         default_factory=list,
         metadata={
             "type": "Wildcard",

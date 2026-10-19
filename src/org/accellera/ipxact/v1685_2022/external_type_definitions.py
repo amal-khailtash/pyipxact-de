@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import (
     ConfigurableLibraryRefType,
@@ -15,7 +16,7 @@ from org.accellera.ipxact.v1685_2022.view_links import ViewLinks
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ExternalTypeDefinitions:
     """
     :ivar name: Unique name
@@ -36,70 +37,66 @@ class ExternalTypeDefinitions:
         name = "externalTypeDefinitions"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    type_definitions_ref: Optional[ConfigurableLibraryRefType] = field(
-        default=None,
+    type_definitions_ref: ConfigurableLibraryRefType = field(
         metadata={
             "name": "typeDefinitionsRef",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    view_links: Optional[ViewLinks] = field(
+    view_links: None | ViewLinks = field(
         default=None,
         metadata={
             "name": "viewLinks",
             "type": "Element",
         },
     )
-    mode_links: Optional[ModeLinks] = field(
+    mode_links: None | ModeLinks = field(
         default=None,
         metadata={
             "name": "modeLinks",
             "type": "Element",
         },
     )
-    reset_type_links: Optional[ResetTypeLinks] = field(
+    reset_type_links: None | ResetTypeLinks = field(
         default=None,
         metadata={
             "name": "resetTypeLinks",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

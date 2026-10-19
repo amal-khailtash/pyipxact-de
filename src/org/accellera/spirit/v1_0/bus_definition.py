@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.spirit.v1_0.choices import Choices
 from org.accellera.spirit.v1_0.default_value_strength import (
@@ -16,7 +18,7 @@ from org.accellera.spirit.v1_0.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BusDefinition:
     """
     Defines the signals and high-level function of a bus.
@@ -51,75 +53,65 @@ class BusDefinition:
         name = "busDefinition"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    direct_connection: Optional[bool] = field(
+    direct_connection: None | bool = field(
         default=None,
         metadata={
             "name": "directConnection",
             "type": "Element",
         },
     )
-    extends: Optional[LibraryRefType] = field(
+    extends: None | LibraryRefType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    max_masters: Optional[int] = field(
+    max_masters: None | int = field(
         default=None,
         metadata={
             "name": "maxMasters",
             "type": "Element",
         },
     )
-    max_slaves: Optional[int] = field(
+    max_slaves: None | int = field(
         default=None,
         metadata={
             "name": "maxSlaves",
             "type": "Element",
         },
     )
-    signals: Optional["BusDefinition.Signals"] = field(
+    signals: BusDefinition.Signals = field(
+        metadata={
+            "type": "Element",
+        }
+    )
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
-            "required": True,
         },
     )
-    choices: Optional[Choices] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -127,9 +119,9 @@ class BusDefinition:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Signals:
-        signal: Iterable["BusDefinition.Signals.Signal"] = field(
+        signal: Sequence[BusDefinition.Signals.Signal] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -137,19 +129,12 @@ class BusDefinition:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Signal:
             """
             :ivar logical_name: The assigned name of this signal in bus
                 specifications.
-            :ivar is_address: If this element is present, the signal
-                contains address information.
-            :ivar is_data: If this element is present, the signal
-                contains data information.
-            :ivar is_clock: If this element is present, the signal
-                contains clock information.
-            :ivar is_reset: Is this element is present, the signal
-                contains reset information.
+            :ivar choice:
             :ivar requires_driver:
             :ivar on_system: Defines constraints for this signal when
                 present in a system bus interface with a matching group
@@ -166,84 +151,88 @@ class BusDefinition:
             :ivar vendor_extensions:
             """
 
-            logical_name: Optional[str] = field(
-                default=None,
+            logical_name: str = field(
                 metadata={
                     "name": "logicalName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            is_address: Optional[bool] = field(
+            choice: (
+                None
+                | BusDefinition.Signals.Signal.IsAddress
+                | BusDefinition.Signals.Signal.IsData
+                | BusDefinition.Signals.Signal.IsClock
+                | BusDefinition.Signals.Signal.IsReset
+            ) = field(
                 default=None,
                 metadata={
-                    "name": "isAddress",
-                    "type": "Element",
+                    "type": "Elements",
+                    "choices": (
+                        {
+                            "name": "isAddress",
+                            "type": ForwardRef(
+                                "BusDefinition.Signals.Signal.IsAddress"
+                            ),
+                        },
+                        {
+                            "name": "isData",
+                            "type": ForwardRef(
+                                "BusDefinition.Signals.Signal.IsData"
+                            ),
+                        },
+                        {
+                            "name": "isClock",
+                            "type": ForwardRef(
+                                "BusDefinition.Signals.Signal.IsClock"
+                            ),
+                        },
+                        {
+                            "name": "isReset",
+                            "type": ForwardRef(
+                                "BusDefinition.Signals.Signal.IsReset"
+                            ),
+                        },
+                    ),
                 },
             )
-            is_data: Optional[bool] = field(
-                default=None,
-                metadata={
-                    "name": "isData",
-                    "type": "Element",
-                },
-            )
-            is_clock: Optional[bool] = field(
-                default=None,
-                metadata={
-                    "name": "isClock",
-                    "type": "Element",
-                },
-            )
-            is_reset: Optional[bool] = field(
-                default=None,
-                metadata={
-                    "name": "isReset",
-                    "type": "Element",
-                },
-            )
-            requires_driver: Optional[RequiresDriver] = field(
+            requires_driver: None | RequiresDriver = field(
                 default=None,
                 metadata={
                     "name": "requiresDriver",
                     "type": "Element",
                 },
             )
-            on_system: Iterable["BusDefinition.Signals.Signal.OnSystem"] = (
-                field(
-                    default_factory=list,
-                    metadata={
-                        "name": "onSystem",
-                        "type": "Element",
-                    },
-                )
+            on_system: Sequence[BusDefinition.Signals.Signal.OnSystem] = field(
+                default_factory=list,
+                metadata={
+                    "name": "onSystem",
+                    "type": "Element",
+                },
             )
-            on_master: Optional["BusDefinition.Signals.Signal.OnMaster"] = (
-                field(
-                    default=None,
-                    metadata={
-                        "name": "onMaster",
-                        "type": "Element",
-                    },
-                )
+            on_master: None | BusDefinition.Signals.Signal.OnMaster = field(
+                default=None,
+                metadata={
+                    "name": "onMaster",
+                    "type": "Element",
+                },
             )
-            on_slave: Optional["BusDefinition.Signals.Signal.OnSlave"] = field(
+            on_slave: None | BusDefinition.Signals.Signal.OnSlave = field(
                 default=None,
                 metadata={
                     "name": "onSlave",
                     "type": "Element",
                 },
             )
-            default_value: Optional[
-                "BusDefinition.Signals.Signal.DefaultValue"
-            ] = field(
-                default=None,
-                metadata={
-                    "name": "defaultValue",
-                    "type": "Element",
-                },
+            default_value: None | BusDefinition.Signals.Signal.DefaultValue = (
+                field(
+                    default=None,
+                    metadata={
+                        "name": "defaultValue",
+                        "type": "Element",
+                    },
+                )
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -251,7 +240,7 @@ class BusDefinition:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class OnSystem:
                 """
                 :ivar group: Used to group system signals into different
@@ -266,28 +255,26 @@ class BusDefinition:
                     non-mirrored interface.
                 """
 
-                group: Optional[str] = field(
-                    default=None,
+                group: str = field(
                     metadata={
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                bit_width: Optional[int] = field(
+                bit_width: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitWidth",
                         "type": "Element",
                     },
                 )
-                direction: Optional[OnSystemValue] = field(
+                direction: None | OnSystemValue = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class OnMaster:
                 """
                 :ivar bit_width: Number of bits required to represent
@@ -300,21 +287,21 @@ class BusDefinition:
                     non-mirrored interface.
                 """
 
-                bit_width: Optional[int] = field(
+                bit_width: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitWidth",
                         "type": "Element",
                     },
                 )
-                direction: Optional[OnMasterValue] = field(
+                direction: None | OnMasterValue = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class OnSlave:
                 """
                 :ivar bit_width: Number of bits required to represent
@@ -327,39 +314,55 @@ class BusDefinition:
                     non-mirrored interface.
                 """
 
-                bit_width: Optional[int] = field(
+                bit_width: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitWidth",
                         "type": "Element",
                     },
                 )
-                direction: Optional[OnSlaveValue] = field(
+                direction: None | OnSlaveValue = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class DefaultValue:
-                """
-                :ivar strength: The strength of the signal. "strong"
-                    (default) or "weak"
-                :ivar value: The value of a signal. 1 or 0 for single
-                    bit signals, unsigned numeric otherwise.
-                """
+                strength_or_value: Sequence[DefaultValueStrength | object] = (
+                    field(
+                        default_factory=list,
+                        metadata={
+                            "type": "Elements",
+                            "choices": (
+                                {
+                                    "name": "strength",
+                                    "type": DefaultValueStrength,
+                                    "max_occurs": 2,
+                                },
+                                {
+                                    "name": "value",
+                                    "type": object,
+                                },
+                            ),
+                            "max_occurs": 2,
+                        },
+                    )
+                )
 
-                strength: Iterable[DefaultValueStrength] = field(
-                    default_factory=list,
-                    metadata={
-                        "type": "Element",
-                        "max_occurs": 2,
-                    },
-                )
-                value: Optional[object] = field(
-                    default=None,
-                    metadata={
-                        "type": "Element",
-                    },
-                )
+            @dataclass(slots=True, kw_only=True)
+            class IsAddress:
+                value: bool = field()
+
+            @dataclass(slots=True, kw_only=True)
+            class IsData:
+                value: bool = field()
+
+            @dataclass(slots=True, kw_only=True)
+            class IsClock:
+                value: bool = field()
+
+            @dataclass(slots=True, kw_only=True)
+            class IsReset:
+                value: bool = field()

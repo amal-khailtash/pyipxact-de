@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.pdp.component_instance_power_def import (
     ComponentInstancePowerDef,
@@ -11,7 +12,7 @@ from org.accellera.spirit.v1685_2009.ve.pdp.wire_instance_power_defs import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentInstance2:
     """
     Component instance extension.
@@ -21,7 +22,7 @@ class ComponentInstance2:
         name = "componentInstance"
         namespace = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
-    component_instance_power_def: Optional[ComponentInstancePowerDef] = field(
+    component_instance_power_def: None | ComponentInstancePowerDef = field(
         default=None,
         metadata={
             "name": "componentInstancePowerDef",
@@ -29,7 +30,7 @@ class ComponentInstance2:
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/POWER-1.0",
         },
     )
-    wire_instance_power_defs: Optional[WireInstancePowerDefs] = field(
+    wire_instance_power_defs: None | WireInstancePowerDefs = field(
         default=None,
         metadata={
             "name": "wireInstancePowerDefs",

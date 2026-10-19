@@ -1,29 +1,30 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Nmtokens:
     class Meta:
         name = "NMTOKENS"
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    value: Iterable[str] = field(
+    value: Sequence[str] = field(
         default_factory=list,
         metadata={
             "tokens": True,
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

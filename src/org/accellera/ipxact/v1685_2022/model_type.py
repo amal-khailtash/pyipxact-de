@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.component_instantiation_type import (
     ComponentInstantiationType,
@@ -20,7 +21,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ModelType:
     """
     Model information.
@@ -33,21 +34,21 @@ class ModelType:
     class Meta:
         name = "modelType"
 
-    views: Optional["ModelType.Views"] = field(
+    views: None | ModelType.Views = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    instantiations: Optional["ModelType.Instantiations"] = field(
+    instantiations: None | ModelType.Instantiations = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    ports: Optional["ModelType.Ports"] = field(
+    ports: None | ModelType.Ports = field(
         default=None,
         metadata={
             "type": "Element",
@@ -55,13 +56,13 @@ class ModelType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
         """
         :ivar view: Single view of a component
         """
 
-        view: Iterable["ModelType.Views.View"] = field(
+        view: Sequence[ModelType.Views.View] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -70,7 +71,7 @@ class ModelType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class View:
             """
             :ivar name: Unique name
@@ -94,15 +95,13 @@ class ModelType:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
@@ -110,7 +109,7 @@ class ModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
@@ -118,14 +117,14 @@ class ModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            env_identifier: Iterable["ModelType.Views.View.EnvIdentifier"] = (
+            env_identifier: Sequence[ModelType.Views.View.EnvIdentifier] = (
                 field(
                     default_factory=list,
                     metadata={
@@ -135,7 +134,7 @@ class ModelType:
                     },
                 )
             )
-            component_instantiation_ref: Optional[str] = field(
+            component_instantiation_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "componentInstantiationRef",
@@ -143,7 +142,7 @@ class ModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            design_instantiation_ref: Optional[str] = field(
+            design_instantiation_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "designInstantiationRef",
@@ -151,7 +150,7 @@ class ModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            design_configuration_instantiation_ref: Optional[str] = field(
+            design_configuration_instantiation_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "designConfigurationInstantiationRef",
@@ -159,7 +158,7 @@ class ModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -167,7 +166,7 @@ class ModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -175,16 +174,15 @@ class ModelType:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class EnvIdentifier:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -192,45 +190,39 @@ class ModelType:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Instantiations:
-        """
-        :ivar component_instantiation: Component Instantiation
-        :ivar design_instantiation: Design Instantiation
-        :ivar design_configuration_instantiation: Design Configuration
-            Instantiation
-        """
-
-        component_instantiation: Iterable[ComponentInstantiationType] = field(
-            default_factory=list,
-            metadata={
-                "name": "componentInstantiation",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            },
-        )
-        design_instantiation: Iterable[DesignInstantiationType] = field(
-            default_factory=list,
-            metadata={
-                "name": "designInstantiation",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            },
-        )
-        design_configuration_instantiation: Iterable[
-            DesignConfigurationInstantiationType
+        component_instantiation_or_design_instantiation_or_design_configuration_instantiation: Sequence[
+            ComponentInstantiationType
+            | DesignInstantiationType
+            | DesignConfigurationInstantiationType
         ] = field(
             default_factory=list,
             metadata={
-                "name": "designConfigurationInstantiation",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "componentInstantiation",
+                        "type": ComponentInstantiationType,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                    {
+                        "name": "designInstantiation",
+                        "type": DesignInstantiationType,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                    {
+                        "name": "designConfigurationInstantiation",
+                        "type": DesignConfigurationInstantiationType,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                ),
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Ports:
-        port: Iterable[Port] = field(
+        port: Sequence[Port] = field(
             default_factory=list,
             metadata={
                 "type": "Element",

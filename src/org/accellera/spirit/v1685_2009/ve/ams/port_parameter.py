@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.spirit.v1685_2009.ve.ams.name_value_pair_type_2 import (
@@ -9,12 +11,13 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortParameter(NameValuePairType2):
-    """A name value pair.
+    """
+    A name value pair.
 
-    The name is specified by the name element.  The value is in the text
-    content of the value element.  This value element supports all
+    The name is specified by the name element. The value is in the text
+    content of the value element. This value element supports all
     configurability attributes.
     """
 

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.pdp.domain import Domain
 from org.accellera.spirit.v1685_2009.ve.pdp.has_isolation import HasIsolation
@@ -16,7 +17,7 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WirePowerDef:
     """
     Wire port power definition.
@@ -28,45 +29,45 @@ class WirePowerDef:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/POWER-1.0"
         )
 
-    domain: Optional[Domain] = field(
+    domain: None | Domain = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    isolation: Optional[Isolation] = field(
+    isolation: None | Isolation = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    idle: Optional[Idle] = field(
+    idle: None | Idle = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    reset: Optional[Reset] = field(
+    reset: None | Reset = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    has_isolation: Optional[HasIsolation] = field(
+    has_isolation: None | HasIsolation = field(
         default=None,
         metadata={
             "name": "hasIsolation",
             "type": "Element",
         },
     )
-    has_level_shifter: Optional[HasLevelShifter] = field(
+    has_level_shifter: None | HasLevelShifter = field(
         default=None,
         metadata={
             "name": "hasLevelShifter",
             "type": "Element",
         },
     )
-    vector: Optional[Vector] = field(
+    vector: None | Vector = field(
         default=None,
         metadata={
             "type": "Element",

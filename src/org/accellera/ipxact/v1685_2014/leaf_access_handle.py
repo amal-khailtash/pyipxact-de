@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.slices_type import SlicesType
 from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LeafAccessHandle:
     """
     :ivar view_ref: A list of views this accessHandle is applicable to.
@@ -28,7 +29,7 @@ class LeafAccessHandle:
     class Meta:
         name = "leafAccessHandle"
 
-    view_ref: Iterable["LeafAccessHandle.ViewRef"] = field(
+    view_ref: Sequence[LeafAccessHandle.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
@@ -36,20 +37,18 @@ class LeafAccessHandle:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    indices: Optional["LeafAccessHandle.Indices"] = field(
+    indices: None | LeafAccessHandle.Indices = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    slices: Optional[SlicesType] = field(
-        default=None,
+    slices: SlicesType = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
     force: bool = field(
         default=True,
@@ -57,7 +56,7 @@ class LeafAccessHandle:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -65,15 +64,10 @@ class LeafAccessHandle:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -81,13 +75,13 @@ class LeafAccessHandle:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Indices:
         """
         :ivar index: An index into the IP-XACT object.
         """
 
-        index: Iterable[UnsignedIntExpression] = field(
+        index: Sequence[UnsignedIntExpression] = field(
             default_factory=list,
             metadata={
                 "type": "Element",

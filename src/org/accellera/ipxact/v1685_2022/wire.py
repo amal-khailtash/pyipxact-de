@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
     AbstractionDefPortConstraintsType,
@@ -19,7 +20,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Wire:
     """
     A port that carries logic or an array of logic values.
@@ -33,57 +34,60 @@ class Wire:
         in a initiator bus interface.
     :ivar on_target: Defines constraints for this port when present in a
         target bus interface.
-    :ivar default_value: Indicates the default value for this wire port.
-    :ivar requires_driver:
+    :ivar default_value_or_requires_driver:
     """
 
     class Meta:
         name = "wire"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    qualifier: Optional[QualifierType] = field(
+    qualifier: None | QualifierType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    on_system: Iterable["Wire.OnSystem"] = field(
+    on_system: Sequence[Wire.OnSystem] = field(
         default_factory=list,
         metadata={
             "name": "onSystem",
             "type": "Element",
         },
     )
-    on_initiator: Optional["Wire.OnInitiator"] = field(
+    on_initiator: None | Wire.OnInitiator = field(
         default=None,
         metadata={
             "name": "onInitiator",
             "type": "Element",
         },
     )
-    on_target: Optional["Wire.OnTarget"] = field(
+    on_target: None | Wire.OnTarget = field(
         default=None,
         metadata={
             "name": "onTarget",
             "type": "Element",
         },
     )
-    default_value: Optional[UnsignedBitVectorExpression] = field(
+    default_value_or_requires_driver: (
+        None | UnsignedBitVectorExpression | RequiresDriver
+    ) = field(
         default=None,
         metadata={
-            "name": "defaultValue",
-            "type": "Element",
-        },
-    )
-    requires_driver: Optional[RequiresDriver] = field(
-        default=None,
-        metadata={
-            "name": "requiresDriver",
-            "type": "Element",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "defaultValue",
+                    "type": UnsignedBitVectorExpression,
+                },
+                {
+                    "name": "requiresDriver",
+                    "type": RequiresDriver,
+                },
+            ),
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class OnSystem:
         """
         :ivar group: Used to group system ports into different groups
@@ -109,48 +113,46 @@ class Wire:
         :ivar id:
         """
 
-        group: Optional[str] = field(
-            default=None,
+        group: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        presence: Optional[Presence] = field(
-            default=None,
-            metadata={
-                "type": "Element",
-            },
-        )
-        width: Optional["Wire.OnSystem.Width"] = field(
+        presence: None | Presence = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        direction: Optional[Direction] = field(
+        width: None | Wire.OnSystem.Width = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        mode_constraints: Optional[AbstractionDefPortConstraintsType] = field(
+        direction: None | Direction = field(
+            default=None,
+            metadata={
+                "type": "Element",
+            },
+        )
+        mode_constraints: None | AbstractionDefPortConstraintsType = field(
             default=None,
             metadata={
                 "name": "modeConstraints",
                 "type": "Element",
             },
         )
-        mirrored_mode_constraints: Optional[
-            AbstractionDefPortConstraintsType
-        ] = field(
-            default=None,
-            metadata={
-                "name": "mirroredModeConstraints",
-                "type": "Element",
-            },
+        mirrored_mode_constraints: None | AbstractionDefPortConstraintsType = (
+            field(
+                default=None,
+                metadata={
+                    "name": "mirroredModeConstraints",
+                    "type": "Element",
+                },
+            )
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -158,7 +160,7 @@ class Wire:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Width(UnsignedPositiveIntExpression):
             """
             :ivar all_bits: false: mapping is optional, any number of
@@ -174,7 +176,7 @@ class Wire:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class OnInitiator:
         """
         :ivar presence:
@@ -197,42 +199,42 @@ class Wire:
             mirrored-'mode' bus interface.
         """
 
-        presence: Optional[Presence] = field(
+        presence: None | Presence = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        width: Optional["Wire.OnInitiator.Width"] = field(
+        width: None | Wire.OnInitiator.Width = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        direction: Optional[Direction] = field(
+        direction: None | Direction = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        mode_constraints: Optional[AbstractionDefPortConstraintsType] = field(
+        mode_constraints: None | AbstractionDefPortConstraintsType = field(
             default=None,
             metadata={
                 "name": "modeConstraints",
                 "type": "Element",
             },
         )
-        mirrored_mode_constraints: Optional[
-            AbstractionDefPortConstraintsType
-        ] = field(
-            default=None,
-            metadata={
-                "name": "mirroredModeConstraints",
-                "type": "Element",
-            },
+        mirrored_mode_constraints: None | AbstractionDefPortConstraintsType = (
+            field(
+                default=None,
+                metadata={
+                    "name": "mirroredModeConstraints",
+                    "type": "Element",
+                },
+            )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Width(UnsignedPositiveIntExpression):
             """
             :ivar all_bits: false: mapping is optional, any number of
@@ -248,7 +250,7 @@ class Wire:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class OnTarget:
         """
         :ivar presence:
@@ -271,42 +273,42 @@ class Wire:
             mirrored-'mode' bus interface.
         """
 
-        presence: Optional[Presence] = field(
+        presence: None | Presence = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        width: Optional["Wire.OnTarget.Width"] = field(
+        width: None | Wire.OnTarget.Width = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        direction: Optional[Direction] = field(
+        direction: None | Direction = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        mode_constraints: Optional[AbstractionDefPortConstraintsType] = field(
+        mode_constraints: None | AbstractionDefPortConstraintsType = field(
             default=None,
             metadata={
                 "name": "modeConstraints",
                 "type": "Element",
             },
         )
-        mirrored_mode_constraints: Optional[
-            AbstractionDefPortConstraintsType
-        ] = field(
-            default=None,
-            metadata={
-                "name": "mirroredModeConstraints",
-                "type": "Element",
-            },
+        mirrored_mode_constraints: None | AbstractionDefPortConstraintsType = (
+            field(
+                default=None,
+                metadata={
+                    "name": "mirroredModeConstraints",
+                    "type": "Element",
+                },
+            )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Width(UnsignedPositiveIntExpression):
             """
             :ivar all_bits: false: mapping is optional, any number of

@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1_1.bus_def_signal_constraints import (
@@ -8,7 +10,7 @@ from org.accellera.spirit.v1_1.bus_def_signal_constraints import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BusDefSignalConstraintSets:
     """
     List of busDefSignalConstraints elements for a bus definition signal.
@@ -18,7 +20,7 @@ class BusDefSignalConstraintSets:
         name = "busDefSignalConstraintSets"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
-    bus_def_signal_constraints: Iterable[BusDefSignalConstraints] = field(
+    bus_def_signal_constraints: Sequence[BusDefSignalConstraints] = field(
         default_factory=list,
         metadata={
             "name": "busDefSignalConstraints",

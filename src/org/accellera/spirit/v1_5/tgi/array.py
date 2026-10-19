@@ -1,11 +1,12 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Array:
     """
     'Array' is a complex type for accessors identified by position.
@@ -14,14 +15,14 @@ class Array:
     class Meta:
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    any_element: Iterable[object] = field(
+    any_element: Sequence[object] = field(
         default_factory=list,
         metadata={
             "type": "Wildcard",
             "namespace": "##any",
         },
     )
-    array_type: Optional[str] = field(
+    array_type: None | str = field(
         default=None,
         metadata={
             "name": "arrayType",
@@ -29,20 +30,20 @@ class Array:
             "namespace": "http://schemas.xmlsoap.org/soap/encoding/",
         },
     )
-    offset: Optional[str] = field(
+    offset: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://schemas.xmlsoap.org/soap/encoding/",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

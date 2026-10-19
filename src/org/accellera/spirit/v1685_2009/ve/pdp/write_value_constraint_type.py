@@ -1,6 +1,8 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.spirit.v1685_2009.ve.pdp.format_type import FormatType
 from org.accellera.spirit.v1685_2009.ve.pdp.range_type_type import (
@@ -11,63 +13,60 @@ from org.accellera.spirit.v1685_2009.ve.pdp.resolve_type import ResolveType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WriteValueConstraintType:
-    """A constraint on the values that can be written to this field.
+    """
+    A constraint on the values that can be written to this field.
 
-    Absence of this element implies that any value that fits can be
-    written to it.
-
-    :ivar write_as_read: writeAsRead indicates that only a value
-        immediately read before a write is a legal value to be written.
-    :ivar use_enumerated_values: useEnumeratedValues indicates that only
-        write enumeration value shall be legal values to be written.
-    :ivar minimum: The minimum legal value that may be written to a
-        field
-    :ivar maximum: The maximum legal value that may be written to a
-        field
+    Absence of this element implies that any value that fits can be written
+    to it.
     """
 
     class Meta:
         name = "writeValueConstraintType"
 
-    write_as_read: Optional[bool] = field(
-        default=None,
+    choice: Sequence[
+        WriteValueConstraintType.WriteAsRead
+        | WriteValueConstraintType.UseEnumeratedValues
+        | WriteValueConstraintType.Minimum
+        | WriteValueConstraintType.Maximum
+    ] = field(
+        default_factory=list,
         metadata={
-            "name": "writeAsRead",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    use_enumerated_values: Optional[bool] = field(
-        default=None,
-        metadata={
-            "name": "useEnumeratedValues",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    minimum: Optional["WriteValueConstraintType.Minimum"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    maximum: Optional["WriteValueConstraintType.Maximum"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "writeAsRead",
+                    "type": ForwardRef("WriteValueConstraintType.WriteAsRead"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "useEnumeratedValues",
+                    "type": ForwardRef(
+                        "WriteValueConstraintType.UseEnumeratedValues"
+                    ),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "minimum",
+                    "type": ForwardRef("WriteValueConstraintType.Minimum"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "maximum",
+                    "type": ForwardRef("WriteValueConstraintType.Maximum"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+            ),
+            "max_occurs": 2,
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Minimum:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
             },
         )
@@ -85,14 +84,14 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -106,7 +105,7 @@ class WriteValueConstraintType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -114,14 +113,14 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -130,7 +129,7 @@ class WriteValueConstraintType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -138,14 +137,14 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -160,7 +159,7 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -168,12 +167,11 @@ class WriteValueConstraintType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Maximum:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
             },
         )
@@ -191,14 +189,14 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -212,7 +210,7 @@ class WriteValueConstraintType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -220,14 +218,14 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -236,7 +234,7 @@ class WriteValueConstraintType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -244,14 +242,14 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -266,10 +264,18 @@ class WriteValueConstraintType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
+
+    @dataclass(slots=True, kw_only=True)
+    class WriteAsRead:
+        value: bool = field()
+
+    @dataclass(slots=True, kw_only=True)
+    class UseEnumeratedValues:
+        value: bool = field()

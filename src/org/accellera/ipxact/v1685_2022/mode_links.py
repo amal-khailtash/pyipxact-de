@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ModeLinks:
     """
     A set of links between internal and external modes defined in the
@@ -21,7 +22,7 @@ class ModeLinks:
         name = "modeLinks"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    mode_link: Iterable["ModeLinks.ModeLink"] = field(
+    mode_link: Sequence[ModeLinks.ModeLink] = field(
         default_factory=list,
         metadata={
             "name": "modeLink",
@@ -30,7 +31,7 @@ class ModeLinks:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModeLink:
         """
         :ivar external_mode_reference: Reference to a mode defined in
@@ -40,32 +41,28 @@ class ModeLinks:
         :ivar id:
         """
 
-        external_mode_reference: Optional[
-            "ModeLinks.ModeLink.ExternalModeReference"
-        ] = field(
-            default=None,
-            metadata={
-                "name": "externalModeReference",
-                "type": "Element",
-                "required": True,
-            },
+        external_mode_reference: ModeLinks.ModeLink.ExternalModeReference = (
+            field(
+                metadata={
+                    "name": "externalModeReference",
+                    "type": "Element",
+                }
+            )
         )
-        mode_reference: Optional["ModeLinks.ModeLink.ModeReference"] = field(
-            default=None,
+        mode_reference: ModeLinks.ModeLink.ModeReference = field(
             metadata={
                 "name": "modeReference",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -73,32 +70,28 @@ class ModeLinks:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ExternalModeReference:
             """
             :ivar mode_ref: Reference to a specific mode.
             """
 
-            mode_ref: Optional[str] = field(
-                default=None,
+            mode_ref: str = field(
                 metadata={
                     "name": "modeRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ModeReference:
             """
             :ivar mode_ref: Reference to a specific mode.
             """
 
-            mode_ref: Optional[str] = field(
-                default=None,
+            mode_ref: str = field(
                 metadata={
                     "name": "modeRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )

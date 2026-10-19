@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.base_address import BaseAddress
 from org.accellera.spirit.v1_1.bit_offset import BitOffset
@@ -10,12 +11,13 @@ from org.accellera.spirit.v1_1.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SubspaceRefType:
-    """Address subspace type.
+    """
+    Address subspace type.
 
-    Its subspaceReference attribute references the subspace from which
-    the dimensions are taken.
+    Its subspaceReference attribute references the subspace from which the
+    dimensions are taken.
 
     :ivar base_address:
     :ivar bit_offset:
@@ -28,16 +30,14 @@ class SubspaceRefType:
     class Meta:
         name = "subspaceRefType"
 
-    base_address: Optional[BaseAddress] = field(
-        default=None,
+    base_address: BaseAddress = field(
         metadata={
             "name": "baseAddress",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    bit_offset: Optional[BitOffset] = field(
+    bit_offset: None | BitOffset = field(
         default=None,
         metadata={
             "name": "bitOffset",
@@ -45,14 +45,14 @@ class SubspaceRefType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    parameter: Iterable[NameValuePairType] = field(
+    parameter: Sequence[NameValuePairType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -60,12 +60,10 @@ class SubspaceRefType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    master_ref: Optional[str] = field(
-        default=None,
+    master_ref: str = field(
         metadata={
             "name": "masterRef",
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )

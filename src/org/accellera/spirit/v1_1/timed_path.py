@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.delay import Delay
 from org.accellera.spirit.v1_1.delay_value_type import DelayValueType
@@ -9,36 +10,33 @@ from org.accellera.spirit.v1_1.path_specifier import PathSpecifier
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class TimedPath:
-    """Defines a point-to-point timing exception.
+    """
+    Defines a point-to-point timing exception.
 
-    The pathEdge attribute can be used to restrict the constraint to
-    rising or falling edges, and the delayType attribute can be used to
-    restrict the constraint to imply a minimum path constraint or a
-    maximum path constraint.
+    The pathEdge attribute can be used to restrict the constraint to rising
+    or falling edges, and the delayType attribute can be used to restrict
+    the constraint to imply a minimum path constraint or a maximum path
+    constraint.
     """
 
     class Meta:
         name = "timedPath"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
-    path_specifier: Optional[PathSpecifier] = field(
-        default=None,
+    path_specifier: PathSpecifier = field(
         metadata={
             "name": "pathSpecifier",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    delay: Optional[Delay] = field(
-        default=None,
+    delay: Delay = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    path_edge: Optional[EdgeValueType] = field(
+    path_edge: None | EdgeValueType = field(
         default=None,
         metadata={
             "name": "pathEdge",
@@ -46,7 +44,7 @@ class TimedPath:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    delay_type: Optional[DelayValueType] = field(
+    delay_type: None | DelayValueType = field(
         default=None,
         metadata={
             "name": "delayType",

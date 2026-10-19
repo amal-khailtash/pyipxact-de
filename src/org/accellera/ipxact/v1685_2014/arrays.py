@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.ipxact.v1685_2014.configurable_arrays import (
@@ -7,7 +9,7 @@ from org.accellera.ipxact.v1685_2014.configurable_arrays import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Arrays(ConfigurableArrays):
     class Meta:
         name = "arrays"

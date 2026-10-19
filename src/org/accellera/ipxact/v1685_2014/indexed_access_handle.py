@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.path_segment_type import PathSegmentType
 from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IndexedAccessHandle:
     """
     :ivar view_ref: A list of views this accessHandle is applicable to.
@@ -29,7 +30,7 @@ class IndexedAccessHandle:
     class Meta:
         name = "indexedAccessHandle"
 
-    view_ref: Iterable["IndexedAccessHandle.ViewRef"] = field(
+    view_ref: Sequence[IndexedAccessHandle.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
@@ -37,23 +38,21 @@ class IndexedAccessHandle:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    indices: Optional["IndexedAccessHandle.Indices"] = field(
+    indices: None | IndexedAccessHandle.Indices = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    path_segments: Optional["IndexedAccessHandle.PathSegments"] = field(
-        default=None,
+    path_segments: IndexedAccessHandle.PathSegments = field(
         metadata={
             "name": "pathSegments",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -61,15 +60,10 @@ class IndexedAccessHandle:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -77,13 +71,13 @@ class IndexedAccessHandle:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Indices:
         """
         :ivar index: An index into the IP-XACT object.
         """
 
-        index: Iterable[UnsignedIntExpression] = field(
+        index: Sequence[UnsignedIntExpression] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -92,9 +86,9 @@ class IndexedAccessHandle:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PathSegments:
-        path_segment: Iterable[PathSegmentType] = field(
+        path_segment: Sequence[PathSegmentType] = field(
             default_factory=list,
             metadata={
                 "name": "pathSegment",

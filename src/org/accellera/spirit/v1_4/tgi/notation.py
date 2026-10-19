@@ -1,30 +1,26 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Optional
 from xml.etree.ElementTree import QName
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Notation:
     class Meta:
         name = "NOTATION"
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    value: Optional[QName] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
-    id: Optional[str] = field(
+    value: QName = field()
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

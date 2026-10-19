@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.resistance_value_unit_type import (
     ResistanceValueUnitType,
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1_1.resistance_value_unit_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Resistance:
     """
     Represents a simple resistance value with optional units.
@@ -17,14 +18,12 @@ class Resistance:
     class Meta:
         name = "resistance"
 
-    value: Optional[float] = field(
-        default=None,
+    value: float = field(
         metadata={
-            "required": True,
             "min_inclusive": 0.0,
-        },
+        }
     )
-    units: Optional[ResistanceValueUnitType] = field(
+    units: None | ResistanceValueUnitType = field(
         default=None,
         metadata={
             "type": "Attribute",

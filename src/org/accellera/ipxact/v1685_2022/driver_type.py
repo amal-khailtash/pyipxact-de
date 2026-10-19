@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.clock_driver import ClockDriver
 from org.accellera.ipxact.v1685_2022.default_value import DefaultValue
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2022.single_shot_driver import SingleShotDriver
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DriverType:
     """
     Wire port driver type.
@@ -18,23 +19,21 @@ class DriverType:
     :ivar range:
     :ivar view_ref: A reference to a view in the file for which this
         type applies.
-    :ivar default_value:
-    :ivar clock_driver:
-    :ivar single_shot_driver:
+    :ivar default_value_or_clock_driver_or_single_shot_driver:
     :ivar id:
     """
 
     class Meta:
         name = "driverType"
 
-    range: Optional[Range] = field(
+    range: None | Range = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    view_ref: Iterable["DriverType.ViewRef"] = field(
+    view_ref: Sequence[DriverType.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
@@ -42,31 +41,32 @@ class DriverType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    default_value: Optional[DefaultValue] = field(
+    default_value_or_clock_driver_or_single_shot_driver: (
+        None | DefaultValue | ClockDriver | SingleShotDriver
+    ) = field(
         default=None,
         metadata={
-            "name": "defaultValue",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "defaultValue",
+                    "type": DefaultValue,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "clockDriver",
+                    "type": ClockDriver,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "singleShotDriver",
+                    "type": SingleShotDriver,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+            ),
         },
     )
-    clock_driver: Optional[ClockDriver] = field(
-        default=None,
-        metadata={
-            "name": "clockDriver",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    single_shot_driver: Optional[SingleShotDriver] = field(
-        default=None,
-        metadata={
-            "name": "singleShotDriver",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -74,15 +74,10 @@ class DriverType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

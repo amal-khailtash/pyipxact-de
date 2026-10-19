@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.description import Description
 from org.accellera.ipxact.v1685_2014.display_name import DisplayName
@@ -19,14 +20,15 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ExecutableImage:
-    """Specifies an executable software image to be loaded into a processors
+    """
+    Specifies an executable software image to be loaded into a processors
     address space.
 
-    The format of the image is not specified. It could, for example, be
-    an ELF loadfile, or it could be raw binary or ascii hex data for
-    loading directly into a memory model instance.
+    The format of the image is not specified. It could, for example, be an
+    ELF loadfile, or it could be raw binary or ascii hex data for loading
+    directly into a memory model instance.
 
     :ivar name: Unique name
     :ivar display_name:
@@ -50,69 +52,65 @@ class ExecutableImage:
         name = "executableImage"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    language_tools: Optional["ExecutableImage.LanguageTools"] = field(
+    language_tools: None | ExecutableImage.LanguageTools = field(
         default=None,
         metadata={
             "name": "languageTools",
             "type": "Element",
         },
     )
-    file_set_ref_group: Optional["ExecutableImage.FileSetRefGroup"] = field(
+    file_set_ref_group: None | ExecutableImage.FileSetRefGroup = field(
         default=None,
         metadata={
             "name": "fileSetRefGroup",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    image_id: Optional[str] = field(
-        default=None,
+    image_id: str = field(
         metadata={
             "name": "imageId",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    image_type: Optional[str] = field(
+    image_type: None | str = field(
         default=None,
         metadata={
             "name": "imageType",
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -120,7 +118,7 @@ class ExecutableImage:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class LanguageTools:
         """
         :ivar file_builder: A generic placeholder for any file builder
@@ -128,11 +126,10 @@ class ExecutableImage:
             to which the command should be applied, and the flags to be
             used with that command.
         :ivar linker:
-        :ivar linker_flags:
-        :ivar linker_command_file:
+        :ivar linker_flags_or_linker_command_file:
         """
 
-        file_builder: Iterable["ExecutableImage.LanguageTools.FileBuilder"] = (
+        file_builder: Sequence[ExecutableImage.LanguageTools.FileBuilder] = (
             field(
                 default_factory=list,
                 metadata={
@@ -141,30 +138,33 @@ class ExecutableImage:
                 },
             )
         )
-        linker: Optional[StringExpression] = field(
+        linker: None | StringExpression = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        linker_flags: Optional[StringExpression] = field(
-            default=None,
-            metadata={
-                "name": "linkerFlags",
-                "type": "Element",
-            },
-        )
-        linker_command_file: Iterable[LinkerCommandFile] = field(
+        linker_flags_or_linker_command_file: Sequence[
+            StringExpression | LinkerCommandFile
+        ] = field(
             default_factory=list,
             metadata={
-                "name": "linkerCommandFile",
-                "type": "Element",
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "linkerFlags",
+                        "type": StringExpression,
+                    },
+                    {
+                        "name": "linkerCommandFile",
+                        "type": LinkerCommandFile,
+                    },
+                ),
                 "max_occurs": 2,
-                "sequence": 1,
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class FileBuilder:
             """
             :ivar file_type:
@@ -182,42 +182,38 @@ class ExecutableImage:
             :ivar id:
             """
 
-            file_type: Optional[FileType] = field(
-                default=None,
+            file_type: FileType = field(
                 metadata={
                     "name": "fileType",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            command: Optional[StringExpression] = field(
+            command: StringExpression = field(
+                metadata={
+                    "type": "Element",
+                }
+            )
+            flags: None | StringExpression = field(
                 default=None,
                 metadata={
                     "type": "Element",
-                    "required": True,
                 },
             )
-            flags: Optional[StringExpression] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            replace_default_flags: Optional[UnsignedBitExpression] = field(
+            replace_default_flags: None | UnsignedBitExpression = field(
                 default=None,
                 metadata={
                     "name": "replaceDefaultFlags",
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -225,9 +221,9 @@ class ExecutableImage:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class FileSetRefGroup:
-        file_set_ref: Iterable[FileSetRef] = field(
+        file_set_ref: Sequence[FileSetRef] = field(
             default_factory=list,
             metadata={
                 "name": "fileSetRef",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.unsigned_positive_longint_expression import (
     UnsignedPositiveLongintExpression,
@@ -8,13 +9,13 @@ from org.accellera.ipxact.v1685_2022.unsigned_positive_longint_expression import
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BitStride(UnsignedPositiveLongintExpression):
     class Meta:
         name = "bitStride"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

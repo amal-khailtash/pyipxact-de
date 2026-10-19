@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.clearbox_element_ref_type import (
     ClearboxElementRefType,
@@ -21,7 +22,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentInstantiationType:
     """
     Component instantiation type.
@@ -73,15 +74,13 @@ class ComponentInstantiationType:
     class Meta:
         name = "componentInstantiationType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -89,7 +88,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -97,14 +96,14 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    is_virtual: Optional[bool] = field(
+    is_virtual: None | bool = field(
         default=None,
         metadata={
             "name": "isVirtual",
@@ -112,14 +111,14 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    language: Optional[LanguageType] = field(
+    language: None | LanguageType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    library_name: Optional[str] = field(
+    library_name: None | str = field(
         default=None,
         metadata={
             "name": "libraryName",
@@ -127,7 +126,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    package_name: Optional[str] = field(
+    package_name: None | str = field(
         default=None,
         metadata={
             "name": "packageName",
@@ -135,7 +134,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    module_name: Optional[str] = field(
+    module_name: None | str = field(
         default=None,
         metadata={
             "name": "moduleName",
@@ -143,7 +142,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    architecture_name: Optional[str] = field(
+    architecture_name: None | str = field(
         default=None,
         metadata={
             "name": "architectureName",
@@ -151,7 +150,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    configuration_name: Optional[str] = field(
+    configuration_name: None | str = field(
         default=None,
         metadata={
             "name": "configurationName",
@@ -159,17 +158,17 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    module_parameters: Optional[
-        "ComponentInstantiationType.ModuleParameters"
-    ] = field(
-        default=None,
-        metadata={
-            "name": "moduleParameters",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
+    module_parameters: None | ComponentInstantiationType.ModuleParameters = (
+        field(
+            default=None,
+            metadata={
+                "name": "moduleParameters",
+                "type": "Element",
+                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+            },
+        )
     )
-    default_file_builder: Iterable[FileBuilderType] = field(
+    default_file_builder: Sequence[FileBuilderType] = field(
         default_factory=list,
         metadata={
             "name": "defaultFileBuilder",
@@ -177,7 +176,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    file_set_ref: Iterable[FileSetRef] = field(
+    file_set_ref: Sequence[FileSetRef] = field(
         default_factory=list,
         metadata={
             "name": "fileSetRef",
@@ -185,7 +184,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    constraint_set_ref: Iterable[ConstraintSetRef] = field(
+    constraint_set_ref: Sequence[ConstraintSetRef] = field(
         default_factory=list,
         metadata={
             "name": "constraintSetRef",
@@ -193,9 +192,9 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    clearbox_element_refs: Optional[
-        "ComponentInstantiationType.ClearboxElementRefs"
-    ] = field(
+    clearbox_element_refs: (
+        None | ComponentInstantiationType.ClearboxElementRefs
+    ) = field(
         default=None,
         metadata={
             "name": "clearboxElementRefs",
@@ -203,14 +202,14 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -218,7 +217,7 @@ class ComponentInstantiationType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -226,7 +225,7 @@ class ComponentInstantiationType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModuleParameters:
         """
         :ivar module_parameter: A module parameter name value pair. The
@@ -238,7 +237,7 @@ class ComponentInstantiationType:
             the model parameter is to be used.
         """
 
-        module_parameter: Iterable[ModuleParameterType] = field(
+        module_parameter: Sequence[ModuleParameterType] = field(
             default_factory=list,
             metadata={
                 "name": "moduleParameter",
@@ -248,14 +247,14 @@ class ComponentInstantiationType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClearboxElementRefs:
         """
         :ivar clearbox_element_ref: Reference to a clear box element
             which is visible within this view.
         """
 
-        clearbox_element_ref: Iterable[ClearboxElementRefType] = field(
+        clearbox_element_ref: Sequence[ClearboxElementRefType] = field(
             default_factory=list,
             metadata={
                 "name": "clearboxElementRef",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.ipxact_files_type import IpxactFilesType
@@ -9,7 +10,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Catalog:
     """
     :ivar vendor: Name of the vendor who supplies this file.
@@ -38,121 +39,113 @@ class Catalog:
         name = "catalog"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    catalogs: Optional[IpxactFilesType] = field(
+    catalogs: None | IpxactFilesType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    bus_definitions: Optional[IpxactFilesType] = field(
+    bus_definitions: None | IpxactFilesType = field(
         default=None,
         metadata={
             "name": "busDefinitions",
             "type": "Element",
         },
     )
-    abstraction_definitions: Optional[IpxactFilesType] = field(
+    abstraction_definitions: None | IpxactFilesType = field(
         default=None,
         metadata={
             "name": "abstractionDefinitions",
             "type": "Element",
         },
     )
-    components: Optional[IpxactFilesType] = field(
+    components: None | IpxactFilesType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    abstractors: Optional[IpxactFilesType] = field(
+    abstractors: None | IpxactFilesType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    designs: Optional[IpxactFilesType] = field(
+    designs: None | IpxactFilesType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    design_configurations: Optional[IpxactFilesType] = field(
+    design_configurations: None | IpxactFilesType = field(
         default=None,
         metadata={
             "name": "designConfigurations",
             "type": "Element",
         },
     )
-    generator_chains: Optional[IpxactFilesType] = field(
+    generator_chains: None | IpxactFilesType = field(
         default=None,
         metadata={
             "name": "generatorChains",
             "type": "Element",
         },
     )
-    type_definitions: Optional[IpxactFilesType] = field(
+    type_definitions: None | IpxactFilesType = field(
         default=None,
         metadata={
             "name": "typeDefinitions",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

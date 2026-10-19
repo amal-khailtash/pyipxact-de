@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class InterfaceType:
     """
-    A representation of a component/bus interface relation; i.e. a bus interface
-    belonging to a certain component.
+    A representation of a component/bus interface relation; i.e. a bus
+    interface belonging to a certain component.
 
     :ivar component_ref: Reference to a component instance name.
     :ivar bus_ref: Reference to the components  bus interface
@@ -18,23 +19,19 @@ class InterfaceType:
     class Meta:
         name = "interfaceType"
 
-    component_ref: Optional[str] = field(
-        default=None,
+    component_ref: str = field(
         metadata={
             "name": "componentRef",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    bus_ref: Optional[str] = field(
-        default=None,
+    bus_ref: str = field(
         metadata={
             "name": "busRef",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

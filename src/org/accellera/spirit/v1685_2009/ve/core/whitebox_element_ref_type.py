@@ -1,13 +1,15 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WhiteboxElementRefType:
-    """Reference to a whiteboxElement within a view.
+    """
+    Reference to a whiteboxElement within a view.
 
     The 'name' attribute must refer to a whiteboxElement defined within
     this component.
@@ -22,7 +24,7 @@ class WhiteboxElementRefType:
     class Meta:
         name = "whiteboxElementRefType"
 
-    whitebox_path: Iterable["WhiteboxElementRefType.WhiteboxPath"] = field(
+    whitebox_path: Sequence[WhiteboxElementRefType.WhiteboxPath] = field(
         default_factory=list,
         metadata={
             "name": "whiteboxPath",
@@ -31,16 +33,14 @@ class WhiteboxElementRefType:
             "min_occurs": 1,
         },
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class WhiteboxPath:
         """
         :ivar path_name: The view specific name for a portion of the
@@ -51,23 +51,21 @@ class WhiteboxElementRefType:
             path name.
         """
 
-        path_name: Optional[str] = field(
-            default=None,
+        path_name: str = field(
             metadata={
                 "name": "pathName",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                "required": True,
-            },
+            }
         )
-        left: Optional[int] = field(
+        left: None | int = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        right: Optional[int] = field(
+        right: None | int = field(
             default=None,
             metadata={
                 "type": "Element",

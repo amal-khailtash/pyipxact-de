@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.parameter import Parameter
 from org.accellera.spirit.v1_1.resolved_library_ref_type import (
@@ -10,10 +11,11 @@ from org.accellera.spirit.v1_1.resolved_library_ref_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LooseGeneratorInvocation:
     """
-    Specifies the information required to invoke a loosely coupled generator.
+    Specifies the information required to invoke a loosely coupled
+    generator.
 
     :ivar design_file: Path to description of top level design
     :ivar bus_definition_files: The list of bus definition files
@@ -35,64 +37,60 @@ class LooseGeneratorInvocation:
         name = "looseGeneratorInvocation"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
-    design_file: Optional[object] = field(
+    design_file: None | object = field(
         default=None,
         metadata={
             "name": "designFile",
             "type": "Element",
         },
     )
-    bus_definition_files: Optional[
-        "LooseGeneratorInvocation.BusDefinitionFiles"
-    ] = field(
+    bus_definition_files: (
+        None | LooseGeneratorInvocation.BusDefinitionFiles
+    ) = field(
         default=None,
         metadata={
             "name": "busDefinitionFiles",
             "type": "Element",
         },
     )
-    component_definition_files: Optional[
-        "LooseGeneratorInvocation.ComponentDefinitionFiles"
-    ] = field(
+    component_definition_files: (
+        None | LooseGeneratorInvocation.ComponentDefinitionFiles
+    ) = field(
         default=None,
         metadata={
             "name": "componentDefinitionFiles",
             "type": "Element",
         },
     )
-    parameters: Optional["LooseGeneratorInvocation.Parameters"] = field(
+    parameters: None | LooseGeneratorInvocation.Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    selected_instances: Optional[
-        "LooseGeneratorInvocation.SelectedInstances"
-    ] = field(
-        default=None,
-        metadata={
-            "name": "selectedInstances",
-            "type": "Element",
-        },
+    selected_instances: None | LooseGeneratorInvocation.SelectedInstances = (
+        field(
+            default=None,
+            metadata={
+                "name": "selectedInstances",
+                "type": "Element",
+            },
+        )
     )
-    phase_number: Optional[float] = field(
-        default=None,
+    phase_number: float = field(
         metadata={
             "name": "phaseNumber",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    group_name: Optional[str] = field(
-        default=None,
+    group_name: str = field(
         metadata={
             "name": "groupName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class BusDefinitionFiles:
         """
         :ivar bus_definition_file: Path to a bus definition file used
@@ -100,7 +98,7 @@ class LooseGeneratorInvocation:
             definition this file represents.
         """
 
-        bus_definition_file: Iterable[ResolvedLibraryRefType] = field(
+        bus_definition_file: Sequence[ResolvedLibraryRefType] = field(
             default_factory=list,
             metadata={
                 "name": "busDefinitionFile",
@@ -109,7 +107,7 @@ class LooseGeneratorInvocation:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ComponentDefinitionFiles:
         """
         :ivar component_definition_file: Path to component definition
@@ -120,8 +118,8 @@ class LooseGeneratorInvocation:
             is the name of the instance that this file describes.
         """
 
-        component_definition_file: Iterable[
-            "LooseGeneratorInvocation.ComponentDefinitionFiles.ComponentDefinitionFile"
+        component_definition_file: Sequence[
+            LooseGeneratorInvocation.ComponentDefinitionFiles.ComponentDefinitionFile
         ] = field(
             default_factory=list,
             metadata={
@@ -131,7 +129,7 @@ class LooseGeneratorInvocation:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ComponentDefinitionFile:
             """
             :ivar instance_ref: Reference handle for this component
@@ -139,16 +137,14 @@ class LooseGeneratorInvocation:
             :ivar content:
             """
 
-            instance_ref: Optional[str] = field(
-                default=None,
+            instance_ref: str = field(
                 metadata={
                     "name": "instanceRef",
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                    "required": True,
-                },
+                }
             )
-            content: Iterable[object] = field(
+            content: Sequence[object] = field(
                 default_factory=list,
                 metadata={
                     "type": "Wildcard",
@@ -157,9 +153,9 @@ class LooseGeneratorInvocation:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Parameters:
-        parameter: Iterable[Parameter] = field(
+        parameter: Sequence[Parameter] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -167,7 +163,7 @@ class LooseGeneratorInvocation:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SelectedInstances:
         """
         :ivar selected_instance: Instance name of selected instance that
@@ -175,7 +171,7 @@ class LooseGeneratorInvocation:
             hierarchical instance name.
         """
 
-        selected_instance: Iterable[str] = field(
+        selected_instance: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "selectedInstance",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.port_access_type_value import (
     PortAccessTypeValue,
@@ -8,12 +9,11 @@ from org.accellera.spirit.v1685_2009.ve.port_access_type_value import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortAccessType:
-    """Indicates how a netlister accesses a port.
-
-    'ref' means accessed by reference (default) and 'ptr' means accessed
-    by pointer.
+    """
+    Indicates how a netlister accesses a port. 'ref' means accessed by
+    reference (default) and 'ptr' means accessed by pointer.
     """
 
     class Meta:
@@ -22,4 +22,4 @@ class PortAccessType:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    value: Optional[PortAccessTypeValue] = field(default=None)
+    value: PortAccessTypeValue = field()

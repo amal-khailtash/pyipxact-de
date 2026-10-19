@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.complex_base_expression import (
     ComplexBaseExpression,
@@ -8,9 +9,10 @@ from org.accellera.ipxact.v1685_2022.complex_base_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ConfigurableElementValue(ComplexBaseExpression):
-    """Describes the content of a configurable element.
+    """
+    Describes the content of a configurable element.
 
     The required referenceId attribute refers to the ID attribute of the
     configurable element.
@@ -24,15 +26,13 @@ class ConfigurableElementValue(ComplexBaseExpression):
         name = "configurableElementValue"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    reference_id: Optional[str] = field(
-        default=None,
+    reference_id: str = field(
         metadata={
             "name": "referenceId",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

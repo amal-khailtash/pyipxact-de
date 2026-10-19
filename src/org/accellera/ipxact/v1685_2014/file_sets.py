@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2014.file_set import FileSet
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2014.file_set import FileSet
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FileSets:
     """
     List of file sets associated with component.
@@ -16,7 +18,7 @@ class FileSets:
         name = "fileSets"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    file_set: Iterable[FileSet] = field(
+    file_set: Sequence[FileSet] = field(
         default_factory=list,
         metadata={
             "name": "fileSet",

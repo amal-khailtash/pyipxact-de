@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.pdp.format_type import FormatType
 from org.accellera.spirit.v1685_2009.ve.pdp.range_type_type import (
@@ -13,12 +14,13 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AlwaysPowered:
-    """Boolean value.
+    """
+    Boolean value.
 
-    If set to true, then the IP/port is always powered, whatever its
-    power domain. Only applies for output ports.
+    If set to true, then the IP/port is always powered, whatever its power
+    domain. Only applies for output ports.
     """
 
     class Meta:
@@ -27,12 +29,7 @@ class AlwaysPowered:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/POWER-1.0"
         )
 
-    value: Optional[bool] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
+    value: bool = field()
     format: FormatType = field(
         default=FormatType.BOOL,
         metadata={
@@ -47,14 +44,14 @@ class AlwaysPowered:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -68,7 +65,7 @@ class AlwaysPowered:
             "namespace": "##any",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -76,14 +73,14 @@ class AlwaysPowered:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -92,7 +89,7 @@ class AlwaysPowered:
             "tokens": True,
         },
     )
-    bit_string_length: Optional[int] = field(
+    bit_string_length: None | int = field(
         default=None,
         metadata={
             "name": "bitStringLength",
@@ -100,14 +97,14 @@ class AlwaysPowered:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -122,7 +119,7 @@ class AlwaysPowered:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.port_access_handle import (
     PortAccessHandle,
@@ -11,7 +12,7 @@ from org.accellera.spirit.v1685_2009.ve.power.port_access_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortAccessType1:
     """
     :ivar port_access_type: Indicates how a netlister accesses a port.
@@ -23,7 +24,7 @@ class PortAccessType1:
     class Meta:
         name = "portAccessType"
 
-    port_access_type: Optional[PortAccessType] = field(
+    port_access_type: None | PortAccessType = field(
         default=None,
         metadata={
             "name": "portAccessType",
@@ -31,7 +32,7 @@ class PortAccessType1:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    port_access_handle: Optional[PortAccessHandle] = field(
+    port_access_handle: None | PortAccessHandle = field(
         default=None,
         metadata={
             "name": "portAccessHandle",

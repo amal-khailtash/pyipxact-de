@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.interface_type import InterfaceType
@@ -9,7 +10,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ActiveInterface(InterfaceType):
     """
     :ivar description:
@@ -23,20 +24,20 @@ class ActiveInterface(InterfaceType):
         name = "activeInterface"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    exclude_ports: Optional["ActiveInterface.ExcludePorts"] = field(
+    exclude_ports: None | ActiveInterface.ExcludePorts = field(
         default=None,
         metadata={
             "name": "excludePorts",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -44,14 +45,14 @@ class ActiveInterface(InterfaceType):
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ExcludePorts:
         """
         :ivar exclude_port: The name of a physical port to be excluded
             from the interface based connection.
         """
 
-        exclude_port: Iterable["ActiveInterface.ExcludePorts.ExcludePort"] = (
+        exclude_port: Sequence[ActiveInterface.ExcludePorts.ExcludePort] = (
             field(
                 default_factory=list,
                 metadata={
@@ -62,17 +63,16 @@ class ActiveInterface(InterfaceType):
             )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ExcludePort:
             value: str = field(
                 default="",
                 metadata={
-                    "required": True,
                     "white_space": "collapse",
                     "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.spirit.v1_2.addr_space_ref_type import AddrSpaceRefType
@@ -5,12 +7,12 @@ from org.accellera.spirit.v1_2.addr_space_ref_type import AddrSpaceRefType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressSpaceRef(AddrSpaceRefType):
-    """References the address space.
+    """
+    References the address space.
 
-    The name of the address space is kept in its addressSpaceRef
-    attribute.
+    The name of the address space is kept in its addressSpaceRef attribute.
     """
 
     class Meta:

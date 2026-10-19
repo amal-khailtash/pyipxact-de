@@ -1,15 +1,18 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class TransparentBridge:
-    """If this element is present, it indicates that the bus interface provides a
-    transparent bridge to another initiator bus interface on the same component.
+    """
+    If this element is present, it indicates that the bus interface
+    provides a transparent bridge to another initiator bus interface on the
+    same component.
 
     It has a initiatorRef attribute which contains the name of the other
     bus interface. Any target interface can bridge to multiple initiator
@@ -26,22 +29,20 @@ class TransparentBridge:
         name = "transparentBridge"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    initiator_ref: Optional[str] = field(
-        default=None,
+    initiator_ref: str = field(
         metadata={
             "name": "initiatorRef",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

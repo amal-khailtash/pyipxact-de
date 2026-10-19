@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.interface import Interface
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Interconnection:
     """
     Describes a connection between two active (not monitor) busInterfaces.
@@ -28,27 +29,25 @@ class Interconnection:
         name = "interconnection"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    active_interface: Iterable[Interface] = field(
+    active_interface: Sequence[Interface] = field(
         default_factory=list,
         metadata={
             "name": "activeInterface",

@@ -1,21 +1,19 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Volatile:
     """
-    Indicates whether the data is volatile, default to false when not present.
+    Indicates whether the data is volatile, default to false when not
+    present.
     """
 
     class Meta:
         name = "volatile"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    value: bool = field(
-        default=False,
-        metadata={
-            "required": True,
-        },
-    )
+    value: bool = field(default=False)

@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.parameter import Parameter
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ServiceTypeDef:
     """
     Definition of a single service type defintion.
@@ -27,29 +28,27 @@ class ServiceTypeDef:
         name = "serviceTypeDef"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
-    type_name: Optional["ServiceTypeDef.TypeName"] = field(
-        default=None,
+    type_name: ServiceTypeDef.TypeName = field(
         metadata={
             "name": "typeName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    type_definition: Iterable[str] = field(
+    type_definition: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
             "type": "Element",
         },
     )
-    parameters: Optional["ServiceTypeDef.Parameters"] = field(
+    parameters: None | ServiceTypeDef.Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -60,12 +59,7 @@ class ServiceTypeDef:
             service in a language specific top-level netlist
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         constrained: bool = field(
             default=False,
             metadata={
@@ -81,9 +75,9 @@ class ServiceTypeDef:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Parameters:
-        parameter: Iterable[Parameter] = field(
+        parameter: Sequence[Parameter] = field(
             default_factory=list,
             metadata={
                 "type": "Element",

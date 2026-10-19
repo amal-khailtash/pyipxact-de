@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.core.format_type import FormatType
 from org.accellera.spirit.v1685_2009.ve.core.range_type_type import (
@@ -13,11 +14,14 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Isolation:
-    """Isolation value.
+    """
+    Isolation value.
 
-    Common values are 0, 1, L (latched), Z (high impedance), N (no isolation needed - default value), and X (isolation needed - no value specified).
+    Common values are 0, 1, L (latched), Z (high impedance), N (no
+    isolation needed - default value), and X (isolation needed - no value
+    specified).
     """
 
     class Meta:
@@ -26,12 +30,7 @@ class Isolation:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/POWER-1.0"
         )
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
+    value: str = field(default="")
     format: FormatType = field(
         default=FormatType.STRING,
         metadata={
@@ -46,14 +45,14 @@ class Isolation:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -67,7 +66,7 @@ class Isolation:
             "namespace": "##any",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -75,14 +74,14 @@ class Isolation:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -91,7 +90,7 @@ class Isolation:
             "tokens": True,
         },
     )
-    bit_string_length: Optional[int] = field(
+    bit_string_length: None | int = field(
         default=None,
         metadata={
             "name": "bitStringLength",
@@ -99,14 +98,14 @@ class Isolation:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -121,7 +120,7 @@ class Isolation:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

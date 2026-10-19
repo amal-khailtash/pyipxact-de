@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.delay_value_unit_type import DelayValueUnitType
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Delay:
     """
     Represents a simple delay value with optional units.
@@ -15,14 +16,12 @@ class Delay:
     class Meta:
         name = "delay"
 
-    value: Optional[float] = field(
-        default=None,
+    value: float = field(
         metadata={
-            "required": True,
             "min_inclusive": 0.0,
-        },
+        }
     )
-    units: Optional[DelayValueUnitType] = field(
+    units: None | DelayValueUnitType = field(
         default=None,
         metadata={
             "type": "Attribute",

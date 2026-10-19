@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.address_block_definitions import (
     AddressBlockDefinitions,
@@ -39,7 +40,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class TypeDefinitions:
     """
     :ivar vendor: Name of the vendor who supplies this file.
@@ -76,70 +77,70 @@ class TypeDefinitions:
         name = "typeDefinitions"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    vendor: Optional[str] = field(
+    vendor: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    library: Optional[str] = field(
+    library: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    name: Optional[str] = field(
+    name: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    version: Optional[str] = field(
+    version: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    external_type_definitions: Iterable[ExternalTypeDefinitions] = field(
+    external_type_definitions: Sequence[ExternalTypeDefinitions] = field(
         default_factory=list,
         metadata={
             "name": "externalTypeDefinitions",
             "type": "Element",
         },
     )
-    modes: Optional["TypeDefinitions.Modes"] = field(
+    modes: None | TypeDefinitions.Modes = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    views: Optional["TypeDefinitions.Views"] = field(
+    views: None | TypeDefinitions.Views = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    field_access_policy_definitions: Optional[FieldAccessPolicyDefinitions] = (
+    field_access_policy_definitions: None | FieldAccessPolicyDefinitions = (
         field(
             default=None,
             metadata={
@@ -148,95 +149,95 @@ class TypeDefinitions:
             },
         )
     )
-    enumeration_definitions: Optional[EnumerationDefinitions] = field(
+    enumeration_definitions: None | EnumerationDefinitions = field(
         default=None,
         metadata={
             "name": "enumerationDefinitions",
             "type": "Element",
         },
     )
-    field_definitions: Optional[FieldDefinitions] = field(
+    field_definitions: None | FieldDefinitions = field(
         default=None,
         metadata={
             "name": "fieldDefinitions",
             "type": "Element",
         },
     )
-    register_definitions: Optional[RegisterDefinitions] = field(
+    register_definitions: None | RegisterDefinitions = field(
         default=None,
         metadata={
             "name": "registerDefinitions",
             "type": "Element",
         },
     )
-    register_file_definitions: Optional[RegisterFileDefinitions] = field(
+    register_file_definitions: None | RegisterFileDefinitions = field(
         default=None,
         metadata={
             "name": "registerFileDefinitions",
             "type": "Element",
         },
     )
-    address_block_definitions: Optional[AddressBlockDefinitions] = field(
+    address_block_definitions: None | AddressBlockDefinitions = field(
         default=None,
         metadata={
             "name": "addressBlockDefinitions",
             "type": "Element",
         },
     )
-    bank_definitions: Optional[BankDefinitions] = field(
+    bank_definitions: None | BankDefinitions = field(
         default=None,
         metadata={
             "name": "bankDefinitions",
             "type": "Element",
         },
     )
-    memory_map_definitions: Optional[MemoryMapDefinitions] = field(
+    memory_map_definitions: None | MemoryMapDefinitions = field(
         default=None,
         metadata={
             "name": "memoryMapDefinitions",
             "type": "Element",
         },
     )
-    memory_remap_definitions: Optional[MemoryRemapDefinitions] = field(
+    memory_remap_definitions: None | MemoryRemapDefinitions = field(
         default=None,
         metadata={
             "name": "memoryRemapDefinitions",
             "type": "Element",
         },
     )
-    reset_types: Optional["TypeDefinitions.ResetTypes"] = field(
+    reset_types: None | TypeDefinitions.ResetTypes = field(
         default=None,
         metadata={
             "name": "resetTypes",
             "type": "Element",
         },
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    assertions: Optional[Assertions] = field(
+    assertions: None | Assertions = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -244,9 +245,9 @@ class TypeDefinitions:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Modes:
-        mode: Iterable["TypeDefinitions.Modes.Mode"] = field(
+        mode: Sequence[TypeDefinitions.Modes.Mode] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -254,7 +255,7 @@ class TypeDefinitions:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Mode:
             """
             :ivar name: Unique name
@@ -265,41 +266,39 @@ class TypeDefinitions:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
                     "type": "Element",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
                     "type": "Element",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -307,9 +306,9 @@ class TypeDefinitions:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
-        view: Iterable["TypeDefinitions.Views.View"] = field(
+        view: Sequence[TypeDefinitions.Views.View] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -317,7 +316,7 @@ class TypeDefinitions:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class View:
             """
             :ivar name: Unique name
@@ -328,41 +327,39 @@ class TypeDefinitions:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
                     "type": "Element",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
                     "type": "Element",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -370,13 +367,13 @@ class TypeDefinitions:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ResetTypes:
         """
         :ivar reset_type: A user defined reset policy
         """
 
-        reset_type: Iterable["TypeDefinitions.ResetTypes.ResetType"] = field(
+        reset_type: Sequence[TypeDefinitions.ResetTypes.ResetType] = field(
             default_factory=list,
             metadata={
                 "name": "resetType",
@@ -385,7 +382,7 @@ class TypeDefinitions:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ResetType:
             """
             :ivar name: Unique name
@@ -396,41 +393,39 @@ class TypeDefinitions:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
                     "type": "Element",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
                     "type": "Element",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

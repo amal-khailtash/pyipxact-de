@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.spirit.v1_5.model_type import ModelType
@@ -5,7 +7,7 @@ from org.accellera.spirit.v1_5.model_type import ModelType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Model(ModelType):
     """
     Model information.

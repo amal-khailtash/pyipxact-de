@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FieldAccessPolicyDefinitionRef:
     """
     Indicates the accessibility of the data in the field.
@@ -14,17 +15,10 @@ class FieldAccessPolicyDefinitionRef:
         name = "fieldAccessPolicyDefinitionRef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
-    type_definitions: Optional[str] = field(
-        default=None,
+    value: str = field(default="")
+    type_definitions: str = field(
         metadata={
             "name": "typeDefinitions",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )

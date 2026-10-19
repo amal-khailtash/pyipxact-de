@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.spirit.v1_4.abstraction_def_port_constraints_type import (
     AbstractionDefPortConstraintsType,
@@ -17,10 +19,11 @@ from org.accellera.spirit.v1_4.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractionDefinition:
     """
-    Define the ports and other information of a particular abstraction of the bus.
+    Define the ports and other information of a particular abstraction of
+    the bus.
 
     :ivar vendor: Name of the vendor who supplies this file.
     :ivar library: Name of the logical library this element belongs to.
@@ -47,62 +50,50 @@ class AbstractionDefinition:
         name = "abstractionDefinition"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    bus_type: Optional[LibraryRefType] = field(
-        default=None,
+    bus_type: LibraryRefType = field(
         metadata={
             "name": "busType",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    extends: Optional[LibraryRefType] = field(
+    extends: None | LibraryRefType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    ports: Optional["AbstractionDefinition.Ports"] = field(
+    ports: AbstractionDefinition.Ports = field(
+        metadata={
+            "type": "Element",
+        }
+    )
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
-            "required": True,
         },
     )
-    description: Optional[str] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -110,9 +101,9 @@ class AbstractionDefinition:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Ports:
-        port: Iterable["AbstractionDefinition.Ports.Port"] = field(
+        port: Sequence[AbstractionDefinition.Ports.Port] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -120,7 +111,7 @@ class AbstractionDefinition:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Port:
             """
             :ivar logical_name: The assigned name of this port in bus
@@ -129,49 +120,54 @@ class AbstractionDefinition:
                 user interface
             :ivar description: Full description string, typically for
                 documentation
-            :ivar wire: A port that carries logic or an array of logic
-                values
-            :ivar transactional: A port that carries complex information
-                modeled at a high level of abstraction.
+            :ivar wire_or_transactional:
             :ivar vendor_extensions:
             """
 
-            logical_name: Optional[str] = field(
-                default=None,
+            logical_name: str = field(
                 metadata={
                     "name": "logicalName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[str] = field(
+            display_name: None | str = field(
                 default=None,
                 metadata={
                     "name": "displayName",
                     "type": "Element",
                 },
             )
-            description: Optional[str] = field(
+            description: None | str = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            wire: Optional["AbstractionDefinition.Ports.Port.Wire"] = field(
+            wire_or_transactional: (
+                None
+                | AbstractionDefinition.Ports.Port.Wire
+                | AbstractionDefinition.Ports.Port.Transactional
+            ) = field(
                 default=None,
                 metadata={
-                    "type": "Element",
+                    "type": "Elements",
+                    "choices": (
+                        {
+                            "name": "wire",
+                            "type": ForwardRef(
+                                "AbstractionDefinition.Ports.Port.Wire"
+                            ),
+                        },
+                        {
+                            "name": "transactional",
+                            "type": ForwardRef(
+                                "AbstractionDefinition.Ports.Port.Transactional"
+                            ),
+                        },
+                    ),
                 },
             )
-            transactional: Optional[
-                "AbstractionDefinition.Ports.Port.Transactional"
-            ] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -179,7 +175,7 @@ class AbstractionDefinition:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Wire:
                 """
                 :ivar qualifier: The type of information this port
@@ -192,21 +188,19 @@ class AbstractionDefinition:
                     present in a master bus interface.
                 :ivar on_slave: Defines constraints for this port when
                     present in a slave bus interface.
-                :ivar default_value: Indicates the default value for
-                    this wire port.
-                :ivar requires_driver:
+                :ivar default_value_or_requires_driver:
                 """
 
-                qualifier: Optional[
-                    "AbstractionDefinition.Ports.Port.Wire.Qualifier"
-                ] = field(
+                qualifier: (
+                    None | AbstractionDefinition.Ports.Port.Wire.Qualifier
+                ) = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                on_system: Iterable[
-                    "AbstractionDefinition.Ports.Port.Wire.OnSystem"
+                on_system: Sequence[
+                    AbstractionDefinition.Ports.Port.Wire.OnSystem
                 ] = field(
                     default_factory=list,
                     metadata={
@@ -214,83 +208,102 @@ class AbstractionDefinition:
                         "type": "Element",
                     },
                 )
-                on_master: Optional[
-                    "AbstractionDefinition.Ports.Port.Wire.OnMaster"
-                ] = field(
+                on_master: (
+                    None | AbstractionDefinition.Ports.Port.Wire.OnMaster
+                ) = field(
                     default=None,
                     metadata={
                         "name": "onMaster",
                         "type": "Element",
                     },
                 )
-                on_slave: Optional[
-                    "AbstractionDefinition.Ports.Port.Wire.OnSlave"
-                ] = field(
+                on_slave: (
+                    None | AbstractionDefinition.Ports.Port.Wire.OnSlave
+                ) = field(
                     default=None,
                     metadata={
                         "name": "onSlave",
                         "type": "Element",
                     },
                 )
-                default_value: Optional[str] = field(
+                default_value_or_requires_driver: (
+                    None | str | RequiresDriver
+                ) = field(
                     default=None,
                     metadata={
-                        "name": "defaultValue",
-                        "type": "Element",
-                        "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
-                    },
-                )
-                requires_driver: Optional[RequiresDriver] = field(
-                    default=None,
-                    metadata={
-                        "name": "requiresDriver",
-                        "type": "Element",
+                        "type": "Elements",
+                        "choices": (
+                            {
+                                "name": "defaultValue",
+                                "type": str,
+                                "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
+                            },
+                            {
+                                "name": "requiresDriver",
+                                "type": RequiresDriver,
+                            },
+                        ),
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class Qualifier:
-                    """
-                    :ivar is_address: If this element is present, the
-                        port contains address information.
-                    :ivar is_data: If this element is present, the port
-                        contains data information.
-                    :ivar is_clock: If this element is present, the port
-                        contains only clock information.
-                    :ivar is_reset: Is this element is present, the port
-                        contains only reset information.
-                    """
+                    choice: Sequence[
+                        AbstractionDefinition.Ports.Port.Wire.Qualifier.IsAddress
+                        | AbstractionDefinition.Ports.Port.Wire.Qualifier.IsData
+                        | AbstractionDefinition.Ports.Port.Wire.Qualifier.IsClock
+                        | AbstractionDefinition.Ports.Port.Wire.Qualifier.IsReset
+                    ] = field(
+                        default_factory=list,
+                        metadata={
+                            "type": "Elements",
+                            "choices": (
+                                {
+                                    "name": "isAddress",
+                                    "type": ForwardRef(
+                                        "AbstractionDefinition.Ports.Port.Wire.Qualifier.IsAddress"
+                                    ),
+                                },
+                                {
+                                    "name": "isData",
+                                    "type": ForwardRef(
+                                        "AbstractionDefinition.Ports.Port.Wire.Qualifier.IsData"
+                                    ),
+                                },
+                                {
+                                    "name": "isClock",
+                                    "type": ForwardRef(
+                                        "AbstractionDefinition.Ports.Port.Wire.Qualifier.IsClock"
+                                    ),
+                                },
+                                {
+                                    "name": "isReset",
+                                    "type": ForwardRef(
+                                        "AbstractionDefinition.Ports.Port.Wire.Qualifier.IsReset"
+                                    ),
+                                },
+                            ),
+                            "max_occurs": 2,
+                        },
+                    )
 
-                    is_address: Optional[bool] = field(
-                        default=None,
-                        metadata={
-                            "name": "isAddress",
-                            "type": "Element",
-                        },
-                    )
-                    is_data: Optional[bool] = field(
-                        default=None,
-                        metadata={
-                            "name": "isData",
-                            "type": "Element",
-                        },
-                    )
-                    is_clock: Optional[bool] = field(
-                        default=None,
-                        metadata={
-                            "name": "isClock",
-                            "type": "Element",
-                        },
-                    )
-                    is_reset: Optional[bool] = field(
-                        default=None,
-                        metadata={
-                            "name": "isReset",
-                            "type": "Element",
-                        },
-                    )
+                    @dataclass(slots=True, kw_only=True)
+                    class IsAddress:
+                        value: bool = field()
 
-                @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
+                    class IsData:
+                        value: bool = field()
+
+                    @dataclass(slots=True, kw_only=True)
+                    class IsClock:
+                        value: bool = field()
+
+                    @dataclass(slots=True, kw_only=True)
+                    class IsReset:
+                        value: bool = field()
+
+                @dataclass(slots=True, kw_only=True)
                 class OnSystem:
                     """
                     :ivar group: Used to group system ports into
@@ -320,43 +333,41 @@ class AbstractionDefinition:
                         interface.
                     """
 
-                    group: Optional[str] = field(
-                        default=None,
+                    group: str = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
-                    presence: Optional[Presence] = field(
-                        default=None,
-                        metadata={
-                            "type": "Element",
-                        },
-                    )
-                    width: Optional[int] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    direction: Optional[OnSystemDirection] = field(
+                    width: None | int = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    mode_constraints: Optional[
-                        AbstractionDefPortConstraintsType
-                    ] = field(
+                    direction: None | OnSystemDirection = field(
+                        default=None,
+                        metadata={
+                            "type": "Element",
+                        },
+                    )
+                    mode_constraints: (
+                        None | AbstractionDefPortConstraintsType
+                    ) = field(
                         default=None,
                         metadata={
                             "name": "modeConstraints",
                             "type": "Element",
                         },
                     )
-                    mirrored_mode_constraints: Optional[
-                        AbstractionDefPortConstraintsType
-                    ] = field(
+                    mirrored_mode_constraints: (
+                        None | AbstractionDefPortConstraintsType
+                    ) = field(
                         default=None,
                         metadata={
                             "name": "mirroredModeConstraints",
@@ -364,7 +375,7 @@ class AbstractionDefinition:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnMaster:
                     """
                     :ivar presence:
@@ -392,36 +403,36 @@ class AbstractionDefinition:
                         interface.
                     """
 
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    width: Optional[int] = field(
+                    width: None | int = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    direction: Optional[OnMasterDirection] = field(
+                    direction: None | OnMasterDirection = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    mode_constraints: Optional[
-                        AbstractionDefPortConstraintsType
-                    ] = field(
+                    mode_constraints: (
+                        None | AbstractionDefPortConstraintsType
+                    ) = field(
                         default=None,
                         metadata={
                             "name": "modeConstraints",
                             "type": "Element",
                         },
                     )
-                    mirrored_mode_constraints: Optional[
-                        AbstractionDefPortConstraintsType
-                    ] = field(
+                    mirrored_mode_constraints: (
+                        None | AbstractionDefPortConstraintsType
+                    ) = field(
                         default=None,
                         metadata={
                             "name": "mirroredModeConstraints",
@@ -429,7 +440,7 @@ class AbstractionDefinition:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnSlave:
                     """
                     :ivar presence:
@@ -457,36 +468,36 @@ class AbstractionDefinition:
                         interface.
                     """
 
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    width: Optional[int] = field(
+                    width: None | int = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    direction: Optional[OnSlaveDirection] = field(
+                    direction: None | OnSlaveDirection = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    mode_constraints: Optional[
-                        AbstractionDefPortConstraintsType
-                    ] = field(
+                    mode_constraints: (
+                        None | AbstractionDefPortConstraintsType
+                    ) = field(
                         default=None,
                         metadata={
                             "name": "modeConstraints",
                             "type": "Element",
                         },
                     )
-                    mirrored_mode_constraints: Optional[
-                        AbstractionDefPortConstraintsType
-                    ] = field(
+                    mirrored_mode_constraints: (
+                        None | AbstractionDefPortConstraintsType
+                    ) = field(
                         default=None,
                         metadata={
                             "name": "mirroredModeConstraints",
@@ -494,7 +505,7 @@ class AbstractionDefinition:
                         },
                     )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Transactional:
                 """
                 :ivar qualifier: The type of information this port
@@ -509,16 +520,17 @@ class AbstractionDefinition:
                     present in a slave bus interface.
                 """
 
-                qualifier: Optional[
-                    "AbstractionDefinition.Ports.Port.Transactional.Qualifier"
-                ] = field(
+                qualifier: (
+                    None
+                    | AbstractionDefinition.Ports.Port.Transactional.Qualifier
+                ) = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                on_system: Iterable[
-                    "AbstractionDefinition.Ports.Port.Transactional.OnSystem"
+                on_system: Sequence[
+                    AbstractionDefinition.Ports.Port.Transactional.OnSystem
                 ] = field(
                     default_factory=list,
                     metadata={
@@ -526,18 +538,20 @@ class AbstractionDefinition:
                         "type": "Element",
                     },
                 )
-                on_master: Optional[
-                    "AbstractionDefinition.Ports.Port.Transactional.OnMaster"
-                ] = field(
+                on_master: (
+                    None
+                    | AbstractionDefinition.Ports.Port.Transactional.OnMaster
+                ) = field(
                     default=None,
                     metadata={
                         "name": "onMaster",
                         "type": "Element",
                     },
                 )
-                on_slave: Optional[
-                    "AbstractionDefinition.Ports.Port.Transactional.OnSlave"
-                ] = field(
+                on_slave: (
+                    None
+                    | AbstractionDefinition.Ports.Port.Transactional.OnSlave
+                ) = field(
                     default=None,
                     metadata={
                         "name": "onSlave",
@@ -545,7 +559,7 @@ class AbstractionDefinition:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class Qualifier:
                     """
                     :ivar is_address: If this element is present, the
@@ -554,14 +568,14 @@ class AbstractionDefinition:
                         contains data information.
                     """
 
-                    is_address: Optional[bool] = field(
+                    is_address: None | bool = field(
                         default=None,
                         metadata={
                             "name": "isAddress",
                             "type": "Element",
                         },
                     )
-                    is_data: Optional[bool] = field(
+                    is_data: None | bool = field(
                         default=None,
                         metadata={
                             "name": "isData",
@@ -569,7 +583,7 @@ class AbstractionDefinition:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnSystem:
                     """
                     :ivar group: Used to group system ports into
@@ -579,28 +593,24 @@ class AbstractionDefinition:
                         port can provide or requires.
                     """
 
-                    group: Optional[str] = field(
-                        default=None,
+                    group: str = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    service: Optional[ServiceType] = field(
-                        default=None,
+                    service: ServiceType = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnMaster:
                     """
                     :ivar presence:
@@ -608,21 +618,19 @@ class AbstractionDefinition:
                         port can provide or requires.
                     """
 
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    service: Optional[ServiceType] = field(
-                        default=None,
+                    service: ServiceType = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnSlave:
                     """
                     :ivar presence:
@@ -630,16 +638,14 @@ class AbstractionDefinition:
                         port can provide or requires.
                     """
 
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    service: Optional[ServiceType] = field(
-                        default=None,
+                    service: ServiceType = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )

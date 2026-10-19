@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.generator_type_api_type import (
     GeneratorTypeApiType,
@@ -14,7 +15,7 @@ from org.accellera.spirit.v1_4.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorType:
     """
     Types of generators.
@@ -42,15 +43,13 @@ class GeneratorType:
     class Meta:
         name = "generatorType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -58,28 +57,28 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    phase: Optional[Phase] = field(
+    phase: None | Phase = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    api_type: Optional[GeneratorTypeApiType] = field(
+    api_type: None | GeneratorTypeApiType = field(
         default=None,
         metadata={
             "name": "apiType",
@@ -87,7 +86,7 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    transport_methods: Optional["GeneratorType.TransportMethods"] = field(
+    transport_methods: None | GeneratorType.TransportMethods = field(
         default=None,
         metadata={
             "name": "transportMethods",
@@ -95,16 +94,14 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    generator_exe: Optional[str] = field(
-        default=None,
+    generator_exe: str = field(
         metadata={
             "name": "generatorExe",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -120,7 +117,7 @@ class GeneratorType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TransportMethods:
         """
         :ivar transport_method: Defines a SOAP transport protocol other
@@ -128,12 +125,10 @@ class GeneratorType:
             other currently supported protocol is 'file'.
         """
 
-        transport_method: Optional[TransportMethodsTransportMethod] = field(
-            default=None,
+        transport_method: TransportMethodsTransportMethod = field(
             metadata={
                 "name": "transportMethod",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                "required": True,
-            },
+            }
         )

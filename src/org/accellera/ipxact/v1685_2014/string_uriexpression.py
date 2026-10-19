@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.ipxact.v1685_2014.complex_base_expression import (
@@ -7,12 +9,12 @@ from org.accellera.ipxact.v1685_2014.complex_base_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class StringUriexpression(ComplexBaseExpression):
     """
-    IP-XACT URI, like a standard xs:anyURI except that it can contain environment
-    variables in the ${ } form, to be replaced by their value to provide the
-    underlying URI.
+    IP-XACT URI, like a standard xs:anyURI except that it can contain
+    environment variables in the ${ } form, to be replaced by their value
+    to provide the underlying URI.
     """
 
     class Meta:

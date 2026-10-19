@@ -1,31 +1,32 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.type_parameter import TypeParameter
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class TypeParameters:
     """
-    List of port type parameters (e.g. template or constructor parameters for a
-    systemC port or socket)
+    list of port type parameters (e.g. template or constructor parameters
+    for a systemC port or socket).
     """
 
     class Meta:
         name = "typeParameters"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    type_parameter: Iterable[TypeParameter] = field(
+    type_parameter: Sequence[TypeParameter] = field(
         default_factory=list,
         metadata={
             "name": "typeParameter",
             "type": "Element",
         },
     )
-    service_type_def: Iterable["ServiceTypeDef"] = field(
+    service_type_def: Sequence[ServiceTypeDef] = field(
         default_factory=list,
         metadata={
             "name": "serviceTypeDef",
@@ -34,7 +35,7 @@ class TypeParameters:
     )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ServiceTypeDef:
     """
     Definition of a single service type defintion.
@@ -54,29 +55,27 @@ class ServiceTypeDef:
         name = "serviceTypeDef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    type_name: Optional["ServiceTypeDef.TypeName"] = field(
-        default=None,
+    type_name: ServiceTypeDef.TypeName = field(
         metadata={
             "name": "typeName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    type_definition: Iterable["ServiceTypeDef.TypeDefinition"] = field(
+    type_definition: Sequence[ServiceTypeDef.TypeDefinition] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
             "type": "Element",
         },
     )
-    type_parameters: Optional[TypeParameters] = field(
+    type_parameters: None | TypeParameters = field(
         default=None,
         metadata={
             "name": "typeParameters",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -84,7 +83,7 @@ class ServiceTypeDef:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -93,12 +92,7 @@ class ServiceTypeDef:
             service in a language specific top-level netlist
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         implicit: bool = field(
             default=False,
             metadata={
@@ -106,15 +100,10 @@ class ServiceTypeDef:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeDefinition:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

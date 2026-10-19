@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.slices_type import SlicesType
 from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
@@ -8,9 +9,10 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ClearboxElementRefType:
-    """Reference to a clearboxElement within a view.
+    """
+    Reference to a clearboxElement within a view.
 
     The 'name' attribute must refer to a clearboxElement defined within
     this component.
@@ -27,7 +29,7 @@ class ClearboxElementRefType:
     class Meta:
         name = "clearboxElementRefType"
 
-    location: Iterable[SlicesType] = field(
+    location: Sequence[SlicesType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -35,7 +37,7 @@ class ClearboxElementRefType:
             "min_occurs": 1,
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -43,14 +45,12 @@ class ClearboxElementRefType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

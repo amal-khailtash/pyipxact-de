@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_0.file_builder_type import FileBuilderType
 from org.accellera.spirit.v1_0.file_set_ref import FileSetRef
@@ -10,7 +11,7 @@ from org.accellera.spirit.v1_0.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ViewType:
     """
     :ivar name: Name of the view. Must be unique within a component
@@ -36,10 +37,9 @@ class ViewType:
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-            "required": True,
         },
     )
-    env_identifier: Iterable[str] = field(
+    env_identifier: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "envIdentifier",
@@ -48,14 +48,14 @@ class ViewType:
             "min_occurs": 1,
         },
     )
-    language: Optional["ViewType.Language"] = field(
+    language: None | ViewType.Language = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    model_name: Optional[str] = field(
+    model_name: None | str = field(
         default=None,
         metadata={
             "name": "modelName",
@@ -63,7 +63,7 @@ class ViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    default_file_builder: Iterable[FileBuilderType] = field(
+    default_file_builder: Sequence[FileBuilderType] = field(
         default_factory=list,
         metadata={
             "name": "defaultFileBuilder",
@@ -71,7 +71,7 @@ class ViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    file_set_ref: Iterable[FileSetRef] = field(
+    file_set_ref: Sequence[FileSetRef] = field(
         default_factory=list,
         metadata={
             "name": "fileSetRef",
@@ -79,14 +79,14 @@ class ViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    parameter: Iterable[Parameter] = field(
+    parameter: Sequence[Parameter] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -95,15 +95,10 @@ class ViewType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Language:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        strict: Optional[bool] = field(
+        value: str = field(default="")
+        strict: None | bool = field(
             default=None,
             metadata={
                 "type": "Attribute",

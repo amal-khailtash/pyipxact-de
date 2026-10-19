@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.is_present import IsPresent
 from org.accellera.ipxact.v1685_2014.slices_type import SlicesType
@@ -8,9 +9,10 @@ from org.accellera.ipxact.v1685_2014.slices_type import SlicesType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WhiteboxElementRefType:
-    """Reference to a whiteboxElement within a view.
+    """
+    Reference to a whiteboxElement within a view.
 
     The 'name' attribute must refer to a whiteboxElement defined within
     this component.
@@ -27,7 +29,7 @@ class WhiteboxElementRefType:
     class Meta:
         name = "whiteboxElementRefType"
 
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
@@ -35,7 +37,7 @@ class WhiteboxElementRefType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    location: Iterable[SlicesType] = field(
+    location: Sequence[SlicesType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -43,14 +45,12 @@ class WhiteboxElementRefType:
             "min_occurs": 1,
         },
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

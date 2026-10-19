@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1685_2009.ve.power.name_ref_vector_pair import (
@@ -10,12 +12,12 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class NameRefVectorPairs:
     class Meta:
         name = "nameRefVectorPairs"
 
-    source: Iterable[NameRefVectorPair] = field(
+    source: Sequence[NameRefVectorPair] = field(
         default_factory=list,
         metadata={
             "type": "Element",

@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.choices import Choices
 from org.accellera.spirit.v1_2.library_ref_type import LibraryRefType
@@ -9,12 +10,12 @@ from org.accellera.spirit.v1_2.name_value_pair_type import NameValuePairType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Pmd:
-    """The root element of the platform meta-data definition file.
+    """
+    The root element of the platform meta-data definition file.
 
-    This file defines the Platform meta-data to be applied to specific
-    IP
+    This file defines the Platform meta-data to be applied to specific IP.
 
     :ivar vendor: Name of the vendor who supplies this file.
     :ivar library: Name of the logical library this element belongs to.
@@ -41,72 +42,58 @@ class Pmd:
         name = "pmd"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    applies_to: Optional["Pmd.AppliesTo"] = field(
-        default=None,
+    applies_to: Pmd.AppliesTo = field(
         metadata={
             "name": "appliesTo",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    depends_on: Optional["Pmd.DependsOn"] = field(
-        default=None,
+    depends_on: Pmd.DependsOn = field(
         metadata={
             "name": "dependsOn",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    transformer: Optional["Pmd.Transformer"] = field(
-        default=None,
+    transformer: Pmd.Transformer = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AppliesTo:
         """
         :ivar component_ref: A vendor-library-name-version identifier
             used to refer to components.
         """
 
-        component_ref: Iterable["Pmd.AppliesTo.ComponentRef"] = field(
+        component_ref: Sequence[Pmd.AppliesTo.ComponentRef] = field(
             default_factory=list,
             metadata={
                 "name": "componentRef",
@@ -115,7 +102,7 @@ class Pmd:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ComponentRef(LibraryRefType):
             """
             :ivar display_label: A display label to override the
@@ -123,7 +110,7 @@ class Pmd:
                 apply.
             """
 
-            display_label: Optional[str] = field(
+            display_label: None | str = field(
                 default=None,
                 metadata={
                     "name": "displayLabel",
@@ -132,14 +119,14 @@ class Pmd:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class DependsOn:
         """
         :ivar component_ref: A vendor-library-name-version identifier
             used to refer to components.
         """
 
-        component_ref: Iterable[LibraryRefType] = field(
+        component_ref: Sequence[LibraryRefType] = field(
             default_factory=list,
             metadata={
                 "name": "componentRef",
@@ -147,22 +134,21 @@ class Pmd:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Transformer:
         """
         :ivar xslt: An XSLT transformer that will transform the document
             based on rules defined in the xsl file mentioned here.
         """
 
-        xslt: Iterable["Pmd.Transformer.Xslt"] = field(
+        xslt: Sequence[Pmd.Transformer.Xslt] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
-                "min_occurs": 1,
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Xslt:
             """
             :ivar style_sheet: The relative path to the xsl stylesheet
@@ -171,15 +157,13 @@ class Pmd:
                 stylesheet at run time.
             """
 
-            style_sheet: Optional[str] = field(
-                default=None,
+            style_sheet: str = field(
                 metadata={
                     "name": "styleSheet",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            parameter: Iterable[NameValuePairType] = field(
+            parameter: Sequence[NameValuePairType] = field(
                 default_factory=list,
                 metadata={
                     "type": "Element",

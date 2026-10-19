@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.name_value_pair_type_1 import (
     NameValuePairType1,
@@ -11,7 +12,7 @@ from org.accellera.spirit.v1685_2009.ve.power.name_value_type_type_usage_type im
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class NameValueTypeType(NameValuePairType1):
     """
     Name value pair with data type information.
@@ -26,7 +27,7 @@ class NameValueTypeType(NameValuePairType1):
     class Meta:
         name = "nameValueTypeType"
 
-    data_type: Optional[str] = field(
+    data_type: None | str = field(
         default=None,
         metadata={
             "name": "dataType",

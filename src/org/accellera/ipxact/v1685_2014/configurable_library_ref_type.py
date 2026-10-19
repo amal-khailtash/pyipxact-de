@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.configurable_element_values import (
     ConfigurableElementValues,
@@ -8,9 +9,11 @@ from org.accellera.ipxact.v1685_2014.configurable_element_values import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ConfigurableLibraryRefType:
-    """Base IP-XACT document reference type for configurable top-level objects.
+    """
+    Base IP-XACT document reference type for configurable top-level
+    objects.
 
     Contains vendor, library, name and version attributes along with
     configurable element values.
@@ -19,7 +22,7 @@ class ConfigurableLibraryRefType:
     class Meta:
         name = "configurableLibraryRefType"
 
-    configurable_element_values: Optional[ConfigurableElementValues] = field(
+    configurable_element_values: None | ConfigurableElementValues = field(
         default=None,
         metadata={
             "name": "configurableElementValues",
@@ -27,31 +30,23 @@ class ConfigurableLibraryRefType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )

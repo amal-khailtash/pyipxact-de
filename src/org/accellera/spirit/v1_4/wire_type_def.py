@@ -1,14 +1,16 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WireTypeDef:
     """
-    Definition of a single wire type defintion that can relate to multiple views.
+    Definition of a single wire type defintion that can relate to multiple
+    views.
 
     :ivar type_name: The name of the logic type. Examples could be
         std_logic, std_ulogic, std_logic_vector, sc_logic, ...
@@ -26,22 +28,20 @@ class WireTypeDef:
         name = "wireTypeDef"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    type_name: Optional["WireTypeDef.TypeName"] = field(
-        default=None,
+    type_name: WireTypeDef.TypeName = field(
         metadata={
             "name": "typeName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    type_definition: Iterable[str] = field(
+    type_definition: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
             "type": "Element",
         },
     )
-    view_name_ref: Iterable[str] = field(
+    view_name_ref: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "viewNameRef",
@@ -50,7 +50,7 @@ class WireTypeDef:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -58,12 +58,7 @@ class WireTypeDef:
             constrainted the number of bits in the vector
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         constrained: bool = field(
             default=False,
             metadata={

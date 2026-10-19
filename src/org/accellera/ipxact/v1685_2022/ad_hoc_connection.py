@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.complex_tied_value_expression import (
     ComplexTiedValueExpression,
@@ -18,7 +20,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AdHocConnection:
     """
     Represents an ad-hoc connection between component ports.
@@ -40,58 +42,54 @@ class AdHocConnection:
         name = "adHocConnection"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
             "white_space": "collapse",
             "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    tied_value: Optional[ComplexTiedValueExpression] = field(
+    tied_value: None | ComplexTiedValueExpression = field(
         default=None,
         metadata={
             "name": "tiedValue",
             "type": "Element",
         },
     )
-    port_references: Optional["AdHocConnection.PortReferences"] = field(
-        default=None,
+    port_references: AdHocConnection.PortReferences = field(
         metadata={
             "name": "portReferences",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -99,35 +97,31 @@ class AdHocConnection:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PortReferences:
-        """
-        :ivar internal_port_reference: Defines a reference to a port on
-            a component contained within the design.
-        :ivar external_port_reference:
-        """
-
-        internal_port_reference: Iterable[
-            "AdHocConnection.PortReferences.InternalPortReference"
+        internal_port_reference_or_external_port_reference: Sequence[
+            AdHocConnection.PortReferences.InternalPortReference
+            | ExternalPortReference
         ] = field(
             default_factory=list,
             metadata={
-                "name": "internalPortReference",
-                "type": "Element",
-                "min_occurs": 1,
-            },
-        )
-        external_port_reference: Iterable[ExternalPortReference] = field(
-            default_factory=list,
-            metadata={
-                "name": "externalPortReference",
-                "type": "Element",
-                "min_occurs": 1,
-                "sequence": 1,
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "internalPortReference",
+                        "type": ForwardRef(
+                            "AdHocConnection.PortReferences.InternalPortReference"
+                        ),
+                    },
+                    {
+                        "name": "externalPortReference",
+                        "type": ExternalPortReference,
+                    },
+                ),
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class InternalPortReference:
             """
             :ivar sub_port_reference:
@@ -140,46 +134,42 @@ class AdHocConnection:
             :ivar id:
             """
 
-            sub_port_reference: Iterable[SubPortReference] = field(
+            sub_port_reference: Sequence[SubPortReference] = field(
                 default_factory=list,
                 metadata={
                     "name": "subPortReference",
                     "type": "Element",
                 },
             )
-            part_select: Optional[PartSelect] = field(
+            part_select: None | PartSelect = field(
                 default=None,
                 metadata={
                     "name": "partSelect",
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            port_ref: Optional[str] = field(
-                default=None,
+            port_ref: str = field(
                 metadata={
                     "name": "portRef",
                     "type": "Attribute",
-                    "required": True,
                     "white_space": "collapse",
                     "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-                },
+                }
             )
-            component_instance_ref: Optional[str] = field(
-                default=None,
+            component_instance_ref: str = field(
                 metadata={
                     "name": "componentInstanceRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

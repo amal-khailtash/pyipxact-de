@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.complex_base_expression import (
     ComplexBaseExpression,
@@ -9,7 +10,7 @@ from org.accellera.ipxact.v1685_2022.complex_base_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Choices:
     """
     Choices used by elements with an attribute ipxact:choiceRef.
@@ -22,7 +23,7 @@ class Choices:
         name = "choices"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    choice: Iterable["Choices.Choice"] = field(
+    choice: Sequence[Choices.Choice] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -30,7 +31,7 @@ class Choices:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Choice:
         """
         :ivar name: Choice key, available for reference by the
@@ -39,21 +40,19 @@ class Choices:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        enumeration: Iterable["Choices.Choice.Enumeration"] = field(
+        enumeration: Sequence[Choices.Choice.Enumeration] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "min_occurs": 1,
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -61,7 +60,7 @@ class Choices:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Enumeration(ComplexBaseExpression):
             """
             :ivar text: When specified, displayed in place of the
@@ -71,19 +70,19 @@ class Choices:
             :ivar id:
             """
 
-            text: Optional[str] = field(
+            text: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                 },
             )
-            help: Optional[str] = field(
+            help: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2014.complex_tied_value_type import (
     ComplexTiedValueType,
@@ -17,7 +19,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AdHocConnection:
     """
     Represents an ad-hoc connection between component ports.
@@ -39,58 +41,54 @@ class AdHocConnection:
         name = "adHocConnection"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
             "white_space": "collapse",
             "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
             "type": "Element",
         },
     )
-    tied_value: Optional[ComplexTiedValueType] = field(
+    tied_value: None | ComplexTiedValueType = field(
         default=None,
         metadata={
             "name": "tiedValue",
             "type": "Element",
         },
     )
-    port_references: Optional["AdHocConnection.PortReferences"] = field(
-        default=None,
+    port_references: AdHocConnection.PortReferences = field(
         metadata={
             "name": "portReferences",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -98,35 +96,31 @@ class AdHocConnection:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PortReferences:
-        """
-        :ivar internal_port_reference: Defines a reference to a port on
-            a component contained within the design.
-        :ivar external_port_reference:
-        """
-
-        internal_port_reference: Iterable[
-            "AdHocConnection.PortReferences.InternalPortReference"
+        internal_port_reference_or_external_port_reference: Sequence[
+            AdHocConnection.PortReferences.InternalPortReference
+            | ExternalPortReference
         ] = field(
             default_factory=list,
             metadata={
-                "name": "internalPortReference",
-                "type": "Element",
-                "min_occurs": 1,
-            },
-        )
-        external_port_reference: Iterable[ExternalPortReference] = field(
-            default_factory=list,
-            metadata={
-                "name": "externalPortReference",
-                "type": "Element",
-                "min_occurs": 1,
-                "sequence": 1,
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "internalPortReference",
+                        "type": ForwardRef(
+                            "AdHocConnection.PortReferences.InternalPortReference"
+                        ),
+                    },
+                    {
+                        "name": "externalPortReference",
+                        "type": ExternalPortReference,
+                    },
+                ),
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class InternalPortReference:
             """
             :ivar is_present:
@@ -138,39 +132,35 @@ class AdHocConnection:
             :ivar id:
             """
 
-            is_present: Optional[IsPresent] = field(
+            is_present: None | IsPresent = field(
                 default=None,
                 metadata={
                     "name": "isPresent",
                     "type": "Element",
                 },
             )
-            part_select: Optional[PartSelect] = field(
+            part_select: None | PartSelect = field(
                 default=None,
                 metadata={
                     "name": "partSelect",
                     "type": "Element",
                 },
             )
-            component_ref: Optional[str] = field(
-                default=None,
+            component_ref: str = field(
                 metadata={
                     "name": "componentRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )
-            port_ref: Optional[str] = field(
-                default=None,
+            port_ref: str = field(
                 metadata={
                     "name": "portRef",
                     "type": "Attribute",
-                    "required": True,
                     "white_space": "collapse",
                     "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-                },
+                }
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

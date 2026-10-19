@@ -1,24 +1,23 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BankRef:
     class Meta:
         name = "bankRef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    bank_ref: Optional[str] = field(
-        default=None,
+    bank_ref: str = field(
         metadata={
             "name": "bankRef",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

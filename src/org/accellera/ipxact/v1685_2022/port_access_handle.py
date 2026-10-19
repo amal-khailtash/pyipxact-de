@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.port_slices_type import PortSlicesType
 from org.accellera.ipxact.v1685_2022.unsigned_int_expression import (
@@ -11,7 +12,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortAccessHandle:
     """
     :ivar view_ref: A list of views this accessHandle is applicable to.
@@ -30,7 +31,7 @@ class PortAccessHandle:
     class Meta:
         name = "portAccessHandle"
 
-    view_ref: Iterable["PortAccessHandle.ViewRef"] = field(
+    view_ref: Sequence[PortAccessHandle.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
@@ -38,22 +39,20 @@ class PortAccessHandle:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    indices: Optional["PortAccessHandle.Indices"] = field(
+    indices: None | PortAccessHandle.Indices = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    slices: Optional[PortSlicesType] = field(
-        default=None,
+    slices: PortSlicesType = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -67,7 +66,7 @@ class PortAccessHandle:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -75,15 +74,10 @@ class PortAccessHandle:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -91,13 +85,13 @@ class PortAccessHandle:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Indices:
         """
         :ivar index: An index into the IP-XACT object.
         """
 
-        index: Iterable["PortAccessHandle.Indices.Index"] = field(
+        index: Sequence[PortAccessHandle.Indices.Index] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -106,9 +100,9 @@ class PortAccessHandle:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Index(UnsignedIntExpression):
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.delay_value_unit_type import DelayValueUnitType
 from org.accellera.spirit.v1_5.format_type import FormatType
@@ -10,7 +11,7 @@ from org.accellera.spirit.v1_5.resolve_type import ResolveType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ClockDriverType:
     """
     :ivar clock_period: Clock period in units defined by the units
@@ -25,48 +26,38 @@ class ClockDriverType:
     class Meta:
         name = "clockDriverType"
 
-    clock_period: Optional["ClockDriverType.ClockPeriod"] = field(
-        default=None,
+    clock_period: ClockDriverType.ClockPeriod = field(
         metadata={
             "name": "clockPeriod",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    clock_pulse_offset: Optional["ClockDriverType.ClockPulseOffset"] = field(
-        default=None,
+    clock_pulse_offset: ClockDriverType.ClockPulseOffset = field(
         metadata={
             "name": "clockPulseOffset",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    clock_pulse_value: Optional["ClockDriverType.ClockPulseValue"] = field(
-        default=None,
+    clock_pulse_value: ClockDriverType.ClockPulseValue = field(
         metadata={
             "name": "clockPulseValue",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    clock_pulse_duration: Optional["ClockDriverType.ClockPulseDuration"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "clockPulseDuration",
-                "type": "Element",
-                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-                "required": True,
-            },
-        )
+    clock_pulse_duration: ClockDriverType.ClockPulseDuration = field(
+        metadata={
+            "name": "clockPulseDuration",
+            "type": "Element",
+            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPeriod:
-        value: Iterable[float] = field(
+        value: Sequence[float] = field(
             default_factory=list,
             metadata={
                 "min_length": 0,
@@ -95,14 +86,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -116,7 +107,7 @@ class ClockDriverType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -124,14 +115,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -140,7 +131,7 @@ class ClockDriverType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -148,14 +139,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -170,7 +161,7 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -178,9 +169,9 @@ class ClockDriverType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPulseOffset:
-        value: Iterable[float] = field(
+        value: Sequence[float] = field(
             default_factory=list,
             metadata={
                 "min_length": 0,
@@ -209,14 +200,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -230,7 +221,7 @@ class ClockDriverType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -238,14 +229,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -254,7 +245,7 @@ class ClockDriverType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -262,14 +253,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -284,7 +275,7 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -292,12 +283,11 @@ class ClockDriverType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPulseValue:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
             },
         )
@@ -315,14 +305,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -336,7 +326,7 @@ class ClockDriverType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -344,14 +334,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -360,7 +350,7 @@ class ClockDriverType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -368,14 +358,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -390,7 +380,7 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -398,9 +388,9 @@ class ClockDriverType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ClockPulseDuration:
-        value: Iterable[float] = field(
+        value: Sequence[float] = field(
             default_factory=list,
             metadata={
                 "min_length": 0,
@@ -429,14 +419,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -450,7 +440,7 @@ class ClockDriverType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -458,14 +448,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -474,7 +464,7 @@ class ClockDriverType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -482,14 +472,14 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -504,7 +494,7 @@ class ClockDriverType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

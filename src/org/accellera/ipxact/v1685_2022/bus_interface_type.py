@@ -1,6 +1,8 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
 from org.accellera.ipxact.v1685_2022.addr_space_ref_type import (
@@ -42,7 +44,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BusInterfaceType:
     """
     Type definition for a busInterface in a component.
@@ -56,31 +58,7 @@ class BusInterfaceType:
         with any configurable element values needed to configure this
         interface.
     :ivar abstraction_types:
-    :ivar initiator: If this element is present, the bus interface can
-        serve as a initiator.  This element encapsulates additional
-        information related to its role as initiator.
-    :ivar target: If this element is present, the bus interface can
-        serve as a target.
-    :ivar system: If this element is present, the bus interface is a
-        system interface, neither initiator nor target, with a specific
-        function on the bus.
-    :ivar mirrored_target: If this element is present, the bus interface
-        represents a mirrored target interface. All directional
-        constraints on ports are reversed relative to the specification
-        in the bus definition.
-    :ivar mirrored_initiator: If this element is present, the bus
-        interface represents a mirrored initiator interface. All
-        directional constraints on ports are reversed relative to the
-        specification in the bus definition.
-    :ivar mirrored_system: If this element is present, the bus interface
-        represents a mirrored system interface. All directional
-        constraints on ports are reversed relative to the specification
-        in the bus definition.
-    :ivar monitor: Indicates that this is a (passive) monitor interface.
-        All of the ports in the interface must be inputs. The type of
-        interface to be monitored is specified with the required
-        interfaceType attribute. The ipxact:group element must be
-        specified if monitoring a system interface.
+    :ivar choice:
     :ivar connection_required: Indicates whether a connection to this
         interface is required for proper component functionality.
     :ivar bits_in_lau:
@@ -101,15 +79,13 @@ class BusInterfaceType:
     class Meta:
         name = "busInterfaceType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -117,7 +93,7 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -125,23 +101,21 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    bus_type: Optional[ConfigurableLibraryRefType] = field(
-        default=None,
+    bus_type: ConfigurableLibraryRefType = field(
         metadata={
             "name": "busType",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    abstraction_types: Optional[AbstractionTypes] = field(
+    abstraction_types: None | AbstractionTypes = field(
         default=None,
         metadata={
             "name": "abstractionTypes",
@@ -149,59 +123,59 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    initiator: Optional["BusInterfaceType.Initiator"] = field(
+    choice: (
+        None
+        | BusInterfaceType.Initiator
+        | BusInterfaceType.Target
+        | BusInterfaceType.System
+        | BusInterfaceType.MirroredTarget
+        | object
+        | BusInterfaceType.MirroredSystem
+        | BusInterfaceType.Monitor
+    ) = field(
         default=None,
         metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "initiator",
+                    "type": ForwardRef("BusInterfaceType.Initiator"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "target",
+                    "type": ForwardRef("BusInterfaceType.Target"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "system",
+                    "type": ForwardRef("BusInterfaceType.System"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "mirroredTarget",
+                    "type": ForwardRef("BusInterfaceType.MirroredTarget"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "mirroredInitiator",
+                    "type": object,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "mirroredSystem",
+                    "type": ForwardRef("BusInterfaceType.MirroredSystem"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "monitor",
+                    "type": ForwardRef("BusInterfaceType.Monitor"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+            ),
         },
     )
-    target: Optional["BusInterfaceType.Target"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    system: Optional["BusInterfaceType.System"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    mirrored_target: Optional["BusInterfaceType.MirroredTarget"] = field(
-        default=None,
-        metadata={
-            "name": "mirroredTarget",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    mirrored_initiator: Optional[object] = field(
-        default=None,
-        metadata={
-            "name": "mirroredInitiator",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    mirrored_system: Optional["BusInterfaceType.MirroredSystem"] = field(
-        default=None,
-        metadata={
-            "name": "mirroredSystem",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    monitor: Optional["BusInterfaceType.Monitor"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    connection_required: Optional[bool] = field(
+    connection_required: None | bool = field(
         default=None,
         metadata={
             "name": "connectionRequired",
@@ -209,7 +183,7 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    bits_in_lau: Optional[BitsInLau] = field(
+    bits_in_lau: None | BitsInLau = field(
         default=None,
         metadata={
             "name": "bitsInLau",
@@ -217,7 +191,7 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    bit_steering: Optional[UnsignedBitExpression] = field(
+    bit_steering: None | UnsignedBitExpression = field(
         default=None,
         metadata={
             "name": "bitSteering",
@@ -225,21 +199,21 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    endianness: Optional[EndianessType] = field(
+    endianness: None | EndianessType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -247,7 +221,7 @@ class BusInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -262,7 +236,7 @@ class BusInterfaceType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Initiator:
         """
         :ivar address_space_ref: If this initiator connects to an
@@ -270,9 +244,9 @@ class BusInterfaceType:
             it maps to.
         """
 
-        address_space_ref: Optional[
-            "BusInterfaceType.Initiator.AddressSpaceRef"
-        ] = field(
+        address_space_ref: (
+            None | BusInterfaceType.Initiator.AddressSpaceRef
+        ) = field(
             default=None,
             metadata={
                 "name": "addressSpaceRef",
@@ -281,14 +255,14 @@ class BusInterfaceType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AddressSpaceRef(AddrSpaceRefType):
             """
             :ivar base_address: Base of an address space.
             :ivar mode_ref:
             """
 
-            base_address: Optional[SignedLongintExpression] = field(
+            base_address: None | SignedLongintExpression = field(
                 default=None,
                 metadata={
                     "name": "baseAddress",
@@ -296,8 +270,8 @@ class BusInterfaceType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            mode_ref: Iterable[
-                "BusInterfaceType.Initiator.AddressSpaceRef.ModeRef"
+            mode_ref: Sequence[
+                BusInterfaceType.Initiator.AddressSpaceRef.ModeRef
             ] = field(
                 default_factory=list,
                 metadata={
@@ -307,19 +281,14 @@ class BusInterfaceType:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class ModeRef:
                 """
                 A reference to a mode.
                 """
 
-                value: str = field(
-                    default="",
-                    metadata={
-                        "required": True,
-                    },
-                )
-                id: Optional[str] = field(
+                value: str = field(default="")
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -327,11 +296,10 @@ class BusInterfaceType:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Target:
         """
-        :ivar memory_map_ref:
-        :ivar transparent_bridge:
+        :ivar memory_map_ref_or_transparent_bridge:
         :ivar file_set_ref_group: This reference is used to point the
             filesets that are associated with this target port.
             Depending on the target port function, there may be
@@ -339,24 +307,28 @@ class BusInterfaceType:
             different ports.
         """
 
-        memory_map_ref: Optional[MemoryMapRef] = field(
-            default=None,
-            metadata={
-                "name": "memoryMapRef",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            },
-        )
-        transparent_bridge: Iterable[TransparentBridge] = field(
+        memory_map_ref_or_transparent_bridge: Sequence[
+            MemoryMapRef | TransparentBridge
+        ] = field(
             default_factory=list,
             metadata={
-                "name": "transparentBridge",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "memoryMapRef",
+                        "type": MemoryMapRef,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                    {
+                        "name": "transparentBridge",
+                        "type": TransparentBridge,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                ),
             },
         )
-        file_set_ref_group: Iterable[
-            "BusInterfaceType.Target.FileSetRefGroup"
+        file_set_ref_group: Sequence[
+            BusInterfaceType.Target.FileSetRefGroup
         ] = field(
             default_factory=list,
             metadata={
@@ -366,7 +338,7 @@ class BusInterfaceType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class FileSetRefGroup:
             """
             :ivar group: Abritray name assigned to the collections of
@@ -375,14 +347,14 @@ class BusInterfaceType:
             :ivar id:
             """
 
-            group: Optional[str] = field(
+            group: None | str = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            file_set_ref: Iterable[FileSetRef] = field(
+            file_set_ref: Sequence[FileSetRef] = field(
                 default_factory=list,
                 metadata={
                     "name": "fileSetRef",
@@ -390,7 +362,7 @@ class BusInterfaceType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -398,26 +370,24 @@ class BusInterfaceType:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class System:
-        group: Optional[Group] = field(
-            default=None,
+        group: Group = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
+            }
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MirroredTarget:
         """
         :ivar base_addresses: Represents a set of remap base addresses.
         """
 
-        base_addresses: Optional[
-            "BusInterfaceType.MirroredTarget.BaseAddresses"
-        ] = field(
+        base_addresses: (
+            None | BusInterfaceType.MirroredTarget.BaseAddresses
+        ) = field(
             default=None,
             metadata={
                 "name": "baseAddresses",
@@ -426,7 +396,7 @@ class BusInterfaceType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class BaseAddresses:
             """
             :ivar remap_addresses:
@@ -435,8 +405,8 @@ class BusInterfaceType:
                 busInterface.
             """
 
-            remap_addresses: Iterable[
-                "BusInterfaceType.MirroredTarget.BaseAddresses.RemapAddresses"
+            remap_addresses: Sequence[
+                BusInterfaceType.MirroredTarget.BaseAddresses.RemapAddresses
             ] = field(
                 default_factory=list,
                 metadata={
@@ -446,16 +416,14 @@ class BusInterfaceType:
                     "min_occurs": 1,
                 },
             )
-            range: Optional[UnsignedPositiveLongintExpression] = field(
-                default=None,
+            range: UnsignedPositiveLongintExpression = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                    "required": True,
-                },
+                }
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class RemapAddresses:
                 """
                 :ivar remap_address: Base of an address block, expressed
@@ -466,16 +434,14 @@ class BusInterfaceType:
                 :ivar id:
                 """
 
-                remap_address: Optional[UnsignedLongintExpression] = field(
-                    default=None,
+                remap_address: UnsignedLongintExpression = field(
                     metadata={
                         "name": "remapAddress",
                         "type": "Element",
                         "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                        "required": True,
-                    },
+                    }
                 )
-                mode_ref: Iterable[ModeRef] = field(
+                mode_ref: Sequence[ModeRef] = field(
                     default_factory=list,
                     metadata={
                         "name": "modeRef",
@@ -483,7 +449,7 @@ class BusInterfaceType:
                         "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -491,18 +457,16 @@ class BusInterfaceType:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MirroredSystem:
-        group: Optional[Group] = field(
-            default=None,
+        group: Group = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
+            }
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Monitor:
         """
         :ivar group: Indicates which system interface is being
@@ -511,18 +475,16 @@ class BusInterfaceType:
         :ivar interface_mode:
         """
 
-        group: Optional[Group] = field(
+        group: None | Group = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
             },
         )
-        interface_mode: Optional[MonitorInterfaceMode] = field(
-            default=None,
+        interface_mode: MonitorInterfaceMode = field(
             metadata={
                 "name": "interfaceMode",
                 "type": "Attribute",
-                "required": True,
-            },
+            }
         )

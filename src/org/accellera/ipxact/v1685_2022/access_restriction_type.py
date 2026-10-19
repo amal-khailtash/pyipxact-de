@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.mode_ref import ModeRef
 from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AccessRestrictionType:
     """
     :ivar mode_ref:
@@ -28,7 +29,7 @@ class AccessRestrictionType:
     class Meta:
         name = "accessRestrictionType"
 
-    mode_ref: Iterable[ModeRef] = field(
+    mode_ref: Sequence[ModeRef] = field(
         default_factory=list,
         metadata={
             "name": "modeRef",
@@ -36,7 +37,7 @@ class AccessRestrictionType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    read_access_mask: Optional[UnsignedBitVectorExpression] = field(
+    read_access_mask: None | UnsignedBitVectorExpression = field(
         default=None,
         metadata={
             "name": "readAccessMask",
@@ -44,7 +45,7 @@ class AccessRestrictionType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    write_access_mask: Optional[UnsignedBitVectorExpression] = field(
+    write_access_mask: None | UnsignedBitVectorExpression = field(
         default=None,
         metadata={
             "name": "writeAccessMask",
@@ -52,7 +53,7 @@ class AccessRestrictionType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

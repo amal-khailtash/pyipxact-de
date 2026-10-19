@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.description import Description
 from org.accellera.spirit.v1685_2009.display_name import DisplayName
@@ -12,7 +13,7 @@ from org.accellera.spirit.v1685_2009.whitebox_element_type_whitebox_type import 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WhiteboxElementType:
     """
     Defines a white box reference point within the component.
@@ -39,15 +40,13 @@ class WhiteboxElementType:
     class Meta:
         name = "whiteboxElementType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -55,30 +54,28 @@ class WhiteboxElementType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    whitebox_type: Optional[WhiteboxElementTypeWhiteboxType] = field(
-        default=None,
+    whitebox_type: WhiteboxElementTypeWhiteboxType = field(
         metadata={
             "name": "whiteboxType",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    driveable: Optional[bool] = field(
+    driveable: None | bool = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    register_ref: Optional[str] = field(
+    register_ref: None | str = field(
         default=None,
         metadata={
             "name": "registerRef",
@@ -86,14 +83,14 @@ class WhiteboxElementType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",

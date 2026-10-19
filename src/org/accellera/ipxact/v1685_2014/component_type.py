@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.address_space_ref import AddressSpaceRef
 from org.accellera.ipxact.v1685_2014.address_spaces import AddressSpaces
@@ -31,7 +32,7 @@ from org.accellera.ipxact.v1685_2014.whitebox_element_type import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentType:
     """
     Component-specific extension to componentType.
@@ -66,39 +67,31 @@ class ComponentType:
     class Meta:
         name = "componentType"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    bus_interfaces: Optional[BusInterfaces] = field(
+    bus_interfaces: None | BusInterfaces = field(
         default=None,
         metadata={
             "name": "busInterfaces",
@@ -106,7 +99,7 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    indirect_interfaces: Optional[IndirectInterfaces] = field(
+    indirect_interfaces: None | IndirectInterfaces = field(
         default=None,
         metadata={
             "name": "indirectInterfaces",
@@ -114,14 +107,14 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    channels: Optional[Channels] = field(
+    channels: None | Channels = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    remap_states: Optional[RemapStates] = field(
+    remap_states: None | RemapStates = field(
         default=None,
         metadata={
             "name": "remapStates",
@@ -129,7 +122,7 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    address_spaces: Optional[AddressSpaces] = field(
+    address_spaces: None | AddressSpaces = field(
         default=None,
         metadata={
             "name": "addressSpaces",
@@ -137,7 +130,7 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    memory_maps: Optional[MemoryMaps] = field(
+    memory_maps: None | MemoryMaps = field(
         default=None,
         metadata={
             "name": "memoryMaps",
@@ -145,14 +138,14 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    model: Optional[Model] = field(
+    model: None | Model = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    component_generators: Optional[ComponentGenerators] = field(
+    component_generators: None | ComponentGenerators = field(
         default=None,
         metadata={
             "name": "componentGenerators",
@@ -160,14 +153,14 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    file_sets: Optional[FileSets] = field(
+    file_sets: None | FileSets = field(
         default=None,
         metadata={
             "name": "fileSets",
@@ -175,7 +168,7 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    whitebox_elements: Optional["ComponentType.WhiteboxElements"] = field(
+    whitebox_elements: None | ComponentType.WhiteboxElements = field(
         default=None,
         metadata={
             "name": "whiteboxElements",
@@ -183,14 +176,14 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    cpus: Optional["ComponentType.Cpus"] = field(
+    cpus: None | ComponentType.Cpus = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    other_clock_drivers: Optional[OtherClocks] = field(
+    other_clock_drivers: None | OtherClocks = field(
         default=None,
         metadata={
             "name": "otherClockDrivers",
@@ -198,7 +191,7 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    reset_types: Optional["ComponentType.ResetTypes"] = field(
+    reset_types: None | ComponentType.ResetTypes = field(
         default=None,
         metadata={
             "name": "resetTypes",
@@ -206,28 +199,28 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    assertions: Optional[Assertions] = field(
+    assertions: None | Assertions = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -235,7 +228,7 @@ class ComponentType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -243,7 +236,7 @@ class ComponentType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class WhiteboxElements:
         """
         :ivar whitebox_element: A whiteboxElement is a useful way to
@@ -252,7 +245,7 @@ class ComponentType:
             software accessible registers.
         """
 
-        whitebox_element: Iterable[WhiteboxElementType] = field(
+        whitebox_element: Sequence[WhiteboxElementType] = field(
             default_factory=list,
             metadata={
                 "name": "whiteboxElement",
@@ -262,13 +255,13 @@ class ComponentType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Cpus:
         """
         :ivar cpu: Describes a processor in this component.
         """
 
-        cpu: Iterable["ComponentType.Cpus.Cpu"] = field(
+        cpu: Sequence[ComponentType.Cpus.Cpu] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -277,7 +270,7 @@ class ComponentType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Cpu:
             """
             :ivar name: Unique name
@@ -291,15 +284,13 @@ class ComponentType:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
@@ -307,14 +298,14 @@ class ComponentType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            is_present: Optional[IsPresent] = field(
+            is_present: None | IsPresent = field(
                 default=None,
                 metadata={
                     "name": "isPresent",
@@ -322,7 +313,7 @@ class ComponentType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            address_space_ref: Iterable[AddressSpaceRef] = field(
+            address_space_ref: Sequence[AddressSpaceRef] = field(
                 default_factory=list,
                 metadata={
                     "name": "addressSpaceRef",
@@ -331,14 +322,14 @@ class ComponentType:
                     "min_occurs": 1,
                 },
             )
-            parameters: Optional[Parameters] = field(
+            parameters: None | Parameters = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -346,7 +337,7 @@ class ComponentType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -354,13 +345,13 @@ class ComponentType:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ResetTypes:
         """
         :ivar reset_type: A user defined reset policy
         """
 
-        reset_type: Iterable["ComponentType.ResetTypes.ResetType"] = field(
+        reset_type: Sequence[ComponentType.ResetTypes.ResetType] = field(
             default_factory=list,
             metadata={
                 "name": "resetType",
@@ -370,7 +361,7 @@ class ComponentType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ResetType:
             """
             :ivar name: Unique name
@@ -380,15 +371,13 @@ class ComponentType:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
@@ -396,14 +385,14 @@ class ComponentType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -411,7 +400,7 @@ class ComponentType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class NameRef:
     """
     Reference to an existing spirit name in the file.
@@ -13,9 +15,4 @@ class NameRef:
         name = "nameRef"
         namespace = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
+    value: str = field(default="")

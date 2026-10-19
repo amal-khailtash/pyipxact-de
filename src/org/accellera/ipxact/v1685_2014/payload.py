@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.payload_type import PayloadType
 from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
@@ -7,10 +8,10 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Payload:
     """
-    Defines the structure of data transported by this port.
+    defines the structure of data transported by this port.
 
     :ivar name: Defines the name of the payload. For example: TLM2 or
         TLM1
@@ -24,27 +25,25 @@ class Payload:
         name = "payload"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[str] = field(
+    name: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    type_value: Optional[PayloadType] = field(
-        default=None,
+    type_value: PayloadType = field(
         metadata={
             "name": "type",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    extension: Optional["Payload.Extension"] = field(
+    extension: None | Payload.Extension = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -52,19 +51,14 @@ class Payload:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Extension:
         """
         :ivar value:
         :ivar mandatory: True if the payload extension is mandatory.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         mandatory: bool = field(
             default=False,
             metadata={

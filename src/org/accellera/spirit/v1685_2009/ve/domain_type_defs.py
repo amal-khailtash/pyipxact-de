@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1685_2009.ve.domain_type_def import DomainTypeDef
@@ -8,12 +10,13 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DomainTypeDefs:
-    """The group of domain type definitions.
+    """
+    The group of domain type definitions.
 
-    If no match to a viewName is found then the default language types
-    are to be used. See the User Guide for these default types.
+    If no match to a viewName is found then the default language types are
+    to be used. See the User Guide for these default types.
 
     :ivar domain_type_def: Definition of a single domain type definition
         that can relate to multiple views.
@@ -25,7 +28,7 @@ class DomainTypeDefs:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/AMS-1.0"
         )
 
-    domain_type_def: Iterable[DomainTypeDef] = field(
+    domain_type_def: Sequence[DomainTypeDef] = field(
         default_factory=list,
         metadata={
             "name": "domainTypeDef",

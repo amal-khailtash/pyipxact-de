@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.interface import Interface
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class HierInterface(Interface):
     """
     Hierarchical reference to an interface.
@@ -20,7 +21,7 @@ class HierInterface(Interface):
     class Meta:
         name = "hierInterface"
 
-    path: Optional[str] = field(
+    path: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

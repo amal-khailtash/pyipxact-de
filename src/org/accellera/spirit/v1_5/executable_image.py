@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.file_builder_file_type import (
     FileBuilderFileType,
@@ -16,14 +17,15 @@ from org.accellera.spirit.v1_5.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ExecutableImage:
-    """Specifies an executable software image to be loaded into a processors
+    """
+    Specifies an executable software image to be loaded into a processors
     address space.
 
-    The format of the image is not specified. It could, for example, be
-    an ELF loadfile, or it could be raw binary or ascii hex data for
-    loading directly into a memory model instance.
+    The format of the image is not specified. It could, for example, be an
+    ELF loadfile, or it could be raw binary or ascii hex data for loading
+    directly into a memory model instance.
 
     :ivar name: Name of the executable image file.
     :ivar description: String for describing this executable image to
@@ -46,55 +48,51 @@ class ExecutableImage:
         name = "executableImage"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    description: Optional[str] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-        },
-    )
-    parameters: Optional[Parameters] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    language_tools: Optional["ExecutableImage.LanguageTools"] = field(
+    parameters: None | Parameters = field(
+        default=None,
+        metadata={
+            "type": "Element",
+        },
+    )
+    language_tools: None | ExecutableImage.LanguageTools = field(
         default=None,
         metadata={
             "name": "languageTools",
             "type": "Element",
         },
     )
-    file_set_ref_group: Optional["ExecutableImage.FileSetRefGroup"] = field(
+    file_set_ref_group: None | ExecutableImage.FileSetRefGroup = field(
         default=None,
         metadata={
             "name": "fileSetRefGroup",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
-        default=None,
+    id: str = field(
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    image_type: Optional[str] = field(
+    image_type: None | str = field(
         default=None,
         metadata={
             "name": "imageType",
@@ -103,7 +101,7 @@ class ExecutableImage:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class LanguageTools:
         """
         :ivar file_builder: A generic placeholder for any file builder
@@ -115,7 +113,7 @@ class ExecutableImage:
         :ivar linker_command_file: Specifies a linker command file.
         """
 
-        file_builder: Iterable["ExecutableImage.LanguageTools.FileBuilder"] = (
+        file_builder: Sequence[ExecutableImage.LanguageTools.FileBuilder] = (
             field(
                 default_factory=list,
                 metadata={
@@ -124,24 +122,22 @@ class ExecutableImage:
                 },
             )
         )
-        linker: Optional["ExecutableImage.LanguageTools.Linker"] = field(
+        linker: None | ExecutableImage.LanguageTools.Linker = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        linker_flags: Optional["ExecutableImage.LanguageTools.LinkerFlags"] = (
-            field(
-                default=None,
-                metadata={
-                    "name": "linkerFlags",
-                    "type": "Element",
-                },
-            )
+        linker_flags: None | ExecutableImage.LanguageTools.LinkerFlags = field(
+            default=None,
+            metadata={
+                "name": "linkerFlags",
+                "type": "Element",
+            },
         )
-        linker_command_file: Optional[
-            "ExecutableImage.LanguageTools.LinkerCommandFile"
-        ] = field(
+        linker_command_file: (
+            None | ExecutableImage.LanguageTools.LinkerCommandFile
+        ) = field(
             default=None,
             metadata={
                 "name": "linkerCommandFile",
@@ -149,12 +145,10 @@ class ExecutableImage:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class FileBuilder:
             """
-            :ivar file_type: Enumerated file types known by IP-XACT.
-            :ivar user_file_type: Free form file type, not - yet - known
-                by IP-XACT .
+            :ivar file_type_or_user_file_type:
             :ivar command: Default command used to build files of the
                 specified fileType.
             :ivar flags: Flags given to the build command when building
@@ -168,47 +162,48 @@ class ExecutableImage:
             :ivar vendor_extensions:
             """
 
-            file_type: Optional[FileBuilderFileType] = field(
-                default=None,
-                metadata={
-                    "name": "fileType",
-                    "type": "Element",
-                },
+            file_type_or_user_file_type: None | FileBuilderFileType | str = (
+                field(
+                    default=None,
+                    metadata={
+                        "type": "Elements",
+                        "choices": (
+                            {
+                                "name": "fileType",
+                                "type": FileBuilderFileType,
+                            },
+                            {
+                                "name": "userFileType",
+                                "type": str,
+                            },
+                        ),
+                    },
+                )
             )
-            user_file_type: Optional[str] = field(
-                default=None,
-                metadata={
-                    "name": "userFileType",
-                    "type": "Element",
-                },
-            )
-            command: Optional[
-                "ExecutableImage.LanguageTools.FileBuilder.Command"
-            ] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                    "required": True,
-                },
-            )
-            flags: Optional[
-                "ExecutableImage.LanguageTools.FileBuilder.Flags"
-            ] = field(
-                default=None,
+            command: ExecutableImage.LanguageTools.FileBuilder.Command = field(
                 metadata={
                     "type": "Element",
-                },
+                }
             )
-            replace_default_flags: Optional[
-                "ExecutableImage.LanguageTools.FileBuilder.ReplaceDefaultFlags"
-            ] = field(
+            flags: None | ExecutableImage.LanguageTools.FileBuilder.Flags = (
+                field(
+                    default=None,
+                    metadata={
+                        "type": "Element",
+                    },
+                )
+            )
+            replace_default_flags: (
+                None
+                | ExecutableImage.LanguageTools.FileBuilder.ReplaceDefaultFlags
+            ) = field(
                 default=None,
                 metadata={
                     "name": "replaceDefaultFlags",
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -216,14 +211,9 @@ class ExecutableImage:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Command:
-                value: str = field(
-                    default="",
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: str = field(default="")
                 format: FormatType = field(
                     default=FormatType.STRING,
                     metadata={
@@ -238,14 +228,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -259,7 +249,7 @@ class ExecutableImage:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -267,14 +257,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -283,7 +273,7 @@ class ExecutableImage:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -291,14 +281,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -313,7 +303,7 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -321,14 +311,9 @@ class ExecutableImage:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Flags:
-                value: str = field(
-                    default="",
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: str = field(default="")
                 format: FormatType = field(
                     default=FormatType.STRING,
                     metadata={
@@ -343,14 +328,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -364,7 +349,7 @@ class ExecutableImage:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -372,14 +357,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -388,7 +373,7 @@ class ExecutableImage:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -396,14 +381,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -418,7 +403,7 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -426,14 +411,9 @@ class ExecutableImage:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class ReplaceDefaultFlags:
-                value: Optional[bool] = field(
-                    default=None,
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: bool = field()
                 format: FormatType = field(
                     default=FormatType.BOOL,
                     metadata={
@@ -448,14 +428,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -469,7 +449,7 @@ class ExecutableImage:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -477,14 +457,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -493,7 +473,7 @@ class ExecutableImage:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -501,14 +481,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -523,7 +503,7 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -531,14 +511,9 @@ class ExecutableImage:
                     },
                 )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Linker:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
+            value: str = field(default="")
             format: FormatType = field(
                 default=FormatType.STRING,
                 metadata={
@@ -553,14 +528,14 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -574,7 +549,7 @@ class ExecutableImage:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -582,14 +557,14 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -598,7 +573,7 @@ class ExecutableImage:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -606,14 +581,14 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -628,7 +603,7 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -636,14 +611,9 @@ class ExecutableImage:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class LinkerFlags:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
+            value: str = field(default="")
             format: FormatType = field(
                 default=FormatType.STRING,
                 metadata={
@@ -658,14 +628,14 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -679,7 +649,7 @@ class ExecutableImage:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -687,14 +657,14 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -703,7 +673,7 @@ class ExecutableImage:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -711,14 +681,14 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -733,7 +703,7 @@ class ExecutableImage:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -741,7 +711,7 @@ class ExecutableImage:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class LinkerCommandFile:
             """
             :ivar name: Linker command file name.
@@ -753,42 +723,32 @@ class ExecutableImage:
             :ivar vendor_extensions:
             """
 
-            name: Optional[
-                "ExecutableImage.LanguageTools.LinkerCommandFile.Name"
-            ] = field(
-                default=None,
+            name: ExecutableImage.LanguageTools.LinkerCommandFile.Name = field(
                 metadata={
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            command_line_switch: Optional[
-                "ExecutableImage.LanguageTools.LinkerCommandFile.CommandLineSwitch"
-            ] = field(
-                default=None,
+            command_line_switch: ExecutableImage.LanguageTools.LinkerCommandFile.CommandLineSwitch = field(
                 metadata={
                     "name": "commandLineSwitch",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            enable: Optional[
-                "ExecutableImage.LanguageTools.LinkerCommandFile.Enable"
-            ] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                    "required": True,
-                },
+            enable: ExecutableImage.LanguageTools.LinkerCommandFile.Enable = (
+                field(
+                    metadata={
+                        "type": "Element",
+                    }
+                )
             )
-            generator_ref: Iterable[GeneratorRef] = field(
+            generator_ref: Sequence[GeneratorRef] = field(
                 default_factory=list,
                 metadata={
                     "name": "generatorRef",
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -796,7 +756,7 @@ class ExecutableImage:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Name:
                 value: str = field(default="")
                 format: FormatType = field(
@@ -813,14 +773,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -834,7 +794,7 @@ class ExecutableImage:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -842,14 +802,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -858,7 +818,7 @@ class ExecutableImage:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -866,14 +826,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -888,7 +848,7 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -896,14 +856,9 @@ class ExecutableImage:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class CommandLineSwitch:
-                value: str = field(
-                    default="",
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: str = field(default="")
                 format: FormatType = field(
                     default=FormatType.STRING,
                     metadata={
@@ -918,14 +873,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -939,7 +894,7 @@ class ExecutableImage:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -947,14 +902,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -963,7 +918,7 @@ class ExecutableImage:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -971,14 +926,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -993,7 +948,7 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1001,14 +956,9 @@ class ExecutableImage:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Enable:
-                value: Optional[bool] = field(
-                    default=None,
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: bool = field()
                 format: FormatType = field(
                     default=FormatType.BOOL,
                     metadata={
@@ -1023,14 +973,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1044,7 +994,7 @@ class ExecutableImage:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -1052,14 +1002,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -1068,7 +1018,7 @@ class ExecutableImage:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -1076,14 +1026,14 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1098,7 +1048,7 @@ class ExecutableImage:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1106,9 +1056,9 @@ class ExecutableImage:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class FileSetRefGroup:
-        file_set_ref: Iterable[FileSetRef] = field(
+        file_set_ref: Sequence[FileSetRef] = field(
             default_factory=list,
             metadata={
                 "name": "fileSetRef",

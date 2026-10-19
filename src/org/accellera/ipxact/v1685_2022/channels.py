@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.display_name import DisplayName
@@ -10,10 +11,11 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Channels:
     """
-    Lists all channel connections between mirror interfaces of this component.
+    Lists all channel connections between mirror interfaces of this
+    component.
 
     :ivar channel: Defines a set of mirrored interfaces of this
         component that are connected to one another.
@@ -23,7 +25,7 @@ class Channels:
         name = "channels"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    channel: Iterable["Channels.Channel"] = field(
+    channel: Sequence[Channels.Channel] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -31,7 +33,7 @@ class Channels:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Channel:
         """
         :ivar name: Unique name
@@ -45,51 +47,47 @@ class Channels:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        short_description: Optional[ShortDescription] = field(
+        short_description: None | ShortDescription = field(
             default=None,
             metadata={
                 "name": "shortDescription",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        bus_interface_ref: Iterable["Channels.Channel.BusInterfaceRef"] = (
-            field(
-                default_factory=list,
-                metadata={
-                    "name": "busInterfaceRef",
-                    "type": "Element",
-                    "min_occurs": 2,
-                },
-            )
+        bus_interface_ref: Sequence[Channels.Channel.BusInterfaceRef] = field(
+            default_factory=list,
+            metadata={
+                "name": "busInterfaceRef",
+                "type": "Element",
+                "min_occurs": 2,
+            },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -97,24 +95,22 @@ class Channels:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class BusInterfaceRef:
-            local_name: Optional[str] = field(
-                default=None,
+            local_name: str = field(
                 metadata={
                     "name": "localName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.spirit.v1_2.choices import Choices
 from org.accellera.spirit.v1_2.generator import Generator
@@ -14,23 +16,15 @@ from org.accellera.spirit.v1_2.parameter import Parameter
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorChain:
     """
     :ivar vendor: Name of the vendor who supplies this file.
     :ivar library: Name of the logical library this element belongs to.
     :ivar name: The name of the object.
     :ivar version:
-    :ivar file_generator_selector: Select other generator chain files
-        for inclusion into this chain. The boolean attribute "unique"
-        (default false) specifies that only a single generator is valid
-        in this context. If more that one generator is selcted based on
-        the selection criteria, DE will prompt the user to resolve to a
-        single generator.
-    :ivar component_generator_selector: Selects generators declared in
-        component description files of the current design for inclusion
-        into this generator chain.
-    :ivar generator:
+    :ivar
+        file_generator_selector_or_component_generator_selector_or_generator:
     :ivar chain_group: Identifies this generator chain as belonging to
         the named group. This is used by other generator chains to
         select this chain for programmatic inclusion.
@@ -42,98 +36,89 @@ class GeneratorChain:
         name = "generatorChain"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    file_generator_selector: Iterable[
-        "GeneratorChain.FileGeneratorSelector"
+    file_generator_selector_or_component_generator_selector_or_generator: Sequence[
+        GeneratorChain.FileGeneratorSelector
+        | GeneratorSelectorType
+        | Generator
     ] = field(
         default_factory=list,
         metadata={
-            "name": "fileGeneratorSelector",
-            "type": "Element",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "fileGeneratorSelector",
+                    "type": ForwardRef("GeneratorChain.FileGeneratorSelector"),
+                },
+                {
+                    "name": "componentGeneratorSelector",
+                    "type": GeneratorSelectorType,
+                },
+                {
+                    "name": "generator",
+                    "type": Generator,
+                },
+            ),
         },
     )
-    component_generator_selector: Iterable[GeneratorSelectorType] = field(
-        default_factory=list,
-        metadata={
-            "name": "componentGeneratorSelector",
-            "type": "Element",
-        },
-    )
-    generator: Iterable[Generator] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-        },
-    )
-    chain_group: Iterable[str] = field(
+    chain_group: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "chainGroup",
             "type": "Element",
         },
     )
-    parameter: Iterable[Parameter] = field(
+    parameter: Sequence[Parameter] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class FileGeneratorSelector:
-        """
-        :ivar group_selector:
-        :ivar file_name: Select another generator chain using the unique
-            identifier of this generator chain.
-        :ivar unique:
-        """
-
-        group_selector: Optional[GroupSelector] = field(
-            default=None,
-            metadata={
-                "name": "groupSelector",
-                "type": "Element",
-            },
-        )
-        file_name: Optional[LibraryRefType] = field(
-            default=None,
-            metadata={
-                "name": "fileName",
-                "type": "Element",
-            },
+        group_selector_or_file_name: None | GroupSelector | LibraryRefType = (
+            field(
+                default=None,
+                metadata={
+                    "type": "Elements",
+                    "choices": (
+                        {
+                            "name": "groupSelector",
+                            "type": GroupSelector,
+                        },
+                        {
+                            "name": "fileName",
+                            "type": LibraryRefType,
+                        },
+                    ),
+                },
+            )
         )
         unique: bool = field(
             default=True,

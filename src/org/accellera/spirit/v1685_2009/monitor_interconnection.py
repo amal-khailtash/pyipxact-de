@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.description import Description
 from org.accellera.spirit.v1685_2009.display_name import DisplayName
@@ -9,10 +10,11 @@ from org.accellera.spirit.v1685_2009.hier_interface import HierInterface
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MonitorInterconnection:
-    """Describes a connection from the interface of one component to any number of
-    monitor interfaces in the design.
+    """
+    Describes a connection from the interface of one component to any
+    number of monitor interfaces in the design.
 
     An active interface can be connected to unlimited number of monitor
     interfaces.
@@ -38,35 +40,31 @@ class MonitorInterconnection:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    monitored_active_interface: Optional[HierInterface] = field(
-        default=None,
+    monitored_active_interface: HierInterface = field(
         metadata={
             "name": "monitoredActiveInterface",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    monitor_interface: Iterable[HierInterface] = field(
+    monitor_interface: Sequence[HierInterface] = field(
         default_factory=list,
         metadata={
             "name": "monitorInterface",

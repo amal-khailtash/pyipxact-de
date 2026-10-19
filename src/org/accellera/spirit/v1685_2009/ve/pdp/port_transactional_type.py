@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.pdp.initiative import Initiative
 from org.accellera.spirit.v1685_2009.ve.pdp.service_type_defs import (
@@ -13,7 +14,7 @@ from org.accellera.spirit.v1685_2009.ve.pdp.vendor_extensions import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortTransactionalType:
     """
     Transactional port type.
@@ -33,7 +34,7 @@ class PortTransactionalType:
     class Meta:
         name = "portTransactionalType"
 
-    trans_type_def: Optional[TransTypeDef] = field(
+    trans_type_def: None | TransTypeDef = field(
         default=None,
         metadata={
             "name": "transTypeDef",
@@ -41,15 +42,13 @@ class PortTransactionalType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    service: Optional["PortTransactionalType.Service"] = field(
-        default=None,
+    service: PortTransactionalType.Service = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    connection: Optional["PortTransactionalType.Connection"] = field(
+    connection: None | PortTransactionalType.Connection = field(
         default=None,
         metadata={
             "type": "Element",
@@ -65,7 +64,7 @@ class PortTransactionalType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Service:
         """
         :ivar initiative: Defines how the port accesses this service.
@@ -73,15 +72,13 @@ class PortTransactionalType:
         :ivar vendor_extensions:
         """
 
-        initiative: Optional[Initiative] = field(
-            default=None,
+        initiative: Initiative = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                "required": True,
-            },
+            }
         )
-        service_type_defs: Optional[ServiceTypeDefs] = field(
+        service_type_defs: None | ServiceTypeDefs = field(
             default=None,
             metadata={
                 "name": "serviceTypeDefs",
@@ -89,7 +86,7 @@ class PortTransactionalType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
@@ -98,7 +95,7 @@ class PortTransactionalType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Connection:
         """
         :ivar max_connections: Indicates the maximum number of
@@ -110,7 +107,7 @@ class PortTransactionalType:
             present, the minimum number of allowed connections is 1.
         """
 
-        max_connections: Optional[int] = field(
+        max_connections: None | int = field(
             default=None,
             metadata={
                 "name": "maxConnections",
@@ -118,7 +115,7 @@ class PortTransactionalType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        min_connections: Optional[int] = field(
+        min_connections: None | int = field(
             default=None,
             metadata={
                 "name": "minConnections",

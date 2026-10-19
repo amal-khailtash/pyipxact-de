@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.display_name import DisplayName
@@ -11,13 +12,13 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Assertion:
-    """Provides an expression for describing valid parameter value settings.
+    """
+    Provides an expression for describing valid parameter value settings.
 
-    If a assertion assert expression evaluates false, the name,
-    displayName and/or description can be used to communicate the
-    assertion failure.
+    If a assertion assert expression evaluates false, the name, displayName
+    and/or description can be used to communicate the assertion failure.
 
     :ivar name: Unique name
     :ivar display_name:
@@ -31,42 +32,38 @@ class Assertion:
         name = "assertion"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    assert_value: Optional[UnsignedBitExpression] = field(
-        default=None,
+    assert_value: UnsignedBitExpression = field(
         metadata={
             "name": "assert",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

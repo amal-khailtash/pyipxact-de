@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.address_unit_bits import AddressUnitBits
 from org.accellera.spirit.v1_5.description import Description
@@ -16,11 +17,11 @@ from org.accellera.spirit.v1_5.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressSpaces:
     """
-    If this component is a bus master, this lists all the address spaces defined by
-    the component.
+    If this component is a bus master, this lists all the address spaces
+    defined by the component.
 
     :ivar address_space: This defines a logical space, referenced by a
         bus master.
@@ -30,7 +31,7 @@ class AddressSpaces:
         name = "addressSpaces"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
-    address_space: Iterable["AddressSpaces.AddressSpace"] = field(
+    address_space: Sequence[AddressSpaces.AddressSpace] = field(
         default_factory=list,
         metadata={
             "name": "addressSpace",
@@ -39,7 +40,7 @@ class AddressSpaces:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AddressSpace:
         """
         :ivar name: Unique name
@@ -68,74 +69,68 @@ class AddressSpaces:
         :ivar vendor_extensions:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        range: Optional["AddressSpaces.AddressSpace.Range"] = field(
-            default=None,
+        range: AddressSpaces.AddressSpace.Range = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        width: Optional["AddressSpaces.AddressSpace.Width"] = field(
-            default=None,
+        width: AddressSpaces.AddressSpace.Width = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        segments: Optional["AddressSpaces.AddressSpace.Segments"] = field(
+        segments: None | AddressSpaces.AddressSpace.Segments = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        address_unit_bits: Optional[AddressUnitBits] = field(
+        address_unit_bits: None | AddressUnitBits = field(
             default=None,
             metadata={
                 "name": "addressUnitBits",
                 "type": "Element",
             },
         )
-        executable_image: Iterable[ExecutableImage] = field(
+        executable_image: Sequence[ExecutableImage] = field(
             default_factory=list,
             metadata={
                 "name": "executableImage",
                 "type": "Element",
             },
         )
-        local_memory_map: Optional[LocalMemoryMapType] = field(
+        local_memory_map: None | LocalMemoryMapType = field(
             default=None,
             metadata={
                 "name": "localMemoryMap",
                 "type": "Element",
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
@@ -143,23 +138,23 @@ class AddressSpaces:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Segments:
             """
             :ivar segment: Address segment withing an addressSpace
             """
 
-            segment: Iterable[
-                "AddressSpaces.AddressSpace.Segments.Segment"
-            ] = field(
-                default_factory=list,
-                metadata={
-                    "type": "Element",
-                    "min_occurs": 1,
-                },
+            segment: Sequence[AddressSpaces.AddressSpace.Segments.Segment] = (
+                field(
+                    default_factory=list,
+                    metadata={
+                        "type": "Element",
+                        "min_occurs": 1,
+                    },
+                )
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Segment:
                 """
                 :ivar name: Unique name
@@ -173,46 +168,38 @@ class AddressSpaces:
                 :ivar vendor_extensions:
                 """
 
-                name: Optional[str] = field(
-                    default=None,
+                name: str = field(
                     metadata={
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                display_name: Optional[DisplayName] = field(
+                display_name: None | DisplayName = field(
                     default=None,
                     metadata={
                         "name": "displayName",
                         "type": "Element",
                     },
                 )
-                description: Optional[Description] = field(
+                description: None | Description = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                address_offset: Optional[
-                    "AddressSpaces.AddressSpace.Segments.Segment.AddressOffset"
-                ] = field(
-                    default=None,
+                address_offset: AddressSpaces.AddressSpace.Segments.Segment.AddressOffset = field(
                     metadata={
                         "name": "addressOffset",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                range: Optional[
-                    "AddressSpaces.AddressSpace.Segments.Segment.Range"
-                ] = field(
-                    default=None,
-                    metadata={
-                        "type": "Element",
-                        "required": True,
-                    },
+                range: AddressSpaces.AddressSpace.Segments.Segment.Range = (
+                    field(
+                        metadata={
+                            "type": "Element",
+                        }
+                    )
                 )
-                vendor_extensions: Optional[VendorExtensions] = field(
+                vendor_extensions: None | VendorExtensions = field(
                     default=None,
                     metadata={
                         "name": "vendorExtensions",
@@ -220,12 +207,11 @@ class AddressSpaces:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class AddressOffset:
                     value: str = field(
                         default="",
                         metadata={
-                            "required": True,
                             "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                         },
                     )
@@ -243,14 +229,14 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    id: Optional[str] = field(
+                    id: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    dependency: Optional[str] = field(
+                    dependency: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -264,7 +250,7 @@ class AddressSpaces:
                             "namespace": "##any",
                         },
                     )
-                    choice_ref: Optional[str] = field(
+                    choice_ref: None | str = field(
                         default=None,
                         metadata={
                             "name": "choiceRef",
@@ -272,14 +258,14 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    order: Optional[float] = field(
+                    order: None | float = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    config_groups: Iterable[str] = field(
+                    config_groups: Sequence[str] = field(
                         default_factory=list,
                         metadata={
                             "name": "configGroups",
@@ -288,7 +274,7 @@ class AddressSpaces:
                             "tokens": True,
                         },
                     )
-                    bit_string_length: Optional[int] = field(
+                    bit_string_length: None | int = field(
                         default=None,
                         metadata={
                             "name": "bitStringLength",
@@ -296,14 +282,14 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    minimum: Optional[str] = field(
+                    minimum: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    maximum: Optional[str] = field(
+                    maximum: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -318,7 +304,7 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    prompt: Optional[str] = field(
+                    prompt: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -326,12 +312,11 @@ class AddressSpaces:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class Range:
                     value: str = field(
                         default="",
                         metadata={
-                            "required": True,
                             "pattern": r"[+]?(0x|0X|#)?[0]*[1-9a-fA-F][0-9a-fA-F]*[kmgtKMGT]?",
                         },
                     )
@@ -349,14 +334,14 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    id: Optional[str] = field(
+                    id: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    dependency: Optional[str] = field(
+                    dependency: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -370,7 +355,7 @@ class AddressSpaces:
                             "namespace": "##any",
                         },
                     )
-                    choice_ref: Optional[str] = field(
+                    choice_ref: None | str = field(
                         default=None,
                         metadata={
                             "name": "choiceRef",
@@ -378,14 +363,14 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    order: Optional[float] = field(
+                    order: None | float = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    config_groups: Iterable[str] = field(
+                    config_groups: Sequence[str] = field(
                         default_factory=list,
                         metadata={
                             "name": "configGroups",
@@ -394,7 +379,7 @@ class AddressSpaces:
                             "tokens": True,
                         },
                     )
-                    bit_string_length: Optional[int] = field(
+                    bit_string_length: None | int = field(
                         default=None,
                         metadata={
                             "name": "bitStringLength",
@@ -402,14 +387,14 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    minimum: Optional[str] = field(
+                    minimum: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    maximum: Optional[str] = field(
+                    maximum: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -424,7 +409,7 @@ class AddressSpaces:
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                         },
                     )
-                    prompt: Optional[str] = field(
+                    prompt: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -432,12 +417,11 @@ class AddressSpaces:
                         },
                     )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Range:
             value: str = field(
                 default="",
                 metadata={
-                    "required": True,
                     "pattern": r"[+]?(0x|0X|#)?[0]*[1-9a-fA-F][0-9a-fA-F]*[kmgtKMGT]?",
                 },
             )
@@ -455,14 +439,14 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -476,7 +460,7 @@ class AddressSpaces:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -484,14 +468,14 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -500,7 +484,7 @@ class AddressSpaces:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -508,14 +492,14 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -530,7 +514,7 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -538,14 +522,9 @@ class AddressSpaces:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Width:
-            value: Optional[int] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
+            value: int = field()
             format: FormatType = field(
                 default=FormatType.LONG,
                 metadata={
@@ -560,14 +539,14 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -581,7 +560,7 @@ class AddressSpaces:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -589,14 +568,14 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -605,7 +584,7 @@ class AddressSpaces:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -613,14 +592,14 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -635,7 +614,7 @@ class AddressSpaces:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

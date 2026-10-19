@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.description import Description
 from org.accellera.ipxact.v1685_2014.display_name import DisplayName
@@ -15,7 +16,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class EnumeratedValues:
     """
     Enumerates specific values that can be assigned to the bit field.
@@ -29,7 +30,7 @@ class EnumeratedValues:
         name = "enumeratedValues"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    enumerated_value: Iterable["EnumeratedValues.EnumeratedValue"] = field(
+    enumerated_value: Sequence[EnumeratedValues.EnumeratedValue] = field(
         default_factory=list,
         metadata={
             "name": "enumeratedValue",
@@ -38,7 +39,7 @@ class EnumeratedValues:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class EnumeratedValue:
         """
         :ivar name: Unique name
@@ -52,34 +53,30 @@ class EnumeratedValues:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        value: Optional[UnsignedBitVectorExpression] = field(
-            default=None,
+        value: UnsignedBitVectorExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
@@ -92,7 +89,7 @@ class EnumeratedValues:
                 "type": "Attribute",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

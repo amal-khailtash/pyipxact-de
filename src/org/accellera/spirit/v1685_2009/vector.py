@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.format_type import FormatType
 from org.accellera.spirit.v1685_2009.range_type_type import RangeTypeType
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1685_2009.resolve_type import ResolveType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Vector:
     """
     Definition of the indecies for a vectored port.
@@ -26,29 +27,20 @@ class Vector:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    left: Optional["Vector.Left"] = field(
-        default=None,
+    left: Vector.Left = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    right: Optional["Vector.Right"] = field(
-        default=None,
+    right: Vector.Right = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Left:
-        value: Optional[int] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: int = field()
         format: FormatType = field(
             default=FormatType.LONG,
             metadata={
@@ -63,14 +55,14 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -84,7 +76,7 @@ class Vector:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -92,14 +84,14 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -108,7 +100,7 @@ class Vector:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -116,14 +108,14 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -138,7 +130,7 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -146,14 +138,9 @@ class Vector:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Right:
-        value: Optional[int] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: int = field()
         format: FormatType = field(
             default=FormatType.LONG,
             metadata={
@@ -168,14 +155,14 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -189,7 +176,7 @@ class Vector:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -197,14 +184,14 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -213,7 +200,7 @@ class Vector:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -221,14 +208,14 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -243,7 +230,7 @@ class Vector:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

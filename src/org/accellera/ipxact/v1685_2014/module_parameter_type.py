@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.is_present import IsPresent
 from org.accellera.ipxact.v1685_2014.module_parameter_type_usage_type import (
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2014.parameter_type import ParameterType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ModuleParameterType(ParameterType):
     """
     Name value pair with data type information.
@@ -26,7 +27,7 @@ class ModuleParameterType(ParameterType):
     class Meta:
         name = "moduleParameterType"
 
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
@@ -34,7 +35,7 @@ class ModuleParameterType(ParameterType):
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    data_type: Optional[str] = field(
+    data_type: None | str = field(
         default=None,
         metadata={
             "name": "dataType",

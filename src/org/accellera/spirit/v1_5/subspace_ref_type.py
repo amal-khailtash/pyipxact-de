@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.base_address import BaseAddress
 from org.accellera.spirit.v1_5.description import Description
@@ -10,12 +11,13 @@ from org.accellera.spirit.v1_5.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SubspaceRefType:
-    """Address subspace type.
+    """
+    Address subspace type.
 
-    Its subspaceReference attribute references the subspace from which
-    the dimensions are taken.
+    Its subspaceReference attribute references the subspace from which the
+    dimensions are taken.
 
     :ivar name: Unique name
     :ivar display_name:
@@ -31,15 +33,13 @@ class SubspaceRefType:
     class Meta:
         name = "subspaceRefType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -47,30 +47,28 @@ class SubspaceRefType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    base_address: Optional[BaseAddress] = field(
-        default=None,
+    base_address: BaseAddress = field(
         metadata={
             "name": "baseAddress",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -78,16 +76,14 @@ class SubspaceRefType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    master_ref: Optional[str] = field(
-        default=None,
+    master_ref: str = field(
         metadata={
             "name": "masterRef",
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
-        },
+        }
     )
-    segment_ref: Optional[str] = field(
+    segment_ref: None | str = field(
         default=None,
         metadata={
             "name": "segmentRef",

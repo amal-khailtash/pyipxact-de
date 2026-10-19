@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.drive_constraint import DriveConstraint
 from org.accellera.spirit.v1_4.load_constraint import LoadConstraint
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_4.timing_constraint import TimingConstraint
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractionDefPortConstraintsType:
     """
     Defines constraints that apply to a wire type port in an abstraction
@@ -19,7 +20,7 @@ class AbstractionDefPortConstraintsType:
     class Meta:
         name = "abstractionDefPortConstraintsType"
 
-    timing_constraint: Iterable[TimingConstraint] = field(
+    timing_constraint: Sequence[TimingConstraint] = field(
         default_factory=list,
         metadata={
             "name": "timingConstraint",
@@ -27,7 +28,7 @@ class AbstractionDefPortConstraintsType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    drive_constraint: Optional[DriveConstraint] = field(
+    drive_constraint: None | DriveConstraint = field(
         default=None,
         metadata={
             "name": "driveConstraint",
@@ -35,7 +36,7 @@ class AbstractionDefPortConstraintsType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    load_constraint: Optional[LoadConstraint] = field(
+    load_constraint: None | LoadConstraint = field(
         default=None,
         metadata={
             "name": "loadConstraint",

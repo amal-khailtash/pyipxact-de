@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.service_type_initiative import (
     ServiceTypeInitiative,
@@ -12,7 +13,7 @@ from org.accellera.spirit.v1685_2009.ve.power.vendor_extensions import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ServiceType:
     """
     The service that this transactional port can provide or requires.
@@ -32,10 +33,9 @@ class ServiceType:
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
         },
     )
-    type_name: Iterable["ServiceType.TypeName"] = field(
+    type_name: Sequence[ServiceType.TypeName] = field(
         default_factory=list,
         metadata={
             "name": "typeName",
@@ -44,7 +44,7 @@ class ServiceType:
             "min_occurs": 1,
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -53,7 +53,7 @@ class ServiceType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -62,12 +62,7 @@ class ServiceType:
             service in a language specific top-level netlist
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         implicit: bool = field(
             default=False,
             metadata={

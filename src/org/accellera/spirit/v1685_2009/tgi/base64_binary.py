@@ -1,30 +1,30 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Base64Binary:
     class Meta:
         name = "base64Binary"
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    value: Optional[bytes] = field(
-        default=None,
+    value: bytes = field(
+        default=b"",
         metadata={
-            "required": True,
             "format": "base64",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

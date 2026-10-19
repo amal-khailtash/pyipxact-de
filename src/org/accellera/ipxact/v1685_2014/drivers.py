@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2014.driver import Driver
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2014.driver import Driver
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Drivers:
     """
     Container for wire port driver elements.
@@ -19,7 +21,7 @@ class Drivers:
         name = "drivers"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    driver: Iterable[Driver] = field(
+    driver: Sequence[Driver] = field(
         default_factory=list,
         metadata={
             "type": "Element",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.cell_specification import (
     CellSpecification,
@@ -11,7 +12,7 @@ from org.accellera.ipxact.v1685_2014.unsigned_positive_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LoadConstraint:
     """
     Defines a constraint indicating the type of load on an output port.
@@ -25,15 +26,13 @@ class LoadConstraint:
         name = "loadConstraint"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    cell_specification: Optional[CellSpecification] = field(
-        default=None,
+    cell_specification: CellSpecification = field(
         metadata={
             "name": "cellSpecification",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    count: Optional[UnsignedPositiveIntExpression] = field(
+    count: None | UnsignedPositiveIntExpression = field(
         default=None,
         metadata={
             "type": "Element",

@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.address_block import AddressBlock
 from org.accellera.ipxact.v1685_2014.description import Description
@@ -13,36 +14,30 @@ from org.accellera.ipxact.v1685_2014.local_address_bank_type import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LocalMemoryMapType:
     """
-    Map of address space blocks on the local memory map of a master bus interface.
+    Map of address space blocks on the local memory map of a master bus
+    interface.
 
     :ivar name: Unique name
     :ivar display_name:
     :ivar description:
     :ivar is_present:
-    :ivar address_block:
-    :ivar bank: Represents a bank of memory made up of address blocks or
-        other banks.  It has a bankAlignment attribute indicating
-        whether its blocks are aligned in 'parallel' (occupying adjacent
-        bit fields) or 'serial' (occupying contiguous addresses). Its
-        child blocks do not contain addresses or bit offsets.
+    :ivar address_block_or_bank:
     :ivar id:
     """
 
     class Meta:
         name = "localMemoryMapType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -50,14 +45,14 @@ class LocalMemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
@@ -65,22 +60,27 @@ class LocalMemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    address_block: Iterable[AddressBlock] = field(
-        default_factory=list,
-        metadata={
-            "name": "addressBlock",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-        },
+    address_block_or_bank: Sequence[AddressBlock | LocalAddressBankType] = (
+        field(
+            default_factory=list,
+            metadata={
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "addressBlock",
+                        "type": AddressBlock,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+                    },
+                    {
+                        "name": "bank",
+                        "type": LocalAddressBankType,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+                    },
+                ),
+            },
+        )
     )
-    bank: Iterable[LocalAddressBankType] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-        },
-    )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

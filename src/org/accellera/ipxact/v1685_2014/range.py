@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.left import Left
 from org.accellera.ipxact.v1685_2014.right import Right
@@ -7,7 +8,7 @@ from org.accellera.ipxact.v1685_2014.right import Right
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Range:
     """
     Left and right bound of a reference into a vector.
@@ -17,17 +18,13 @@ class Range:
         name = "range"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    left: Optional[Left] = field(
-        default=None,
+    left: Left = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    right: Optional[Right] = field(
-        default=None,
+    right: Right = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )

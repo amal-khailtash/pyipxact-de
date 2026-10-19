@@ -1,6 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.indices import Indices
 from org.accellera.ipxact.v1685_2022.range import Range
@@ -8,7 +8,7 @@ from org.accellera.ipxact.v1685_2022.range import Range
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PartSelect:
     """
     Bit range definition.
@@ -18,20 +18,23 @@ class PartSelect:
         name = "partSelect"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    range: Iterable[Range] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-            "max_occurs": 2,
-        },
-    )
-    indices: Optional[Indices] = field(
+    range_or_indices: None | Range | Indices = field(
         default=None,
         metadata={
-            "type": "Element",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "range",
+                    "type": Range,
+                },
+                {
+                    "name": "indices",
+                    "type": Indices,
+                },
+            ),
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

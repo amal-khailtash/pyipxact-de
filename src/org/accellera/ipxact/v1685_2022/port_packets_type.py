@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2022.port_packet_type import PortPacketType
@@ -6,12 +8,12 @@ from org.accellera.ipxact.v1685_2022.port_packet_type import PortPacketType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortPacketsType:
     class Meta:
         name = "portPacketsType"
 
-    packet: Iterable[PortPacketType] = field(
+    packet: Sequence[PortPacketType] = field(
         default_factory=list,
         metadata={
             "type": "Element",

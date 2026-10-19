@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.spirit.v1685_2009.ve.pdp.address_block_type import (
@@ -7,7 +9,7 @@ from org.accellera.spirit.v1685_2009.ve.pdp.address_block_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressBlock(AddressBlockType):
     """
     This is a single contiguous block of memory inside a memory map.

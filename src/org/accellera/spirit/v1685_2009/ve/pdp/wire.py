@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.pdp.combinational_paths import (
     CombinationalPaths,
@@ -20,7 +21,7 @@ from org.accellera.spirit.v1685_2009.ve.pdp.wire_power_defs import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Wire:
     """
     Wire port extension.
@@ -30,14 +31,14 @@ class Wire:
         name = "wire"
         namespace = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
-    driver: Iterable[Driver2] = field(
+    driver: Sequence[Driver2] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/CORE-1.0",
         },
     )
-    domain_type_defs: Optional[DomainTypeDefs] = field(
+    domain_type_defs: None | DomainTypeDefs = field(
         default=None,
         metadata={
             "name": "domainTypeDefs",
@@ -45,7 +46,7 @@ class Wire:
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/AMS-1.0",
         },
     )
-    signal_type_defs: Optional[SignalTypeDefs] = field(
+    signal_type_defs: None | SignalTypeDefs = field(
         default=None,
         metadata={
             "name": "signalTypeDefs",
@@ -53,7 +54,7 @@ class Wire:
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/AMS-1.0",
         },
     )
-    register_count: Optional[RegisterCount] = field(
+    register_count: None | RegisterCount = field(
         default=None,
         metadata={
             "name": "registerCount",
@@ -61,7 +62,7 @@ class Wire:
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/PDP-1.0",
         },
     )
-    combinational_paths: Optional[CombinationalPaths] = field(
+    combinational_paths: None | CombinationalPaths = field(
         default=None,
         metadata={
             "name": "combinationalPaths",
@@ -69,7 +70,7 @@ class Wire:
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/PDP-1.0",
         },
     )
-    wire_power_defs: Optional[WirePowerDefs] = field(
+    wire_power_defs: None | WirePowerDefs = field(
         default=None,
         metadata={
             "name": "wirePowerDefs",

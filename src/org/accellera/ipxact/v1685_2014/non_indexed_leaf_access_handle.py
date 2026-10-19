@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.slices_type import SlicesType
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class NonIndexedLeafAccessHandle:
     """
     :ivar view_ref: A list of views this accessHandle is applicable to.
@@ -21,7 +22,7 @@ class NonIndexedLeafAccessHandle:
     class Meta:
         name = "nonIndexedLeafAccessHandle"
 
-    view_ref: Iterable["NonIndexedLeafAccessHandle.ViewRef"] = field(
+    view_ref: Sequence[NonIndexedLeafAccessHandle.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
@@ -29,13 +30,11 @@ class NonIndexedLeafAccessHandle:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    slices: Optional[SlicesType] = field(
-        default=None,
+    slices: SlicesType = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
     force: bool = field(
         default=True,
@@ -43,7 +42,7 @@ class NonIndexedLeafAccessHandle:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -51,15 +50,10 @@ class NonIndexedLeafAccessHandle:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

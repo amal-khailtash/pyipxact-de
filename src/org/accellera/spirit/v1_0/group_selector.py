@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1_0.group_selector_multiple_group_selection_operator import (
@@ -8,13 +10,13 @@ from org.accellera.spirit.v1_0.group_selector_multiple_group_selection_operator 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GroupSelector:
-    """Specifies a set of group names used to select subsequent generators.
+    """
+    Specifies a set of group names used to select subsequent generators.
 
-    The attribute "multipleGroupOperator" specifies the OR or AND
-    selection operator if there is more than one group name
-    (default=OR).
+    The attribute "multipleGroupOperator" specifies the OR or AND selection
+    operator if there is more than one group name (default=OR).
 
     :ivar name: Name used to select a generator or generator chain.
     :ivar multiple_group_selection_operator:
@@ -24,7 +26,7 @@ class GroupSelector:
         name = "groupSelector"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    name: Iterable[str] = field(
+    name: Sequence[str] = field(
         default_factory=list,
         metadata={
             "type": "Element",

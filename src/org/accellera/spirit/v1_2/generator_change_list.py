@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.add_rem_change import AddRemChange
 from org.accellera.spirit.v1_2.add_rem_rep_change import AddRemRepChange
@@ -22,7 +23,7 @@ from org.accellera.spirit.v1_2.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorChangeList:
     """
     Defines the changes to be made to the design as directed by an external
@@ -44,45 +45,43 @@ class GeneratorChangeList:
         name = "generatorChangeList"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    component_changes: Optional["GeneratorChangeList.ComponentChanges"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "componentChanges",
-                "type": "Element",
-            },
-        )
+    component_changes: None | GeneratorChangeList.ComponentChanges = field(
+        default=None,
+        metadata={
+            "name": "componentChanges",
+            "type": "Element",
+        },
     )
-    interconnection_changes: Optional[
-        "GeneratorChangeList.InterconnectionChanges"
-    ] = field(
+    interconnection_changes: (
+        None | GeneratorChangeList.InterconnectionChanges
+    ) = field(
         default=None,
         metadata={
             "name": "interconnectionChanges",
             "type": "Element",
         },
     )
-    ad_hoc_connection_changes: Optional[
-        "GeneratorChangeList.AdHocConnectionChanges"
-    ] = field(
+    ad_hoc_connection_changes: (
+        None | GeneratorChangeList.AdHocConnectionChanges
+    ) = field(
         default=None,
         metadata={
             "name": "adHocConnectionChanges",
             "type": "Element",
         },
     )
-    design_configuration_changes: Optional[
-        "GeneratorChangeList.DesignConfigurationChanges"
-    ] = field(
+    design_configuration_changes: (
+        None | GeneratorChangeList.DesignConfigurationChanges
+    ) = field(
         default=None,
         metadata={
             "name": "designConfigurationChanges",
             "type": "Element",
         },
     )
-    vendor_extension_changes: Optional[
-        "GeneratorChangeList.VendorExtensionChanges"
-    ] = field(
+    vendor_extension_changes: (
+        None | GeneratorChangeList.VendorExtensionChanges
+    ) = field(
         default=None,
         metadata={
             "name": "vendorExtensionChanges",
@@ -90,10 +89,10 @@ class GeneratorChangeList:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ComponentChanges:
-        component_change: Iterable[
-            "GeneratorChangeList.ComponentChanges.ComponentChange"
+        component_change: Sequence[
+            GeneratorChangeList.ComponentChanges.ComponentChange
         ] = field(
             default_factory=list,
             metadata={
@@ -102,7 +101,7 @@ class GeneratorChangeList:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ComponentChange:
             """
             :ivar add_rem_rep_change:
@@ -117,46 +116,43 @@ class GeneratorChangeList:
             :ivar configuration:
             """
 
-            add_rem_rep_change: Optional[AddRemRepChange] = field(
-                default=None,
+            add_rem_rep_change: AddRemRepChange = field(
                 metadata={
                     "name": "addRemRepChange",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            instance_name: Optional[InstanceName] = field(
-                default=None,
+            instance_name: InstanceName = field(
                 metadata={
                     "name": "instanceName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            component_file_name: Optional[str] = field(
+            component_file_name: None | str = field(
                 default=None,
                 metadata={
                     "name": "componentFileName",
                     "type": "Element",
                 },
             )
-            sub_components: Optional[
-                "GeneratorChangeList.ComponentChanges.ComponentChange.SubComponents"
-            ] = field(
+            sub_components: (
+                None
+                | GeneratorChangeList.ComponentChanges.ComponentChange.SubComponents
+            ) = field(
                 default=None,
                 metadata={
                     "name": "subComponents",
                     "type": "Element",
                 },
             )
-            configuration: Optional[Configuration] = field(
+            configuration: None | Configuration = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class SubComponents:
                 """
                 :ivar sub_component_file_name: Path to definitions of
@@ -164,7 +160,7 @@ class GeneratorChangeList:
                     component definition.
                 """
 
-                sub_component_file_name: Iterable[str] = field(
+                sub_component_file_name: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "subComponentFileName",
@@ -173,10 +169,10 @@ class GeneratorChangeList:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class InterconnectionChanges:
-        interconnection_change: Iterable[
-            "GeneratorChangeList.InterconnectionChanges.InterconnectionChange"
+        interconnection_change: Sequence[
+            GeneratorChangeList.InterconnectionChanges.InterconnectionChange
         ] = field(
             default_factory=list,
             metadata={
@@ -185,34 +181,37 @@ class GeneratorChangeList:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class InterconnectionChange:
-            add_rem_change: Optional[AddRemChange] = field(
-                default=None,
+            add_rem_change: AddRemChange = field(
                 metadata={
                     "name": "addRemChange",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            interconnection: Optional[Interconnection] = field(
+            interconnection_or_monitor_interconnection: (
+                None | Interconnection | MonitorInterconnection
+            ) = field(
                 default=None,
                 metadata={
-                    "type": "Element",
-                },
-            )
-            monitor_interconnection: Optional[MonitorInterconnection] = field(
-                default=None,
-                metadata={
-                    "name": "monitorInterconnection",
-                    "type": "Element",
+                    "type": "Elements",
+                    "choices": (
+                        {
+                            "name": "interconnection",
+                            "type": Interconnection,
+                        },
+                        {
+                            "name": "monitorInterconnection",
+                            "type": MonitorInterconnection,
+                        },
+                    ),
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AdHocConnectionChanges:
-        ad_hoc_connection_change: Iterable[
-            "GeneratorChangeList.AdHocConnectionChanges.AdHocConnectionChange"
+        ad_hoc_connection_change: Sequence[
+            GeneratorChangeList.AdHocConnectionChanges.AdHocConnectionChange
         ] = field(
             default_factory=list,
             metadata={
@@ -221,7 +220,7 @@ class GeneratorChangeList:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AdHocConnectionChange:
             """
             :ivar add_rem_change:
@@ -233,31 +232,28 @@ class GeneratorChangeList:
                 which is being connected by this ad-hoc connection
             """
 
-            add_rem_change: Optional[AddRemChange] = field(
-                default=None,
+            add_rem_change: AddRemChange = field(
                 metadata={
                     "name": "addRemChange",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            name: Optional[str] = field(
+            name: str = field(
+                metadata={
+                    "type": "Element",
+                }
+            )
+            export: (
+                None
+                | GeneratorChangeList.AdHocConnectionChanges.AdHocConnectionChange.Export
+            ) = field(
                 default=None,
                 metadata={
                     "type": "Element",
-                    "required": True,
                 },
             )
-            export: Optional[
-                "GeneratorChangeList.AdHocConnectionChanges.AdHocConnectionChange.Export"
-            ] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            pin_reference: Iterable[
-                "GeneratorChangeList.AdHocConnectionChanges.AdHocConnectionChange.PinReference"
+            pin_reference: Sequence[
+                GeneratorChangeList.AdHocConnectionChanges.AdHocConnectionChange.PinReference
             ] = field(
                 default_factory=list,
                 metadata={
@@ -266,7 +262,7 @@ class GeneratorChangeList:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Export:
                 """
                 :ivar value:
@@ -296,12 +292,7 @@ class GeneratorChangeList:
                 :ivar prompt:
                 """
 
-                value: Optional[bool] = field(
-                    default=None,
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: bool = field()
                 format: FormatType = field(
                     default=FormatType.BOOL,
                     metadata={
@@ -316,14 +307,14 @@ class GeneratorChangeList:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -337,14 +328,14 @@ class GeneratorChangeList:
                         "namespace": "##any",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -359,14 +350,14 @@ class GeneratorChangeList:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -374,7 +365,7 @@ class GeneratorChangeList:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_style: Optional[ChoiceStyleValue] = field(
+                choice_style: None | ChoiceStyleValue = field(
                     default=None,
                     metadata={
                         "name": "choiceStyle",
@@ -382,14 +373,14 @@ class GeneratorChangeList:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                direction: Optional[DirectionValue] = field(
+                direction: None | DirectionValue = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -398,7 +389,7 @@ class GeneratorChangeList:
                         "tokens": True,
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -406,7 +397,7 @@ class GeneratorChangeList:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class PinReference:
                 """
                 :ivar component_ref: This is the instance name of the
@@ -419,23 +410,19 @@ class GeneratorChangeList:
                     signal
                 """
 
-                component_ref: Optional[str] = field(
-                    default=None,
+                component_ref: str = field(
                     metadata={
                         "name": "componentRef",
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                        "required": True,
-                    },
+                    }
                 )
-                signal_ref: Optional[str] = field(
-                    default=None,
+                signal_ref: str = field(
                     metadata={
                         "name": "signalRef",
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                        "required": True,
-                    },
+                    }
                 )
                 left: int = field(
                     default=0,
@@ -452,7 +439,7 @@ class GeneratorChangeList:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class DesignConfigurationChanges:
         """
         :ivar pmd_configuration_change: Contains the configurable
@@ -468,8 +455,8 @@ class GeneratorChangeList:
             defined extensions in the design.
         """
 
-        pmd_configuration_change: Iterable[
-            "GeneratorChangeList.DesignConfigurationChanges.PmdConfigurationChange"
+        pmd_configuration_change: Sequence[
+            GeneratorChangeList.DesignConfigurationChanges.PmdConfigurationChange
         ] = field(
             default_factory=list,
             metadata={
@@ -477,8 +464,8 @@ class GeneratorChangeList:
                 "type": "Element",
             },
         )
-        generator_chain_configuration_change: Iterable[
-            "GeneratorChangeList.DesignConfigurationChanges.GeneratorChainConfigurationChange"
+        generator_chain_configuration_change: Sequence[
+            GeneratorChangeList.DesignConfigurationChanges.GeneratorChainConfigurationChange
         ] = field(
             default_factory=list,
             metadata={
@@ -486,8 +473,8 @@ class GeneratorChangeList:
                 "type": "Element",
             },
         )
-        view_configuration_change: Iterable[
-            "GeneratorChangeList.DesignConfigurationChanges.ViewConfigurationChange"
+        view_configuration_change: Sequence[
+            GeneratorChangeList.DesignConfigurationChanges.ViewConfigurationChange
         ] = field(
             default_factory=list,
             metadata={
@@ -495,9 +482,10 @@ class GeneratorChangeList:
                 "type": "Element",
             },
         )
-        vendor_extension_changes: Optional[
-            "GeneratorChangeList.DesignConfigurationChanges.VendorExtensionChanges"
-        ] = field(
+        vendor_extension_changes: (
+            None
+            | GeneratorChangeList.DesignConfigurationChanges.VendorExtensionChanges
+        ) = field(
             default=None,
             metadata={
                 "name": "vendorExtensionChanges",
@@ -505,7 +493,7 @@ class GeneratorChangeList:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class PmdConfigurationChange:
             """
             :ivar add_rem_rep_change:
@@ -513,23 +501,19 @@ class GeneratorChangeList:
             :ivar configurable_element:
             """
 
-            add_rem_rep_change: Optional[AddRemRepChange] = field(
-                default=None,
+            add_rem_rep_change: AddRemRepChange = field(
                 metadata={
                     "name": "addRemRepChange",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            pmd_ref: Optional[LibraryRefType] = field(
-                default=None,
+            pmd_ref: LibraryRefType = field(
                 metadata={
                     "name": "pmdRef",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            configurable_element: Iterable[ConfigurableElement] = field(
+            configurable_element: Sequence[ConfigurableElement] = field(
                 default_factory=list,
                 metadata={
                     "name": "configurableElement",
@@ -538,7 +522,7 @@ class GeneratorChangeList:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class GeneratorChainConfigurationChange:
             """
             :ivar generator_chain_ref: References a generatorChain.
@@ -547,16 +531,14 @@ class GeneratorChangeList:
                 generators referenced in the chain
             """
 
-            generator_chain_ref: Optional[LibraryRefType] = field(
-                default=None,
+            generator_chain_ref: LibraryRefType = field(
                 metadata={
                     "name": "generatorChainRef",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            generator_chain_change: Iterable[
-                "GeneratorChangeList.DesignConfigurationChanges.GeneratorChainConfigurationChange.GeneratorChainChange"
+            generator_chain_change: Sequence[
+                GeneratorChangeList.DesignConfigurationChanges.GeneratorChainConfigurationChange.GeneratorChainChange
             ] = field(
                 default_factory=list,
                 metadata={
@@ -564,8 +546,8 @@ class GeneratorChangeList:
                     "type": "Element",
                 },
             )
-            generator_change: Iterable[
-                "GeneratorChangeList.DesignConfigurationChanges.GeneratorChainConfigurationChange.GeneratorChange"
+            generator_change: Sequence[
+                GeneratorChangeList.DesignConfigurationChanges.GeneratorChainConfigurationChange.GeneratorChange
             ] = field(
                 default_factory=list,
                 metadata={
@@ -574,17 +556,15 @@ class GeneratorChangeList:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class GeneratorChainChange:
-                add_rem_rep_change: Optional[AddRemRepChange] = field(
-                    default=None,
+                add_rem_rep_change: AddRemRepChange = field(
                     metadata={
                         "name": "addRemRepChange",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                configurable_element: Iterable[ConfigurableElement] = field(
+                configurable_element: Sequence[ConfigurableElement] = field(
                     default_factory=list,
                     metadata={
                         "name": "configurableElement",
@@ -593,7 +573,7 @@ class GeneratorChangeList:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class GeneratorChange:
                 """
                 :ivar add_rem_rep_change:
@@ -602,23 +582,19 @@ class GeneratorChangeList:
                 :ivar configurable_element:
                 """
 
-                add_rem_rep_change: Optional[AddRemRepChange] = field(
-                    default=None,
+                add_rem_rep_change: AddRemRepChange = field(
                     metadata={
                         "name": "addRemRepChange",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                generator_name: Optional[str] = field(
-                    default=None,
+                generator_name: str = field(
                     metadata={
                         "name": "generatorName",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                configurable_element: Iterable[ConfigurableElement] = field(
+                configurable_element: Sequence[ConfigurableElement] = field(
                     default_factory=list,
                     metadata={
                         "name": "configurableElement",
@@ -627,7 +603,7 @@ class GeneratorChangeList:
                     },
                 )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ViewConfigurationChange:
             """
             :ivar add_rem_rep_change:
@@ -636,35 +612,29 @@ class GeneratorChangeList:
                 instance
             """
 
-            add_rem_rep_change: Optional[AddRemRepChange] = field(
-                default=None,
+            add_rem_rep_change: AddRemRepChange = field(
                 metadata={
                     "name": "addRemRepChange",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            instance_name: Optional[InstanceName] = field(
-                default=None,
+            instance_name: InstanceName = field(
                 metadata={
                     "name": "instanceName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            view_name: Optional[str] = field(
-                default=None,
+            view_name: str = field(
                 metadata={
                     "name": "viewName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class VendorExtensionChanges:
-            vendor_extension_change: Iterable[
-                "GeneratorChangeList.DesignConfigurationChanges.VendorExtensionChanges.VendorExtensionChange"
+            vendor_extension_change: Sequence[
+                GeneratorChangeList.DesignConfigurationChanges.VendorExtensionChanges.VendorExtensionChange
             ] = field(
                 default_factory=list,
                 metadata={
@@ -674,29 +644,25 @@ class GeneratorChangeList:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class VendorExtensionChange:
-                add_rem_change: Optional[AddRemChange] = field(
-                    default=None,
+                add_rem_change: AddRemChange = field(
                     metadata={
                         "name": "addRemChange",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                vendor_extensions: Optional[VendorExtensions] = field(
-                    default=None,
+                vendor_extensions: VendorExtensions = field(
                     metadata={
                         "name": "vendorExtensions",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class VendorExtensionChanges:
-        vendor_extension_change: Iterable[
-            "GeneratorChangeList.VendorExtensionChanges.VendorExtensionChange"
+        vendor_extension_change: Sequence[
+            GeneratorChangeList.VendorExtensionChanges.VendorExtensionChange
         ] = field(
             default_factory=list,
             metadata={
@@ -705,21 +671,17 @@ class GeneratorChangeList:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class VendorExtensionChange:
-            add_rem_change: Optional[AddRemChange] = field(
-                default=None,
+            add_rem_change: AddRemChange = field(
                 metadata={
                     "name": "addRemChange",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
-                default=None,
+            vendor_extensions: VendorExtensions = field(
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )

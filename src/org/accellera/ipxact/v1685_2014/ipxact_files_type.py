@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2014.ipxact_file_type import IpxactFileType
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2014.ipxact_file_type import IpxactFileType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IpxactFilesType:
     """
     Contains a list of IP-XACT files to include.
@@ -15,7 +17,7 @@ class IpxactFilesType:
     class Meta:
         name = "ipxactFilesType"
 
-    ipxact_file: Iterable[IpxactFileType] = field(
+    ipxact_file: Sequence[IpxactFileType] = field(
         default_factory=list,
         metadata={
             "name": "ipxactFile",

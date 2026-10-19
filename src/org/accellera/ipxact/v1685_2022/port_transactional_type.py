@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.bus_width import BusWidth
 from org.accellera.ipxact.v1685_2022.initiative import Initiative
@@ -18,7 +19,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortTransactionalType:
     """
     Transactional port type.
@@ -46,22 +47,20 @@ class PortTransactionalType:
     class Meta:
         name = "portTransactionalType"
 
-    initiative: Optional[Initiative] = field(
+    initiative: Initiative = field(
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+        }
+    )
+    kind: None | Kind = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
         },
     )
-    kind: Optional[Kind] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    bus_width: Optional[BusWidth] = field(
+    bus_width: None | BusWidth = field(
         default=None,
         metadata={
             "name": "busWidth",
@@ -69,21 +68,21 @@ class PortTransactionalType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    qualifier: Optional[QualifierType] = field(
+    qualifier: None | QualifierType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    protocol: Optional[Protocol] = field(
+    protocol: None | Protocol = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    trans_type_defs: Optional[TransTypeDefs] = field(
+    trans_type_defs: None | TransTypeDefs = field(
         default=None,
         metadata={
             "name": "transTypeDefs",
@@ -91,22 +90,20 @@ class PortTransactionalType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    connection: Optional["PortTransactionalType.Connection"] = field(
+    connection: None | PortTransactionalType.Connection = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    power_constraints: Optional["PortTransactionalType.PowerConstraints"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "powerConstraints",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            },
-        )
+    power_constraints: None | PortTransactionalType.PowerConstraints = field(
+        default=None,
+        metadata={
+            "name": "powerConstraints",
+            "type": "Element",
+            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+        },
     )
     all_logical_initiatives_allowed: bool = field(
         default=False,
@@ -116,7 +113,7 @@ class PortTransactionalType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Connection:
         """
         :ivar max_connections: Indicates the maximum number of
@@ -128,7 +125,7 @@ class PortTransactionalType:
             present, the minimum number of allowed connections is 1.
         """
 
-        max_connections: Optional[UnsignedIntExpression] = field(
+        max_connections: None | UnsignedIntExpression = field(
             default=None,
             metadata={
                 "name": "maxConnections",
@@ -136,7 +133,7 @@ class PortTransactionalType:
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
             },
         )
-        min_connections: Optional[UnsignedIntExpression] = field(
+        min_connections: None | UnsignedIntExpression = field(
             default=None,
             metadata={
                 "name": "minConnections",
@@ -145,14 +142,14 @@ class PortTransactionalType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PowerConstraints:
         """
         :ivar power_constraint: Single wire port set of power
             constraints.
         """
 
-        power_constraint: Iterable[TransactionalPowerConstraintType] = field(
+        power_constraint: Sequence[TransactionalPowerConstraintType] = field(
             default_factory=list,
             metadata={
                 "name": "powerConstraint",

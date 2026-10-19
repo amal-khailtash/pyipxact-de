@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.spirit.v1_5.name_value_pair_type import NameValuePairType
@@ -5,12 +7,13 @@ from org.accellera.spirit.v1_5.name_value_pair_type import NameValuePairType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Parameter(NameValuePairType):
-    """A name value pair.
+    """
+    A name value pair.
 
-    The name is specified by the name element.  The value is in the text
-    content of the value element.  This value element supports all
+    The name is specified by the name element. The value is in the text
+    content of the value element. This value element supports all
     configurability attributes.
     """
 

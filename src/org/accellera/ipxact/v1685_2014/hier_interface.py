@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.interface_type import InterfaceType
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class HierInterface(InterfaceType):
     """
     Hierarchical reference to an interface.
@@ -20,7 +21,7 @@ class HierInterface(InterfaceType):
     class Meta:
         name = "hierInterface"
 
-    path: Optional[str] = field(
+    path: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

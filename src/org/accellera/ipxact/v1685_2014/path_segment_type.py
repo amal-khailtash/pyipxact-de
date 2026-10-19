@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.indices_type import IndicesType
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PathSegmentType:
-    """Identifies one level of hierarchy in the view specifed by viewNameRef.
+    """
+    Identifies one level of hierarchy in the view specifed by viewNameRef.
 
     This is a simple name and optionally some indices into a multi
     dimensional element.
@@ -22,23 +24,21 @@ class PathSegmentType:
     class Meta:
         name = "pathSegmentType"
 
-    path_segment_name: Optional[str] = field(
-        default=None,
+    path_segment_name: str = field(
         metadata={
             "name": "pathSegmentName",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    indices: Optional[IndicesType] = field(
+    indices: None | IndicesType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

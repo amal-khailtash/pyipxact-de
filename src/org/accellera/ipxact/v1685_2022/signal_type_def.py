@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.signal_type_def_signal_type import (
     SignalTypeDefSignalType,
@@ -9,10 +10,11 @@ from org.accellera.ipxact.v1685_2022.signal_type_def_signal_type import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SignalTypeDef:
     """
-    Definition of a single signal type defintion that can relate to multiple views.
+    Definition of a single signal type defintion that can relate to
+    multiple views.
 
     :ivar signal_type: defines the signal type for the port. Continuous-
         conservative is a signal which is continuous in time and
@@ -40,22 +42,20 @@ class SignalTypeDef:
         name = "signalTypeDef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    signal_type: Optional[SignalTypeDefSignalType] = field(
-        default=None,
+    signal_type: SignalTypeDefSignalType = field(
         metadata={
             "name": "signalType",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    view_ref: Iterable["SignalTypeDef.ViewRef"] = field(
+    view_ref: Sequence[SignalTypeDef.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -63,15 +63,10 @@ class SignalTypeDef:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

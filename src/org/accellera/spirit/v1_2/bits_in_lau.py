@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BitsInLau:
-    """The number of bits in the least addressable unit.
+    """
+    The number of bits in the least addressable unit.
 
     The default is byte addressable (8 bits).
     """
@@ -15,9 +17,4 @@ class BitsInLau:
         name = "bitsInLau"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    value: Optional[int] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
+    value: int = field()

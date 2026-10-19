@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.name_value_type_type import NameValueTypeType
 from org.accellera.spirit.v1_2.signal import Signal
@@ -10,7 +11,7 @@ from org.accellera.spirit.v1_2.view_type import ViewType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ModelType:
     """
     Hardware model information.
@@ -24,21 +25,21 @@ class ModelType:
     class Meta:
         name = "modelType"
 
-    views: Optional["ModelType.Views"] = field(
+    views: None | ModelType.Views = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    signals: Optional["ModelType.Signals"] = field(
+    signals: None | ModelType.Signals = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    model_parameters: Optional["ModelType.ModelParameters"] = field(
+    model_parameters: None | ModelType.ModelParameters = field(
         default=None,
         metadata={
             "name": "modelParameters",
@@ -46,7 +47,7 @@ class ModelType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -55,9 +56,9 @@ class ModelType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
-        view: Iterable[ViewType] = field(
+        view: Sequence[ViewType] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -65,9 +66,9 @@ class ModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Signals:
-        signal: Iterable[Signal] = field(
+        signal: Sequence[Signal] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -75,7 +76,7 @@ class ModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModelParameters:
         """
         :ivar model_parameter: A model parameter name value pair. The
@@ -86,7 +87,7 @@ class ModelType:
             Verilog parameter)
         """
 
-        model_parameter: Iterable[NameValueTypeType] = field(
+        model_parameter: Sequence[NameValueTypeType] = field(
             default_factory=list,
             metadata={
                 "name": "modelParameter",

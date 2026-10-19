@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.group_selector_multiple_group_selection_operator import (
     GroupSelectorMultipleGroupSelectionOperator,
@@ -9,13 +10,13 @@ from org.accellera.ipxact.v1685_2022.group_selector_multiple_group_selection_ope
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GroupSelector:
-    """Specifies a set of group names used to select subsequent generators.
+    """
+    Specifies a set of group names used to select subsequent generators.
 
-    The attribute "multipleGroupOperator" specifies the OR or AND
-    selection operator if there is more than one group name
-    (default=OR).
+    The attribute "multipleGroupOperator" specifies the OR or AND selection
+    operator if there is more than one group name (default=OR).
 
     :ivar name: Specifies a generator group name or a generator chain
         group name to be selected for inclusion in the generator chain.
@@ -28,7 +29,7 @@ class GroupSelector:
         name = "groupSelector"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    name: Iterable["GroupSelector.Name"] = field(
+    name: Sequence[GroupSelector.Name] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -42,7 +43,7 @@ class GroupSelector:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -50,15 +51,10 @@ class GroupSelector:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Name:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

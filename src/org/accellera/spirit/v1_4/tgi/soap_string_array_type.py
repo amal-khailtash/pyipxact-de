@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -6,7 +8,7 @@ from org.accellera.spirit.v1_4.tgi.array import Array
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SoapStringArrayType(Array):
     class Meta:
         name = "soapStringArrayType"

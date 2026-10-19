@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.core.clock_driver import ClockDriver
 from org.accellera.spirit.v1685_2009.ve.core.default_value import DefaultValue
@@ -10,7 +11,7 @@ from org.accellera.spirit.v1685_2009.ve.core.single_shot_driver import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DriverType:
     """
     Wire port driver type.
@@ -19,27 +20,28 @@ class DriverType:
     class Meta:
         name = "driverType"
 
-    default_value: Optional[DefaultValue] = field(
+    default_value_or_clock_driver_or_single_shot_driver: (
+        None | DefaultValue | ClockDriver | SingleShotDriver
+    ) = field(
         default=None,
         metadata={
-            "name": "defaultValue",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    clock_driver: Optional[ClockDriver] = field(
-        default=None,
-        metadata={
-            "name": "clockDriver",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    single_shot_driver: Optional[SingleShotDriver] = field(
-        default=None,
-        metadata={
-            "name": "singleShotDriver",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "defaultValue",
+                    "type": DefaultValue,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "clockDriver",
+                    "type": ClockDriver,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "singleShotDriver",
+                    "type": SingleShotDriver,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+            ),
         },
     )

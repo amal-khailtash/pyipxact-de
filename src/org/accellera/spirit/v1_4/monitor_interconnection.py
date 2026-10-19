@@ -1,16 +1,18 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.interface import Interface
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MonitorInterconnection:
-    """Describes a connection from the interface of one component to any number of
-    monitor interfaces in the design.
+    """
+    Describes a connection from the interface of one component to any
+    number of monitor interfaces in the design.
 
     An active interface can be connected to unlimited number of monitor
     interfaces.
@@ -35,35 +37,31 @@ class MonitorInterconnection:
         name = "monitorInterconnection"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    active_interface: Optional[Interface] = field(
-        default=None,
+    active_interface: Interface = field(
         metadata={
             "name": "activeInterface",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    monitor_interface: Iterable[Interface] = field(
+    monitor_interface: Sequence[Interface] = field(
         default_factory=list,
         metadata={
             "name": "monitorInterface",

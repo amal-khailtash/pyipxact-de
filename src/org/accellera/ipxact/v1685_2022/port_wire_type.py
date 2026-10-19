@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.component_port_direction_type import (
     ComponentPortDirectionType,
@@ -21,7 +22,7 @@ from org.accellera.ipxact.v1685_2022.wire_type_defs import WireTypeDefs
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortWireType:
     """
     Wire port type for a component.
@@ -52,29 +53,27 @@ class PortWireType:
     class Meta:
         name = "portWireType"
 
-    direction: Optional[ComponentPortDirectionType] = field(
-        default=None,
+    direction: ComponentPortDirectionType = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    qualifier: Optional[QualifierType] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    vectors: Optional[ExtendedVectorsType] = field(
+    qualifier: None | QualifierType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    wire_type_defs: Optional[WireTypeDefs] = field(
+    vectors: None | ExtendedVectorsType = field(
+        default=None,
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+        },
+    )
+    wire_type_defs: None | WireTypeDefs = field(
         default=None,
         metadata={
             "name": "wireTypeDefs",
@@ -82,7 +81,7 @@ class PortWireType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    domain_type_defs: Optional[DomainTypeDefs] = field(
+    domain_type_defs: None | DomainTypeDefs = field(
         default=None,
         metadata={
             "name": "domainTypeDefs",
@@ -90,7 +89,7 @@ class PortWireType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    signal_type_defs: Optional[SignalTypeDefs] = field(
+    signal_type_defs: None | SignalTypeDefs = field(
         default=None,
         metadata={
             "name": "signalTypeDefs",
@@ -98,14 +97,14 @@ class PortWireType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    drivers: Optional[Drivers] = field(
+    drivers: None | Drivers = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    constraint_sets: Optional[ConstraintSets] = field(
+    constraint_sets: None | ConstraintSets = field(
         default=None,
         metadata={
             "name": "constraintSets",
@@ -113,7 +112,7 @@ class PortWireType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    power_constraints: Optional["PortWireType.PowerConstraints"] = field(
+    power_constraints: None | PortWireType.PowerConstraints = field(
         default=None,
         metadata={
             "name": "powerConstraints",
@@ -129,14 +128,14 @@ class PortWireType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PowerConstraints:
         """
         :ivar power_constraint: Single wire port set of power
             constraints.
         """
 
-        power_constraint: Iterable[WirePowerConstraintType] = field(
+        power_constraint: Sequence[WirePowerConstraintType] = field(
             default_factory=list,
             metadata={
                 "name": "powerConstraint",

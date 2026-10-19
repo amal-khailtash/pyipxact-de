@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.assertions import Assertions
 from org.accellera.ipxact.v1685_2022.choices import Choices
@@ -20,7 +22,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorChain:
     """
     :ivar vendor: Name of the vendor who supplies this file.
@@ -32,16 +34,8 @@ class GeneratorChain:
         vlnv.
     :ivar short_description:
     :ivar description:
-    :ivar generator_chain_selector: Select other generator chain files
-        for inclusion into this chain. The boolean attribute "unique"
-        (default false) specifies that only a single generator is valid
-        in this context. If more that one generator is selected based on
-        the selection criteria, DE will prompt the user to resolve to a
-        single generator.
-    :ivar component_generator_selector: Selects generators declared in
-        components of the current design for inclusion into this
-        generator chain.
-    :ivar generator:
+    :ivar
+        generator_chain_selector_or_component_generator_selector_or_generator:
     :ivar chain_group: Identifies this generator chain as belonging to
         the named group. This is used by other generator chains to
         select this chain for programmatic inclusion.
@@ -59,102 +53,98 @@ class GeneratorChain:
         name = "generatorChain"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    generator_chain_selector: Iterable[
-        "GeneratorChain.GeneratorChainSelector"
+    generator_chain_selector_or_component_generator_selector_or_generator: Sequence[
+        GeneratorChain.GeneratorChainSelector
+        | GeneratorSelectorType
+        | Generator
     ] = field(
         default_factory=list,
         metadata={
-            "name": "generatorChainSelector",
-            "type": "Element",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "generatorChainSelector",
+                    "type": ForwardRef(
+                        "GeneratorChain.GeneratorChainSelector"
+                    ),
+                },
+                {
+                    "name": "componentGeneratorSelector",
+                    "type": GeneratorSelectorType,
+                },
+                {
+                    "name": "generator",
+                    "type": Generator,
+                },
+            ),
         },
     )
-    component_generator_selector: Iterable[GeneratorSelectorType] = field(
-        default_factory=list,
-        metadata={
-            "name": "componentGeneratorSelector",
-            "type": "Element",
-        },
-    )
-    generator: Iterable[Generator] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-        },
-    )
-    chain_group: Iterable["GeneratorChain.ChainGroup"] = field(
+    chain_group: Sequence[GeneratorChain.ChainGroup] = field(
         default_factory=list,
         metadata={
             "name": "chainGroup",
             "type": "Element",
         },
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    assertions: Optional[Assertions] = field(
+    assertions: None | Assertions = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -167,7 +157,7 @@ class GeneratorChain:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -175,15 +165,10 @@ class GeneratorChain:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ChainGroup:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -191,12 +176,10 @@ class GeneratorChain:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class GeneratorChainSelector:
         """
-        :ivar group_selector:
-        :ivar generator_chain_ref: Select another generator chain using
-            the unique identifier of this generator chain.
+        :ivar group_selector_or_generator_chain_ref:
         :ivar unique: Specifies that only a single generator is valid in
             this context. If more that one generator is selcted based on
             the selection criteria, DE will prompt the user to resolve
@@ -204,18 +187,22 @@ class GeneratorChain:
         :ivar id:
         """
 
-        group_selector: Optional[GroupSelector] = field(
+        group_selector_or_generator_chain_ref: (
+            None | GroupSelector | ConfigurableLibraryRefType
+        ) = field(
             default=None,
             metadata={
-                "name": "groupSelector",
-                "type": "Element",
-            },
-        )
-        generator_chain_ref: Optional[ConfigurableLibraryRefType] = field(
-            default=None,
-            metadata={
-                "name": "generatorChainRef",
-                "type": "Element",
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "groupSelector",
+                        "type": GroupSelector,
+                    },
+                    {
+                        "name": "generatorChainRef",
+                        "type": ConfigurableLibraryRefType,
+                    },
+                ),
             },
         )
         unique: bool = field(
@@ -224,7 +211,7 @@ class GeneratorChain:
                 "type": "Attribute",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

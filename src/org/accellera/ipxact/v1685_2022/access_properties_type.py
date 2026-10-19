@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AccessPropertiesType:
     """
     :ivar access_entry_type_ref: Reference to a user defined
@@ -15,14 +16,14 @@ class AccessPropertiesType:
     class Meta:
         name = "accessPropertiesType"
 
-    access_entry_type_ref: Optional[str] = field(
+    access_entry_type_ref: None | str = field(
         default=None,
         metadata={
             "name": "accessEntryTypeRef",
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

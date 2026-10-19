@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.cell_specification import (
     CellSpecification,
@@ -8,9 +9,10 @@ from org.accellera.ipxact.v1685_2022.cell_specification import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DriveConstraint:
-    """Defines a constraint indicating how an input is to be driven.
+    """
+    Defines a constraint indicating how an input is to be driven.
 
     The preferred methodology is to specify a library cell in technology
     independent fashion. The implemention tool should assume that the
@@ -23,11 +25,9 @@ class DriveConstraint:
         name = "driveConstraint"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    cell_specification: Optional[CellSpecification] = field(
-        default=None,
+    cell_specification: CellSpecification = field(
         metadata={
             "name": "cellSpecification",
             "type": "Element",
-            "required": True,
-        },
+        }
     )

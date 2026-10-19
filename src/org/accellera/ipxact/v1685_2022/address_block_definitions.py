@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.address_unit_bits import AddressUnitBits
@@ -33,14 +35,14 @@ from org.accellera.ipxact.v1685_2022.volatile import Volatile
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressBlockDefinitions:
     class Meta:
         name = "addressBlockDefinitions"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    address_block_definition: Iterable[
-        "AddressBlockDefinitions.AddressBlockDefinition"
+    address_block_definition: Sequence[
+        AddressBlockDefinitions.AddressBlockDefinition
     ] = field(
         default_factory=list,
         metadata={
@@ -50,7 +52,7 @@ class AddressBlockDefinitions:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AddressBlockDefinition:
         """
         :ivar name: Unique name
@@ -78,116 +80,115 @@ class AddressBlockDefinitions:
         :ivar access_policies:
         :ivar parameters: Any additional parameters needed to describe
             this address block to the generators.
-        :ivar register: A single register
-        :ivar register_file: A structure of registers and register files
+        :ivar register_or_register_file:
         :ivar address_unit_bits:
         :ivar vendor_extensions:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        short_description: Optional[ShortDescription] = field(
+        short_description: None | ShortDescription = field(
             default=None,
             metadata={
                 "name": "shortDescription",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        type_identifier: Optional[str] = field(
+        type_identifier: None | str = field(
             default=None,
             metadata={
                 "name": "typeIdentifier",
                 "type": "Element",
             },
         )
-        range: Optional[UnsignedPositiveLongintExpression] = field(
-            default=None,
+        range: UnsignedPositiveLongintExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        width: Optional[UnsignedPositiveIntExpression] = field(
-            default=None,
+        width: UnsignedPositiveIntExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        usage: Optional[UsageType] = field(
+        usage: None | UsageType = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        volatile: Optional[Volatile] = field(
+        volatile: None | Volatile = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        access_policies: Optional[AccessPolicies] = field(
+        access_policies: None | AccessPolicies = field(
             default=None,
             metadata={
                 "name": "accessPolicies",
                 "type": "Element",
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        register: Iterable[
-            "AddressBlockDefinitions.AddressBlockDefinition.Register"
+        register_or_register_file: Sequence[
+            AddressBlockDefinitions.AddressBlockDefinition.Register
+            | RegisterFile
         ] = field(
             default_factory=list,
             metadata={
-                "type": "Element",
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "register",
+                        "type": ForwardRef(
+                            "AddressBlockDefinitions.AddressBlockDefinition.Register"
+                        ),
+                    },
+                    {
+                        "name": "registerFile",
+                        "type": RegisterFile,
+                    },
+                ),
             },
         )
-        register_file: Iterable[RegisterFile] = field(
-            default_factory=list,
-            metadata={
-                "name": "registerFile",
-                "type": "Element",
-            },
-        )
-        address_unit_bits: Optional[AddressUnitBits] = field(
+        address_unit_bits: None | AddressUnitBits = field(
             default=None,
             metadata={
                 "name": "addressUnitBits",
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -195,7 +196,7 @@ class AddressBlockDefinitions:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Register:
             """
             :ivar name: Unique name
@@ -209,135 +210,122 @@ class AddressBlockDefinitions:
                 addressOffset, expressed as the number of
                 addressUnitBits from the containing memoryMap or
                 localMemoryMap.
-            :ivar register_definition_ref:
-            :ivar type_identifier: Identifier name used to indicate that
-                multiple register elements contain the exact same
-                information for the elements in the
-                registerDefinitionGroup.
-            :ivar size: Width of the register in bits.
-            :ivar volatile:
-            :ivar access_policies:
-            :ivar field_value: Describes individual bit fields within
-                the register.
+            :ivar choice:
             :ivar alternate_registers:
             :ivar parameters:
             :ivar vendor_extensions:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
                     "type": "Element",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
                     "type": "Element",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            access_handles: Optional[
-                "AddressBlockDefinitions.AddressBlockDefinition.Register.AccessHandles"
-            ] = field(
+            access_handles: (
+                None
+                | AddressBlockDefinitions.AddressBlockDefinition.Register.AccessHandles
+            ) = field(
                 default=None,
                 metadata={
                     "name": "accessHandles",
                     "type": "Element",
                 },
             )
-            array: Optional[Array] = field(
+            array: None | Array = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            address_offset: Optional[UnsignedLongintExpression] = field(
-                default=None,
+            address_offset: UnsignedLongintExpression = field(
                 metadata={
                     "name": "addressOffset",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            register_definition_ref: Optional[
-                "AddressBlockDefinitions.AddressBlockDefinition.Register.RegisterDefinitionRef"
+            choice: Sequence[
+                AddressBlockDefinitions.AddressBlockDefinition.Register.RegisterDefinitionRef
+                | str
+                | UnsignedPositiveIntExpression
+                | Volatile
+                | AccessPolicies
+                | FieldType
             ] = field(
-                default=None,
-                metadata={
-                    "name": "registerDefinitionRef",
-                    "type": "Element",
-                },
-            )
-            type_identifier: Optional[str] = field(
-                default=None,
-                metadata={
-                    "name": "typeIdentifier",
-                    "type": "Element",
-                },
-            )
-            size: Optional[UnsignedPositiveIntExpression] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            volatile: Optional[Volatile] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            access_policies: Optional[AccessPolicies] = field(
-                default=None,
-                metadata={
-                    "name": "accessPolicies",
-                    "type": "Element",
-                },
-            )
-            field_value: Iterable[FieldType] = field(
                 default_factory=list,
                 metadata={
-                    "name": "field",
-                    "type": "Element",
+                    "type": "Elements",
+                    "choices": (
+                        {
+                            "name": "registerDefinitionRef",
+                            "type": ForwardRef(
+                                "AddressBlockDefinitions.AddressBlockDefinition.Register.RegisterDefinitionRef"
+                            ),
+                        },
+                        {
+                            "name": "typeIdentifier",
+                            "type": str,
+                        },
+                        {
+                            "name": "size",
+                            "type": UnsignedPositiveIntExpression,
+                        },
+                        {
+                            "name": "volatile",
+                            "type": Volatile,
+                        },
+                        {
+                            "name": "accessPolicies",
+                            "type": AccessPolicies,
+                        },
+                        {
+                            "name": "field",
+                            "type": FieldType,
+                        },
+                    ),
                 },
             )
-            alternate_registers: Optional[AlternateRegisters] = field(
+            alternate_registers: None | AlternateRegisters = field(
                 default=None,
                 metadata={
                     "name": "alternateRegisters",
                     "type": "Element",
                 },
             )
-            parameters: Optional[Parameters] = field(
+            parameters: None | Parameters = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -345,9 +333,9 @@ class AddressBlockDefinitions:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class AccessHandles:
-                access_handle: Iterable[SimpleAccessHandle] = field(
+                access_handle: Sequence[SimpleAccessHandle] = field(
                     default_factory=list,
                     metadata={
                         "name": "accessHandle",
@@ -356,19 +344,12 @@ class AddressBlockDefinitions:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class RegisterDefinitionRef:
-                value: str = field(
-                    default="",
-                    metadata={
-                        "required": True,
-                    },
-                )
-                type_definitions: Optional[str] = field(
-                    default=None,
+                value: str = field(default="")
+                type_definitions: str = field(
                     metadata={
                         "name": "typeDefinitions",
                         "type": "Attribute",
-                        "required": True,
-                    },
+                    }
                 )

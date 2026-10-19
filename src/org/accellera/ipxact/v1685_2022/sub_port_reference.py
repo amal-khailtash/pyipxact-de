@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.part_select import PartSelect
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SubPortReference:
     """
     :ivar part_select:
@@ -18,24 +19,22 @@ class SubPortReference:
         name = "subPortReference"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    part_select: Optional[PartSelect] = field(
+    part_select: None | PartSelect = field(
         default=None,
         metadata={
             "name": "partSelect",
             "type": "Element",
         },
     )
-    sub_port_ref: Optional[str] = field(
-        default=None,
+    sub_port_ref: str = field(
         metadata={
             "name": "subPortRef",
             "type": "Attribute",
-            "required": True,
             "white_space": "collapse",
             "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-        },
+        }
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

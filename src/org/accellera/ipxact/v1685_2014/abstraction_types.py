@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2014.configurable_library_ref_type import (
     ConfigurableLibraryRefType,
@@ -16,7 +18,7 @@ from org.accellera.ipxact.v1685_2014.view_ref import ViewRef
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractionTypes:
     """
     :ivar abstraction_type: The abstraction type/level of this
@@ -30,7 +32,7 @@ class AbstractionTypes:
         name = "abstractionTypes"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    abstraction_type: Iterable["AbstractionTypes.AbstractionType"] = field(
+    abstraction_type: Sequence[AbstractionTypes.AbstractionType] = field(
         default_factory=list,
         metadata={
             "name": "abstractionType",
@@ -39,7 +41,7 @@ class AbstractionTypes:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AbstractionType:
         """
         :ivar view_ref: A reference to a view name in the file for which
@@ -51,31 +53,27 @@ class AbstractionTypes:
         :ivar id:
         """
 
-        view_ref: Iterable[ViewRef] = field(
+        view_ref: Sequence[ViewRef] = field(
             default_factory=list,
             metadata={
                 "name": "viewRef",
                 "type": "Element",
             },
         )
-        abstraction_ref: Optional[ConfigurableLibraryRefType] = field(
-            default=None,
+        abstraction_ref: ConfigurableLibraryRefType = field(
             metadata={
                 "name": "abstractionRef",
                 "type": "Element",
-                "required": True,
+            }
+        )
+        port_maps: None | AbstractionTypes.AbstractionType.PortMaps = field(
+            default=None,
+            metadata={
+                "name": "portMaps",
+                "type": "Element",
             },
         )
-        port_maps: Optional["AbstractionTypes.AbstractionType.PortMaps"] = (
-            field(
-                default=None,
-                metadata={
-                    "name": "portMaps",
-                    "type": "Element",
-                },
-            )
-        )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -83,7 +81,7 @@ class AbstractionTypes:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class PortMaps:
             """
             :ivar port_map: Maps a component's port to a port in a bus
@@ -92,8 +90,8 @@ class AbstractionTypes:
                 physical pin from the component.
             """
 
-            port_map: Iterable[
-                "AbstractionTypes.AbstractionType.PortMaps.PortMap"
+            port_map: Sequence[
+                AbstractionTypes.AbstractionType.PortMaps.PortMap
             ] = field(
                 default_factory=list,
                 metadata={
@@ -103,15 +101,13 @@ class AbstractionTypes:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class PortMap:
                 """
                 :ivar is_present:
                 :ivar logical_port: Logical port from abstraction
                     definition
-                :ivar physical_port: Physical port from this component
-                :ivar logical_tie_off: Identifies a value to tie this
-                    logical port to.
+                :ivar physical_port_or_logical_tie_off:
                 :ivar is_informative: When true, indicates that this
                     portMap element is for information purpose only.
                 :ivar id:
@@ -120,49 +116,49 @@ class AbstractionTypes:
                     inversion.
                 """
 
-                is_present: Optional[IsPresent] = field(
+                is_present: None | IsPresent = field(
                     default=None,
                     metadata={
                         "name": "isPresent",
                         "type": "Element",
                     },
                 )
-                logical_port: Optional[
-                    "AbstractionTypes.AbstractionType.PortMaps.PortMap.LogicalPort"
-                ] = field(
-                    default=None,
+                logical_port: AbstractionTypes.AbstractionType.PortMaps.PortMap.LogicalPort = field(
                     metadata={
                         "name": "logicalPort",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                physical_port: Optional[
-                    "AbstractionTypes.AbstractionType.PortMaps.PortMap.PhysicalPort"
-                ] = field(
+                physical_port_or_logical_tie_off: (
+                    None
+                    | AbstractionTypes.AbstractionType.PortMaps.PortMap.PhysicalPort
+                    | UnsignedPositiveIntExpression
+                ) = field(
                     default=None,
                     metadata={
-                        "name": "physicalPort",
-                        "type": "Element",
+                        "type": "Elements",
+                        "choices": (
+                            {
+                                "name": "physicalPort",
+                                "type": ForwardRef(
+                                    "AbstractionTypes.AbstractionType.PortMaps.PortMap.PhysicalPort"
+                                ),
+                            },
+                            {
+                                "name": "logicalTieOff",
+                                "type": UnsignedPositiveIntExpression,
+                            },
+                        ),
                     },
                 )
-                logical_tie_off: Optional[UnsignedPositiveIntExpression] = (
-                    field(
-                        default=None,
-                        metadata={
-                            "name": "logicalTieOff",
-                            "type": "Element",
-                        },
-                    )
-                )
-                is_informative: Optional[bool] = field(
+                is_informative: None | bool = field(
                     default=None,
                     metadata={
                         "name": "isInformative",
                         "type": "Element",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -176,7 +172,7 @@ class AbstractionTypes:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class LogicalPort:
                     """
                     :ivar name: Bus port name as specified inside the
@@ -184,21 +180,19 @@ class AbstractionTypes:
                     :ivar range:
                     """
 
-                    name: Optional[str] = field(
-                        default=None,
+                    name: str = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
-                    range: Optional[Range] = field(
+                    range: None | Range = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class PhysicalPort:
                     """
                     :ivar name: Component port name as specified inside
@@ -206,16 +200,14 @@ class AbstractionTypes:
                     :ivar part_select:
                     """
 
-                    name: Optional[str] = field(
-                        default=None,
+                    name: str = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
                             "white_space": "collapse",
                             "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-                        },
+                        }
                     )
-                    part_select: Optional[PartSelect] = field(
+                    part_select: None | PartSelect = field(
                         default=None,
                         metadata={
                             "name": "partSelect",

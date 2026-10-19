@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.complex_base_expression import (
     ComplexBaseExpression,
@@ -24,7 +25,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ParameterBaseType:
     """
     Name and value type for use in resolvable elements.
@@ -83,15 +84,13 @@ class ParameterBaseType:
     class Meta:
         name = "parameterBaseType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -99,36 +98,34 @@ class ParameterBaseType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    vectors: Optional[Vectors] = field(
+    vectors: None | Vectors = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    arrays: Optional[ConfigurableArrays] = field(
+    arrays: None | ConfigurableArrays = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    value: Optional[ComplexBaseExpression] = field(
-        default=None,
+    value: ComplexBaseExpression = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -136,33 +133,33 @@ class ParameterBaseType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    parameter_id: Optional[str] = field(
+    parameter_id: None | str = field(
         default=None,
         metadata={
             "name": "parameterId",
             "type": "Attribute",
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
             "type": "Attribute",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -170,13 +167,13 @@ class ParameterBaseType:
             "tokens": True,
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -189,19 +186,19 @@ class ParameterBaseType:
             "type": "Attribute",
         },
     )
-    sign: Optional[SignType] = field(
+    sign: None | SignType = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    prefix: Optional[ParameterBaseTypePrefix] = field(
+    prefix: None | ParameterBaseTypePrefix = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    unit: Optional[ParameterBaseTypeUnit] = field(
+    unit: None | ParameterBaseTypeUnit = field(
         default=None,
         metadata={
             "type": "Attribute",

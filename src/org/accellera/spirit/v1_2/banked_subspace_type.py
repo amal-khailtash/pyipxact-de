@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.name_value_pair_type import NameValuePairType
 from org.accellera.spirit.v1_2.vendor_extensions import VendorExtensions
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1_2.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BankedSubspaceType:
     """
     Subspace references inside banks do not specify an address.
@@ -22,14 +23,14 @@ class BankedSubspaceType:
     class Meta:
         name = "bankedSubspaceType"
 
-    parameter: Iterable[NameValuePairType] = field(
+    parameter: Sequence[NameValuePairType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -37,12 +38,10 @@ class BankedSubspaceType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    master_ref: Optional[str] = field(
-        default=None,
+    master_ref: str = field(
         metadata={
             "name": "masterRef",
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )

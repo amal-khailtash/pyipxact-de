@@ -1,16 +1,18 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MemoryMapRefType:
-    """Base type for an element which references an memory map.
+    """
+    Base type for an element which references an memory map.
 
-    Reference is kept in an attribute rather than the text value, so
-    that the type may be extended with child elements if necessary.
+    Reference is kept in an attribute rather than the text value, so that
+    the type may be extended with child elements if necessary.
 
     :ivar mode_ref:
     :ivar memory_map_ref: A reference to a unique memory map.
@@ -19,7 +21,7 @@ class MemoryMapRefType:
     class Meta:
         name = "memoryMapRefType"
 
-    mode_ref: Iterable["MemoryMapRefType.ModeRef"] = field(
+    mode_ref: Sequence[MemoryMapRefType.ModeRef] = field(
         default_factory=list,
         metadata={
             "name": "modeRef",
@@ -27,28 +29,21 @@ class MemoryMapRefType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    memory_map_ref: Optional[str] = field(
-        default=None,
+    memory_map_ref: str = field(
         metadata={
             "name": "memoryMapRef",
             "type": "Attribute",
-            "required": True,
-        },
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModeRef:
         """
         A reference to a mode.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

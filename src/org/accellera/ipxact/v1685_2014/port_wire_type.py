@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.component_port_direction_type import (
     ComponentPortDirectionType,
@@ -12,7 +13,7 @@ from org.accellera.ipxact.v1685_2014.wire_type_defs import WireTypeDefs
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortWireType:
     """
     Wire port type for a component.
@@ -37,22 +38,20 @@ class PortWireType:
     class Meta:
         name = "portWireType"
 
-    direction: Optional[ComponentPortDirectionType] = field(
+    direction: ComponentPortDirectionType = field(
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+        }
+    )
+    vectors: None | Vectors = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
         },
     )
-    vectors: Optional[Vectors] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-        },
-    )
-    wire_type_defs: Optional[WireTypeDefs] = field(
+    wire_type_defs: None | WireTypeDefs = field(
         default=None,
         metadata={
             "name": "wireTypeDefs",
@@ -60,14 +59,14 @@ class PortWireType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    drivers: Optional[Drivers] = field(
+    drivers: None | Drivers = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    constraint_sets: Optional[ConstraintSets] = field(
+    constraint_sets: None | ConstraintSets = field(
         default=None,
         metadata={
             "name": "constraintSets",

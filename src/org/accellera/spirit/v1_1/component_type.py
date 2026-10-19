@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.address_space_ref import AddressSpaceRef
 from org.accellera.spirit.v1_1.address_spaces import AddressSpaces
@@ -25,7 +26,7 @@ from org.accellera.spirit.v1_1.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentType:
     """
     Component-specific extension to componentType.
@@ -62,39 +63,31 @@ class ComponentType:
     class Meta:
         name = "componentType"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    bus_interfaces: Optional[BusInterfaces] = field(
+    bus_interfaces: None | BusInterfaces = field(
         default=None,
         metadata={
             "name": "busInterfaces",
@@ -102,14 +95,14 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    channels: Optional[Channels] = field(
+    channels: None | Channels = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    component_instances: Optional[ComponentInstances] = field(
+    component_instances: None | ComponentInstances = field(
         default=None,
         metadata={
             "name": "componentInstances",
@@ -117,14 +110,14 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    interconnections: Optional[Interconnections] = field(
+    interconnections: None | Interconnections = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    remap_states: Optional[RemapStates] = field(
+    remap_states: None | RemapStates = field(
         default=None,
         metadata={
             "name": "remapStates",
@@ -132,7 +125,7 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    address_spaces: Optional[AddressSpaces] = field(
+    address_spaces: None | AddressSpaces = field(
         default=None,
         metadata={
             "name": "addressSpaces",
@@ -140,7 +133,7 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    memory_maps: Optional[MemoryMaps] = field(
+    memory_maps: None | MemoryMaps = field(
         default=None,
         metadata={
             "name": "memoryMaps",
@@ -148,7 +141,7 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    hw_model: Optional[HwModel] = field(
+    hw_model: None | HwModel = field(
         default=None,
         metadata={
             "name": "hwModel",
@@ -156,7 +149,7 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    component_generators: Optional[ComponentGenerators] = field(
+    component_generators: None | ComponentGenerators = field(
         default=None,
         metadata={
             "name": "componentGenerators",
@@ -164,21 +157,21 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    configurators: Optional[Configurators] = field(
+    configurators: None | Configurators = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    file_sets: Optional[FileSets] = field(
+    file_sets: None | FileSets = field(
         default=None,
         metadata={
             "name": "fileSets",
@@ -186,14 +179,14 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    cpus: Optional["ComponentType.Cpus"] = field(
+    cpus: None | ComponentType.Cpus = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    component_constraint_sets: Optional[ComponentConstraintSets] = field(
+    component_constraint_sets: None | ComponentConstraintSets = field(
         default=None,
         metadata={
             "name": "componentConstraintSets",
@@ -201,7 +194,7 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    other_clock_drivers: Optional[OtherClocks] = field(
+    other_clock_drivers: None | OtherClocks = field(
         default=None,
         metadata={
             "name": "otherClockDrivers",
@@ -209,14 +202,14 @@ class ComponentType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    parameter: Iterable[Parameter] = field(
+    parameter: Sequence[Parameter] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -225,13 +218,13 @@ class ComponentType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Cpus:
         """
         :ivar cpu: Describes a processor in this component.
         """
 
-        cpu: Iterable["ComponentType.Cpus.Cpu"] = field(
+        cpu: Sequence[ComponentType.Cpus.Cpu] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -239,7 +232,7 @@ class ComponentType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Cpu:
             """
             :ivar name: The name of the cpu instance relative to the
@@ -250,15 +243,13 @@ class ComponentType:
             :ivar vendor_extensions:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                    "required": True,
-                },
+                }
             )
-            address_space_ref: Iterable[AddressSpaceRef] = field(
+            address_space_ref: Sequence[AddressSpaceRef] = field(
                 default_factory=list,
                 metadata={
                     "name": "addressSpaceRef",
@@ -267,14 +258,14 @@ class ComponentType:
                     "min_occurs": 1,
                 },
             )
-            parameter: Iterable[Parameter] = field(
+            parameter: Sequence[Parameter] = field(
                 default_factory=list,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",

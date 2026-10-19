@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.ams.description import Description
 from org.accellera.spirit.v1685_2009.ve.ams.display_name import DisplayName
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1685_2009.ve.ams.display_name import DisplayName
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RemapStates:
     """
     Contains a list of remap state names and associated port values.
@@ -27,7 +28,7 @@ class RemapStates:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    remap_state: Iterable["RemapStates.RemapState"] = field(
+    remap_state: Sequence[RemapStates.RemapState] = field(
         default_factory=list,
         metadata={
             "name": "remapState",
@@ -36,7 +37,7 @@ class RemapStates:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class RemapState:
         """
         :ivar name: Unique name
@@ -46,27 +47,25 @@ class RemapStates:
             invoke this remap state.
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        remap_ports: Optional["RemapStates.RemapState.RemapPorts"] = field(
+        remap_ports: None | RemapStates.RemapState.RemapPorts = field(
             default=None,
             metadata={
                 "name": "remapPorts",
@@ -74,7 +73,7 @@ class RemapStates:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class RemapPorts:
             """
             :ivar remap_port: Contains the name and value of a port on
@@ -84,8 +83,8 @@ class RemapStates:
                 takes that value.
             """
 
-            remap_port: Iterable[
-                "RemapStates.RemapState.RemapPorts.RemapPort"
+            remap_port: Sequence[
+                RemapStates.RemapState.RemapPorts.RemapPort
             ] = field(
                 default_factory=list,
                 metadata={
@@ -95,7 +94,7 @@ class RemapStates:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class RemapPort:
                 """
                 :ivar value:
@@ -109,22 +108,19 @@ class RemapStates:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                     },
                 )
-                port_name_ref: Optional[str] = field(
-                    default=None,
+                port_name_ref: str = field(
                     metadata={
                         "name": "portNameRef",
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                        "required": True,
                         "white_space": "collapse",
                         "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-                    },
+                    }
                 )
-                port_index: Optional[int] = field(
+                port_index: None | int = field(
                     default=None,
                     metadata={
                         "name": "portIndex",

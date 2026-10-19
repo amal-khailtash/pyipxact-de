@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.bits_in_lau import BitsInLau
 from org.accellera.ipxact.v1685_2022.description import Description
@@ -20,7 +21,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IndirectInterfaceType:
     """
     Type definition for a indirectInterface in a component.
@@ -31,9 +32,7 @@ class IndirectInterfaceType:
     :ivar description:
     :ivar indirect_address_ref:
     :ivar indirect_data_ref:
-    :ivar memory_map_ref: A reference to a memoryMap. This memoryMap is
-        indirectly accessible through this interface.
-    :ivar transparent_bridge:
+    :ivar memory_map_ref_or_transparent_bridge:
     :ivar bits_in_lau:
     :ivar endianness: 'big': means the most significant element of any
         multi-element  data field is stored at the lowest memory
@@ -49,15 +48,13 @@ class IndirectInterfaceType:
     class Meta:
         name = "indirectInterfaceType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -65,7 +62,7 @@ class IndirectInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -73,48 +70,48 @@ class IndirectInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    indirect_address_ref: Optional[IndirectAddressRef] = field(
-        default=None,
+    indirect_address_ref: IndirectAddressRef = field(
         metadata={
             "name": "indirectAddressRef",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    indirect_data_ref: Optional[IndirectDataRef] = field(
-        default=None,
+    indirect_data_ref: IndirectDataRef = field(
         metadata={
             "name": "indirectDataRef",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    memory_map_ref: Optional[str] = field(
-        default=None,
-        metadata={
-            "name": "memoryMapRef",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
+    memory_map_ref_or_transparent_bridge: Sequence[str | TransparentBridge] = (
+        field(
+            default_factory=list,
+            metadata={
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "memoryMapRef",
+                        "type": str,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                    {
+                        "name": "transparentBridge",
+                        "type": TransparentBridge,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                ),
+            },
+        )
     )
-    transparent_bridge: Iterable[TransparentBridge] = field(
-        default_factory=list,
-        metadata={
-            "name": "transparentBridge",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    bits_in_lau: Optional[BitsInLau] = field(
+    bits_in_lau: None | BitsInLau = field(
         default=None,
         metadata={
             "name": "bitsInLau",
@@ -122,21 +119,21 @@ class IndirectInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    endianness: Optional[EndianessType] = field(
+    endianness: None | EndianessType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -144,7 +141,7 @@ class IndirectInterfaceType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

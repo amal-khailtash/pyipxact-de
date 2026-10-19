@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -6,7 +8,7 @@ from org.accellera.spirit.v1685_2009.tgi.array import Array
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IntegerArrayType(Array):
     class Meta:
         name = "integerArrayType"

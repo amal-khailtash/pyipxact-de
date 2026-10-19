@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.choice_style_value import ChoiceStyleValue
 from org.accellera.spirit.v1_1.direction_value import DirectionValue
@@ -11,11 +12,11 @@ from org.accellera.spirit.v1_1.resolve_type import ResolveType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Value:
-    """The value of a signal.
-
-    1 or 0 for single bit signals, unsigned numeric otherwise.
+    """
+    The value of a signal. 1 or 0 for single bit signals, unsigned numeric
+    otherwise.
 
     :ivar value:
     :ivar format: This is a hint to the user interface about the data
@@ -49,7 +50,6 @@ class Value:
     value: str = field(
         default="",
         metadata={
-            "required": True,
             "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
         },
     )
@@ -60,21 +60,21 @@ class Value:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    resolve: Optional[ResolveType] = field(
+    resolve: None | ResolveType = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -88,21 +88,21 @@ class Value:
             "namespace": "##other",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    range_type: Optional[RangeTypeType] = field(
+    range_type: None | RangeTypeType = field(
         default=None,
         metadata={
             "name": "rangeType",
@@ -110,14 +110,14 @@ class Value:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -125,7 +125,7 @@ class Value:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    choice_style: Optional[ChoiceStyleValue] = field(
+    choice_style: None | ChoiceStyleValue = field(
         default=None,
         metadata={
             "name": "choiceStyle",
@@ -133,14 +133,14 @@ class Value:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    direction: Optional[DirectionValue] = field(
+    direction: None | DirectionValue = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -149,7 +149,7 @@ class Value:
             "tokens": True,
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

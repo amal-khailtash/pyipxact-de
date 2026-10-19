@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.dependency import Dependency
 from org.accellera.spirit.v1_5.file_file_type import FileFileType
@@ -13,16 +14,14 @@ from org.accellera.spirit.v1_5.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class File:
     """
     IP-XACT reference to a file or directory.
 
     :ivar name: Path to the file or directory. If this path is a
         relative path, then it is relative to the containing XML file.
-    :ivar file_type: Enumerated file types known by IP-XACT.
-    :ivar user_file_type: Free form file type, not - yet - known by IP-
-        XACT .
+    :ivar file_type_or_user_file_type:
     :ivar is_include_file: Indicate that the file is include file.
     :ivar logical_name: Logical name for this file or directory e.g.
         VHDL library name.
@@ -50,88 +49,88 @@ class File:
         name = "file"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
-    name: Optional["File.Name"] = field(
-        default=None,
+    name: File.Name = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    file_type: Iterable[FileFileType] = field(
+    file_type_or_user_file_type: Sequence[FileFileType | str] = field(
         default_factory=list,
         metadata={
-            "name": "fileType",
-            "type": "Element",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "fileType",
+                    "type": FileFileType,
+                },
+                {
+                    "name": "userFileType",
+                    "type": str,
+                },
+            ),
         },
     )
-    user_file_type: Iterable[str] = field(
-        default_factory=list,
-        metadata={
-            "name": "userFileType",
-            "type": "Element",
-        },
-    )
-    is_include_file: Optional["File.IsIncludeFile"] = field(
+    is_include_file: None | File.IsIncludeFile = field(
         default=None,
         metadata={
             "name": "isIncludeFile",
             "type": "Element",
         },
     )
-    logical_name: Optional["File.LogicalName"] = field(
+    logical_name: None | File.LogicalName = field(
         default=None,
         metadata={
             "name": "logicalName",
             "type": "Element",
         },
     )
-    exported_name: Iterable[str] = field(
+    exported_name: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "exportedName",
             "type": "Element",
         },
     )
-    build_command: Optional["File.BuildCommand"] = field(
+    build_command: None | File.BuildCommand = field(
         default=None,
         metadata={
             "name": "buildCommand",
             "type": "Element",
         },
     )
-    dependency: Iterable[Dependency] = field(
+    dependency: Sequence[Dependency] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    define: Iterable[NameValuePairType] = field(
+    define: Sequence[NameValuePairType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    image_type: Iterable[str] = field(
+    image_type: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "imageType",
             "type": "Element",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    file_id: Optional[str] = field(
+    file_id: None | str = field(
         default=None,
         metadata={
             "name": "fileId",
@@ -147,7 +146,7 @@ class File:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Name:
         value: str = field(default="")
         format: FormatType = field(
@@ -164,14 +163,14 @@ class File:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -185,7 +184,7 @@ class File:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -193,14 +192,14 @@ class File:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -209,7 +208,7 @@ class File:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -217,14 +216,14 @@ class File:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -239,7 +238,7 @@ class File:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -247,7 +246,7 @@ class File:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class IsIncludeFile:
         """
         :ivar value:
@@ -255,12 +254,7 @@ class File:
             that are needed in top file
         """
 
-        value: Optional[bool] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: bool = field()
         external_declarations: bool = field(
             default=False,
             metadata={
@@ -270,7 +264,7 @@ class File:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class LogicalName:
         """
         :ivar value:
@@ -278,12 +272,7 @@ class File:
             and another process may override this name.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         default: bool = field(
             default=False,
             metadata={
@@ -292,7 +281,7 @@ class File:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class BuildCommand:
         """
         :ivar command: Command used to build this file.
@@ -309,28 +298,28 @@ class File:
             from the source file.
         """
 
-        command: Optional["File.BuildCommand.Command"] = field(
+        command: None | File.BuildCommand.Command = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        flags: Optional["File.BuildCommand.Flags"] = field(
+        flags: None | File.BuildCommand.Flags = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        replace_default_flags: Optional[
-            "File.BuildCommand.ReplaceDefaultFlags"
-        ] = field(
-            default=None,
-            metadata={
-                "name": "replaceDefaultFlags",
-                "type": "Element",
-            },
+        replace_default_flags: None | File.BuildCommand.ReplaceDefaultFlags = (
+            field(
+                default=None,
+                metadata={
+                    "name": "replaceDefaultFlags",
+                    "type": "Element",
+                },
+            )
         )
-        target_name: Optional["File.BuildCommand.TargetName"] = field(
+        target_name: None | File.BuildCommand.TargetName = field(
             default=None,
             metadata={
                 "name": "targetName",
@@ -338,14 +327,9 @@ class File:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Command:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
+            value: str = field(default="")
             format: FormatType = field(
                 default=FormatType.STRING,
                 metadata={
@@ -360,14 +344,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -381,7 +365,7 @@ class File:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -389,14 +373,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -405,7 +389,7 @@ class File:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -413,14 +397,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -435,7 +419,7 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -443,7 +427,7 @@ class File:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Flags:
             """
             :ivar value:
@@ -465,13 +449,8 @@ class File:
             :ivar prompt:
             """
 
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            append: Optional[bool] = field(
+            value: str = field(default="")
+            append: None | bool = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -492,14 +471,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -513,7 +492,7 @@ class File:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -521,14 +500,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -537,7 +516,7 @@ class File:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -545,14 +524,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -567,7 +546,7 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -575,14 +554,9 @@ class File:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ReplaceDefaultFlags:
-            value: Optional[bool] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
+            value: bool = field()
             format: FormatType = field(
                 default=FormatType.BOOL,
                 metadata={
@@ -597,14 +571,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -618,7 +592,7 @@ class File:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -626,14 +600,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -642,7 +616,7 @@ class File:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -650,14 +624,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -672,7 +646,7 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -680,7 +654,7 @@ class File:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class TargetName:
             value: str = field(default="")
             format: FormatType = field(
@@ -697,14 +671,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -718,7 +692,7 @@ class File:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -726,14 +700,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -742,7 +716,7 @@ class File:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -750,14 +724,14 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -772,7 +746,7 @@ class File:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

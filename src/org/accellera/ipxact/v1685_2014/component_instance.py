@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.configurable_library_ref_type import (
     ConfigurableLibraryRefType,
@@ -13,9 +14,10 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentInstance:
-    """Component instance element.
+    """
+    Component instance element.
 
     The instance name is contained in the unique-value instanceName
     attribute.
@@ -35,50 +37,46 @@ class ComponentInstance:
         name = "componentInstance"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    instance_name: Optional[InstanceName] = field(
-        default=None,
+    instance_name: InstanceName = field(
         metadata={
             "name": "instanceName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
             "type": "Element",
         },
     )
-    component_ref: Optional[ConfigurableLibraryRefType] = field(
-        default=None,
+    component_ref: ConfigurableLibraryRefType = field(
         metadata={
             "name": "componentRef",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

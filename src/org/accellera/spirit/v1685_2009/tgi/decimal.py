@@ -1,30 +1,26 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Optional
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DecimalType:
     class Meta:
         name = "decimal"
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    value: Optional[Decimal] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
-    id: Optional[str] = field(
+    value: Decimal = field()
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

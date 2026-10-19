@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.simple_file_type import SimpleFileType
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FileType:
     """
     Enumerated file types known by IP-XACT.
@@ -16,25 +17,20 @@ class FileType:
         name = "fileType"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    value: Optional[SimpleFileType] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
-    user: Optional[str] = field(
+    value: SimpleFileType = field()
+    user: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    libext: Optional[str] = field(
+    libext: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

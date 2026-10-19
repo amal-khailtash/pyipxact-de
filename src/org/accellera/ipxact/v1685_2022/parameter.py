@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.ipxact.v1685_2022.parameter_type import ParameterType
@@ -5,12 +7,13 @@ from org.accellera.ipxact.v1685_2022.parameter_type import ParameterType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Parameter(ParameterType):
-    """A name value pair.
+    """
+    A name value pair.
 
-    The name is specified by the name element.  The value is in the text
-    content of the value element.  This value element supports all
+    The name is specified by the name element. The value is in the text
+    content of the value element. This value element supports all
     configurability attributes.
     """
 

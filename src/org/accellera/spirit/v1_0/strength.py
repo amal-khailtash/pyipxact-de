@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_0.choice_style_value import ChoiceStyleValue
 from org.accellera.spirit.v1_0.direction_value import DirectionValue
@@ -12,11 +13,10 @@ from org.accellera.spirit.v1_0.strength_type import StrengthType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Strength:
-    """The strength of the signal.
-
-    "strong" (default) or "weak".
+    """
+    The strength of the signal. "strong" (default) or "weak".
 
     :ivar value:
     :ivar resolve:
@@ -45,27 +45,22 @@ class Strength:
         name = "strength"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    value: Optional[StrengthType] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
-    resolve: Optional[ResolveType] = field(
+    value: StrengthType = field()
+    resolve: None | ResolveType = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -79,21 +74,21 @@ class Strength:
             "namespace": "##other",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    range_type: Optional[RangeTypeType] = field(
+    range_type: None | RangeTypeType = field(
         default=None,
         metadata={
             "name": "rangeType",
@@ -101,14 +96,14 @@ class Strength:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -116,7 +111,7 @@ class Strength:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    choice_style: Optional[ChoiceStyleValue] = field(
+    choice_style: None | ChoiceStyleValue = field(
         default=None,
         metadata={
             "name": "choiceStyle",
@@ -124,14 +119,14 @@ class Strength:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    direction: Optional[DirectionValue] = field(
+    direction: None | DirectionValue = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -140,14 +135,14 @@ class Strength:
             "tokens": True,
         },
     )
-    format: Optional[FormatType] = field(
+    format: None | FormatType = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

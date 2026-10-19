@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_0.choice_style_value import ChoiceStyleValue
 from org.accellera.spirit.v1_0.direction_value import DirectionValue
@@ -11,7 +12,7 @@ from org.accellera.spirit.v1_0.resolve_type import ResolveType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SingleShotDriver:
     """
     Describes a driven one-shot signal.
@@ -27,34 +28,26 @@ class SingleShotDriver:
         name = "singleShotDriver"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    single_shot_offset: Optional["SingleShotDriver.SingleShotOffset"] = field(
-        default=None,
+    single_shot_offset: SingleShotDriver.SingleShotOffset = field(
         metadata={
             "name": "singleShotOffset",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    single_shot_value: Optional["SingleShotDriver.SingleShotValue"] = field(
-        default=None,
+    single_shot_value: SingleShotDriver.SingleShotValue = field(
         metadata={
             "name": "singleShotValue",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    single_shot_duration: Optional["SingleShotDriver.SingleShotDuration"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "singleShotDuration",
-                "type": "Element",
-                "required": True,
-            },
-        )
+    single_shot_duration: SingleShotDriver.SingleShotDuration = field(
+        metadata={
+            "name": "singleShotDuration",
+            "type": "Element",
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SingleShotOffset:
         """
         :ivar value:
@@ -80,7 +73,7 @@ class SingleShotDriver:
         :ivar prompt:
         """
 
-        value: Iterable[float] = field(
+        value: Sequence[float] = field(
             default_factory=list,
             metadata={
                 "min_length": 0,
@@ -88,21 +81,21 @@ class SingleShotDriver:
                 "tokens": True,
             },
         )
-        resolve: Optional[ResolveType] = field(
+        resolve: None | ResolveType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -116,21 +109,21 @@ class SingleShotDriver:
                 "namespace": "##other",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        range_type: Optional[RangeTypeType] = field(
+        range_type: None | RangeTypeType = field(
             default=None,
             metadata={
                 "name": "rangeType",
@@ -138,14 +131,14 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -153,7 +146,7 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -161,14 +154,14 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -177,14 +170,14 @@ class SingleShotDriver:
                 "tokens": True,
             },
         )
-        format: Optional[FormatType] = field(
+        format: None | FormatType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -192,7 +185,7 @@ class SingleShotDriver:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SingleShotValue:
         """
         :ivar value:
@@ -221,25 +214,24 @@ class SingleShotDriver:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
             },
         )
-        resolve: Optional[ResolveType] = field(
+        resolve: None | ResolveType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -253,21 +245,21 @@ class SingleShotDriver:
                 "namespace": "##other",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        range_type: Optional[RangeTypeType] = field(
+        range_type: None | RangeTypeType = field(
             default=None,
             metadata={
                 "name": "rangeType",
@@ -275,14 +267,14 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -290,7 +282,7 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -298,14 +290,14 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -314,14 +306,14 @@ class SingleShotDriver:
                 "tokens": True,
             },
         )
-        format: Optional[FormatType] = field(
+        format: None | FormatType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -329,7 +321,7 @@ class SingleShotDriver:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SingleShotDuration:
         """
         :ivar value:
@@ -355,7 +347,7 @@ class SingleShotDriver:
         :ivar prompt:
         """
 
-        value: Iterable[float] = field(
+        value: Sequence[float] = field(
             default_factory=list,
             metadata={
                 "min_length": 0,
@@ -363,21 +355,21 @@ class SingleShotDriver:
                 "tokens": True,
             },
         )
-        resolve: Optional[ResolveType] = field(
+        resolve: None | ResolveType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -391,21 +383,21 @@ class SingleShotDriver:
                 "namespace": "##other",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        range_type: Optional[RangeTypeType] = field(
+        range_type: None | RangeTypeType = field(
             default=None,
             metadata={
                 "name": "rangeType",
@@ -413,14 +405,14 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -428,7 +420,7 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -436,14 +428,14 @@ class SingleShotDriver:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -452,14 +444,14 @@ class SingleShotDriver:
                 "tokens": True,
             },
         )
-        format: Optional[FormatType] = field(
+        format: None | FormatType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

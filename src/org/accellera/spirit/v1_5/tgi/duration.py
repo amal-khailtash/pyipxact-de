@@ -1,31 +1,27 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Optional
 
 from xsdata.models.datatype import XmlDuration
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Duration:
     class Meta:
         name = "duration"
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    value: Optional[XmlDuration] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
-    id: Optional[str] = field(
+    value: XmlDuration = field()
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

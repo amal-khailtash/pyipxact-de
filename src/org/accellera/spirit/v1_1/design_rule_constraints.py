@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.capacitance import Capacitance
 from org.accellera.spirit.v1_1.delay import Delay
@@ -7,11 +8,11 @@ from org.accellera.spirit.v1_1.delay import Delay
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DesignRuleConstraints:
     """
-    Defines signal and/or component constraints associated with circuit design
-    rules.
+    Defines signal and/or component constraints associated with circuit
+    design rules.
 
     :ivar min_cap: Minimum capacitance value for this component or
         signal. The units attribute can be used to indicate the units
@@ -30,35 +31,35 @@ class DesignRuleConstraints:
         name = "designRuleConstraints"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
-    min_cap: Optional[Capacitance] = field(
+    min_cap: None | Capacitance = field(
         default=None,
         metadata={
             "name": "minCap",
             "type": "Element",
         },
     )
-    max_cap: Optional[Capacitance] = field(
+    max_cap: None | Capacitance = field(
         default=None,
         metadata={
             "name": "maxCap",
             "type": "Element",
         },
     )
-    min_transition: Optional["DesignRuleConstraints.MinTransition"] = field(
+    min_transition: None | DesignRuleConstraints.MinTransition = field(
         default=None,
         metadata={
             "name": "minTransition",
             "type": "Element",
         },
     )
-    max_transition: Optional["DesignRuleConstraints.MaxTransition"] = field(
+    max_transition: None | DesignRuleConstraints.MaxTransition = field(
         default=None,
         metadata={
             "name": "maxTransition",
             "type": "Element",
         },
     )
-    max_fanout: Optional[int] = field(
+    max_fanout: None | int = field(
         default=None,
         metadata={
             "name": "maxFanout",
@@ -66,7 +67,7 @@ class DesignRuleConstraints:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MinTransition:
         """
         :ivar rise_delay: Minimum transition delay for a rising edge
@@ -75,14 +76,14 @@ class DesignRuleConstraints:
             transition for this component or signal.
         """
 
-        rise_delay: Optional[Delay] = field(
+        rise_delay: None | Delay = field(
             default=None,
             metadata={
                 "name": "riseDelay",
                 "type": "Element",
             },
         )
-        fall_delay: Optional[Delay] = field(
+        fall_delay: None | Delay = field(
             default=None,
             metadata={
                 "name": "fallDelay",
@@ -90,7 +91,7 @@ class DesignRuleConstraints:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MaxTransition:
         """
         :ivar rise_delay: Maximum transition delay for a rising edge
@@ -99,14 +100,14 @@ class DesignRuleConstraints:
             transition for this component or signal.
         """
 
-        rise_delay: Optional[Delay] = field(
+        rise_delay: None | Delay = field(
             default=None,
             metadata={
                 "name": "riseDelay",
                 "type": "Element",
             },
         )
-        fall_delay: Optional[Delay] = field(
+        fall_delay: None | Delay = field(
             default=None,
             metadata={
                 "name": "fallDelay",

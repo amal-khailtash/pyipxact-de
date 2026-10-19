@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.format_type import FormatType
 from org.accellera.spirit.v1_4.library_ref_type import LibraryRefType
@@ -13,7 +14,7 @@ from org.accellera.spirit.v1_4.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorBusInterfaceType:
     """
     Type definition for a busInterface in a component.
@@ -38,15 +39,13 @@ class AbstractorBusInterfaceType:
     class Meta:
         name = "abstractorBusInterfaceType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -54,23 +53,21 @@ class AbstractorBusInterfaceType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    abstraction_type: Optional[LibraryRefType] = field(
-        default=None,
+    abstraction_type: LibraryRefType = field(
         metadata={
             "name": "abstractionType",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    port_maps: Optional["AbstractorBusInterfaceType.PortMaps"] = field(
+    port_maps: None | AbstractorBusInterfaceType.PortMaps = field(
         default=None,
         metadata={
             "name": "portMaps",
@@ -78,14 +75,14 @@ class AbstractorBusInterfaceType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -101,7 +98,7 @@ class AbstractorBusInterfaceType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PortMaps:
         """
         :ivar port_map: Maps a component's port to a port in a bus
@@ -110,7 +107,7 @@ class AbstractorBusInterfaceType:
             pin from the component.
         """
 
-        port_map: Iterable["AbstractorBusInterfaceType.PortMaps.PortMap"] = (
+        port_map: Sequence[AbstractorBusInterfaceType.PortMaps.PortMap] = (
             field(
                 default_factory=list,
                 metadata={
@@ -122,37 +119,29 @@ class AbstractorBusInterfaceType:
             )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class PortMap:
             """
             :ivar logical_port: Logical port from abstraction definition
             :ivar physical_port: Physical port from this component
             """
 
-            logical_port: Optional[
-                "AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort"
-            ] = field(
-                default=None,
+            logical_port: AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort = field(
                 metadata={
                     "name": "logicalPort",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                    "required": True,
-                },
+                }
             )
-            physical_port: Optional[
-                "AbstractorBusInterfaceType.PortMaps.PortMap.PhysicalPort"
-            ] = field(
-                default=None,
+            physical_port: AbstractorBusInterfaceType.PortMaps.PortMap.PhysicalPort = field(
                 metadata={
                     "name": "physicalPort",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                    "required": True,
-                },
+                }
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class LogicalPort:
                 """
                 :ivar name: Bus port name as specified inside the
@@ -161,17 +150,16 @@ class AbstractorBusInterfaceType:
                     vectored port.
                 """
 
-                name: Optional[str] = field(
-                    default=None,
+                name: str = field(
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                        "required": True,
-                    },
+                    }
                 )
-                vector: Optional[
-                    "AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort.Vector"
-                ] = field(
+                vector: (
+                    None
+                    | AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort.Vector
+                ) = field(
                     default=None,
                     metadata={
                         "type": "Element",
@@ -179,7 +167,7 @@ class AbstractorBusInterfaceType:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class Vector:
                     """
                     :ivar left: Defines which logical bit maps to the
@@ -188,35 +176,22 @@ class AbstractorBusInterfaceType:
                         physical right bit below
                     """
 
-                    left: Optional[
-                        "AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort.Vector.Left"
-                    ] = field(
-                        default=None,
+                    left: AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort.Vector.Left = field(
                         metadata={
                             "type": "Element",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                            "required": True,
-                        },
+                        }
                     )
-                    right: Optional[
-                        "AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort.Vector.Right"
-                    ] = field(
-                        default=None,
+                    right: AbstractorBusInterfaceType.PortMaps.PortMap.LogicalPort.Vector.Right = field(
                         metadata={
                             "type": "Element",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                            "required": True,
-                        },
+                        }
                     )
 
-                    @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
                     class Left:
-                        value: Optional[int] = field(
-                            default=None,
-                            metadata={
-                                "required": True,
-                            },
-                        )
+                        value: int = field()
                         format: FormatType = field(
                             default=FormatType.LONG,
                             metadata={
@@ -231,14 +206,14 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        id: Optional[str] = field(
+                        id: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        dependency: Optional[str] = field(
+                        dependency: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -252,7 +227,7 @@ class AbstractorBusInterfaceType:
                                 "namespace": "##any",
                             },
                         )
-                        choice_ref: Optional[str] = field(
+                        choice_ref: None | str = field(
                             default=None,
                             metadata={
                                 "name": "choiceRef",
@@ -260,14 +235,14 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        order: Optional[float] = field(
+                        order: None | float = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        config_groups: Iterable[str] = field(
+                        config_groups: Sequence[str] = field(
                             default_factory=list,
                             metadata={
                                 "name": "configGroups",
@@ -276,7 +251,7 @@ class AbstractorBusInterfaceType:
                                 "tokens": True,
                             },
                         )
-                        bit_string_length: Optional[int] = field(
+                        bit_string_length: None | int = field(
                             default=None,
                             metadata={
                                 "name": "bitStringLength",
@@ -284,14 +259,14 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        minimum: Optional[str] = field(
+                        minimum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        maximum: Optional[str] = field(
+                        maximum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -306,7 +281,7 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        prompt: Optional[str] = field(
+                        prompt: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -314,14 +289,9 @@ class AbstractorBusInterfaceType:
                             },
                         )
 
-                    @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
                     class Right:
-                        value: Optional[int] = field(
-                            default=None,
-                            metadata={
-                                "required": True,
-                            },
-                        )
+                        value: int = field()
                         format: FormatType = field(
                             default=FormatType.LONG,
                             metadata={
@@ -336,14 +306,14 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        id: Optional[str] = field(
+                        id: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        dependency: Optional[str] = field(
+                        dependency: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -357,7 +327,7 @@ class AbstractorBusInterfaceType:
                                 "namespace": "##any",
                             },
                         )
-                        choice_ref: Optional[str] = field(
+                        choice_ref: None | str = field(
                             default=None,
                             metadata={
                                 "name": "choiceRef",
@@ -365,14 +335,14 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        order: Optional[float] = field(
+                        order: None | float = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        config_groups: Iterable[str] = field(
+                        config_groups: Sequence[str] = field(
                             default_factory=list,
                             metadata={
                                 "name": "configGroups",
@@ -381,7 +351,7 @@ class AbstractorBusInterfaceType:
                                 "tokens": True,
                             },
                         )
-                        bit_string_length: Optional[int] = field(
+                        bit_string_length: None | int = field(
                             default=None,
                             metadata={
                                 "name": "bitStringLength",
@@ -389,14 +359,14 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        minimum: Optional[str] = field(
+                        minimum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        maximum: Optional[str] = field(
+                        maximum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -411,7 +381,7 @@ class AbstractorBusInterfaceType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
                             },
                         )
-                        prompt: Optional[str] = field(
+                        prompt: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -419,7 +389,7 @@ class AbstractorBusInterfaceType:
                             },
                         )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class PhysicalPort:
                 """
                 :ivar name: Component port name as specified inside the
@@ -427,15 +397,13 @@ class AbstractorBusInterfaceType:
                 :ivar vector:
                 """
 
-                name: Optional[str] = field(
-                    default=None,
+                name: str = field(
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                        "required": True,
-                    },
+                    }
                 )
-                vector: Optional[Vector] = field(
+                vector: None | Vector = field(
                     default=None,
                     metadata={
                         "type": "Element",

@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComplexTiedValueExpression:
-    """An unsigned bit vector expression that resolves to the value set {0, 1, ...}
-    or or the string values 'open' or 'default'.
+    """
+    An unsigned bit vector expression that resolves to the value set {0, 1,
+    ...} or or the string values 'open' or 'default'.
 
-    It is derived from simpleUnsignedBitVectorExpression and it supports
-    an expression value.
+    It is derived from simpleUnsignedBitVectorExpression and it supports an
+    expression value.
 
     :ivar value:
     :ivar other_attributes:
@@ -26,12 +28,7 @@ class ComplexTiedValueExpression:
     class Meta:
         name = "complexTiedValueExpression"
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
+    value: str = field(default="")
     other_attributes: Mapping[str, str] = field(
         default_factory=dict,
         metadata={
@@ -39,13 +36,13 @@ class ComplexTiedValueExpression:
             "namespace": "##other",
         },
     )
-    minimum: Optional[int] = field(
+    minimum: None | int = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    maximum: Optional[int] = field(
+    maximum: None | int = field(
         default=None,
         metadata={
             "type": "Attribute",

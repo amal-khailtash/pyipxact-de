@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1_2.component_instance import ComponentInstance
@@ -6,7 +8,7 @@ from org.accellera.spirit.v1_2.component_instance import ComponentInstance
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentInstances:
     """
     Sub instances of internal components.
@@ -16,7 +18,7 @@ class ComponentInstances:
         name = "componentInstances"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    component_instance: Iterable[ComponentInstance] = field(
+    component_instance: Sequence[ComponentInstance] = field(
         default_factory=list,
         metadata={
             "name": "componentInstance",

@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.string_expression import StringExpression
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PowerDomainLinks:
     """
     :ivar power_domain_link: A power domain link to one external power
@@ -18,7 +19,7 @@ class PowerDomainLinks:
         name = "powerDomainLinks"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    power_domain_link: Iterable["PowerDomainLinks.PowerDomainLink"] = field(
+    power_domain_link: Sequence[PowerDomainLinks.PowerDomainLink] = field(
         default_factory=list,
         metadata={
             "name": "powerDomainLink",
@@ -27,7 +28,7 @@ class PowerDomainLinks:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PowerDomainLink:
         """
         :ivar external_power_domain_reference: Reference to a power
@@ -37,16 +38,14 @@ class PowerDomainLinks:
         :ivar id:
         """
 
-        external_power_domain_reference: Optional[StringExpression] = field(
-            default=None,
+        external_power_domain_reference: StringExpression = field(
             metadata={
                 "name": "externalPowerDomainReference",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        internal_power_domain_reference: Iterable[
-            "PowerDomainLinks.PowerDomainLink.InternalPowerDomainReference"
+        internal_power_domain_reference: Sequence[
+            PowerDomainLinks.PowerDomainLink.InternalPowerDomainReference
         ] = field(
             default_factory=list,
             metadata={
@@ -55,7 +54,7 @@ class PowerDomainLinks:
                 "min_occurs": 1,
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -63,15 +62,10 @@ class PowerDomainLinks:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class InternalPowerDomainReference:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            id: Optional[str] = field(
+            value: str = field(default="")
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

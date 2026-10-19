@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2014.unsigned_bit_vector_expression import (
     UnsignedBitVectorExpression,
@@ -8,53 +11,67 @@ from org.accellera.ipxact.v1685_2014.unsigned_bit_vector_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WriteValueConstraintType:
-    """A constraint on the values that can be written to this field.
+    """
+    A constraint on the values that can be written to this field.
 
-    Absence of this element implies that any value that fits can be
-    written to it.
-
-    :ivar write_as_read: writeAsRead indicates that only a value
-        immediately read before a write is a legal value to be written.
-    :ivar use_enumerated_values: useEnumeratedValues indicates that only
-        write enumeration value shall be legal values to be written.
-    :ivar minimum: The minimum legal value that may be written to a
-        field
-    :ivar maximum: The maximum legal value that may be written to a
-        field
+    Absence of this element implies that any value that fits can be written
+    to it.
     """
 
     class Meta:
         name = "writeValueConstraintType"
 
-    write_as_read: Optional[bool] = field(
-        default=None,
+    choice: Sequence[
+        WriteValueConstraintType.WriteAsRead
+        | WriteValueConstraintType.UseEnumeratedValues
+        | WriteValueConstraintType.Minimum
+        | WriteValueConstraintType.Maximum
+    ] = field(
+        default_factory=list,
         metadata={
-            "name": "writeAsRead",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "writeAsRead",
+                    "type": ForwardRef("WriteValueConstraintType.WriteAsRead"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+                },
+                {
+                    "name": "useEnumeratedValues",
+                    "type": ForwardRef(
+                        "WriteValueConstraintType.UseEnumeratedValues"
+                    ),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+                },
+                {
+                    "name": "minimum",
+                    "type": ForwardRef("WriteValueConstraintType.Minimum"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+                },
+                {
+                    "name": "maximum",
+                    "type": ForwardRef("WriteValueConstraintType.Maximum"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+                },
+            ),
+            "max_occurs": 2,
         },
     )
-    use_enumerated_values: Optional[bool] = field(
-        default=None,
-        metadata={
-            "name": "useEnumeratedValues",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-        },
-    )
-    minimum: Optional[UnsignedBitVectorExpression] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-        },
-    )
-    maximum: Optional[UnsignedBitVectorExpression] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-        },
-    )
+
+    @dataclass(slots=True, kw_only=True)
+    class WriteAsRead:
+        value: bool = field()
+
+    @dataclass(slots=True, kw_only=True)
+    class UseEnumeratedValues:
+        value: bool = field()
+
+    @dataclass(slots=True, kw_only=True)
+    class Minimum(UnsignedBitVectorExpression):
+        pass
+
+    @dataclass(slots=True, kw_only=True)
+    class Maximum(UnsignedBitVectorExpression):
+        pass

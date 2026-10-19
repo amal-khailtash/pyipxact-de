@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ValueMaskConfigType:
     """
-    This type is used to specify a value and optional mask that are configurable.
+    This type is used to specify a value and optional mask that are
+    configurable.
     """
 
     class Meta:

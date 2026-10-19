@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.access import Access
 from org.accellera.spirit.v1685_2009.ve.description import Description
@@ -18,7 +19,7 @@ from org.accellera.spirit.v1685_2009.ve.volatile import Volatile
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RegisterFile:
     """
     A structure of registers and register files.
@@ -53,82 +54,76 @@ class RegisterFile:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    dim: Iterable[int] = field(
+    dim: Sequence[int] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    address_offset: Optional[str] = field(
-        default=None,
+    address_offset: str = field(
         metadata={
             "name": "addressOffset",
             "type": "Element",
-            "required": True,
             "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
-        },
+        }
     )
-    type_identifier: Optional[str] = field(
+    type_identifier: None | str = field(
         default=None,
         metadata={
             "name": "typeIdentifier",
             "type": "Element",
         },
     )
-    range: Optional["RegisterFile.Range"] = field(
-        default=None,
+    range: RegisterFile.Range = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    register: Iterable["RegisterFile.Register"] = field(
+    register: Sequence[RegisterFile.Register] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    register_file: Iterable["RegisterFile"] = field(
+    register_file: Sequence[RegisterFile] = field(
         default_factory=list,
         metadata={
             "name": "registerFile",
             "type": "Element",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -136,12 +131,11 @@ class RegisterFile:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Range:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0]*[1-9a-fA-F][0-9a-fA-F]*[kmgtKMGT]?",
             },
         )
@@ -159,14 +153,14 @@ class RegisterFile:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -180,7 +174,7 @@ class RegisterFile:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -188,14 +182,14 @@ class RegisterFile:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -204,7 +198,7 @@ class RegisterFile:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -212,14 +206,14 @@ class RegisterFile:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -234,7 +228,7 @@ class RegisterFile:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -242,7 +236,7 @@ class RegisterFile:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Register:
         """
         :ivar name: Unique name
@@ -271,103 +265,97 @@ class RegisterFile:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        dim: Iterable[int] = field(
+        dim: Sequence[int] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
             },
         )
-        address_offset: Optional[str] = field(
-            default=None,
+        address_offset: str = field(
             metadata={
                 "name": "addressOffset",
                 "type": "Element",
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
-            },
+            }
         )
-        type_identifier: Optional[str] = field(
+        type_identifier: None | str = field(
             default=None,
             metadata={
                 "name": "typeIdentifier",
                 "type": "Element",
             },
         )
-        size: Optional["RegisterFile.Register.Size"] = field(
-            default=None,
+        size: RegisterFile.Register.Size = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        volatile: Optional[Volatile] = field(
-            default=None,
-            metadata={
-                "type": "Element",
-            },
-        )
-        access: Optional[Access] = field(
+        volatile: None | Volatile = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        reset: Optional["RegisterFile.Register.Reset"] = field(
+        access: None | Access = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        field_value: Iterable[FieldType] = field(
+        reset: None | RegisterFile.Register.Reset = field(
+            default=None,
+            metadata={
+                "type": "Element",
+            },
+        )
+        field_value: Sequence[FieldType] = field(
             default_factory=list,
             metadata={
                 "name": "field",
                 "type": "Element",
             },
         )
-        alternate_registers: Optional[
-            "RegisterFile.Register.AlternateRegisters"
-        ] = field(
+        alternate_registers: (
+            None | RegisterFile.Register.AlternateRegisters
+        ) = field(
             default=None,
             metadata={
                 "name": "alternateRegisters",
                 "type": "Element",
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -375,15 +363,15 @@ class RegisterFile:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AlternateRegisters:
             """
             :ivar alternate_register: Alternate definition for the
                 current register
             """
 
-            alternate_register: Iterable[
-                "RegisterFile.Register.AlternateRegisters.AlternateRegister"
+            alternate_register: Sequence[
+                RegisterFile.Register.AlternateRegisters.AlternateRegister
             ] = field(
                 default_factory=list,
                 metadata={
@@ -393,7 +381,7 @@ class RegisterFile:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class AlternateRegister:
                 """
                 :ivar name: Unique name
@@ -415,84 +403,79 @@ class RegisterFile:
                 :ivar id:
                 """
 
-                name: Optional[str] = field(
-                    default=None,
+                name: str = field(
                     metadata={
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                display_name: Optional[DisplayName] = field(
+                display_name: None | DisplayName = field(
                     default=None,
                     metadata={
                         "name": "displayName",
                         "type": "Element",
                     },
                 )
-                description: Optional[Description] = field(
+                description: None | Description = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                alternate_groups: Optional[
-                    "RegisterFile.Register.AlternateRegisters.AlternateRegister.AlternateGroups"
-                ] = field(
-                    default=None,
+                alternate_groups: RegisterFile.Register.AlternateRegisters.AlternateRegister.AlternateGroups = field(
                     metadata={
                         "name": "alternateGroups",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                type_identifier: Optional[str] = field(
+                type_identifier: None | str = field(
                     default=None,
                     metadata={
                         "name": "typeIdentifier",
                         "type": "Element",
                     },
                 )
-                volatile: Optional[Volatile] = field(
+                volatile: None | Volatile = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                access: Optional[Access] = field(
+                access: None | Access = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                reset: Optional[
-                    "RegisterFile.Register.AlternateRegisters.AlternateRegister.Reset"
-                ] = field(
+                reset: (
+                    None
+                    | RegisterFile.Register.AlternateRegisters.AlternateRegister.Reset
+                ) = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                field_value: Iterable[FieldType] = field(
+                field_value: Sequence[FieldType] = field(
                     default_factory=list,
                     metadata={
                         "name": "field",
                         "type": "Element",
                     },
                 )
-                parameters: Optional[Parameters] = field(
+                parameters: None | Parameters = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                vendor_extensions: Optional[VendorExtensions] = field(
+                vendor_extensions: None | VendorExtensions = field(
                     default=None,
                     metadata={
                         "name": "vendorExtensions",
                         "type": "Element",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -500,14 +483,14 @@ class RegisterFile:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class AlternateGroups:
                     """
                     :ivar alternate_group: Defines a grouping name that
                         this register description belongs.
                     """
 
-                    alternate_group: Iterable[str] = field(
+                    alternate_group: Sequence[str] = field(
                         default_factory=list,
                         metadata={
                             "name": "alternateGroup",
@@ -516,7 +499,7 @@ class RegisterFile:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class Reset:
                     """
                     :ivar value: The value itself.
@@ -524,30 +507,26 @@ class RegisterFile:
                         comparing to the reset value.
                     """
 
-                    value: Optional[
-                        "RegisterFile.Register.AlternateRegisters.AlternateRegister.Reset.Value"
-                    ] = field(
-                        default=None,
+                    value: RegisterFile.Register.AlternateRegisters.AlternateRegister.Reset.Value = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
-                    mask: Optional[
-                        "RegisterFile.Register.AlternateRegisters.AlternateRegister.Reset.Mask"
-                    ] = field(
+                    mask: (
+                        None
+                        | RegisterFile.Register.AlternateRegisters.AlternateRegister.Reset.Mask
+                    ) = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
 
-                    @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
                     class Value:
                         value: str = field(
                             default="",
                             metadata={
-                                "required": True,
                                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                             },
                         )
@@ -565,14 +544,14 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        id: Optional[str] = field(
+                        id: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        dependency: Optional[str] = field(
+                        dependency: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -586,7 +565,7 @@ class RegisterFile:
                                 "namespace": "##any",
                             },
                         )
-                        choice_ref: Optional[str] = field(
+                        choice_ref: None | str = field(
                             default=None,
                             metadata={
                                 "name": "choiceRef",
@@ -594,14 +573,14 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        order: Optional[float] = field(
+                        order: None | float = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        config_groups: Iterable[str] = field(
+                        config_groups: Sequence[str] = field(
                             default_factory=list,
                             metadata={
                                 "name": "configGroups",
@@ -610,7 +589,7 @@ class RegisterFile:
                                 "tokens": True,
                             },
                         )
-                        bit_string_length: Optional[int] = field(
+                        bit_string_length: None | int = field(
                             default=None,
                             metadata={
                                 "name": "bitStringLength",
@@ -618,14 +597,14 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        minimum: Optional[str] = field(
+                        minimum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        maximum: Optional[str] = field(
+                        maximum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -640,7 +619,7 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        prompt: Optional[str] = field(
+                        prompt: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -648,12 +627,11 @@ class RegisterFile:
                             },
                         )
 
-                    @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
                     class Mask:
                         value: str = field(
                             default="",
                             metadata={
-                                "required": True,
                                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                             },
                         )
@@ -671,14 +649,14 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        id: Optional[str] = field(
+                        id: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        dependency: Optional[str] = field(
+                        dependency: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -692,7 +670,7 @@ class RegisterFile:
                                 "namespace": "##any",
                             },
                         )
-                        choice_ref: Optional[str] = field(
+                        choice_ref: None | str = field(
                             default=None,
                             metadata={
                                 "name": "choiceRef",
@@ -700,14 +678,14 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        order: Optional[float] = field(
+                        order: None | float = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        config_groups: Iterable[str] = field(
+                        config_groups: Sequence[str] = field(
                             default_factory=list,
                             metadata={
                                 "name": "configGroups",
@@ -716,7 +694,7 @@ class RegisterFile:
                                 "tokens": True,
                             },
                         )
-                        bit_string_length: Optional[int] = field(
+                        bit_string_length: None | int = field(
                             default=None,
                             metadata={
                                 "name": "bitStringLength",
@@ -724,14 +702,14 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        minimum: Optional[str] = field(
+                        minimum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        maximum: Optional[str] = field(
+                        maximum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -746,7 +724,7 @@ class RegisterFile:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        prompt: Optional[str] = field(
+                        prompt: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -754,14 +732,9 @@ class RegisterFile:
                             },
                         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Size:
-            value: Optional[int] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
+            value: int = field()
             format: FormatType = field(
                 default=FormatType.LONG,
                 metadata={
@@ -776,14 +749,14 @@ class RegisterFile:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -797,7 +770,7 @@ class RegisterFile:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -805,14 +778,14 @@ class RegisterFile:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -821,7 +794,7 @@ class RegisterFile:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -829,14 +802,14 @@ class RegisterFile:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -851,7 +824,7 @@ class RegisterFile:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -859,7 +832,7 @@ class RegisterFile:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Reset:
             """
             :ivar value: The value itself.
@@ -867,26 +840,23 @@ class RegisterFile:
                 to the reset value.
             """
 
-            value: Optional["RegisterFile.Register.Reset.Value"] = field(
-                default=None,
+            value: RegisterFile.Register.Reset.Value = field(
                 metadata={
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            mask: Optional["RegisterFile.Register.Reset.Mask"] = field(
+            mask: None | RegisterFile.Register.Reset.Mask = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Value:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                     },
                 )
@@ -904,14 +874,14 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -925,7 +895,7 @@ class RegisterFile:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -933,14 +903,14 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -949,7 +919,7 @@ class RegisterFile:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -957,14 +927,14 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -979,7 +949,7 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -987,12 +957,11 @@ class RegisterFile:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Mask:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                     },
                 )
@@ -1010,14 +979,14 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1031,7 +1000,7 @@ class RegisterFile:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -1039,14 +1008,14 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -1055,7 +1024,7 @@ class RegisterFile:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -1063,14 +1032,14 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1085,7 +1054,7 @@ class RegisterFile:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",

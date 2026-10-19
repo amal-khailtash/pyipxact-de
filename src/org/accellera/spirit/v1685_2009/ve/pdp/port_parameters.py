@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1685_2009.ve.pdp.port_parameter import PortParameter
@@ -8,7 +10,7 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortParameters:
     """
     A collection of parameters.
@@ -20,7 +22,7 @@ class PortParameters:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/CORE-1.0"
         )
 
-    port_parameter: Iterable[PortParameter] = field(
+    port_parameter: Sequence[PortParameter] = field(
         default_factory=list,
         metadata={
             "name": "portParameter",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.ams.domain import Domain
 from org.accellera.spirit.v1685_2009.ve.ams.idle import Idle
@@ -12,7 +13,7 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LogicalWirePowerDef:
     """
     Logical wire port power definition.
@@ -24,31 +25,31 @@ class LogicalWirePowerDef:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/POWER-1.0"
         )
 
-    domain: Optional[Domain] = field(
+    domain: None | Domain = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    isolation: Optional[Isolation] = field(
+    isolation: None | Isolation = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    idle: Optional[Idle] = field(
+    idle: None | Idle = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    reset: Optional[Reset] = field(
+    reset: None | Reset = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vector: Optional[Vector] = field(
+    vector: None | Vector = field(
         default=None,
         metadata={
             "type": "Element",

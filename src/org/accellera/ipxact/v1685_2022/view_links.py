@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ViewLinks:
     """
     A set of links between internal and external views defined in the
@@ -21,7 +22,7 @@ class ViewLinks:
         name = "viewLinks"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    view_link: Iterable["ViewLinks.ViewLink"] = field(
+    view_link: Sequence[ViewLinks.ViewLink] = field(
         default_factory=list,
         metadata={
             "name": "viewLink",
@@ -30,7 +31,7 @@ class ViewLinks:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewLink:
         """
         :ivar external_view_reference: Reference to a view defined in
@@ -40,32 +41,28 @@ class ViewLinks:
         :ivar id:
         """
 
-        external_view_reference: Optional[
-            "ViewLinks.ViewLink.ExternalViewReference"
-        ] = field(
-            default=None,
-            metadata={
-                "name": "externalViewReference",
-                "type": "Element",
-                "required": True,
-            },
+        external_view_reference: ViewLinks.ViewLink.ExternalViewReference = (
+            field(
+                metadata={
+                    "name": "externalViewReference",
+                    "type": "Element",
+                }
+            )
         )
-        view_reference: Optional["ViewLinks.ViewLink.ViewReference"] = field(
-            default=None,
+        view_reference: ViewLinks.ViewLink.ViewReference = field(
             metadata={
                 "name": "viewReference",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -73,32 +70,28 @@ class ViewLinks:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ExternalViewReference:
             """
             :ivar view_ref: Reference to a specific view.
             """
 
-            view_ref: Optional[str] = field(
-                default=None,
+            view_ref: str = field(
                 metadata={
                     "name": "viewRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ViewReference:
             """
             :ivar view_ref: Reference to a specific view.
             """
 
-            view_ref: Optional[str] = field(
-                default=None,
+            view_ref: str = field(
                 metadata={
                     "name": "viewRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )

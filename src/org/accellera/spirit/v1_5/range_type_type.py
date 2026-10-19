@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 from enum import Enum
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
 class RangeTypeType(Enum):
-    """This type is used to indicate how the minimum and maximum attributes values
-    should be interpreted.
+    """
+    This type is used to indicate how the minimum and maximum attributes
+    values should be interpreted.
 
     For purposes of this attribute, an int is 4 bytes and a long is 8
     bytes.

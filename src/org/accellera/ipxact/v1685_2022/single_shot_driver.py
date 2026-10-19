@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.delay_value_unit_type import (
     DelayValueUnitType,
@@ -12,7 +13,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SingleShotDriver:
     """
     Describes a driven one-shot port.
@@ -28,34 +29,26 @@ class SingleShotDriver:
         name = "singleShotDriver"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    single_shot_offset: Optional["SingleShotDriver.SingleShotOffset"] = field(
-        default=None,
+    single_shot_offset: SingleShotDriver.SingleShotOffset = field(
         metadata={
             "name": "singleShotOffset",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    single_shot_value: Optional[UnsignedBitVectorExpression] = field(
-        default=None,
+    single_shot_value: UnsignedBitVectorExpression = field(
         metadata={
             "name": "singleShotValue",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    single_shot_duration: Optional["SingleShotDriver.SingleShotDuration"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "singleShotDuration",
-                "type": "Element",
-                "required": True,
-            },
-        )
+    single_shot_duration: SingleShotDriver.SingleShotDuration = field(
+        metadata={
+            "name": "singleShotDuration",
+            "type": "Element",
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SingleShotOffset(RealExpression):
         units: DelayValueUnitType = field(
             default=DelayValueUnitType.NS,
@@ -64,7 +57,7 @@ class SingleShotDriver:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SingleShotDuration(RealExpression):
         units: DelayValueUnitType = field(
             default=DelayValueUnitType.NS,

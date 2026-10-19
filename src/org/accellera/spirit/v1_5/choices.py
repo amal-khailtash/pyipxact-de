@@ -1,11 +1,12 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Choices:
     """
     Choices used by elements with an attribute spirit:choiceRef.
@@ -18,7 +19,7 @@ class Choices:
         name = "choices"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
-    choice: Iterable["Choices.Choice"] = field(
+    choice: Sequence[Choices.Choice] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -26,7 +27,7 @@ class Choices:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Choice:
         """
         :ivar name: Choice key, available for reference by the
@@ -34,14 +35,12 @@ class Choices:
         :ivar enumeration: One possible value of spirit:choice
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        enumeration: Iterable["Choices.Choice.Enumeration"] = field(
+        enumeration: Sequence[Choices.Choice.Enumeration] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -49,7 +48,7 @@ class Choices:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Enumeration:
             """
             :ivar value:
@@ -59,20 +58,15 @@ class Choices:
                 help about the meaning of an element
             """
 
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            text: Optional[str] = field(
+            value: str = field(default="")
+            text: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
                 },
             )
-            help: Optional[str] = field(
+            help: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

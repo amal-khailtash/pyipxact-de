@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.generator_type import GeneratorType
 from org.accellera.ipxact.v1685_2014.instance_generator_type_scope import (
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2014.instance_generator_type_scope import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class InstanceGeneratorType(GeneratorType):
     """
     :ivar group: An identifier to specify the generator group. This is
@@ -24,7 +25,7 @@ class InstanceGeneratorType(GeneratorType):
     class Meta:
         name = "instanceGeneratorType"
 
-    group: Iterable["InstanceGeneratorType.Group"] = field(
+    group: Sequence[InstanceGeneratorType.Group] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -38,15 +39,10 @@ class InstanceGeneratorType(GeneratorType):
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Group:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

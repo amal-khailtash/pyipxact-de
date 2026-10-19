@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.address_unit_bits import AddressUnitBits
 from org.accellera.ipxact.v1685_2022.description import Description
@@ -24,11 +25,11 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressSpaces:
     """
-    If this component is a bus initiator, this lists all the address spaces defined
-    by the component.
+    If this component is a bus initiator, this lists all the address spaces
+    defined by the component.
 
     :ivar address_space: This defines a logical space, referenced by a
         bus initiator.
@@ -38,7 +39,7 @@ class AddressSpaces:
         name = "addressSpaces"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    address_space: Iterable["AddressSpaces.AddressSpace"] = field(
+    address_space: Sequence[AddressSpaces.AddressSpace] = field(
         default_factory=list,
         metadata={
             "name": "addressSpace",
@@ -47,7 +48,7 @@ class AddressSpaces:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AddressSpace:
         """
         :ivar name: Unique name
@@ -77,81 +78,75 @@ class AddressSpaces:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        short_description: Optional[ShortDescription] = field(
+        short_description: None | ShortDescription = field(
             default=None,
             metadata={
                 "name": "shortDescription",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        range: Optional[UnsignedPositiveLongintExpression] = field(
-            default=None,
+        range: UnsignedPositiveLongintExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        width: Optional[UnsignedPositiveIntExpression] = field(
-            default=None,
+        width: UnsignedPositiveIntExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        segments: Optional["AddressSpaces.AddressSpace.Segments"] = field(
+        segments: None | AddressSpaces.AddressSpace.Segments = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        address_unit_bits: Optional[AddressUnitBits] = field(
+        address_unit_bits: None | AddressUnitBits = field(
             default=None,
             metadata={
                 "name": "addressUnitBits",
                 "type": "Element",
             },
         )
-        local_memory_map: Optional[LocalMemoryMapType] = field(
+        local_memory_map: None | LocalMemoryMapType = field(
             default=None,
             metadata={
                 "name": "localMemoryMap",
                 "type": "Element",
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -159,23 +154,23 @@ class AddressSpaces:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Segments:
             """
             :ivar segment: Address segment withing an addressSpace
             """
 
-            segment: Iterable[
-                "AddressSpaces.AddressSpace.Segments.Segment"
-            ] = field(
-                default_factory=list,
-                metadata={
-                    "type": "Element",
-                    "min_occurs": 1,
-                },
+            segment: Sequence[AddressSpaces.AddressSpace.Segments.Segment] = (
+                field(
+                    default_factory=list,
+                    metadata={
+                        "type": "Element",
+                        "min_occurs": 1,
+                    },
+                )
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Segment:
                 """
                 :ivar name: Unique name
@@ -191,56 +186,50 @@ class AddressSpaces:
                 :ivar id:
                 """
 
-                name: Optional[str] = field(
-                    default=None,
+                name: str = field(
                     metadata={
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                display_name: Optional[DisplayName] = field(
+                display_name: None | DisplayName = field(
                     default=None,
                     metadata={
                         "name": "displayName",
                         "type": "Element",
                     },
                 )
-                short_description: Optional[ShortDescription] = field(
+                short_description: None | ShortDescription = field(
                     default=None,
                     metadata={
                         "name": "shortDescription",
                         "type": "Element",
                     },
                 )
-                description: Optional[Description] = field(
+                description: None | Description = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                address_offset: Optional[UnsignedLongintExpression] = field(
-                    default=None,
+                address_offset: UnsignedLongintExpression = field(
                     metadata={
                         "name": "addressOffset",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                range: Optional[UnsignedPositiveLongintExpression] = field(
-                    default=None,
+                range: UnsignedPositiveLongintExpression = field(
                     metadata={
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                vendor_extensions: Optional[VendorExtensions] = field(
+                vendor_extensions: None | VendorExtensions = field(
                     default=None,
                     metadata={
                         "name": "vendorExtensions",
                         "type": "Element",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",

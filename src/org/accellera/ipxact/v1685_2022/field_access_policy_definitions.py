@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.access import Access
 from org.accellera.ipxact.v1685_2022.description import Description
@@ -19,14 +20,14 @@ from org.accellera.ipxact.v1685_2022.write_value_constraint import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FieldAccessPolicyDefinitions:
     class Meta:
         name = "fieldAccessPolicyDefinitions"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    field_access_policy_definition: Iterable[
-        "FieldAccessPolicyDefinitions.FieldAccessPolicyDefinition"
+    field_access_policy_definition: Sequence[
+        FieldAccessPolicyDefinitions.FieldAccessPolicyDefinition
     ] = field(
         default_factory=list,
         metadata={
@@ -36,7 +37,7 @@ class FieldAccessPolicyDefinitions:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class FieldAccessPolicyDefinition:
         """
         :ivar name: Unique name
@@ -52,75 +53,73 @@ class FieldAccessPolicyDefinitions:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        short_description: Optional[ShortDescription] = field(
+        short_description: None | ShortDescription = field(
             default=None,
             metadata={
                 "name": "shortDescription",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        access: Optional[Access] = field(
+        access: None | Access = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        modified_write_value: Optional[ModifiedWriteValue] = field(
+        modified_write_value: None | ModifiedWriteValue = field(
             default=None,
             metadata={
                 "name": "modifiedWriteValue",
                 "type": "Element",
             },
         )
-        write_value_constraint: Optional[WriteValueConstraint] = field(
+        write_value_constraint: None | WriteValueConstraint = field(
             default=None,
             metadata={
                 "name": "writeValueConstraint",
                 "type": "Element",
             },
         )
-        read_action: Optional[ReadAction] = field(
+        read_action: None | ReadAction = field(
             default=None,
             metadata={
                 "name": "readAction",
                 "type": "Element",
             },
         )
-        read_response: Optional[ReadResponse] = field(
+        read_response: None | ReadResponse = field(
             default=None,
             metadata={
                 "name": "readResponse",
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

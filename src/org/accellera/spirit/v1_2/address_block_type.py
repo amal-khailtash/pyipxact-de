@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.access import Access
 from org.accellera.spirit.v1_2.base_address import BaseAddress
@@ -21,7 +22,7 @@ from org.accellera.spirit.v1_2.volatile import Volatile
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressBlockType:
     """
     :ivar base_address:
@@ -44,16 +45,14 @@ class AddressBlockType:
     class Meta:
         name = "addressBlockType"
 
-    base_address: Optional[BaseAddress] = field(
-        default=None,
+    base_address: BaseAddress = field(
         metadata={
             "name": "baseAddress",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )
-    bit_offset: Optional[BitOffset] = field(
+    bit_offset: None | BitOffset = field(
         default=None,
         metadata={
             "name": "bitOffset",
@@ -61,65 +60,61 @@ class AddressBlockType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    range: Optional["AddressBlockType.Range"] = field(
-        default=None,
+    range: AddressBlockType.Range = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )
-    width: Optional["AddressBlockType.Width"] = field(
-        default=None,
+    width: AddressBlockType.Width = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )
-    endianness: Optional[EndianessType] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    usage: Optional[UsageType] = field(
+    endianness: None | EndianessType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    volatile: Optional[Volatile] = field(
+    usage: None | UsageType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    access: Optional[Access] = field(
+    volatile: None | Volatile = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    parameter: Iterable[NameValuePairType] = field(
+    access: None | Access = field(
+        default=None,
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+        },
+    )
+    parameter: Sequence[NameValuePairType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    register: Iterable["AddressBlockType.Register"] = field(
+    register: Sequence[AddressBlockType.Register] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -127,7 +122,7 @@ class AddressBlockType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    name: Optional[str] = field(
+    name: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -135,7 +130,7 @@ class AddressBlockType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Range:
         """
         :ivar value:
@@ -166,7 +161,6 @@ class AddressBlockType:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
             },
         )
@@ -184,14 +178,14 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -205,14 +199,14 @@ class AddressBlockType:
                 "namespace": "##any",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -227,14 +221,14 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -242,7 +236,7 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -250,14 +244,14 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -266,7 +260,7 @@ class AddressBlockType:
                 "tokens": True,
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -274,7 +268,7 @@ class AddressBlockType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Width:
         """
         :ivar value:
@@ -302,12 +296,7 @@ class AddressBlockType:
         :ivar prompt:
         """
 
-        value: Optional[int] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: int = field()
         format: FormatType = field(
             default=FormatType.LONG,
             metadata={
@@ -322,14 +311,14 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -343,14 +332,14 @@ class AddressBlockType:
                 "namespace": "##any",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -365,14 +354,14 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -380,7 +369,7 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -388,14 +377,14 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -404,7 +393,7 @@ class AddressBlockType:
                 "tokens": True,
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -412,7 +401,7 @@ class AddressBlockType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Register:
         """
         :ivar name: Register name.
@@ -433,68 +422,62 @@ class AddressBlockType:
         :ivar vendor_extensions:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                "required": True,
-            },
+            }
         )
-        dim: Iterable[int] = field(
+        dim: Sequence[int] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        address_offset: Optional[str] = field(
-            default=None,
+        address_offset: str = field(
             metadata={
                 "name": "addressOffset",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                "required": True,
                 "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
-            },
+            }
         )
-        size: Optional["AddressBlockType.Register.Size"] = field(
-            default=None,
+        size: AddressBlockType.Register.Size = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                "required": True,
-            },
+            }
         )
-        volatile: Optional[Volatile] = field(
-            default=None,
-            metadata={
-                "type": "Element",
-                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            },
-        )
-        access: Optional[Access] = field(
+        volatile: None | Volatile = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        dependency: Iterable["AddressBlockType.Register.Dependency"] = field(
+        access: None | Access = field(
+            default=None,
+            metadata={
+                "type": "Element",
+                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+            },
+        )
+        dependency: Sequence[AddressBlockType.Register.Dependency] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        reset: Optional["AddressBlockType.Register.Reset"] = field(
+        reset: None | AddressBlockType.Register.Reset = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        field_value: Iterable[FieldType] = field(
+        field_value: Sequence[FieldType] = field(
             default_factory=list,
             metadata={
                 "name": "field",
@@ -502,21 +485,21 @@ class AddressBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        description: Optional[str] = field(
+        description: None | str = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        parameter: Iterable[Parameter] = field(
+        parameter: Sequence[Parameter] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
@@ -525,7 +508,7 @@ class AddressBlockType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Size:
             """
             :ivar value:
@@ -553,12 +536,7 @@ class AddressBlockType:
             :ivar config_groups:
             """
 
-            value: Optional[int] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
+            value: int = field()
             format: FormatType = field(
                 default=FormatType.LONG,
                 metadata={
@@ -573,14 +551,14 @@ class AddressBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -594,14 +572,14 @@ class AddressBlockType:
                     "namespace": "##any",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -616,14 +594,14 @@ class AddressBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -631,7 +609,7 @@ class AddressBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            choice_style: Optional[ChoiceStyleValue] = field(
+            choice_style: None | ChoiceStyleValue = field(
                 default=None,
                 metadata={
                     "name": "choiceStyle",
@@ -639,14 +617,14 @@ class AddressBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            direction: Optional[DirectionValue] = field(
+            direction: None | DirectionValue = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -656,7 +634,7 @@ class AddressBlockType:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Dependency:
             """
             :ivar register_ref: The name of the register that enables
@@ -670,16 +648,14 @@ class AddressBlockType:
                 value.
             """
 
-            register_ref: Optional[str] = field(
-                default=None,
+            register_ref: str = field(
                 metadata={
                     "name": "registerRef",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
-                },
+                }
             )
-            field_ref: Optional[str] = field(
+            field_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "fieldRef",
@@ -687,16 +663,14 @@ class AddressBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            value: Optional[str] = field(
-                default=None,
+            value: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
                     "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
-                },
+                }
             )
-            mask: Optional[str] = field(
+            mask: None | str = field(
                 default=None,
                 metadata={
                     "type": "Element",
@@ -705,7 +679,7 @@ class AddressBlockType:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Reset:
             """
             :ivar value: The value itself.
@@ -713,16 +687,14 @@ class AddressBlockType:
                 to the reset value.
             """
 
-            value: Optional[str] = field(
-                default=None,
+            value: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
                     "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
-                },
+                }
             )
-            mask: Optional[str] = field(
+            mask: None | str = field(
                 default=None,
                 metadata={
                     "type": "Element",

@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.design_rule_constraints import (
     DesignRuleConstraints,
@@ -12,9 +13,10 @@ from org.accellera.spirit.v1_2.timing_constraint import TimingConstraint
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SignalConstraints:
-    """Defines constraints that apply to a component signal.
+    """
+    Defines constraints that apply to a component signal.
 
     If multiple signalConstraints elements are used, each must have a
     unique value for the constraintSet attribute.
@@ -24,28 +26,32 @@ class SignalConstraints:
         name = "signalConstraints"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    drive_constraint: Optional[DriveConstraint] = field(
+    drive_constraint_or_load_constraint: (
+        None | DriveConstraint | LoadConstraint
+    ) = field(
         default=None,
         metadata={
-            "name": "driveConstraint",
-            "type": "Element",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "driveConstraint",
+                    "type": DriveConstraint,
+                },
+                {
+                    "name": "loadConstraint",
+                    "type": LoadConstraint,
+                },
+            ),
         },
     )
-    load_constraint: Optional[LoadConstraint] = field(
-        default=None,
-        metadata={
-            "name": "loadConstraint",
-            "type": "Element",
-        },
-    )
-    timing_constraint: Iterable[TimingConstraint] = field(
+    timing_constraint: Sequence[TimingConstraint] = field(
         default_factory=list,
         metadata={
             "name": "timingConstraint",
             "type": "Element",
         },
     )
-    design_rule_constraints: Optional[DesignRuleConstraints] = field(
+    design_rule_constraints: None | DesignRuleConstraints = field(
         default=None,
         metadata={
             "name": "designRuleConstraints",

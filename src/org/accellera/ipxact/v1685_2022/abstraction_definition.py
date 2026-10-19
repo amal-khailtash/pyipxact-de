@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.assertions import Assertions
 from org.accellera.ipxact.v1685_2022.choices import Choices
@@ -32,10 +34,11 @@ from org.accellera.ipxact.v1685_2022.wire import Wire
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractionDefinition:
     """
-    Define the ports and other information of a particular abstraction of the bus.
+    Define the ports and other information of a particular abstraction of
+    the bus.
 
     :ivar vendor: Name of the vendor who supplies this file.
     :ivar library: Name of the logical library this element belongs to.
@@ -69,101 +72,89 @@ class AbstractionDefinition:
         name = "abstractionDefinition"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    bus_type: Optional[LibraryRefType] = field(
-        default=None,
+    bus_type: LibraryRefType = field(
         metadata={
             "name": "busType",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    extends: Optional[LibraryRefType] = field(
+    extends: None | LibraryRefType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    ports: Optional["AbstractionDefinition.Ports"] = field(
-        default=None,
+    ports: AbstractionDefinition.Ports = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    choices: Optional[Choices] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-        },
-    )
-    parameters: Optional[Parameters] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    assertions: Optional[Assertions] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    assertions: None | Assertions = field(
+        default=None,
+        metadata={
+            "type": "Element",
+        },
+    )
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -171,9 +162,9 @@ class AbstractionDefinition:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Ports:
-        port: Iterable["AbstractionDefinition.Ports.Port"] = field(
+        port: Sequence[AbstractionDefinition.Ports.Port] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -181,7 +172,7 @@ class AbstractionDefinition:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Port:
             """
             :ivar logical_name: The assigned name of this port in bus
@@ -192,76 +183,78 @@ class AbstractionDefinition:
             :ivar match: If this element is enabled (true) it is an
                 error if the port is not mapped on both sides of the
                 connection.
-            :ivar wire:
-            :ivar transactional: A port that carries complex information
-                modeled at a high level of abstraction.
+            :ivar wire_or_transactional:
             :ivar packets:
             :ivar vendor_extensions:
             :ivar id:
             """
 
-            logical_name: Optional[str] = field(
-                default=None,
+            logical_name: str = field(
                 metadata={
                     "name": "logicalName",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
                     "type": "Element",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
                     "type": "Element",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            match: Optional[bool] = field(
+            match: None | bool = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            wire: Optional[Wire] = field(
+            wire_or_transactional: (
+                None | Wire | AbstractionDefinition.Ports.Port.Transactional
+            ) = field(
+                default=None,
+                metadata={
+                    "type": "Elements",
+                    "choices": (
+                        {
+                            "name": "wire",
+                            "type": Wire,
+                        },
+                        {
+                            "name": "transactional",
+                            "type": ForwardRef(
+                                "AbstractionDefinition.Ports.Port.Transactional"
+                            ),
+                        },
+                    ),
+                },
+            )
+            packets: None | Packets = field(
                 default=None,
                 metadata={
                     "type": "Element",
                 },
             )
-            transactional: Optional[
-                "AbstractionDefinition.Ports.Port.Transactional"
-            ] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            packets: Optional[Packets] = field(
-                default=None,
-                metadata={
-                    "type": "Element",
-                },
-            )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -269,7 +262,7 @@ class AbstractionDefinition:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Transactional:
                 """
                 :ivar qualifier: The type of information this port
@@ -284,14 +277,14 @@ class AbstractionDefinition:
                     present in a target bus interface.
                 """
 
-                qualifier: Optional[QualifierType] = field(
+                qualifier: None | QualifierType = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                on_system: Iterable[
-                    "AbstractionDefinition.Ports.Port.Transactional.OnSystem"
+                on_system: Sequence[
+                    AbstractionDefinition.Ports.Port.Transactional.OnSystem
                 ] = field(
                     default_factory=list,
                     metadata={
@@ -299,18 +292,20 @@ class AbstractionDefinition:
                         "type": "Element",
                     },
                 )
-                on_initiator: Optional[
-                    "AbstractionDefinition.Ports.Port.Transactional.OnInitiator"
-                ] = field(
+                on_initiator: (
+                    None
+                    | AbstractionDefinition.Ports.Port.Transactional.OnInitiator
+                ) = field(
                     default=None,
                     metadata={
                         "name": "onInitiator",
                         "type": "Element",
                     },
                 )
-                on_target: Optional[
-                    "AbstractionDefinition.Ports.Port.Transactional.OnTarget"
-                ] = field(
+                on_target: (
+                    None
+                    | AbstractionDefinition.Ports.Port.Transactional.OnTarget
+                ) = field(
                     default=None,
                     metadata={
                         "name": "onTarget",
@@ -318,7 +313,7 @@ class AbstractionDefinition:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnSystem:
                     """
                     :ivar group: Used to group system ports into
@@ -335,45 +330,43 @@ class AbstractionDefinition:
                     :ivar id:
                     """
 
-                    group: Optional[str] = field(
-                        default=None,
+                    group: str = field(
                         metadata={
                             "type": "Element",
-                            "required": True,
-                        },
+                        }
                     )
-                    presence: Optional[Presence] = field(
-                        default=None,
-                        metadata={
-                            "type": "Element",
-                        },
-                    )
-                    initiative: Optional[OnSystemInitiative] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    kind: Optional[Kind] = field(
+                    initiative: None | OnSystemInitiative = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    bus_width: Optional[UnsignedPositiveIntExpression] = field(
+                    kind: None | Kind = field(
+                        default=None,
+                        metadata={
+                            "type": "Element",
+                        },
+                    )
+                    bus_width: None | UnsignedPositiveIntExpression = field(
                         default=None,
                         metadata={
                             "name": "busWidth",
                             "type": "Element",
                         },
                     )
-                    protocol: Optional[Protocol] = field(
+                    protocol: None | Protocol = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    id: Optional[str] = field(
+                    id: None | str = field(
                         default=None,
                         metadata={
                             "type": "Attribute",
@@ -381,7 +374,7 @@ class AbstractionDefinition:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnInitiator:
                     """
                     :ivar presence:
@@ -395,39 +388,39 @@ class AbstractionDefinition:
                         must match
                     """
 
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    initiative: Optional[OnInitiatorInitiative] = field(
+                    initiative: None | OnInitiatorInitiative = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    kind: Optional[Kind] = field(
+                    kind: None | Kind = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    bus_width: Optional[UnsignedPositiveIntExpression] = field(
+                    bus_width: None | UnsignedPositiveIntExpression = field(
                         default=None,
                         metadata={
                             "name": "busWidth",
                             "type": "Element",
                         },
                     )
-                    protocol: Optional[Protocol] = field(
+                    protocol: None | Protocol = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class OnTarget:
                     """
                     :ivar presence:
@@ -441,32 +434,32 @@ class AbstractionDefinition:
                         must match
                     """
 
-                    presence: Optional[Presence] = field(
+                    presence: None | Presence = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    initiative: Optional[OnTargetInitiative] = field(
+                    initiative: None | OnTargetInitiative = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    kind: Optional[Kind] = field(
+                    kind: None | Kind = field(
                         default=None,
                         metadata={
                             "type": "Element",
                         },
                     )
-                    bus_width: Optional[UnsignedPositiveIntExpression] = field(
+                    bus_width: None | UnsignedPositiveIntExpression = field(
                         default=None,
                         metadata={
                             "name": "busWidth",
                             "type": "Element",
                         },
                     )
-                    protocol: Optional[Protocol] = field(
+                    protocol: None | Protocol = field(
                         default=None,
                         metadata={
                             "type": "Element",

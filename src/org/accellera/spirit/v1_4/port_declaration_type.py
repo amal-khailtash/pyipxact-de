@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.port_transactional_type import (
     PortTransactionalType,
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_4.port_wire_type import PortWireType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortDeclarationType:
     """
     Basic port declarations.
@@ -20,23 +21,19 @@ class PortDeclarationType:
         than the spirit:name.
     :ivar description: Full description string, typically for
         documentation
-    :ivar wire: Defines a port whose type resolves to simple bits.
-    :ivar transactional: Defines a port that implements or uses a
-        service that can be implemented with functions or methods.
+    :ivar wire_or_transactional:
     """
 
     class Meta:
         name = "portDeclarationType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -44,24 +41,28 @@ class PortDeclarationType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    wire: Optional[PortWireType] = field(
+    wire_or_transactional: None | PortWireType | PortTransactionalType = field(
         default=None,
         metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    transactional: Optional[PortTransactionalType] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "wire",
+                    "type": PortWireType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "transactional",
+                    "type": PortTransactionalType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+            ),
         },
     )

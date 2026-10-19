@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -6,7 +8,7 @@ from org.accellera.spirit.v1685_2009.ve.ams.port_wire_type import PortWireType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorPortWireType(PortWireType):
     """
     Wire port type for an abstractor.

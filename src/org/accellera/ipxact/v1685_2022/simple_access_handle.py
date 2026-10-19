@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.path_segment_type import PathSegmentType
 from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SimpleAccessHandle:
     """
     :ivar view_ref: A list of views this accessHandle is applicable to.
@@ -24,7 +25,7 @@ class SimpleAccessHandle:
     class Meta:
         name = "simpleAccessHandle"
 
-    view_ref: Iterable["SimpleAccessHandle.ViewRef"] = field(
+    view_ref: Sequence[SimpleAccessHandle.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
@@ -32,16 +33,14 @@ class SimpleAccessHandle:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    path_segments: Optional["SimpleAccessHandle.PathSegments"] = field(
-        default=None,
+    path_segments: SimpleAccessHandle.PathSegments = field(
         metadata={
             "name": "pathSegments",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -49,7 +48,7 @@ class SimpleAccessHandle:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -57,15 +56,10 @@ class SimpleAccessHandle:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -73,9 +67,9 @@ class SimpleAccessHandle:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PathSegments:
-        path_segment: Iterable[PathSegmentType] = field(
+        path_segment: Sequence[PathSegmentType] = field(
             default_factory=list,
             metadata={
                 "name": "pathSegment",

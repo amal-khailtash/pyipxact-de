@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.address_block import AddressBlock
 from org.accellera.ipxact.v1685_2022.description import Description
@@ -14,7 +15,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LocalMemoryMapType:
     """
     Map of address space blocks on the local memory map of a initiator bus
@@ -24,12 +25,7 @@ class LocalMemoryMapType:
     :ivar display_name:
     :ivar short_description:
     :ivar description:
-    :ivar address_block:
-    :ivar bank: Represents a bank of memory made up of address blocks or
-        other banks.  It has a bankAlignment attribute indicating
-        whether its blocks are aligned in 'parallel' (occupying adjacent
-        bit fields) or 'serial' (occupying contiguous addresses). Its
-        child blocks do not contain addresses or bit offsets.
+    :ivar address_block_or_bank:
     :ivar vendor_extensions:
     :ivar id:
     """
@@ -37,15 +33,13 @@ class LocalMemoryMapType:
     class Meta:
         name = "localMemoryMapType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -53,7 +47,7 @@ class LocalMemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -61,29 +55,34 @@ class LocalMemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    address_block: Iterable[AddressBlock] = field(
-        default_factory=list,
-        metadata={
-            "name": "addressBlock",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
+    address_block_or_bank: Sequence[AddressBlock | LocalAddressBankType] = (
+        field(
+            default_factory=list,
+            metadata={
+                "type": "Elements",
+                "choices": (
+                    {
+                        "name": "addressBlock",
+                        "type": AddressBlock,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                    {
+                        "name": "bank",
+                        "type": LocalAddressBankType,
+                        "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                    },
+                ),
+            },
+        )
     )
-    bank: Iterable[LocalAddressBankType] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -91,7 +90,7 @@ class LocalMemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

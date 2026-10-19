@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.api_type import ApiType
 from org.accellera.ipxact.v1685_2014.description import Description
@@ -15,7 +16,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorType:
     """
     Types of generators.
@@ -45,15 +46,13 @@ class GeneratorType:
     class Meta:
         name = "generatorType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -61,28 +60,28 @@ class GeneratorType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    phase: Optional[Phase] = field(
+    phase: None | Phase = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    api_type: Optional["GeneratorType.ApiType"] = field(
+    api_type: None | GeneratorType.ApiType = field(
         default=None,
         metadata={
             "name": "apiType",
@@ -90,7 +89,7 @@ class GeneratorType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    transport_methods: Optional["GeneratorType.TransportMethods"] = field(
+    transport_methods: None | GeneratorType.TransportMethods = field(
         default=None,
         metadata={
             "name": "transportMethods",
@@ -98,16 +97,14 @@ class GeneratorType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    generator_exe: Optional[IpxactUri] = field(
-        default=None,
+    generator_exe: IpxactUri = field(
         metadata={
             "name": "generatorExe",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -121,7 +118,7 @@ class GeneratorType:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -129,15 +126,10 @@ class GeneratorType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ApiType:
-        value: Optional[ApiType] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: ApiType = field()
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -145,7 +137,7 @@ class GeneratorType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TransportMethods:
         """
         :ivar transport_method: Defines a SOAP transport protocol other
@@ -154,18 +146,14 @@ class GeneratorType:
         :ivar id:
         """
 
-        transport_method: Optional[
-            "GeneratorType.TransportMethods.TransportMethod"
-        ] = field(
-            default=None,
+        transport_method: GeneratorType.TransportMethods.TransportMethod = field(
             metadata={
                 "name": "transportMethod",
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-                "required": True,
-            },
+            }
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -173,15 +161,10 @@ class GeneratorType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class TransportMethod:
-            value: Optional[TransportMethodType] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
-            id: Optional[str] = field(
+            value: TransportMethodType = field()
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

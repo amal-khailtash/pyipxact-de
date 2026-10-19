@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.port_path_segment_type import (
     PortPathSegmentType,
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2022.range import Range
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortSliceType:
     """
     Contains the HDL path information for a slice of the IP-XACT object.
@@ -26,23 +27,21 @@ class PortSliceType:
     class Meta:
         name = "portSliceType"
 
-    path_segments: Optional["PortSliceType.PathSegments"] = field(
-        default=None,
+    path_segments: PortSliceType.PathSegments = field(
         metadata={
             "name": "pathSegments",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    range: Optional[Range] = field(
+    range: None | Range = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -50,9 +49,9 @@ class PortSliceType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class PathSegments:
-        path_segment: Iterable[PortPathSegmentType] = field(
+        path_segment: Sequence[PortPathSegmentType] = field(
             default_factory=list,
             metadata={
                 "name": "pathSegment",

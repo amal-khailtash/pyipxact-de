@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.dependency import Dependency
 from org.accellera.ipxact.v1685_2014.file_type import FileType
@@ -20,7 +21,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class File:
     """
     IP-XACT reference to a file or directory.
@@ -59,21 +60,19 @@ class File:
         name = "file"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[StringUriexpression] = field(
-        default=None,
+    name: StringUriexpression = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
             "type": "Element",
         },
     )
-    file_type: Iterable[FileType] = field(
+    file_type: Sequence[FileType] = field(
         default_factory=list,
         metadata={
             "name": "fileType",
@@ -81,74 +80,74 @@ class File:
             "min_occurs": 1,
         },
     )
-    is_structural: Optional[bool] = field(
+    is_structural: None | bool = field(
         default=None,
         metadata={
             "name": "isStructural",
             "type": "Element",
         },
     )
-    is_include_file: Optional["File.IsIncludeFile"] = field(
+    is_include_file: None | File.IsIncludeFile = field(
         default=None,
         metadata={
             "name": "isIncludeFile",
             "type": "Element",
         },
     )
-    logical_name: Optional["File.LogicalName"] = field(
+    logical_name: None | File.LogicalName = field(
         default=None,
         metadata={
             "name": "logicalName",
             "type": "Element",
         },
     )
-    exported_name: Iterable["File.ExportedName"] = field(
+    exported_name: Sequence[File.ExportedName] = field(
         default_factory=list,
         metadata={
             "name": "exportedName",
             "type": "Element",
         },
     )
-    build_command: Optional["File.BuildCommand"] = field(
+    build_command: None | File.BuildCommand = field(
         default=None,
         metadata={
             "name": "buildCommand",
             "type": "Element",
         },
     )
-    dependency: Iterable[Dependency] = field(
+    dependency: Sequence[Dependency] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    define: Iterable[NameValuePairType] = field(
+    define: Sequence[NameValuePairType] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    image_type: Iterable["File.ImageType"] = field(
+    image_type: Sequence[File.ImageType] = field(
         default_factory=list,
         metadata={
             "name": "imageType",
             "type": "Element",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    file_id: Optional[str] = field(
+    file_id: None | str = field(
         default=None,
         metadata={
             "name": "fileId",
@@ -162,7 +161,7 @@ class File:
             "namespace": "##other",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -170,7 +169,7 @@ class File:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class IsIncludeFile:
         """
         :ivar value:
@@ -178,12 +177,7 @@ class File:
             that are needed in top file
         """
 
-        value: Optional[bool] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: bool = field()
         external_declarations: bool = field(
             default=False,
             metadata={
@@ -192,7 +186,7 @@ class File:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class LogicalName:
         """
         :ivar value:
@@ -200,12 +194,7 @@ class File:
             and another process may override this name.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         default: bool = field(
             default=False,
             metadata={
@@ -213,15 +202,10 @@ class File:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ExportedName:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -229,7 +213,7 @@ class File:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class BuildCommand:
         """
         :ivar command: Command used to build this file.
@@ -246,26 +230,26 @@ class File:
             from the source file.
         """
 
-        command: Optional[StringExpression] = field(
+        command: None | StringExpression = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        flags: Optional["File.BuildCommand.Flags"] = field(
+        flags: None | File.BuildCommand.Flags = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        replace_default_flags: Optional[UnsignedBitExpression] = field(
+        replace_default_flags: None | UnsignedBitExpression = field(
             default=None,
             metadata={
                 "name": "replaceDefaultFlags",
                 "type": "Element",
             },
         )
-        target_name: Optional[StringUriexpression] = field(
+        target_name: None | StringUriexpression = field(
             default=None,
             metadata={
                 "name": "targetName",
@@ -273,7 +257,7 @@ class File:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Flags(StringExpression):
             """
             :ivar append: "true" indicates that the flags shall be
@@ -281,22 +265,17 @@ class File:
                 flags will replace any existing default flags.
             """
 
-            append: Optional[bool] = field(
+            append: None | bool = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ImageType:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

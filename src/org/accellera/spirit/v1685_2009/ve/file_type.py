@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.file_type_value import FileTypeValue
 
@@ -8,7 +9,7 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FileType:
     """
     Enumerated file types known by Standard PDP Extension.
@@ -20,4 +21,4 @@ class FileType:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/PDP-1.0"
         )
 
-    value: Optional[FileTypeValue] = field(default=None)
+    value: FileTypeValue = field()

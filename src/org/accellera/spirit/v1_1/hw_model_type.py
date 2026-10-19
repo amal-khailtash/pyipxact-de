@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.name_value_type_type import NameValueTypeType
 from org.accellera.spirit.v1_1.signal import Signal
@@ -10,7 +11,7 @@ from org.accellera.spirit.v1_1.view_type import ViewType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class HwModelType:
     """
     Hardware model information.
@@ -24,21 +25,21 @@ class HwModelType:
     class Meta:
         name = "hwModelType"
 
-    views: Optional["HwModelType.Views"] = field(
+    views: None | HwModelType.Views = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    signals: Optional["HwModelType.Signals"] = field(
+    signals: None | HwModelType.Signals = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    hw_parameters: Optional["HwModelType.HwParameters"] = field(
+    hw_parameters: None | HwModelType.HwParameters = field(
         default=None,
         metadata={
             "name": "hwParameters",
@@ -46,7 +47,7 @@ class HwModelType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -55,9 +56,9 @@ class HwModelType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
-        view: Iterable[ViewType] = field(
+        view: Sequence[ViewType] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -65,9 +66,9 @@ class HwModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Signals:
-        signal: Iterable[Signal] = field(
+        signal: Sequence[Signal] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -75,7 +76,7 @@ class HwModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class HwParameters:
         """
         :ivar hw_parameter: A hardware parameter name value pair.  The
@@ -85,7 +86,7 @@ class HwModelType:
             identical to the RTL (VHDL generic or Verilog parameter)
         """
 
-        hw_parameter: Iterable[NameValueTypeType] = field(
+        hw_parameter: Sequence[NameValueTypeType] = field(
             default_factory=list,
             metadata={
                 "name": "hwParameter",

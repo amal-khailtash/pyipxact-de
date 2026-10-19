@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.address_block import AddressBlock
 from org.accellera.ipxact.v1685_2022.address_unit_bits import AddressUnitBits
@@ -16,7 +18,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MemoryMapType:
     """
     Map of address space blocks on target target bus interface.
@@ -25,17 +27,7 @@ class MemoryMapType:
     :ivar display_name:
     :ivar short_description:
     :ivar description:
-    :ivar memory_map_definition_ref:
-    :ivar address_block:
-    :ivar bank:
-    :ivar subspace_map:
-    :ivar memory_remap:
-    :ivar address_unit_bits:
-    :ivar shared: When the value is 'yes', the contents of the memoryMap
-        are shared by all the references to this memoryMap, when the
-        value is 'no' the contents of the memoryMap is not shared and
-        when the value is 'undefined' (default) the sharing of the
-        memoryMap is undefined.
+    :ivar choice:
     :ivar vendor_extensions:
     :ivar id:
     """
@@ -43,15 +35,13 @@ class MemoryMapType:
     class Meta:
         name = "memoryMapType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -59,7 +49,7 @@ class MemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -67,70 +57,65 @@ class MemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    memory_map_definition_ref: Optional[
-        "MemoryMapType.MemoryMapDefinitionRef"
+    choice: Sequence[
+        MemoryMapType.MemoryMapDefinitionRef
+        | AddressBlock
+        | Bank
+        | SubspaceMap
+        | MemoryRemap
+        | AddressUnitBits
+        | SharedType
     ] = field(
-        default=None,
-        metadata={
-            "name": "memoryMapDefinitionRef",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    address_block: Iterable[AddressBlock] = field(
         default_factory=list,
         metadata={
-            "name": "addressBlock",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "memoryMapDefinitionRef",
+                    "type": ForwardRef("MemoryMapType.MemoryMapDefinitionRef"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "addressBlock",
+                    "type": AddressBlock,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "bank",
+                    "type": Bank,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "subspaceMap",
+                    "type": SubspaceMap,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "memoryRemap",
+                    "type": MemoryRemap,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "addressUnitBits",
+                    "type": AddressUnitBits,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "shared",
+                    "type": SharedType,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+            ),
         },
     )
-    bank: Iterable[Bank] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    subspace_map: Iterable[SubspaceMap] = field(
-        default_factory=list,
-        metadata={
-            "name": "subspaceMap",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    memory_remap: Iterable[MemoryRemap] = field(
-        default_factory=list,
-        metadata={
-            "name": "memoryRemap",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    address_unit_bits: Optional[AddressUnitBits] = field(
-        default=None,
-        metadata={
-            "name": "addressUnitBits",
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    shared: Optional[SharedType] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -138,7 +123,7 @@ class MemoryMapType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -146,19 +131,12 @@ class MemoryMapType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MemoryMapDefinitionRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        type_definitions: Optional[str] = field(
-            default=None,
+        value: str = field(default="")
+        type_definitions: str = field(
             metadata={
                 "name": "typeDefinitions",
                 "type": "Attribute",
-                "required": True,
-            },
+            }
         )

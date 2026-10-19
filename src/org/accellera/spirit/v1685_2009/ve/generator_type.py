@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.description import Description
 from org.accellera.spirit.v1685_2009.ve.display_name import DisplayName
@@ -18,7 +19,7 @@ from org.accellera.spirit.v1685_2009.ve.vendor_extensions import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorType:
     """
     Types of generators.
@@ -43,15 +44,13 @@ class GeneratorType:
     class Meta:
         name = "generatorType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -59,28 +58,28 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    phase: Optional[Phase] = field(
+    phase: None | Phase = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    api_type: Optional[GeneratorTypeApiType] = field(
+    api_type: None | GeneratorTypeApiType = field(
         default=None,
         metadata={
             "name": "apiType",
@@ -88,7 +87,7 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    transport_methods: Optional["GeneratorType.TransportMethods"] = field(
+    transport_methods: None | GeneratorType.TransportMethods = field(
         default=None,
         metadata={
             "name": "transportMethods",
@@ -96,16 +95,14 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    generator_exe: Optional[str] = field(
-        default=None,
+    generator_exe: str = field(
         metadata={
             "name": "generatorExe",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -121,7 +118,7 @@ class GeneratorType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TransportMethods:
         """
         :ivar transport_method: Defines a SOAP transport protocol other
@@ -129,12 +126,10 @@ class GeneratorType:
             other currently supported protocol is 'file'.
         """
 
-        transport_method: Optional[TransportMethodsTransportMethod] = field(
-            default=None,
+        transport_method: TransportMethodsTransportMethod = field(
             metadata={
                 "name": "transportMethod",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                "required": True,
-            },
+            }
         )

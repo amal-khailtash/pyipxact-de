@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1685_2009.ve.core.view_name_ref import ViewNameRef
@@ -8,7 +10,7 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Driver2:
     """
     Wire port driver extension.
@@ -25,7 +27,7 @@ class Driver2:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/CORE-1.0"
         )
 
-    default_value: Iterable[float] = field(
+    default_value: Sequence[float] = field(
         default_factory=list,
         metadata={
             "name": "defaultValue",
@@ -33,7 +35,7 @@ class Driver2:
             "tokens": True,
         },
     )
-    view_name_ref: Iterable[ViewNameRef] = field(
+    view_name_ref: Sequence[ViewNameRef] = field(
         default_factory=list,
         metadata={
             "name": "viewNameRef",

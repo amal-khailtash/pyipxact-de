@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.area_estimation import AreaEstimation
 from org.accellera.spirit.v1685_2009.ve.technology_name import TechnologyName
@@ -7,7 +8,7 @@ from org.accellera.spirit.v1685_2009.ve.technology_name import TechnologyName
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class View:
     """
     View extension.
@@ -17,7 +18,7 @@ class View:
         name = "view"
         namespace = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
-    technology_name: Optional[TechnologyName] = field(
+    technology_name: None | TechnologyName = field(
         default=None,
         metadata={
             "name": "technologyName",
@@ -25,7 +26,7 @@ class View:
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/PDP-1.0",
         },
     )
-    area_estimation: Optional[AreaEstimation] = field(
+    area_estimation: None | AreaEstimation = field(
         default=None,
         metadata={
             "name": "areaEstimation",

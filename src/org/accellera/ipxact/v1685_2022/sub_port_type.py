@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2022.arrays import Arrays
 from org.accellera.ipxact.v1685_2022.component_port_direction_type import (
@@ -22,17 +24,17 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SubPortType:
     """
-    A port description, giving a name and an access type for high level ports.
+    A port description, giving a name and an access type for high level
+    ports.
 
     :ivar name: Unique name
     :ivar display_name:
     :ivar short_description:
     :ivar description:
-    :ivar wire: Defines a port whose type resolves to simple bits.
-    :ivar structured:
+    :ivar wire_or_structured:
     :ivar arrays:
     :ivar access: Port access characteristics.
     :ivar vendor_extensions:
@@ -46,17 +48,15 @@ class SubPortType:
     class Meta:
         name = "subPortType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
             "white_space": "collapse",
             "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -64,7 +64,7 @@ class SubPortType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
@@ -72,42 +72,46 @@ class SubPortType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    wire: Optional[PortWireType] = field(
+    wire_or_structured: None | PortWireType | PortStructuredType = field(
+        default=None,
+        metadata={
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "wire",
+                    "type": PortWireType,
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "structured",
+                    "type": ForwardRef("PortStructuredType"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+            ),
+        },
+    )
+    arrays: None | Arrays = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    structured: Optional["PortStructuredType"] = field(
+    access: None | PortAccessType1 = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    arrays: Optional[Arrays] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    access: Optional[PortAccessType1] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -115,14 +119,14 @@ class SubPortType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.w3.org/XML/1998/namespace",
         },
     )
-    is_io: Optional[bool] = field(
+    is_io: None | bool = field(
         default=None,
         metadata={
             "name": "isIO",
@@ -131,12 +135,10 @@ class SubPortType:
     )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortStructuredType:
     """
-    :ivar struct:
-    :ivar union:
-    :ivar interface:
+    :ivar struct_or_union_or_interface:
     :ivar vectors: Vectored information.
     :ivar sub_ports:
     :ivar struct_port_type_defs:
@@ -148,35 +150,42 @@ class PortStructuredType:
     class Meta:
         name = "portStructuredType"
 
-    struct: Optional["PortStructuredType.Struct"] = field(
+    struct_or_union_or_interface: (
+        None
+        | PortStructuredType.Struct
+        | PortStructuredType.UnionType
+        | PortStructuredType.Interface
+    ) = field(
+        default=None,
+        metadata={
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "struct",
+                    "type": ForwardRef("PortStructuredType.Struct"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "union",
+                    "type": ForwardRef("PortStructuredType.UnionType"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+                {
+                    "name": "interface",
+                    "type": ForwardRef("PortStructuredType.Interface"),
+                    "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
+                },
+            ),
+        },
+    )
+    vectors: None | ExtendedVectorsType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    union: Optional["PortStructuredType.UnionType"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    interface: Optional["PortStructuredType.Interface"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    vectors: Optional[ExtendedVectorsType] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-        },
-    )
-    sub_ports: Optional["PortStructuredType.SubPorts"] = field(
+    sub_ports: None | PortStructuredType.SubPorts = field(
         default=None,
         metadata={
             "name": "subPorts",
@@ -184,14 +193,12 @@ class PortStructuredType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    struct_port_type_defs: Optional[StructPortTypeDefs] = field(
-        default=None,
+    struct_port_type_defs: StructPortTypeDefs = field(
         metadata={
             "name": "structPortTypeDefs",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-            "required": True,
-        },
+        }
     )
     packed: bool = field(
         default=True,
@@ -200,9 +207,9 @@ class PortStructuredType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SubPorts:
-        sub_port: Iterable[SubPortType] = field(
+        sub_port: Sequence[SubPortType] = field(
             default_factory=list,
             metadata={
                 "name": "subPort",
@@ -212,7 +219,7 @@ class PortStructuredType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Struct:
         """
         :ivar direction: The direction of a wire style port. The basic
@@ -223,14 +230,14 @@ class PortStructuredType:
             model.
         """
 
-        direction: Optional[ComponentPortDirectionType] = field(
+        direction: None | ComponentPortDirectionType = field(
             default=None,
             metadata={
                 "type": "Attribute",
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class UnionType:
         """
         :ivar direction: The direction of a wire style port. The basic
@@ -241,16 +248,16 @@ class PortStructuredType:
             model.
         """
 
-        direction: Optional[ComponentPortDirectionType] = field(
+        direction: None | ComponentPortDirectionType = field(
             default=None,
             metadata={
                 "type": "Attribute",
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Interface:
-        phantom: Optional[bool] = field(
+        phantom: None | bool = field(
             default=None,
             metadata={
                 "type": "Attribute",

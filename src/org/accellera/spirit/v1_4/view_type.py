@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.spirit.v1_4.constraint_set_ref import ConstraintSetRef
 from org.accellera.spirit.v1_4.file_builder_type import FileBuilderType
@@ -15,7 +17,7 @@ from org.accellera.spirit.v1_4.whitebox_element_ref_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ViewType:
     """
     Component view type.
@@ -34,38 +36,20 @@ class ViewType:
         generic values "*Simulation" and "*Synthesis" to imply any tool
         of the indicated type. Having more than one envIdentifier
         indicates that the view applies to multiple environments.
-    :ivar hierarchy_ref: References a SPIRIT design or configuration
-        document (by VLNV) that provides a design for the component
-    :ivar language: The hardware description language used such as
-        "verilog" or "vhdl". If the attribute "strict" is "true", this
-        value must match the language being generated for the design.
-    :ivar model_name: Language specific name to identity the model.
-        Verilog or SystemVerilog this is the module name. For VHDL this
-        is, with ()’s, the entity(architecture) name pair or without, a
-        single configuration name.  For SystemC this is the class name.
-    :ivar default_file_builder: Default command and flags used to build
-        derived files from the sourceName files in the referenced file
-        sets.
-    :ivar file_set_ref:
-    :ivar constraint_set_ref:
-    :ivar whitebox_element_refs: Container for white box element
-        references.
-    :ivar parameters:
+    :ivar choice:
     :ivar vendor_extensions:
     """
 
     class Meta:
         name = "viewType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -73,14 +57,14 @@ class ViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    env_identifier: Iterable[str] = field(
+    env_identifier: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "envIdentifier",
@@ -90,69 +74,64 @@ class ViewType:
             "pattern": r"[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*",
         },
     )
-    hierarchy_ref: Optional[LibraryRefType] = field(
-        default=None,
-        metadata={
-            "name": "hierarchyRef",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    language: Optional["ViewType.Language"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    model_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "name": "modelName",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    default_file_builder: Iterable[FileBuilderType] = field(
+    choice: Sequence[
+        LibraryRefType
+        | ViewType.Language
+        | str
+        | FileBuilderType
+        | FileSetRef
+        | ConstraintSetRef
+        | ViewType.WhiteboxElementRefs
+        | Parameters
+    ] = field(
         default_factory=list,
         metadata={
-            "name": "defaultFileBuilder",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "hierarchyRef",
+                    "type": LibraryRefType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "language",
+                    "type": ForwardRef("ViewType.Language"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "modelName",
+                    "type": str,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "defaultFileBuilder",
+                    "type": FileBuilderType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "fileSetRef",
+                    "type": FileSetRef,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "constraintSetRef",
+                    "type": ConstraintSetRef,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "whiteboxElementRefs",
+                    "type": ForwardRef("ViewType.WhiteboxElementRefs"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "parameters",
+                    "type": Parameters,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+            ),
         },
     )
-    file_set_ref: Iterable[FileSetRef] = field(
-        default_factory=list,
-        metadata={
-            "name": "fileSetRef",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    constraint_set_ref: Iterable[ConstraintSetRef] = field(
-        default_factory=list,
-        metadata={
-            "name": "constraintSetRef",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    whitebox_element_refs: Optional["ViewType.WhiteboxElementRefs"] = field(
-        default=None,
-        metadata={
-            "name": "whiteboxElementRefs",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    parameters: Optional[Parameters] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -161,7 +140,7 @@ class ViewType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Language:
         """
         :ivar value:
@@ -169,12 +148,7 @@ class ViewType:
             match the language being generated for the design.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         strict: bool = field(
             default=False,
             metadata={
@@ -183,14 +157,14 @@ class ViewType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class WhiteboxElementRefs:
         """
         :ivar whitebox_element_ref: Reference to a white box element
             which is visible within this view.
         """
 
-        whitebox_element_ref: Iterable[WhiteboxElementRefType] = field(
+        whitebox_element_ref: Sequence[WhiteboxElementRefType] = field(
             default_factory=list,
             metadata={
                 "name": "whiteboxElementRef",

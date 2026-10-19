@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.access import Access
 from org.accellera.spirit.v1_1.choice_style_value import ChoiceStyleValue
@@ -14,7 +15,7 @@ from org.accellera.spirit.v1_1.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FieldType:
     """
     :ivar name: Field name.
@@ -32,62 +33,54 @@ class FieldType:
     class Meta:
         name = "fieldType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    bit_offset: Optional[int] = field(
-        default=None,
+    bit_offset: int = field(
         metadata={
             "name": "bitOffset",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    bit_width: Optional["FieldType.BitWidth"] = field(
-        default=None,
+    bit_width: FieldType.BitWidth = field(
         metadata={
             "name": "bitWidth",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
-    access: Optional[Access] = field(
+    access: Access = field(
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
+        }
+    )
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
         },
     )
-    description: Optional[str] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-        },
-    )
-    values: Iterable["FieldType.Values"] = field(
+    values: Sequence[FieldType.Values] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    parameter: Iterable[Parameter] = field(
+    parameter: Sequence[Parameter] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -96,7 +89,7 @@ class FieldType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class BitWidth:
         """
         :ivar value:
@@ -123,12 +116,7 @@ class FieldType:
         :ivar config_groups:
         """
 
-        value: Optional[int] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: int = field()
         format: FormatType = field(
             default=FormatType.LONG,
             metadata={
@@ -136,21 +124,21 @@ class FieldType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        resolve: Optional[ResolveType] = field(
+        resolve: None | ResolveType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -164,21 +152,21 @@ class FieldType:
                 "namespace": "##other",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        range_type: Optional[RangeTypeType] = field(
+        range_type: None | RangeTypeType = field(
             default=None,
             metadata={
                 "name": "rangeType",
@@ -186,14 +174,14 @@ class FieldType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -201,7 +189,7 @@ class FieldType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -209,14 +197,14 @@ class FieldType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -226,7 +214,7 @@ class FieldType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Values:
         """
         :ivar value: Enumerated bit field value.
@@ -235,28 +223,22 @@ class FieldType:
             as a token in generating code.
         """
 
-        value: Optional[str] = field(
-            default=None,
+        value: str = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                "required": True,
                 "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
-            },
+            }
         )
-        description: Optional[str] = field(
-            default=None,
+        description: str = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                "required": True,
-            },
+            }
         )
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                "required": True,
-            },
+            }
         )

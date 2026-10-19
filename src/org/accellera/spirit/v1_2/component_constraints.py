@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.design_rule_constraints import (
     DesignRuleConstraints,
@@ -12,9 +13,11 @@ from org.accellera.spirit.v1_2.timed_path import TimedPath
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentConstraints:
-    """Defines the set of implementation constraints associated with a component.
+    """
+    Defines the set of implementation constraints associated with a
+    component.
 
     If multiple componentConstraints elements are used, each must have a
     unique value for the constraintSet attribute.
@@ -24,28 +27,28 @@ class ComponentConstraints:
         name = "componentConstraints"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    design_rule_constraints: Optional[DesignRuleConstraints] = field(
+    design_rule_constraints: None | DesignRuleConstraints = field(
         default=None,
         metadata={
             "name": "designRuleConstraints",
             "type": "Element",
         },
     )
-    false_path: Iterable[FalsePath] = field(
+    false_path: Sequence[FalsePath] = field(
         default_factory=list,
         metadata={
             "name": "falsePath",
             "type": "Element",
         },
     )
-    multi_cycle_path: Iterable[MultiCyclePath] = field(
+    multi_cycle_path: Sequence[MultiCyclePath] = field(
         default_factory=list,
         metadata={
             "name": "multiCyclePath",
             "type": "Element",
         },
     )
-    timed_path: Iterable[TimedPath] = field(
+    timed_path: Sequence[TimedPath] = field(
         default_factory=list,
         metadata={
             "name": "timedPath",

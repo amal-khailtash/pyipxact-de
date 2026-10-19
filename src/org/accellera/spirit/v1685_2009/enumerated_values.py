@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.description import Description
 from org.accellera.spirit.v1685_2009.display_name import DisplayName
@@ -12,7 +13,7 @@ from org.accellera.spirit.v1685_2009.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class EnumeratedValues:
     """
     Enumerates specific values that can be assigned to the bit field.
@@ -28,7 +29,7 @@ class EnumeratedValues:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    enumerated_value: Iterable["EnumeratedValues.EnumeratedValue"] = field(
+    enumerated_value: Sequence[EnumeratedValues.EnumeratedValue] = field(
         default_factory=list,
         metadata={
             "name": "enumeratedValue",
@@ -37,7 +38,7 @@ class EnumeratedValues:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class EnumeratedValue:
         """
         :ivar name: Unique name
@@ -50,35 +51,31 @@ class EnumeratedValues:
             write' for a software read or write access.
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        value: Optional[str] = field(
-            default=None,
+        value: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
                 "pattern": r"[+\-]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
-            },
+            }
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",

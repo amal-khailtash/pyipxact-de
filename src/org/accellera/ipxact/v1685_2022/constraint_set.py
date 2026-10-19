@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.display_name import DisplayName
@@ -15,9 +16,10 @@ from org.accellera.ipxact.v1685_2022.unsigned_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ConstraintSet:
-    """Defines constraints that apply to a component port.
+    """
+    Defines constraints that apply to a component port.
 
     If multiple constraintSet elements are used, each must have a unique
     value for the constraintSetId attribute.
@@ -44,53 +46,53 @@ class ConstraintSet:
         name = "constraintSet"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    name: Optional[str] = field(
+    name: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    short_description: Optional[ShortDescription] = field(
+    short_description: None | ShortDescription = field(
         default=None,
         metadata={
             "name": "shortDescription",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vector: Optional["ConstraintSet.Vector"] = field(
+    vector: None | ConstraintSet.Vector = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    drive_constraint: Optional[DriveConstraint] = field(
+    drive_constraint: None | DriveConstraint = field(
         default=None,
         metadata={
             "name": "driveConstraint",
             "type": "Element",
         },
     )
-    load_constraint: Optional[LoadConstraint] = field(
+    load_constraint: None | LoadConstraint = field(
         default=None,
         metadata={
             "name": "loadConstraint",
             "type": "Element",
         },
     )
-    timing_constraint: Iterable[TimingConstraint] = field(
+    timing_constraint: Sequence[TimingConstraint] = field(
         default_factory=list,
         metadata={
             "name": "timingConstraint",
@@ -104,7 +106,7 @@ class ConstraintSet:
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -112,7 +114,7 @@ class ConstraintSet:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Vector:
         """
         :ivar left: The optional elements left and right can be used to
@@ -121,17 +123,13 @@ class ConstraintSet:
             select a bit-slice of a vector.
         """
 
-        left: Optional[UnsignedIntExpression] = field(
-            default=None,
+        left: UnsignedIntExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        right: Optional[UnsignedIntExpression] = field(
-            default=None,
+        right: UnsignedIntExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )

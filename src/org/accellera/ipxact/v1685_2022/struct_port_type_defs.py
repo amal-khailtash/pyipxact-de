@@ -1,19 +1,20 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.type_parameter import TypeParameter
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class StructPortTypeDefs:
     class Meta:
         name = "structPortTypeDefs"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    struct_port_type_def: Iterable["StructPortTypeDefs.StructPortTypeDef"] = (
+    struct_port_type_def: Sequence[StructPortTypeDefs.StructPortTypeDef] = (
         field(
             default_factory=list,
             metadata={
@@ -24,7 +25,7 @@ class StructPortTypeDefs:
         )
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class StructPortTypeDef:
         """
         :ivar type_name:
@@ -42,18 +43,14 @@ class StructPortTypeDefs:
         :ivar id:
         """
 
-        type_name: Optional[
-            "StructPortTypeDefs.StructPortTypeDef.TypeName"
-        ] = field(
-            default=None,
+        type_name: StructPortTypeDefs.StructPortTypeDef.TypeName = field(
             metadata={
                 "name": "typeName",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        type_definition: Iterable[
-            "StructPortTypeDefs.StructPortTypeDef.TypeDefinition"
+        type_definition: Sequence[
+            StructPortTypeDefs.StructPortTypeDef.TypeDefinition
         ] = field(
             default_factory=list,
             metadata={
@@ -61,22 +58,22 @@ class StructPortTypeDefs:
                 "type": "Element",
             },
         )
-        type_parameters: Optional[
-            "StructPortTypeDefs.StructPortTypeDef.TypeParameters"
-        ] = field(
+        type_parameters: (
+            None | StructPortTypeDefs.StructPortTypeDef.TypeParameters
+        ) = field(
             default=None,
             metadata={
                 "name": "typeParameters",
                 "type": "Element",
             },
         )
-        role: Optional[str] = field(
+        role: None | str = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        view_ref: Iterable["StructPortTypeDefs.StructPortTypeDef.ViewRef"] = (
+        view_ref: Sequence[StructPortTypeDefs.StructPortTypeDef.ViewRef] = (
             field(
                 default_factory=list,
                 metadata={
@@ -85,7 +82,7 @@ class StructPortTypeDefs:
                 },
             )
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -93,7 +90,7 @@ class StructPortTypeDefs:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class TypeName:
             """
             :ivar value:
@@ -101,13 +98,8 @@ class StructPortTypeDefs:
                 constrained the number of bits in the vector
             """
 
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            constrained: Iterable[str] = field(
+            value: str = field(default="")
+            constrained: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "type": "Attribute",
@@ -115,15 +107,10 @@ class StructPortTypeDefs:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class TypeDefinition:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            id: Optional[str] = field(
+            value: str = field(default="")
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -131,9 +118,9 @@ class StructPortTypeDefs:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class TypeParameters:
-            type_parameter: Iterable[TypeParameter] = field(
+            type_parameter: Sequence[TypeParameter] = field(
                 default_factory=list,
                 metadata={
                     "name": "typeParameter",
@@ -142,15 +129,10 @@ class StructPortTypeDefs:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class ViewRef:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            id: Optional[str] = field(
+            value: str = field(default="")
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1_2.instance_generator_type import (
@@ -7,13 +9,14 @@ from org.accellera.spirit.v1_2.instance_generator_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentGenerator(InstanceGeneratorType):
-    """Specifies a set of component generators.
+    """
+    Specifies a set of component generators.
 
     The scope attribute applies to component generators and specifies
-    whether the generator should be run for each instance of the entity
-    (or module) or just once for all instances of the entity.
+    whether the generator should be run for each instance of the entity (or
+    module) or just once for all instances of the entity.
 
     :ivar hidden: If this attribute is true then the generator should
         not be presented to the user, it may be part of a chain and has

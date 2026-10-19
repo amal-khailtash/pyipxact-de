@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.ipxact.v1685_2022.ve.unsigned_bit_expression import (
@@ -9,12 +11,12 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IsPresent(UnsignedBitExpression):
     """
-    Expression that determines whether the enclosing element should be treated as
-    present (expression evaluates to "true") or disregarded (expression evalutes to
-    "false")
+    Expression that determines whether the enclosing element should be
+    treated as present (expression evaluates to "true") or disregarded
+    (expression evalutes to "false").
     """
 
     class Meta:

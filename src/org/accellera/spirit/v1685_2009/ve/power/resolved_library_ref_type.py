@@ -1,55 +1,44 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ResolvedLibraryRefType:
-    """Resolved IP-XACT document reference type.
+    """
+    Resolved IP-XACT document reference type.
 
     Contains vendor, library, name and version attributes and the URI of
-    the referenced IP-XACT document
+    the referenced IP-XACT document.
     """
 
     class Meta:
         name = "resolvedLibraryRefType"
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
-    vendor: Optional[str] = field(
-        default=None,
+    value: str = field(default="")
+    vendor: str = field(
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )

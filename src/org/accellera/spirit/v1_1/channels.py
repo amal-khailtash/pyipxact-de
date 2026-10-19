@@ -1,14 +1,16 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Channels:
     """
-    Lists all channel connections between mirror interfaces of this component.
+    Lists all channel connections between mirror interfaces of this
+    component.
 
     :ivar channel: Defines a set of mirrored interfaces of this
         component that are connected to one another.
@@ -18,14 +20,14 @@ class Channels:
         name = "channels"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
-    channel: Iterable["Channels.Channel"] = field(
+    channel: Sequence[Channels.Channel] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Channel:
         """
         :ivar max_masters: Overrides the maxMasters value in the bus
@@ -36,21 +38,21 @@ class Channels:
             interfaces that is part of this channel.
         """
 
-        max_masters: Optional[int] = field(
+        max_masters: None | int = field(
             default=None,
             metadata={
                 "name": "maxMasters",
                 "type": "Element",
             },
         )
-        max_slaves: Optional[int] = field(
+        max_slaves: None | int = field(
             default=None,
             metadata={
                 "name": "maxSlaves",
                 "type": "Element",
             },
         )
-        bus_interface_ref: Iterable[str] = field(
+        bus_interface_ref: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "busInterfaceRef",

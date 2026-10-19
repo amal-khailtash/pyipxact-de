@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.view_name_ref import ViewNameRef
 
@@ -9,10 +10,11 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DomainTypeDef:
     """
-    Definition of a single wire type definition that can relate to multiple views.
+    Definition of a single wire type definition that can relate to multiple
+    views.
 
     :ivar type_name: The name of the domain type. Examples could be
         ddiscrete, electrical, ...
@@ -27,22 +29,20 @@ class DomainTypeDef:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/AMS-1.0"
         )
 
-    type_name: Optional[str] = field(
-        default=None,
+    type_name: str = field(
         metadata={
             "name": "typeName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    type_definition: Iterable[str] = field(
+    type_definition: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
             "type": "Element",
         },
     )
-    view_name_ref: Iterable[ViewNameRef] = field(
+    view_name_ref: Sequence[ViewNameRef] = field(
         default_factory=list,
         metadata={
             "name": "viewNameRef",

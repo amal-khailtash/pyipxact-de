@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.description import Description
 from org.accellera.ipxact.v1685_2014.display_name import DisplayName
@@ -11,7 +12,7 @@ from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RemapStates:
     """
     Contains a list of remap state names and associated port values.
@@ -28,7 +29,7 @@ class RemapStates:
         name = "remapStates"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    remap_state: Iterable["RemapStates.RemapState"] = field(
+    remap_state: Sequence[RemapStates.RemapState] = field(
         default_factory=list,
         metadata={
             "name": "remapState",
@@ -37,7 +38,7 @@ class RemapStates:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class RemapState:
         """
         :ivar name: Unique name
@@ -47,27 +48,25 @@ class RemapStates:
             invoke this remap state.
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        remap_ports: Optional["RemapStates.RemapState.RemapPorts"] = field(
+        remap_ports: None | RemapStates.RemapState.RemapPorts = field(
             default=None,
             metadata={
                 "name": "remapPorts",
@@ -75,7 +74,7 @@ class RemapStates:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class RemapPorts:
             """
             :ivar remap_port: Contains the name and value of a port on
@@ -85,8 +84,8 @@ class RemapStates:
                 takes that value.
             """
 
-            remap_port: Iterable[
-                "RemapStates.RemapState.RemapPorts.RemapPort"
+            remap_port: Sequence[
+                RemapStates.RemapState.RemapPorts.RemapPort
             ] = field(
                 default_factory=list,
                 metadata={
@@ -96,7 +95,7 @@ class RemapStates:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class RemapPort:
                 """
                 :ivar port_index: Index for a vectored type port. Must
@@ -107,27 +106,23 @@ class RemapStates:
                     layout
                 """
 
-                port_index: Optional[UnsignedIntExpression] = field(
+                port_index: None | UnsignedIntExpression = field(
                     default=None,
                     metadata={
                         "name": "portIndex",
                         "type": "Element",
                     },
                 )
-                value: Optional[UnsignedIntExpression] = field(
-                    default=None,
+                value: UnsignedIntExpression = field(
                     metadata={
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                port_ref: Optional[str] = field(
-                    default=None,
+                port_ref: str = field(
                     metadata={
                         "name": "portRef",
                         "type": "Attribute",
-                        "required": True,
                         "white_space": "collapse",
                         "pattern": r"\i[\p{L}\p{N}\.\-:_]*",
-                    },
+                    }
                 )

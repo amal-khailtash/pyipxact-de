@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.ad_hoc_connections import AdHocConnections
 from org.accellera.spirit.v1_4.component_instances import ComponentInstances
@@ -11,7 +12,7 @@ from org.accellera.spirit.v1_4.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Design:
     """
     Root element for a platform design.
@@ -34,68 +35,60 @@ class Design:
         name = "design"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    component_instances: Optional[ComponentInstances] = field(
+    component_instances: None | ComponentInstances = field(
         default=None,
         metadata={
             "name": "componentInstances",
             "type": "Element",
         },
     )
-    interconnections: Optional[Interconnections] = field(
+    interconnections: None | Interconnections = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    ad_hoc_connections: Optional[AdHocConnections] = field(
+    ad_hoc_connections: None | AdHocConnections = field(
         default=None,
         metadata={
             "name": "adHocConnections",
             "type": "Element",
         },
     )
-    hier_connections: Optional["Design.HierConnections"] = field(
+    hier_connections: None | Design.HierConnections = field(
         default=None,
         metadata={
             "name": "hierConnections",
             "type": "Element",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -103,13 +96,13 @@ class Design:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class HierConnections:
         """
         :ivar hier_connection: Represents a hierarchy connection
         """
 
-        hier_connection: Iterable["Design.HierConnections.HierConnection"] = (
+        hier_connection: Sequence[Design.HierConnections.HierConnection] = (
             field(
                 default_factory=list,
                 metadata={
@@ -120,7 +113,7 @@ class Design:
             )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class HierConnection:
             """
             :ivar active_interface: Component and bus reference to
@@ -132,27 +125,23 @@ class Design:
                 on the upper level component.
             """
 
-            active_interface: Optional[Interface] = field(
-                default=None,
+            active_interface: Interface = field(
                 metadata={
                     "name": "activeInterface",
                     "type": "Element",
-                    "required": True,
-                },
+                }
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
                     "type": "Element",
                 },
             )
-            interface_ref: Optional[str] = field(
-                default=None,
+            interface_ref: str = field(
                 metadata={
                     "name": "interfaceRef",
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                    "required": True,
-                },
+                }
             )

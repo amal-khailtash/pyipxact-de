@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2022.signal_type_def import SignalTypeDef
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2022.signal_type_def import SignalTypeDef
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SignalTypeDefs:
     """
     The group of signal type definitions.
@@ -16,7 +18,7 @@ class SignalTypeDefs:
         name = "signalTypeDefs"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    signal_type_def: Iterable[SignalTypeDef] = field(
+    signal_type_def: Sequence[SignalTypeDef] = field(
         default_factory=list,
         metadata={
             "name": "signalTypeDef",

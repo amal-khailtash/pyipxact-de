@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2022.tgi.array import Array
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FloatArrayType(Array):
     class Meta:
         name = "floatArrayType"

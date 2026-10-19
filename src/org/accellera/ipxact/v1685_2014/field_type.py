@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.access import Access
 from org.accellera.ipxact.v1685_2014.description import Description
@@ -37,7 +38,7 @@ from org.accellera.ipxact.v1685_2014.write_value_constraint_type import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FieldType:
     """
     A field within a register.
@@ -96,15 +97,13 @@ class FieldType:
     class Meta:
         name = "fieldType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -112,14 +111,14 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    access_handles: Optional["FieldType.AccessHandles"] = field(
+    access_handles: None | FieldType.AccessHandles = field(
         default=None,
         metadata={
             "name": "accessHandles",
@@ -127,7 +126,7 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
@@ -135,23 +134,21 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    bit_offset: Optional[UnsignedIntExpression] = field(
-        default=None,
+    bit_offset: UnsignedIntExpression = field(
         metadata={
             "name": "bitOffset",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    resets: Optional["FieldType.Resets"] = field(
+    resets: None | FieldType.Resets = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    type_identifier: Optional[str] = field(
+    type_identifier: None | str = field(
         default=None,
         metadata={
             "name": "typeIdentifier",
@@ -159,30 +156,28 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    bit_width: Optional[UnsignedPositiveIntExpression] = field(
-        default=None,
+    bit_width: UnsignedPositiveIntExpression = field(
         metadata={
             "name": "bitWidth",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    volatile: Optional[Volatile] = field(
+    volatile: None | Volatile = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    access: Optional[Access] = field(
+    access: None | Access = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    enumerated_values: Optional[EnumeratedValues] = field(
+    enumerated_values: None | EnumeratedValues = field(
         default=None,
         metadata={
             "name": "enumeratedValues",
@@ -190,7 +185,7 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    modified_write_value: Optional["FieldType.ModifiedWriteValue"] = field(
+    modified_write_value: None | FieldType.ModifiedWriteValue = field(
         default=None,
         metadata={
             "name": "modifiedWriteValue",
@@ -198,7 +193,7 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    write_value_constraint: Optional[WriteValueConstraintType] = field(
+    write_value_constraint: None | WriteValueConstraintType = field(
         default=None,
         metadata={
             "name": "writeValueConstraint",
@@ -206,7 +201,7 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    read_action: Optional["FieldType.ReadAction"] = field(
+    read_action: None | FieldType.ReadAction = field(
         default=None,
         metadata={
             "name": "readAction",
@@ -214,28 +209,28 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    testable: Optional["FieldType.Testable"] = field(
+    testable: None | FieldType.Testable = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    reserved: Optional[UnsignedBitExpression] = field(
+    reserved: None | UnsignedBitExpression = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -243,14 +238,14 @@ class FieldType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.w3.org/XML/1998/namespace",
         },
     )
-    field_id: Optional[str] = field(
+    field_id: None | str = field(
         default=None,
         metadata={
             "name": "fieldID",
@@ -258,9 +253,9 @@ class FieldType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AccessHandles:
-        access_handle: Iterable[NonIndexedLeafAccessHandle] = field(
+        access_handle: Sequence[NonIndexedLeafAccessHandle] = field(
             default_factory=list,
             metadata={
                 "name": "accessHandle",
@@ -270,13 +265,13 @@ class FieldType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Resets:
         """
         :ivar reset: BitField reset value
         """
 
-        reset: Iterable[Reset] = field(
+        reset: Sequence[Reset] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -285,37 +280,27 @@ class FieldType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModifiedWriteValue:
-        value: Optional[ModifiedWriteValueType] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
-        modify: Optional[str] = field(
+        value: ModifiedWriteValueType = field()
+        modify: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ReadAction:
-        value: Optional[ReadActionType] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
-        modify: Optional[str] = field(
+        value: ReadActionType = field()
+        modify: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Testable:
         """
         :ivar value:
@@ -330,12 +315,7 @@ class FieldType:
             from the field.
         """
 
-        value: Optional[bool] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: bool = field()
         test_constraint: TestableTestConstraint = field(
             default=TestableTestConstraint.UNCONSTRAINED,
             metadata={

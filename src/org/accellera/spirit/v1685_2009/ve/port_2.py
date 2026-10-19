@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.port_parameters import PortParameters
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Port2:
     """
     Port extension.
@@ -16,7 +17,7 @@ class Port2:
         name = "port"
         namespace = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
-    port_parameters: Optional[PortParameters] = field(
+    port_parameters: None | PortParameters = field(
         default=None,
         metadata={
             "name": "portParameters",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
     UnsignedBitVectorExpression,
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Reset:
     """
     Register value at reset.
@@ -25,27 +26,25 @@ class Reset:
         name = "reset"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    value: Optional[UnsignedBitVectorExpression] = field(
+    value: UnsignedBitVectorExpression = field(
+        metadata={
+            "type": "Element",
+        }
+    )
+    mask: None | UnsignedBitVectorExpression = field(
         default=None,
         metadata={
             "type": "Element",
-            "required": True,
         },
     )
-    mask: Optional[UnsignedBitVectorExpression] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-        },
-    )
-    reset_type_ref: Optional[str] = field(
+    reset_type_ref: None | str = field(
         default=None,
         metadata={
             "name": "resetTypeRef",
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

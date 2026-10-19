@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.generator_ref import GeneratorRef
 from org.accellera.ipxact.v1685_2014.string_expression import StringExpression
@@ -15,7 +16,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LinkerCommandFile:
     """
     Specifies a linker command file.
@@ -33,36 +34,30 @@ class LinkerCommandFile:
         name = "linkerCommandFile"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[StringUriexpression] = field(
-        default=None,
+    name: StringUriexpression = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    command_line_switch: Optional[StringExpression] = field(
-        default=None,
+    command_line_switch: StringExpression = field(
         metadata={
             "name": "commandLineSwitch",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    enable: Optional[UnsignedBitExpression] = field(
-        default=None,
+    enable: UnsignedBitExpression = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    generator_ref: Iterable[GeneratorRef] = field(
+    generator_ref: Sequence[GeneratorRef] = field(
         default_factory=list,
         metadata={
             "name": "generatorRef",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",

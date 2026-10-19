@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.choice_style_value import ChoiceStyleValue
 from org.accellera.spirit.v1_1.data_type_type import DataTypeType
@@ -22,7 +23,7 @@ from org.accellera.spirit.v1_1.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FileSetType:
     """
     :ivar owner: Specifies the original owner of the fileSet, used when
@@ -51,28 +52,28 @@ class FileSetType:
     class Meta:
         name = "fileSetType"
 
-    owner: Optional[LibraryRefType] = field(
+    owner: None | LibraryRefType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    group: Iterable[str] = field(
+    group: Sequence[str] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    file: Iterable[File] = field(
+    file: Sequence[File] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    default_file_builder: Iterable[FileBuilderType] = field(
+    default_file_builder: Sequence[FileBuilderType] = field(
         default_factory=list,
         metadata={
             "name": "defaultFileBuilder",
@@ -80,14 +81,14 @@ class FileSetType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    dependency: Iterable[Dependency] = field(
+    dependency: Sequence[Dependency] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    sw_function: Optional["FileSetType.SwFunction"] = field(
+    sw_function: None | FileSetType.SwFunction = field(
         default=None,
         metadata={
             "name": "swFunction",
@@ -95,7 +96,7 @@ class FileSetType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -103,17 +104,15 @@ class FileSetType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
         },
     )
-    file_set_id: Optional[str] = field(
-        default=None,
+    file_set_id: str = field(
         metadata={
             "name": "fileSetId",
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-            "required": True,
-        },
+        }
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SwFunction:
         """
         :ivar entry_point:
@@ -132,7 +131,7 @@ class FileSetType:
         :ivar replicate:
         """
 
-        entry_point: Optional[str] = field(
+        entry_point: None | str = field(
             default=None,
             metadata={
                 "name": "entryPoint",
@@ -140,16 +139,14 @@ class FileSetType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        file_ref: Optional[str] = field(
-            default=None,
+        file_ref: str = field(
             metadata={
                 "name": "fileRef",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                "required": True,
-            },
+            }
         )
-        return_type: Optional[SwFunctionReturnType] = field(
+        return_type: None | SwFunctionReturnType = field(
             default=None,
             metadata={
                 "name": "returnType",
@@ -157,21 +154,21 @@ class FileSetType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        argument: Iterable["FileSetType.SwFunction.Argument"] = field(
+        argument: Sequence[FileSetType.SwFunction.Argument] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        enabled: Optional["FileSetType.SwFunction.Enabled"] = field(
+        enabled: None | FileSetType.SwFunction.Enabled = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        source_file: Iterable["FileSetType.SwFunction.SourceFile"] = field(
+        source_file: Sequence[FileSetType.SwFunction.SourceFile] = field(
             default_factory=list,
             metadata={
                 "name": "sourceFile",
@@ -179,7 +176,7 @@ class FileSetType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
             },
         )
-        replicate: Optional[bool] = field(
+        replicate: None | bool = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -187,19 +184,17 @@ class FileSetType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Argument(NameValuePairType):
-            data_type: Optional[DataTypeType] = field(
-                default=None,
+            data_type: DataTypeType = field(
                 metadata={
                     "name": "dataType",
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                    "required": True,
-                },
+                }
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Enabled:
             """
             :ivar value:
@@ -228,12 +223,7 @@ class FileSetType:
             :ivar prompt:
             """
 
-            value: Optional[bool] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
+            value: bool = field()
             format: FormatType = field(
                 default=FormatType.BOOL,
                 metadata={
@@ -241,21 +231,21 @@ class FileSetType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            resolve: Optional[ResolveType] = field(
+            resolve: None | ResolveType = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -269,21 +259,21 @@ class FileSetType:
                     "namespace": "##other",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            range_type: Optional[RangeTypeType] = field(
+            range_type: None | RangeTypeType = field(
                 default=None,
                 metadata={
                     "name": "rangeType",
@@ -291,14 +281,14 @@ class FileSetType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -306,7 +296,7 @@ class FileSetType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            choice_style: Optional[ChoiceStyleValue] = field(
+            choice_style: None | ChoiceStyleValue = field(
                 default=None,
                 metadata={
                     "name": "choiceStyle",
@@ -314,14 +304,14 @@ class FileSetType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            direction: Optional[DirectionValue] = field(
+            direction: None | DirectionValue = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -330,7 +320,7 @@ class FileSetType:
                     "tokens": True,
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -338,46 +328,44 @@ class FileSetType:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class SourceFile:
             """
             :ivar source_name: Source file for the boot load.  Relative
                 names are searched for in the project directory and the
                 source of the component directory.
-            :ivar file_type: Enumerated file types known by SPIRIT.
-            :ivar user_file_type: Free form file type, not - yet - known
-                by SPIRIT .
+            :ivar file_type_or_user_file_type:
             """
 
-            source_name: Optional[
-                "FileSetType.SwFunction.SourceFile.SourceName"
-            ] = field(
-                default=None,
+            source_name: FileSetType.SwFunction.SourceFile.SourceName = field(
                 metadata={
                     "name": "sourceName",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                    "required": True,
-                },
+                }
             )
-            file_type: Optional[SourceFileFileType] = field(
-                default=None,
-                metadata={
-                    "name": "fileType",
-                    "type": "Element",
-                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                },
-            )
-            user_file_type: Optional[str] = field(
-                default=None,
-                metadata={
-                    "name": "userFileType",
-                    "type": "Element",
-                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
-                },
+            file_type_or_user_file_type: None | SourceFileFileType | str = (
+                field(
+                    default=None,
+                    metadata={
+                        "type": "Elements",
+                        "choices": (
+                            {
+                                "name": "fileType",
+                                "type": SourceFileFileType,
+                                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
+                            },
+                            {
+                                "name": "userFileType",
+                                "type": str,
+                                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
+                            },
+                        ),
+                    },
+                )
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class SourceName:
                 """
                 :ivar value:
@@ -405,21 +393,21 @@ class FileSetType:
                 """
 
                 value: str = field(default="")
-                resolve: Optional[ResolveType] = field(
+                resolve: None | ResolveType = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -433,21 +421,21 @@ class FileSetType:
                         "namespace": "##other",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                range_type: Optional[RangeTypeType] = field(
+                range_type: None | RangeTypeType = field(
                     default=None,
                     metadata={
                         "name": "rangeType",
@@ -455,14 +443,14 @@ class FileSetType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -470,7 +458,7 @@ class FileSetType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                choice_style: Optional[ChoiceStyleValue] = field(
+                choice_style: None | ChoiceStyleValue = field(
                     default=None,
                     metadata={
                         "name": "choiceStyle",
@@ -478,14 +466,14 @@ class FileSetType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                direction: Optional[DirectionValue] = field(
+                direction: None | DirectionValue = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -494,14 +482,14 @@ class FileSetType:
                         "tokens": True,
                     },
                 )
-                format: Optional[FormatType] = field(
+                format: None | FormatType = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",

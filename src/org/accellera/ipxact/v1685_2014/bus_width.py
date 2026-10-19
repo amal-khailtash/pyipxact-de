@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
@@ -7,9 +9,10 @@ from org.accellera.ipxact.v1685_2014.unsigned_int_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BusWidth(UnsignedIntExpression):
-    """Defines the bus size in bits.
+    """
+    defines the bus size in bits.
 
     This can be the result of an expression.
     """

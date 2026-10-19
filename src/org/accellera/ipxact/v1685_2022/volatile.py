@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Volatile:
     """
     Indicates whether the data is volatile.
@@ -14,9 +15,4 @@ class Volatile:
         name = "volatile"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    value: Optional[bool] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
+    value: bool = field()

@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.format_type import FormatType
 from org.accellera.spirit.v1685_2009.ve.range_type_type import RangeTypeType
@@ -11,13 +12,13 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RetentionMode:
-    """Boolean value.
+    """
+    Boolean value.
 
-    If set to true, then the IP needs retention for all internal
-    registers. Applies only at component level, no meaning for port or
-    abstraction.
+    If set to true, then the IP needs retention for all internal registers.
+    Applies only at component level, no meaning for port or abstraction.
     """
 
     class Meta:
@@ -26,12 +27,7 @@ class RetentionMode:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/POWER-1.0"
         )
 
-    value: Optional[bool] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
+    value: bool = field()
     format: FormatType = field(
         default=FormatType.BOOL,
         metadata={
@@ -46,14 +42,14 @@ class RetentionMode:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -67,7 +63,7 @@ class RetentionMode:
             "namespace": "##any",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -75,14 +71,14 @@ class RetentionMode:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -91,7 +87,7 @@ class RetentionMode:
             "tokens": True,
         },
     )
-    bit_string_length: Optional[int] = field(
+    bit_string_length: None | int = field(
         default=None,
         metadata={
             "name": "bitStringLength",
@@ -99,14 +95,14 @@ class RetentionMode:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -121,7 +117,7 @@ class RetentionMode:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

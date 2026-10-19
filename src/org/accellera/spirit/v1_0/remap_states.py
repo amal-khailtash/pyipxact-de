@@ -1,11 +1,12 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RemapStates:
     """
     Contains a list of remap state names and associated signal values.
@@ -19,7 +20,7 @@ class RemapStates:
         name = "remapStates"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    remap_state: Iterable["RemapStates.RemapState"] = field(
+    remap_state: Sequence[RemapStates.RemapState] = field(
         default_factory=list,
         metadata={
             "name": "remapState",
@@ -28,7 +29,7 @@ class RemapStates:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class RemapState:
         """
         :ivar remap_signal: Contains the name and value of a signal on
@@ -39,7 +40,7 @@ class RemapStates:
         :ivar name: Stores the name of the state
         """
 
-        remap_signal: Iterable["RemapStates.RemapState.RemapSignal"] = field(
+        remap_signal: Sequence[RemapStates.RemapState.RemapSignal] = field(
             default_factory=list,
             metadata={
                 "name": "remapSignal",
@@ -47,16 +48,14 @@ class RemapStates:
                 "min_occurs": 1,
             },
         )
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                "required": True,
-            },
+            }
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class RemapSignal:
             """
             :ivar value:
@@ -64,17 +63,10 @@ class RemapStates:
                 component which affects the component's memory layout
             """
 
-            value: Optional[bool] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
-            id: Optional[str] = field(
-                default=None,
+            value: bool = field()
+            id: str = field(
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                    "required": True,
-                },
+                }
             )

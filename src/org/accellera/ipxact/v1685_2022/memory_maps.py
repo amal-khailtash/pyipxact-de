@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2022.memory_map_type import MemoryMapType
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2022.memory_map_type import MemoryMapType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MemoryMaps:
     """
     Lists all the target memory maps defined by the component.
@@ -19,7 +21,7 @@ class MemoryMaps:
         name = "memoryMaps"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    memory_map: Iterable[MemoryMapType] = field(
+    memory_map: Sequence[MemoryMapType] = field(
         default_factory=list,
         metadata={
             "name": "memoryMap",

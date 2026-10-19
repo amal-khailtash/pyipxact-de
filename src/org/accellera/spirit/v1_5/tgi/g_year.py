@@ -1,31 +1,27 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Optional
 
 from xsdata.models.datatype import XmlPeriod
 
 __NAMESPACE__ = "http://schemas.xmlsoap.org/soap/encoding/"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GYear:
     class Meta:
         name = "gYear"
         namespace = "http://schemas.xmlsoap.org/soap/encoding/"
 
-    value: Optional[XmlPeriod] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
-    id: Optional[str] = field(
+    value: XmlPeriod = field()
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    href: Optional[str] = field(
+    href: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

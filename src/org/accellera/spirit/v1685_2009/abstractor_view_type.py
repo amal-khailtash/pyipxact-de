@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.description import Description
 from org.accellera.spirit.v1685_2009.display_name import DisplayName
@@ -12,7 +13,7 @@ from org.accellera.spirit.v1685_2009.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorViewType:
     """
     Abstraction view type.
@@ -46,15 +47,13 @@ class AbstractorViewType:
     class Meta:
         name = "abstractorViewType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -62,14 +61,14 @@ class AbstractorViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    env_identifier: Iterable[str] = field(
+    env_identifier: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "envIdentifier",
@@ -79,14 +78,14 @@ class AbstractorViewType:
             "pattern": r"[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*",
         },
     )
-    language: Optional["AbstractorViewType.Language"] = field(
+    language: None | AbstractorViewType.Language = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    model_name: Optional[str] = field(
+    model_name: None | str = field(
         default=None,
         metadata={
             "name": "modelName",
@@ -94,7 +93,7 @@ class AbstractorViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    default_file_builder: Iterable[FileBuilderType] = field(
+    default_file_builder: Sequence[FileBuilderType] = field(
         default_factory=list,
         metadata={
             "name": "defaultFileBuilder",
@@ -102,7 +101,7 @@ class AbstractorViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    file_set_ref: Iterable[FileSetRef] = field(
+    file_set_ref: Sequence[FileSetRef] = field(
         default_factory=list,
         metadata={
             "name": "fileSetRef",
@@ -110,14 +109,14 @@ class AbstractorViewType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -126,7 +125,7 @@ class AbstractorViewType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Language:
         """
         :ivar value:
@@ -134,13 +133,8 @@ class AbstractorViewType:
             match the language being generated for the design.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        strict: Optional[bool] = field(
+        value: str = field(default="")
+        strict: None | bool = field(
             default=None,
             metadata={
                 "type": "Attribute",

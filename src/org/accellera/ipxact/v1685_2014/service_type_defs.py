@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2014.type_parameters import ServiceTypeDef
@@ -6,19 +8,20 @@ from org.accellera.ipxact.v1685_2014.type_parameters import ServiceTypeDef
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ServiceTypeDefs:
-    """The group of type definitions.
+    """
+    The group of type definitions.
 
-    If no match to a viewName is found then the default language types
-    are to be used. See the User Guide for these default types.
+    If no match to a viewName is found then the default language types are
+    to be used. See the User Guide for these default types.
     """
 
     class Meta:
         name = "serviceTypeDefs"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    service_type_def: Iterable[ServiceTypeDef] = field(
+    service_type_def: Sequence[ServiceTypeDef] = field(
         default_factory=list,
         metadata={
             "name": "serviceTypeDef",

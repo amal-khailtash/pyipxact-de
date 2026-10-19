@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.description import Description
@@ -18,7 +19,7 @@ from org.accellera.ipxact.v1685_2022.volatile import Volatile
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AlternateRegisters:
     """
     Alternate definitions for the current register.
@@ -31,18 +32,16 @@ class AlternateRegisters:
         name = "alternateRegisters"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    alternate_register: Iterable["AlternateRegisters.AlternateRegister"] = (
-        field(
-            default_factory=list,
-            metadata={
-                "name": "alternateRegister",
-                "type": "Element",
-                "min_occurs": 1,
-            },
-        )
+    alternate_register: Sequence[AlternateRegisters.AlternateRegister] = field(
+        default_factory=list,
+        metadata={
+            "name": "alternateRegister",
+            "type": "Element",
+            "min_occurs": 1,
+        },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AlternateRegister:
         """
         :ivar name: Unique name
@@ -64,43 +63,41 @@ class AlternateRegisters:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        short_description: Optional[ShortDescription] = field(
+        short_description: None | ShortDescription = field(
             default=None,
             metadata={
                 "name": "shortDescription",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        access_handles: Optional[
-            "AlternateRegisters.AlternateRegister.AccessHandles"
-        ] = field(
+        access_handles: (
+            None | AlternateRegisters.AlternateRegister.AccessHandles
+        ) = field(
             default=None,
             metadata={
                 "name": "accessHandles",
                 "type": "Element",
             },
         )
-        mode_ref: Iterable[ModeRef] = field(
+        mode_ref: Sequence[ModeRef] = field(
             default_factory=list,
             metadata={
                 "name": "modeRef",
@@ -108,27 +105,27 @@ class AlternateRegisters:
                 "min_occurs": 1,
             },
         )
-        type_identifier: Optional[str] = field(
+        type_identifier: None | str = field(
             default=None,
             metadata={
                 "name": "typeIdentifier",
                 "type": "Element",
             },
         )
-        volatile: Optional[Volatile] = field(
+        volatile: None | Volatile = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        access_policies: Optional[AccessPolicies] = field(
+        access_policies: None | AccessPolicies = field(
             default=None,
             metadata={
                 "name": "accessPolicies",
                 "type": "Element",
             },
         )
-        field_value: Iterable[FieldType] = field(
+        field_value: Sequence[FieldType] = field(
             default_factory=list,
             metadata={
                 "name": "field",
@@ -136,20 +133,20 @@ class AlternateRegisters:
                 "min_occurs": 1,
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -157,9 +154,9 @@ class AlternateRegisters:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AccessHandles:
-            access_handle: Iterable[SimpleAccessHandle] = field(
+            access_handle: Sequence[SimpleAccessHandle] = field(
                 default_factory=list,
                 metadata={
                     "name": "accessHandle",

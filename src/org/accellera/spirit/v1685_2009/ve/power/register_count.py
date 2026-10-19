@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.format_type import FormatType
 from org.accellera.spirit.v1685_2009.ve.power.range_type_type import (
@@ -13,9 +14,11 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RegisterCount:
-    """The number of sequential elements (i.e. leaf cells) seen by each clock port.
+    """
+    The number of sequential elements (i.e. leaf cells) seen by each clock
+    port.
 
     This value may be dependent on one or more parameters to account for
     configurable IPs.
@@ -27,12 +30,7 @@ class RegisterCount:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/PDP-1.0"
         )
 
-    value: Optional[int] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
+    value: int = field()
     format: FormatType = field(
         default=FormatType.LONG,
         metadata={
@@ -47,14 +45,14 @@ class RegisterCount:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -68,7 +66,7 @@ class RegisterCount:
             "namespace": "##any",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -76,14 +74,14 @@ class RegisterCount:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -92,7 +90,7 @@ class RegisterCount:
             "tokens": True,
         },
     )
-    bit_string_length: Optional[int] = field(
+    bit_string_length: None | int = field(
         default=None,
         metadata={
             "name": "bitStringLength",
@@ -100,14 +98,14 @@ class RegisterCount:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -122,7 +120,7 @@ class RegisterCount:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    prompt: Optional[str] = field(
+    prompt: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

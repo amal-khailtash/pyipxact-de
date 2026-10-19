@@ -1,11 +1,12 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class TransTypeDef:
     """
     Definition of a single transactional type defintion.
@@ -24,15 +25,13 @@ class TransTypeDef:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    type_name: Optional["TransTypeDef.TypeName"] = field(
-        default=None,
+    type_name: TransTypeDef.TypeName = field(
         metadata={
             "name": "typeName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    type_definition: Iterable[str] = field(
+    type_definition: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
@@ -40,7 +39,7 @@ class TransTypeDef:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -48,12 +47,7 @@ class TransTypeDef:
             constrainted the number of bits in the vector
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         constrained: bool = field(
             default=False,
             metadata={

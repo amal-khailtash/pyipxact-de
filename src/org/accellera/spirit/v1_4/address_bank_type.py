@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.access import Access
 from org.accellera.spirit.v1_4.bank_alignment_type import BankAlignmentType
@@ -16,7 +17,7 @@ from org.accellera.spirit.v1_4.volatile import Volatile
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AddressBankType:
     """
     Top level bank the specify an address.
@@ -28,11 +29,7 @@ class AddressBankType:
     :ivar description: Full description string, typically for
         documentation
     :ivar base_address:
-    :ivar address_block: An address block within the bank.  No address
-        information is supplied.
-    :ivar bank: A nested bank of blocks within a bank.  No address
-        information is supplied.
-    :ivar subspace_map:
+    :ivar address_block_or_bank_or_subspace_map:
     :ivar usage: Indicates the usage of this block.  Possible values are
         'memory', 'register' and 'reserved'.
     :ivar volatile:
@@ -46,15 +43,13 @@ class AddressBankType:
     class Meta:
         name = "addressBankType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[str] = field(
+    display_name: None | str = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -62,74 +57,74 @@ class AddressBankType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    base_address: Optional[BaseAddress] = field(
-        default=None,
+    base_address: BaseAddress = field(
         metadata={
             "name": "baseAddress",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )
-    address_block: Iterable[BankedBlockType] = field(
+    address_block_or_bank_or_subspace_map: Sequence[
+        BankedBlockType | BankedBankType | BankedSubspaceType
+    ] = field(
         default_factory=list,
         metadata={
-            "name": "addressBlock",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "addressBlock",
+                    "type": BankedBlockType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "bank",
+                    "type": BankedBankType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+                {
+                    "name": "subspaceMap",
+                    "type": BankedSubspaceType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
+                },
+            ),
         },
     )
-    bank: Iterable[BankedBankType] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    subspace_map: Iterable[BankedSubspaceType] = field(
-        default_factory=list,
-        metadata={
-            "name": "subspaceMap",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-        },
-    )
-    usage: Optional[UsageType] = field(
+    usage: None | UsageType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    volatile: Optional[Volatile] = field(
+    volatile: None | Volatile = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    access: Optional[Access] = field(
+    access: None | Access = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -137,12 +132,10 @@ class AddressBankType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    bank_alignment: Optional[BankAlignmentType] = field(
-        default=None,
+    bank_alignment: BankAlignmentType = field(
         metadata={
             "name": "bankAlignment",
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-            "required": True,
-        },
+        }
     )

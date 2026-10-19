@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.component_power_def import (
     ComponentPowerDef,
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1685_2009.ve.component_power_def import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Component2:
     """
     Component extension.
@@ -18,7 +19,7 @@ class Component2:
         name = "component"
         namespace = "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE"
 
-    component_power_def: Optional[ComponentPowerDef] = field(
+    component_power_def: None | ComponentPowerDef = field(
         default=None,
         metadata={
             "name": "componentPowerDef",

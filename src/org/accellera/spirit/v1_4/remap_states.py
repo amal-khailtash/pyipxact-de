@@ -1,11 +1,12 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RemapStates:
     """
     Contains a list of remap state names and associated port values.
@@ -19,7 +20,7 @@ class RemapStates:
         name = "remapStates"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    remap_state: Iterable["RemapStates.RemapState"] = field(
+    remap_state: Sequence[RemapStates.RemapState] = field(
         default_factory=list,
         metadata={
             "name": "remapState",
@@ -28,7 +29,7 @@ class RemapStates:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class RemapState:
         """
         :ivar name: Unique name
@@ -44,27 +45,25 @@ class RemapStates:
             value.
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[str] = field(
+        display_name: None | str = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[str] = field(
+        description: None | str = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        remap_port: Iterable["RemapStates.RemapState.RemapPort"] = field(
+        remap_port: Sequence[RemapStates.RemapState.RemapPort] = field(
             default_factory=list,
             metadata={
                 "name": "remapPort",
@@ -73,7 +72,7 @@ class RemapStates:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class RemapPort:
             """
             :ivar value:
@@ -87,20 +86,17 @@ class RemapStates:
             value: str = field(
                 default="",
                 metadata={
-                    "required": True,
                     "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                 },
             )
-            port_name_ref: Optional[str] = field(
-                default=None,
+            port_name_ref: str = field(
                 metadata={
                     "name": "portNameRef",
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
-                    "required": True,
-                },
+                }
             )
-            port_index: Optional[int] = field(
+            port_index: None | int = field(
                 default=None,
                 metadata={
                     "name": "portIndex",

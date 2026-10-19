@@ -1,14 +1,16 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WireTypeDef:
     """
-    Definition of a single wire type defintion that can relate to multiple views.
+    Definition of a single wire type defintion that can relate to multiple
+    views.
 
     :ivar type_name: The name of the logic type. Examples could be
         std_logic, std_ulogic, std_logic_vector, sc_logic, ...
@@ -27,28 +29,28 @@ class WireTypeDef:
         name = "wireTypeDef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    type_name: Optional["WireTypeDef.TypeName"] = field(
+    type_name: None | WireTypeDef.TypeName = field(
         default=None,
         metadata={
             "name": "typeName",
             "type": "Element",
         },
     )
-    type_definition: Iterable["WireTypeDef.TypeDefinition"] = field(
+    type_definition: Sequence[WireTypeDef.TypeDefinition] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
             "type": "Element",
         },
     )
-    view_ref: Iterable["WireTypeDef.ViewRef"] = field(
+    view_ref: Sequence[WireTypeDef.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -56,7 +58,7 @@ class WireTypeDef:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -64,13 +66,8 @@ class WireTypeDef:
             constrained the number of bits in the vector
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        constrained: Iterable[str] = field(
+        value: str = field(default="")
+        constrained: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "type": "Attribute",
@@ -78,15 +75,10 @@ class WireTypeDef:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeDefinition:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -94,15 +86,10 @@ class WireTypeDef:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

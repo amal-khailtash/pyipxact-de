@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.description import Description
 from org.accellera.spirit.v1_5.library_ref_type import LibraryRefType
@@ -9,11 +10,11 @@ from org.accellera.spirit.v1_5.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BusDefinition:
     """
-    Defines the structural information associated with a bus type, independent of
-    the abstraction level.
+    Defines the structural information associated with a bus type,
+    independent of the abstraction level.
 
     :ivar vendor: Name of the vendor who supplies this file.
     :ivar library: Name of the logical library this element belongs to.
@@ -43,84 +44,72 @@ class BusDefinition:
         name = "busDefinition"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    direct_connection: Optional[bool] = field(
-        default=None,
+    direct_connection: bool = field(
         metadata={
             "name": "directConnection",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    is_addressable: Optional[bool] = field(
-        default=None,
+    is_addressable: bool = field(
         metadata={
             "name": "isAddressable",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    extends: Optional[LibraryRefType] = field(
+    extends: None | LibraryRefType = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    max_masters: Optional[int] = field(
+    max_masters: None | int = field(
         default=None,
         metadata={
             "name": "maxMasters",
             "type": "Element",
         },
     )
-    max_slaves: Optional[int] = field(
+    max_slaves: None | int = field(
         default=None,
         metadata={
             "name": "maxSlaves",
             "type": "Element",
         },
     )
-    system_group_names: Optional["BusDefinition.SystemGroupNames"] = field(
+    system_group_names: None | BusDefinition.SystemGroupNames = field(
         default=None,
         metadata={
             "name": "systemGroupNames",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -128,14 +117,14 @@ class BusDefinition:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SystemGroupNames:
         """
         :ivar system_group_name: Indicates the name of a system group
             defined for this bus definition.
         """
 
-        system_group_name: Iterable[str] = field(
+        system_group_name: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "systemGroupName",

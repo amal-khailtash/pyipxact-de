@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.file_type import FileType
 from org.accellera.ipxact.v1685_2014.string_expression import StringExpression
@@ -10,7 +11,7 @@ from org.accellera.ipxact.v1685_2014.unsigned_bit_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FileBuilderType:
     """
     :ivar file_type:
@@ -30,30 +31,28 @@ class FileBuilderType:
     class Meta:
         name = "fileBuilderType"
 
-    file_type: Optional[FileType] = field(
-        default=None,
+    file_type: FileType = field(
         metadata={
             "name": "fileType",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    command: Optional[StringExpression] = field(
+    command: None | StringExpression = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    flags: Optional[StringExpression] = field(
+    flags: None | StringExpression = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    replace_default_flags: Optional[UnsignedBitExpression] = field(
+    replace_default_flags: None | UnsignedBitExpression = field(
         default=None,
         metadata={
             "name": "replaceDefaultFlags",
@@ -61,7 +60,7 @@ class FileBuilderType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

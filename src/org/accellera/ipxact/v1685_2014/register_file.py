@@ -1,6 +1,8 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.ipxact.v1685_2014.access import Access
 from org.accellera.ipxact.v1685_2014.alternate_registers import (
@@ -29,7 +31,7 @@ from org.accellera.ipxact.v1685_2014.volatile import Volatile
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RegisterFile:
     """
     A structure of registers and register files.
@@ -53,8 +55,7 @@ class RegisterFile:
     :ivar range: The range of a register file.  Expressed as the number
         of addressable units accessible to the block. Specified in units
         of addressUnitBits.
-    :ivar register: A single register
-    :ivar register_file: A structure of registers and register files
+    :ivar register_or_register_file:
     :ivar parameters:
     :ivar vendor_extensions:
     :ivar id:
@@ -64,95 +65,94 @@ class RegisterFile:
         name = "registerFile"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
             "type": "Element",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    access_handles: Optional["RegisterFile.AccessHandles"] = field(
+    access_handles: None | RegisterFile.AccessHandles = field(
         default=None,
         metadata={
             "name": "accessHandles",
             "type": "Element",
         },
     )
-    is_present: Optional[IsPresent] = field(
+    is_present: None | IsPresent = field(
         default=None,
         metadata={
             "name": "isPresent",
             "type": "Element",
         },
     )
-    dim: Iterable["RegisterFile.Dim"] = field(
+    dim: Sequence[RegisterFile.Dim] = field(
         default_factory=list,
         metadata={
             "type": "Element",
         },
     )
-    address_offset: Optional[UnsignedLongintExpression] = field(
-        default=None,
+    address_offset: UnsignedLongintExpression = field(
         metadata={
             "name": "addressOffset",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    type_identifier: Optional[str] = field(
+    type_identifier: None | str = field(
         default=None,
         metadata={
             "name": "typeIdentifier",
             "type": "Element",
         },
     )
-    range: Optional[UnsignedPositiveLongintExpression] = field(
+    range: UnsignedPositiveLongintExpression = field(
+        metadata={
+            "type": "Element",
+        }
+    )
+    register_or_register_file: Sequence[
+        RegisterFile.Register | RegisterFile
+    ] = field(
+        default_factory=list,
+        metadata={
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "register",
+                    "type": ForwardRef("RegisterFile.Register"),
+                },
+                {
+                    "name": "registerFile",
+                    "type": ForwardRef("RegisterFile"),
+                },
+            ),
+        },
+    )
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
-            "required": True,
         },
     )
-    register: Iterable["RegisterFile.Register"] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-        },
-    )
-    register_file: Iterable["RegisterFile"] = field(
-        default_factory=list,
-        metadata={
-            "name": "registerFile",
-            "type": "Element",
-        },
-    )
-    parameters: Optional[Parameters] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-        },
-    )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -160,9 +160,9 @@ class RegisterFile:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AccessHandles:
-        access_handle: Iterable[IndexedAccessHandle] = field(
+        access_handle: Sequence[IndexedAccessHandle] = field(
             default_factory=list,
             metadata={
                 "name": "accessHandle",
@@ -171,9 +171,9 @@ class RegisterFile:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Dim(UnsignedLongintExpression):
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -181,7 +181,7 @@ class RegisterFile:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Register:
         """
         :ivar name: Unique name
@@ -210,83 +210,75 @@ class RegisterFile:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
                 "type": "Element",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        access_handles: Optional["RegisterFile.Register.AccessHandles"] = (
-            field(
-                default=None,
-                metadata={
-                    "name": "accessHandles",
-                    "type": "Element",
-                },
-            )
+        access_handles: None | RegisterFile.Register.AccessHandles = field(
+            default=None,
+            metadata={
+                "name": "accessHandles",
+                "type": "Element",
+            },
         )
-        is_present: Optional[IsPresent] = field(
+        is_present: None | IsPresent = field(
             default=None,
             metadata={
                 "name": "isPresent",
                 "type": "Element",
             },
         )
-        dim: Iterable["RegisterFile.Register.Dim"] = field(
+        dim: Sequence[RegisterFile.Register.Dim] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
             },
         )
-        address_offset: Optional[UnsignedLongintExpression] = field(
-            default=None,
+        address_offset: UnsignedLongintExpression = field(
             metadata={
                 "name": "addressOffset",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        type_identifier: Optional[str] = field(
+        type_identifier: None | str = field(
             default=None,
             metadata={
                 "name": "typeIdentifier",
                 "type": "Element",
             },
         )
-        size: Optional[UnsignedPositiveIntExpression] = field(
-            default=None,
+        size: UnsignedPositiveIntExpression = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        volatile: Optional[Volatile] = field(
-            default=None,
-            metadata={
-                "type": "Element",
-            },
-        )
-        access: Optional[Access] = field(
+        volatile: None | Volatile = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        field_value: Iterable[FieldType] = field(
+        access: None | Access = field(
+            default=None,
+            metadata={
+                "type": "Element",
+            },
+        )
+        field_value: Sequence[FieldType] = field(
             default_factory=list,
             metadata={
                 "name": "field",
@@ -294,27 +286,27 @@ class RegisterFile:
                 "min_occurs": 1,
             },
         )
-        alternate_registers: Optional[AlternateRegisters] = field(
+        alternate_registers: None | AlternateRegisters = field(
             default=None,
             metadata={
                 "name": "alternateRegisters",
                 "type": "Element",
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
                 "type": "Element",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -322,9 +314,9 @@ class RegisterFile:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AccessHandles:
-            access_handle: Iterable[IndexedAccessHandle] = field(
+            access_handle: Sequence[IndexedAccessHandle] = field(
                 default_factory=list,
                 metadata={
                     "name": "accessHandle",
@@ -333,9 +325,9 @@ class RegisterFile:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Dim(UnsignedLongintExpression):
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",

@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1685_2009.ve.core.file_set import FileSet
@@ -6,7 +8,7 @@ from org.accellera.spirit.v1685_2009.ve.core.file_set import FileSet
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class FileSets:
     """
     List of file sets associated with component.
@@ -18,7 +20,7 @@ class FileSets:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    file_set: Iterable[FileSet] = field(
+    file_set: Sequence[FileSet] = field(
         default_factory=list,
         metadata={
             "name": "fileSet",

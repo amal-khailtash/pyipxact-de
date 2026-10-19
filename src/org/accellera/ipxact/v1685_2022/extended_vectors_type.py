@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.left import Left
 from org.accellera.ipxact.v1685_2022.right import Right
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2022.right import Right
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ExtendedVectorsType:
     """
     :ivar vector: Left and right ranges of the vector.
@@ -17,7 +18,7 @@ class ExtendedVectorsType:
     class Meta:
         name = "extendedVectorsType"
 
-    vector: Iterable["ExtendedVectorsType.Vector"] = field(
+    vector: Sequence[ExtendedVectorsType.Vector] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -26,32 +27,28 @@ class ExtendedVectorsType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Vector:
-        left: Optional[Left] = field(
-            default=None,
+        left: Left = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
+            }
         )
-        right: Optional[Right] = field(
-            default=None,
+        right: Right = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
+            }
         )
-        vector_id: Optional[str] = field(
+        vector_id: None | str = field(
             default=None,
             metadata={
                 "name": "vectorId",
                 "type": "Attribute",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

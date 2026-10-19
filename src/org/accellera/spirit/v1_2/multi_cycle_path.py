@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.check_value_type import CheckValueType
 from org.accellera.spirit.v1_2.edge_value_type import EdgeValueType
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_2.relative_clock_type import RelativeClockType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MultiCyclePath:
     """
     Defines a multi-cycle path timing exception.
@@ -19,22 +20,18 @@ class MultiCyclePath:
         name = "multiCyclePath"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
-    path_specifier: Optional[PathSpecifier] = field(
-        default=None,
+    path_specifier: PathSpecifier = field(
         metadata={
             "name": "pathSpecifier",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    cycles: Optional[int] = field(
-        default=None,
+    cycles: int = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    path_edge: Optional[EdgeValueType] = field(
+    path_edge: None | EdgeValueType = field(
         default=None,
         metadata={
             "name": "pathEdge",
@@ -42,7 +39,7 @@ class MultiCyclePath:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    path_type: Optional[CheckValueType] = field(
+    path_type: None | CheckValueType = field(
         default=None,
         metadata={
             "name": "pathType",
@@ -50,7 +47,7 @@ class MultiCyclePath:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    relative_clock: Optional[RelativeClockType] = field(
+    relative_clock: None | RelativeClockType = field(
         default=None,
         metadata={
             "name": "relativeClock",

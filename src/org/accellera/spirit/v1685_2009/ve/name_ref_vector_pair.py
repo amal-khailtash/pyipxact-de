@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.name_ref import NameRef
 from org.accellera.spirit.v1685_2009.ve.vector import Vector
@@ -9,21 +10,19 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class NameRefVectorPair:
     class Meta:
         name = "nameRefVectorPair"
 
-    name_ref: Optional[NameRef] = field(
-        default=None,
+    name_ref: NameRef = field(
         metadata={
             "name": "nameRef",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE",
-            "required": True,
-        },
+        }
     )
-    vector: Optional[Vector] = field(
+    vector: None | Vector = field(
         default=None,
         metadata={
             "type": "Element",

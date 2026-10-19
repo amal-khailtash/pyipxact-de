@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1_4.abstractor_generator import AbstractorGenerator
@@ -6,7 +8,7 @@ from org.accellera.spirit.v1_4.abstractor_generator import AbstractorGenerator
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorGenerators:
     """
     List of abstractor generators.
@@ -16,7 +18,7 @@ class AbstractorGenerators:
         name = "abstractorGenerators"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    abstractor_generator: Iterable[AbstractorGenerator] = field(
+    abstractor_generator: Sequence[AbstractorGenerator] = field(
         default_factory=list,
         metadata={
             "name": "abstractorGenerator",

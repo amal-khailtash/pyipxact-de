@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.capacitance_value_unit_type import (
     CapacitanceValueUnitType,
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1_1.capacitance_value_unit_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Capacitance:
     """
     Represents a simple capacitance value with optional units.
@@ -17,14 +18,12 @@ class Capacitance:
     class Meta:
         name = "capacitance"
 
-    value: Optional[float] = field(
-        default=None,
+    value: float = field(
         metadata={
-            "required": True,
             "min_inclusive": 0.0,
-        },
+        }
     )
-    units: Optional[CapacitanceValueUnitType] = field(
+    units: None | CapacitanceValueUnitType = field(
         default=None,
         metadata={
             "type": "Attribute",

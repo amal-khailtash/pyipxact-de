@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_0.configuration import Configuration
 from org.accellera.spirit.v1_0.instance_name import InstanceName
@@ -8,9 +9,10 @@ from org.accellera.spirit.v1_0.library_ref_type import LibraryRefType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentInstance:
-    """Component instance element.
+    """
+    Component instance element.
 
     The instance name is contained in the unique-value instanceName
     attribute.
@@ -27,23 +29,19 @@ class ComponentInstance:
         name = "componentInstance"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
-    instance_name: Optional[InstanceName] = field(
-        default=None,
+    instance_name: InstanceName = field(
         metadata={
             "name": "instanceName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    component_ref: Optional[LibraryRefType] = field(
-        default=None,
+    component_ref: LibraryRefType = field(
         metadata={
             "name": "componentRef",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    configuration: Optional[Configuration] = field(
+    configuration: None | Configuration = field(
         default=None,
         metadata={
             "type": "Element",

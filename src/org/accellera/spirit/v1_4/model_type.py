@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.name_value_type_type import NameValueTypeType
 from org.accellera.spirit.v1_4.port import Port
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_4.view_type import ViewType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ModelType:
     """
     Model information.
@@ -22,21 +23,21 @@ class ModelType:
     class Meta:
         name = "modelType"
 
-    views: Optional["ModelType.Views"] = field(
+    views: None | ModelType.Views = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    ports: Optional["ModelType.Ports"] = field(
+    ports: None | ModelType.Ports = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4",
         },
     )
-    model_parameters: Optional["ModelType.ModelParameters"] = field(
+    model_parameters: None | ModelType.ModelParameters = field(
         default=None,
         metadata={
             "name": "modelParameters",
@@ -45,13 +46,13 @@ class ModelType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
         """
         :ivar view: Single view of a component
         """
 
-        view: Iterable[ViewType] = field(
+        view: Sequence[ViewType] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -60,9 +61,9 @@ class ModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Ports:
-        port: Iterable[Port] = field(
+        port: Sequence[Port] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -71,7 +72,7 @@ class ModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ModelParameters:
         """
         :ivar model_parameter: A model parameter name value pair. The
@@ -83,7 +84,7 @@ class ModelType:
             the model parameter is to be used.
         """
 
-        model_parameter: Iterable[NameValueTypeType] = field(
+        model_parameter: Sequence[NameValueTypeType] = field(
             default_factory=list,
             metadata={
                 "name": "modelParameter",

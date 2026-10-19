@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.left import Left
 from org.accellera.ipxact.v1685_2022.right import Right
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2022.right import Right
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ConfigurableArrays:
     """
     :ivar array: Specific left and right array bounds.
@@ -17,7 +18,7 @@ class ConfigurableArrays:
     class Meta:
         name = "configurableArrays"
 
-    array: Iterable["ConfigurableArrays.Array"] = field(
+    array: Sequence[ConfigurableArrays.Array] = field(
         default_factory=list,
         metadata={
             "type": "Element",
@@ -26,25 +27,21 @@ class ConfigurableArrays:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Array:
-        left: Optional[Left] = field(
-            default=None,
+        left: Left = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
+            }
         )
-        right: Optional[Right] = field(
-            default=None,
+        right: Right = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                "required": True,
-            },
+            }
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

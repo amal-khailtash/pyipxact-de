@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.abstractor_port_type import (
     AbstractorPortType,
@@ -16,7 +17,7 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorModelType:
     """
     Model information for an abstractor.
@@ -29,21 +30,21 @@ class AbstractorModelType:
     class Meta:
         name = "abstractorModelType"
 
-    views: Optional["AbstractorModelType.Views"] = field(
+    views: None | AbstractorModelType.Views = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    instantiations: Optional["AbstractorModelType.Instantiations"] = field(
+    instantiations: None | AbstractorModelType.Instantiations = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    ports: Optional["AbstractorModelType.Ports"] = field(
+    ports: None | AbstractorModelType.Ports = field(
         default=None,
         metadata={
             "type": "Element",
@@ -51,13 +52,13 @@ class AbstractorModelType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Views:
         """
         :ivar view: Single view of an abstracto
         """
 
-        view: Iterable["AbstractorModelType.Views.View"] = field(
+        view: Sequence[AbstractorModelType.Views.View] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
@@ -66,7 +67,7 @@ class AbstractorModelType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class View:
             """
             :ivar name: Unique name
@@ -88,15 +89,13 @@ class AbstractorModelType:
             :ivar id:
             """
 
-            name: Optional[str] = field(
-                default=None,
+            name: str = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
-                    "required": True,
-                },
+                }
             )
-            display_name: Optional[DisplayName] = field(
+            display_name: None | DisplayName = field(
                 default=None,
                 metadata={
                     "name": "displayName",
@@ -104,7 +103,7 @@ class AbstractorModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            short_description: Optional[ShortDescription] = field(
+            short_description: None | ShortDescription = field(
                 default=None,
                 metadata={
                     "name": "shortDescription",
@@ -112,15 +111,15 @@ class AbstractorModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            description: Optional[Description] = field(
+            description: None | Description = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            env_identifier: Iterable[
-                "AbstractorModelType.Views.View.EnvIdentifier"
+            env_identifier: Sequence[
+                AbstractorModelType.Views.View.EnvIdentifier
             ] = field(
                 default_factory=list,
                 metadata={
@@ -129,7 +128,7 @@ class AbstractorModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            component_instantiation_ref: Optional[str] = field(
+            component_instantiation_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "componentInstantiationRef",
@@ -137,7 +136,7 @@ class AbstractorModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            vendor_extensions: Optional[VendorExtensions] = field(
+            vendor_extensions: None | VendorExtensions = field(
                 default=None,
                 metadata={
                     "name": "vendorExtensions",
@@ -145,7 +144,7 @@ class AbstractorModelType:
                     "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -153,16 +152,15 @@ class AbstractorModelType:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class EnvIdentifier:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -170,13 +168,13 @@ class AbstractorModelType:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Instantiations:
         """
         :ivar component_instantiation: Component Instantiation
         """
 
-        component_instantiation: Iterable[ComponentInstantiationType] = field(
+        component_instantiation: Sequence[ComponentInstantiationType] = field(
             default_factory=list,
             metadata={
                 "name": "componentInstantiation",
@@ -186,9 +184,9 @@ class AbstractorModelType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Ports:
-        port: Iterable[AbstractorPortType] = field(
+        port: Sequence[AbstractorPortType] = field(
             default_factory=list,
             metadata={
                 "type": "Element",

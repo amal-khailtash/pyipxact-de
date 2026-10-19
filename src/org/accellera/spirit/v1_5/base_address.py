@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.format_type import FormatType
 from org.accellera.spirit.v1_5.range_type_type import RangeTypeType
@@ -9,9 +10,10 @@ from org.accellera.spirit.v1_5.resolve_type import ResolveType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BaseAddress:
-    """Base of an address block, bank, subspace map or address space.
+    """
+    Base of an address block, bank, subspace map or address space.
 
     Expressed as the number of addressable units from the containing
     memoryMap or localMemoryMap.
@@ -24,7 +26,6 @@ class BaseAddress:
     value: str = field(
         default="",
         metadata={
-            "required": True,
             "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
         },
     )
@@ -42,14 +43,14 @@ class BaseAddress:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    dependency: Optional[str] = field(
+    dependency: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -63,7 +64,7 @@ class BaseAddress:
             "namespace": "##any",
         },
     )
-    choice_ref: Optional[str] = field(
+    choice_ref: None | str = field(
         default=None,
         metadata={
             "name": "choiceRef",
@@ -71,14 +72,14 @@ class BaseAddress:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    order: Optional[float] = field(
+    order: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    config_groups: Iterable[str] = field(
+    config_groups: Sequence[str] = field(
         default_factory=list,
         metadata={
             "name": "configGroups",
@@ -87,7 +88,7 @@ class BaseAddress:
             "tokens": True,
         },
     )
-    bit_string_length: Optional[int] = field(
+    bit_string_length: None | int = field(
         default=None,
         metadata={
             "name": "bitStringLength",
@@ -95,14 +96,14 @@ class BaseAddress:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    minimum: Optional[str] = field(
+    minimum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    maximum: Optional[str] = field(
+    maximum: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

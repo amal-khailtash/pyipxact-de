@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2014.component_instance import (
@@ -8,7 +10,7 @@ from org.accellera.ipxact.v1685_2014.component_instance import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ComponentInstances:
     """
     Sub instances of internal components.
@@ -18,7 +20,7 @@ class ComponentInstances:
         name = "componentInstances"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    component_instance: Iterable[ComponentInstance] = field(
+    component_instance: Sequence[ComponentInstance] = field(
         default_factory=list,
         metadata={
             "name": "componentInstance",

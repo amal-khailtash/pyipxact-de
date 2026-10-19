@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_2.whitebox_element_type_whitebox_type import (
     WhiteboxElementTypeWhiteboxType,
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1_2.whitebox_element_type_whitebox_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class WhiteboxElementType:
     """
     Defines a white box reference point within the component.
@@ -32,38 +33,34 @@ class WhiteboxElementType:
     class Meta:
         name = "whiteboxElementType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )
-    whitebox_type: Optional[WhiteboxElementTypeWhiteboxType] = field(
-        default=None,
+    whitebox_type: WhiteboxElementTypeWhiteboxType = field(
         metadata={
             "name": "whiteboxType",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )
-    driveable: Optional[bool] = field(
+    driveable: None | bool = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    description: Optional[str] = field(
+    description: None | str = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    register_ref: Optional[str] = field(
+    register_ref: None | str = field(
         default=None,
         metadata={
             "name": "registerRef",

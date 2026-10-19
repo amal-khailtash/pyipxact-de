@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"

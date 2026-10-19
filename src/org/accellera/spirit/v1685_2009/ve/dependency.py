@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Dependency:
-    """Specifies a location on which  files or fileSets may be dependent.
+    """
+    Specifies a location on which files or fileSets may be dependent.
 
-    Typically, this would be a directory that would contain included
-    files.
+    Typically, this would be a directory that would contain included files.
     """
 
     class Meta:
@@ -17,9 +19,4 @@ class Dependency:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
+    value: str = field(default="")

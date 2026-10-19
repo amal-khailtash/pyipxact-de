@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import (
@@ -7,9 +9,10 @@ from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AlwaysOn(UnsignedBitExpression):
-    """Boolean value.
+    """
+    Boolean value.
 
     If set to true, then the domain/port is always powered, whatever its
     power domain. Only applies for output ports.

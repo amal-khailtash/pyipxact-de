@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.spirit.v1685_2009.ve.power.generator_type import (
@@ -11,7 +13,7 @@ from org.accellera.spirit.v1685_2009.ve.power.instance_generator_type_scope impo
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class InstanceGeneratorType(GeneratorType):
     """
     :ivar group: An identifier to specify the generator group. This is
@@ -25,7 +27,7 @@ class InstanceGeneratorType(GeneratorType):
     class Meta:
         name = "instanceGeneratorType"
 
-    group: Iterable[str] = field(
+    group: Sequence[str] = field(
         default_factory=list,
         metadata={
             "type": "Element",

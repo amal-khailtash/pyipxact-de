@@ -1,13 +1,14 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.type_parameters import TypeParameters
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class TransTypeDef:
     """
     Definition of a single transactional type defintion.
@@ -28,35 +29,35 @@ class TransTypeDef:
         name = "transTypeDef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    type_name: Optional["TransTypeDef.TypeName"] = field(
+    type_name: None | TransTypeDef.TypeName = field(
         default=None,
         metadata={
             "name": "typeName",
             "type": "Element",
         },
     )
-    type_definition: Iterable["TransTypeDef.TypeDefinition"] = field(
+    type_definition: Sequence[TransTypeDef.TypeDefinition] = field(
         default_factory=list,
         metadata={
             "name": "typeDefinition",
             "type": "Element",
         },
     )
-    type_parameters: Optional[TypeParameters] = field(
+    type_parameters: None | TypeParameters = field(
         default=None,
         metadata={
             "name": "typeParameters",
             "type": "Element",
         },
     )
-    view_ref: Iterable["TransTypeDef.ViewRef"] = field(
+    view_ref: Sequence[TransTypeDef.ViewRef] = field(
         default_factory=list,
         metadata={
             "name": "viewRef",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -64,7 +65,7 @@ class TransTypeDef:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeName:
         """
         :ivar value:
@@ -73,12 +74,7 @@ class TransTypeDef:
             language of the referenced view.
         """
 
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
+        value: str = field(default="")
         exact: bool = field(
             default=True,
             metadata={
@@ -86,15 +82,10 @@ class TransTypeDef:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class TypeDefinition:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -102,15 +93,10 @@ class TransTypeDef:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewRef:
-        value: str = field(
-            default="",
-            metadata={
-                "required": True,
-            },
-        )
-        id: Optional[str] = field(
+        value: str = field(default="")
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",

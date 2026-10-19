@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_1.ad_hoc_connections import AdHocConnections
 from org.accellera.spirit.v1_1.component_instances import ComponentInstances
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_1.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Design:
     """
     Root element for a platform design.
@@ -33,54 +34,48 @@ class Design:
         name = "design"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.1"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
+    version: None | str = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    component_instances: Optional[ComponentInstances] = field(
+    component_instances: None | ComponentInstances = field(
         default=None,
         metadata={
             "name": "componentInstances",
             "type": "Element",
         },
     )
-    interconnections: Optional[Interconnections] = field(
+    interconnections: None | Interconnections = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    ad_hoc_connections: Optional[AdHocConnections] = field(
+    ad_hoc_connections: None | AdHocConnections = field(
         default=None,
         metadata={
             "name": "adHocConnections",
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",

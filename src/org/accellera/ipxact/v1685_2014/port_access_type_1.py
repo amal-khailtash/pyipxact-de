@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.leaf_access_handle import LeafAccessHandle
 from org.accellera.ipxact.v1685_2014.port_access_type import PortAccessType
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2014.port_access_type import PortAccessType
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortAccessType1:
     """
     :ivar port_access_type: Indicates how a netlister accesses a port.
@@ -20,7 +21,7 @@ class PortAccessType1:
     class Meta:
         name = "portAccessType"
 
-    port_access_type: Optional[PortAccessType] = field(
+    port_access_type: None | PortAccessType = field(
         default=None,
         metadata={
             "name": "portAccessType",
@@ -28,7 +29,7 @@ class PortAccessType1:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    access_handles: Optional["PortAccessType1.AccessHandles"] = field(
+    access_handles: None | PortAccessType1.AccessHandles = field(
         default=None,
         metadata={
             "name": "accessHandles",
@@ -37,9 +38,9 @@ class PortAccessType1:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AccessHandles:
-        access_handle: Iterable[LeafAccessHandle] = field(
+        access_handle: Sequence[LeafAccessHandle] = field(
             default_factory=list,
             metadata={
                 "name": "accessHandle",

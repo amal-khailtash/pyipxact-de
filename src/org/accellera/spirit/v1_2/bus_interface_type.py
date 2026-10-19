@@ -1,6 +1,8 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import ForwardRef
 
 from org.accellera.spirit.v1_2.addr_space_ref_type import AddrSpaceRefType
 from org.accellera.spirit.v1_2.base_address import BaseAddress
@@ -27,37 +29,13 @@ from org.accellera.spirit.v1_2.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BusInterfaceType:
     """
     :ivar name: Uniquely names this bus interface.
     :ivar bus_type: The bus type of this interface.  Refers to a bus
         description using vendor, library and name attributes.
-    :ivar master: If this element is present, the bus interface can
-        serve as a master.  This element encapsulates additional
-        information related to its role as master.
-    :ivar slave: If this element is present, the bus interface can serve
-        as a slave.
-    :ivar system: If this element is present, the bus interface is a
-        system interface, neither master nor slave, with a specific
-        function on the bus.
-    :ivar mirrored_slave: If this element is present, the bus interface
-        represents a mirrored slave interface. All directional
-        constraints on signals are reversed relative to the
-        specification in the bus definition.
-    :ivar mirrored_master: If this element is present, the bus interface
-        represents a mirrored master interface. All directional
-        constraints on signals are reversed relative to the
-        specification in the bus definition.
-    :ivar mirrored_system: If this element is present, the bus interface
-        represents a mirrored system interface. All directional
-        constraints on signals are reversed relative to the
-        specification in the bus definition.
-    :ivar monitor: Indicates that this is a (passive) monitor interface.
-        All of the signals in the interface must be inputs. The type of
-        interface to be monitored is specified with the required
-        interfaceType attribute. The spirit:group element must be
-        specified if monitoring a system interface.
+    :ivar choice:
     :ivar connection: Directs how a bus interface is connected when the
         component is added to a design already containing a bus owner.
         Default behavior is "explicit".
@@ -78,83 +56,79 @@ class BusInterfaceType:
     class Meta:
         name = "busInterfaceType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
-        },
+        }
     )
-    bus_type: Optional[LibraryRefType] = field(
-        default=None,
+    bus_type: LibraryRefType = field(
         metadata={
             "name": "busType",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            "required": True,
+        }
+    )
+    choice: (
+        None
+        | BusInterfaceType.Master
+        | BusInterfaceType.Slave
+        | BusInterfaceType.System
+        | BusInterfaceType.MirroredSlave
+        | object
+        | BusInterfaceType.MirroredSystem
+        | BusInterfaceType.Monitor
+    ) = field(
+        default=None,
+        metadata={
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "master",
+                    "type": ForwardRef("BusInterfaceType.Master"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+                {
+                    "name": "slave",
+                    "type": ForwardRef("BusInterfaceType.Slave"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+                {
+                    "name": "system",
+                    "type": ForwardRef("BusInterfaceType.System"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+                {
+                    "name": "mirroredSlave",
+                    "type": ForwardRef("BusInterfaceType.MirroredSlave"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+                {
+                    "name": "mirroredMaster",
+                    "type": object,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+                {
+                    "name": "mirroredSystem",
+                    "type": ForwardRef("BusInterfaceType.MirroredSystem"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+                {
+                    "name": "monitor",
+                    "type": ForwardRef("BusInterfaceType.Monitor"),
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+            ),
         },
     )
-    master: Optional["BusInterfaceType.Master"] = field(
+    connection: None | BusInterfaceTypeConnection = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    slave: Optional["BusInterfaceType.Slave"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    system: Optional["BusInterfaceType.System"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    mirrored_slave: Optional["BusInterfaceType.MirroredSlave"] = field(
-        default=None,
-        metadata={
-            "name": "mirroredSlave",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    mirrored_master: Optional[object] = field(
-        default=None,
-        metadata={
-            "name": "mirroredMaster",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    mirrored_system: Optional["BusInterfaceType.MirroredSystem"] = field(
-        default=None,
-        metadata={
-            "name": "mirroredSystem",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    monitor: Optional["BusInterfaceType.Monitor"] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    connection: Optional[BusInterfaceTypeConnection] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-        },
-    )
-    signal_map: Optional["BusInterfaceType.SignalMap"] = field(
+    signal_map: None | BusInterfaceType.SignalMap = field(
         default=None,
         metadata={
             "name": "signalMap",
@@ -162,14 +136,14 @@ class BusInterfaceType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    index: Optional["BusInterfaceType.Index"] = field(
+    index: None | BusInterfaceType.Index = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    bit_steering: Optional["BusInterfaceType.BitSteering"] = field(
+    bit_steering: None | BusInterfaceType.BitSteering = field(
         default=None,
         metadata={
             "name": "bitSteering",
@@ -177,16 +151,16 @@ class BusInterfaceType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    configurators: Optional[Configurators] = field(
+    configurators: None | Configurators = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    bus_interface_parameters: Optional[
-        "BusInterfaceType.BusInterfaceParameters"
-    ] = field(
+    bus_interface_parameters: (
+        None | BusInterfaceType.BusInterfaceParameters
+    ) = field(
         default=None,
         metadata={
             "name": "busInterfaceParameters",
@@ -194,7 +168,7 @@ class BusInterfaceType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -210,14 +184,14 @@ class BusInterfaceType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class SignalMap:
         """
         :ivar signal_name: Maps a component's signal to a signal in a
             bus description.
         """
 
-        signal_name: Iterable["BusInterfaceType.SignalMap.SignalName"] = field(
+        signal_name: Sequence[BusInterfaceType.SignalMap.SignalName] = field(
             default_factory=list,
             metadata={
                 "name": "signalName",
@@ -226,7 +200,7 @@ class BusInterfaceType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class SignalName:
             """
             :ivar component_signal_name: Component signal name as
@@ -241,44 +215,36 @@ class BusInterfaceType:
                 the bus interface.
             """
 
-            component_signal_name: Optional[str] = field(
-                default=None,
+            component_signal_name: str = field(
                 metadata={
                     "name": "componentSignalName",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
-                },
+                }
             )
-            bus_signal_name: Optional[str] = field(
-                default=None,
+            bus_signal_name: str = field(
                 metadata={
                     "name": "busSignalName",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
+                }
+            )
+            left: None | BusInterfaceType.SignalMap.SignalName.Left = field(
+                default=None,
+                metadata={
+                    "type": "Element",
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            left: Optional["BusInterfaceType.SignalMap.SignalName.Left"] = (
-                field(
-                    default=None,
-                    metadata={
-                        "type": "Element",
-                        "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    },
-                )
-            )
-            right: Optional["BusInterfaceType.SignalMap.SignalName.Right"] = (
-                field(
-                    default=None,
-                    metadata={
-                        "type": "Element",
-                        "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    },
-                )
+            right: None | BusInterfaceType.SignalMap.SignalName.Right = field(
+                default=None,
+                metadata={
+                    "type": "Element",
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Left:
                 """
                 :ivar value:
@@ -308,12 +274,7 @@ class BusInterfaceType:
                 :ivar prompt:
                 """
 
-                value: Optional[int] = field(
-                    default=None,
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: int = field()
                 format: FormatType = field(
                     default=FormatType.LONG,
                     metadata={
@@ -328,14 +289,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -349,14 +310,14 @@ class BusInterfaceType:
                         "namespace": "##any",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -371,14 +332,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -386,7 +347,7 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_style: Optional[ChoiceStyleValue] = field(
+                choice_style: None | ChoiceStyleValue = field(
                     default=None,
                     metadata={
                         "name": "choiceStyle",
@@ -394,14 +355,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                direction: Optional[DirectionValue] = field(
+                direction: None | DirectionValue = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -410,7 +371,7 @@ class BusInterfaceType:
                         "tokens": True,
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -418,7 +379,7 @@ class BusInterfaceType:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Right:
                 """
                 :ivar value:
@@ -448,12 +409,7 @@ class BusInterfaceType:
                 :ivar prompt:
                 """
 
-                value: Optional[int] = field(
-                    default=None,
-                    metadata={
-                        "required": True,
-                    },
-                )
+                value: int = field()
                 format: FormatType = field(
                     default=FormatType.LONG,
                     metadata={
@@ -468,14 +424,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -489,14 +445,14 @@ class BusInterfaceType:
                         "namespace": "##any",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -511,14 +467,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -526,7 +482,7 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_style: Optional[ChoiceStyleValue] = field(
+                choice_style: None | ChoiceStyleValue = field(
                     default=None,
                     metadata={
                         "name": "choiceStyle",
@@ -534,14 +490,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                direction: Optional[DirectionValue] = field(
+                direction: None | DirectionValue = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -550,7 +506,7 @@ class BusInterfaceType:
                         "tokens": True,
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -558,7 +514,7 @@ class BusInterfaceType:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Index:
         """
         :ivar value:
@@ -586,12 +542,7 @@ class BusInterfaceType:
         :ivar prompt:
         """
 
-        value: Optional[int] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: int = field()
         format: FormatType = field(
             default=FormatType.LONG,
             metadata={
@@ -606,14 +557,14 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -627,14 +578,14 @@ class BusInterfaceType:
                 "namespace": "##any",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -649,14 +600,14 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -664,7 +615,7 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -672,14 +623,14 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -696,7 +647,7 @@ class BusInterfaceType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class BitSteering:
         """
         :ivar value:
@@ -722,12 +673,7 @@ class BusInterfaceType:
         :ivar prompt:
         """
 
-        value: Optional[BitSteeringType] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: BitSteeringType = field()
         resolve: ResolveType = field(
             default=ResolveType.IMMEDIATE,
             metadata={
@@ -735,14 +681,14 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -756,14 +702,14 @@ class BusInterfaceType:
                 "namespace": "##any",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -778,14 +724,14 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -793,7 +739,7 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        choice_style: Optional[ChoiceStyleValue] = field(
+        choice_style: None | ChoiceStyleValue = field(
             default=None,
             metadata={
                 "name": "choiceStyle",
@@ -801,14 +747,14 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        direction: Optional[DirectionValue] = field(
+        direction: None | DirectionValue = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -817,14 +763,14 @@ class BusInterfaceType:
                 "tokens": True,
             },
         )
-        format: Optional[FormatType] = field(
+        format: None | FormatType = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -832,7 +778,7 @@ class BusInterfaceType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class BusInterfaceParameters:
         """
         :ivar bus_interface_parameter: Name/value pair defining a
@@ -842,8 +788,8 @@ class BusInterfaceType:
             allowed as specified in the busDefParameter.
         """
 
-        bus_interface_parameter: Iterable[
-            "BusInterfaceType.BusInterfaceParameters.BusInterfaceParameter"
+        bus_interface_parameter: Sequence[
+            BusInterfaceType.BusInterfaceParameters.BusInterfaceParameter
         ] = field(
             default_factory=list,
             metadata={
@@ -854,21 +800,14 @@ class BusInterfaceType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class BusInterfaceParameter:
-            value: str = field(
-                default="",
-                metadata={
-                    "required": True,
-                },
-            )
-            name: Optional[str] = field(
-                default=None,
+            value: str = field(default="")
+            name: str = field(
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
-                },
+                }
             )
             resolve: ResolveType = field(
                 default=ResolveType.IMMEDIATE,
@@ -877,14 +816,14 @@ class BusInterfaceType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -892,7 +831,7 @@ class BusInterfaceType:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Master:
         """
         :ivar address_space_ref: If this master connects to an
@@ -901,20 +840,20 @@ class BusInterfaceType:
             addrSpaceID key ref.
         """
 
-        address_space_ref: Optional[
-            "BusInterfaceType.Master.AddressSpaceRef"
-        ] = field(
-            default=None,
-            metadata={
-                "name": "addressSpaceRef",
-                "type": "Element",
-                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            },
+        address_space_ref: None | BusInterfaceType.Master.AddressSpaceRef = (
+            field(
+                default=None,
+                metadata={
+                    "name": "addressSpaceRef",
+                    "type": "Element",
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+            )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AddressSpaceRef(AddrSpaceRefType):
-            base_address: Optional[BaseAddress] = field(
+            base_address: None | BaseAddress = field(
                 default=None,
                 metadata={
                     "name": "baseAddress",
@@ -922,7 +861,7 @@ class BusInterfaceType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            bit_offset: Optional[BitOffset] = field(
+            bit_offset: None | BitOffset = field(
                 default=None,
                 metadata={
                     "name": "bitOffset",
@@ -931,7 +870,7 @@ class BusInterfaceType:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Slave:
         """
         :ivar memory_map_ref:
@@ -950,7 +889,7 @@ class BusInterfaceType:
             ports.
         """
 
-        memory_map_ref: Optional[MemoryMapRef] = field(
+        memory_map_ref: None | MemoryMapRef = field(
             default=None,
             metadata={
                 "name": "memoryMapRef",
@@ -958,15 +897,15 @@ class BusInterfaceType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        bridge: Iterable["BusInterfaceType.Slave.Bridge"] = field(
+        bridge: Sequence[BusInterfaceType.Slave.Bridge] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        file_set_ref_group: Iterable[
-            "BusInterfaceType.Slave.FileSetRefGroup"
+        file_set_ref_group: Sequence[
+            BusInterfaceType.Slave.FileSetRefGroup
         ] = field(
             default_factory=list,
             metadata={
@@ -976,7 +915,7 @@ class BusInterfaceType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Bridge:
             """
             :ivar master_ref: The name of the master bus interface to
@@ -986,16 +925,14 @@ class BusInterfaceType:
                 and there are no gaps.
             """
 
-            master_ref: Optional[str] = field(
-                default=None,
+            master_ref: str = field(
                 metadata={
                     "name": "masterRef",
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
-                },
+                }
             )
-            opaque: Optional[bool] = field(
+            opaque: None | bool = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -1003,16 +940,16 @@ class BusInterfaceType:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class FileSetRefGroup:
-            group: Optional[str] = field(
+            group: None | str = field(
                 default=None,
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                 },
             )
-            file_set_ref: Iterable[FileSetRef] = field(
+            file_set_ref: Sequence[FileSetRef] = field(
                 default_factory=list,
                 metadata={
                     "name": "fileSetRef",
@@ -1021,35 +958,33 @@ class BusInterfaceType:
                 },
             )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class System:
-        group: Optional[Group] = field(
-            default=None,
+        group: Group = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                "required": True,
-            },
+            }
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MirroredSlave:
         """
         :ivar base_addresses: Represents a set of remap base addresses.
         """
 
-        base_addresses: Optional[
-            "BusInterfaceType.MirroredSlave.BaseAddresses"
-        ] = field(
-            default=None,
-            metadata={
-                "name": "baseAddresses",
-                "type": "Element",
-                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-            },
+        base_addresses: None | BusInterfaceType.MirroredSlave.BaseAddresses = (
+            field(
+                default=None,
+                metadata={
+                    "name": "baseAddresses",
+                    "type": "Element",
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
+                },
+            )
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class BaseAddresses:
             """
             :ivar remap_address: Base of an address block. The state
@@ -1058,8 +993,8 @@ class BusInterfaceType:
             :ivar range: The address range of mirrored slave.
             """
 
-            remap_address: Iterable[
-                "BusInterfaceType.MirroredSlave.BaseAddresses.RemapAddress"
+            remap_address: Sequence[
+                BusInterfaceType.MirroredSlave.BaseAddresses.RemapAddress
             ] = field(
                 default_factory=list,
                 metadata={
@@ -1069,18 +1004,14 @@ class BusInterfaceType:
                     "min_occurs": 1,
                 },
             )
-            range: Optional[
-                "BusInterfaceType.MirroredSlave.BaseAddresses.Range"
-            ] = field(
-                default=None,
+            range: BusInterfaceType.MirroredSlave.BaseAddresses.Range = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                    "required": True,
-                },
+                }
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class RemapAddress:
                 """
                 :ivar value:
@@ -1115,7 +1046,6 @@ class BusInterfaceType:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
                     },
                 )
@@ -1133,14 +1063,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1154,14 +1084,14 @@ class BusInterfaceType:
                         "namespace": "##any",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1176,14 +1106,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -1191,7 +1121,7 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_style: Optional[ChoiceStyleValue] = field(
+                choice_style: None | ChoiceStyleValue = field(
                     default=None,
                     metadata={
                         "name": "choiceStyle",
@@ -1199,14 +1129,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                direction: Optional[DirectionValue] = field(
+                direction: None | DirectionValue = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -1222,7 +1152,7 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                state: Optional[str] = field(
+                state: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1230,7 +1160,7 @@ class BusInterfaceType:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Range:
                 """
                 :ivar value:
@@ -1263,7 +1193,6 @@ class BusInterfaceType:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"-?((0x)|(0X)|#)?[0-9a-fA-F]*[kmgtKMGT]?",
                     },
                 )
@@ -1281,14 +1210,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1302,14 +1231,14 @@ class BusInterfaceType:
                         "namespace": "##any",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1324,14 +1253,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -1339,7 +1268,7 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                choice_style: Optional[ChoiceStyleValue] = field(
+                choice_style: None | ChoiceStyleValue = field(
                     default=None,
                     metadata={
                         "name": "choiceStyle",
@@ -1347,14 +1276,14 @@ class BusInterfaceType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                direction: Optional[DirectionValue] = field(
+                direction: None | DirectionValue = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -1363,7 +1292,7 @@ class BusInterfaceType:
                         "tokens": True,
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1371,32 +1300,28 @@ class BusInterfaceType:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MirroredSystem:
-        group: Optional[Group] = field(
-            default=None,
+        group: Group = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                "required": True,
-            },
+            }
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Monitor:
-        group: Optional[Group] = field(
+        group: None | Group = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
             },
         )
-        interface_type: Optional[MonitorInterfaceType] = field(
-            default=None,
+        interface_type: MonitorInterfaceType = field(
             metadata={
                 "name": "interfaceType",
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.2",
-                "required": True,
-            },
+            }
         )

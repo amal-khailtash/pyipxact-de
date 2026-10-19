@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.pdp.address_block import AddressBlock
 from org.accellera.spirit.v1685_2009.ve.pdp.address_unit_bits import (
@@ -22,7 +23,7 @@ from org.accellera.spirit.v1685_2009.ve.pdp.vendor_extensions import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MemoryMapType:
     """
     Map of address space blocks on slave slave bus interface.
@@ -30,13 +31,7 @@ class MemoryMapType:
     :ivar name: Unique name
     :ivar display_name:
     :ivar description:
-    :ivar address_block:
-    :ivar bank:
-    :ivar subspace_map: Maps in an address subspace from across a bus
-        bridge.  Its masterRef attribute refers by name to the master
-        bus interface on the other side of the bridge.  It must match
-        the masterRef attribute of a bridge element on the slave
-        interface, and that bridge element must be designated as opaque.
+    :ivar address_block_or_bank_or_subspace_map:
     :ivar memory_remap: Additional memory map elements that are
         dependent on the component state.
     :ivar address_unit_bits:
@@ -47,15 +42,13 @@ class MemoryMapType:
     class Meta:
         name = "memoryMapType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -63,37 +56,39 @@ class MemoryMapType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    address_block: Iterable[AddressBlock] = field(
+    address_block_or_bank_or_subspace_map: Sequence[
+        AddressBlock | Bank | SubspaceRefType
+    ] = field(
         default_factory=list,
         metadata={
-            "name": "addressBlock",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+            "type": "Elements",
+            "choices": (
+                {
+                    "name": "addressBlock",
+                    "type": AddressBlock,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "bank",
+                    "type": Bank,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+                {
+                    "name": "subspaceMap",
+                    "type": SubspaceRefType,
+                    "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+                },
+            ),
         },
     )
-    bank: Iterable[Bank] = field(
-        default_factory=list,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    subspace_map: Iterable[SubspaceRefType] = field(
-        default_factory=list,
-        metadata={
-            "name": "subspaceMap",
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    memory_remap: Iterable[MemoryRemapType] = field(
+    memory_remap: Sequence[MemoryRemapType] = field(
         default_factory=list,
         metadata={
             "name": "memoryRemap",
@@ -101,7 +96,7 @@ class MemoryMapType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    address_unit_bits: Optional[AddressUnitBits] = field(
+    address_unit_bits: None | AddressUnitBits = field(
         default=None,
         metadata={
             "name": "addressUnitBits",
@@ -109,7 +104,7 @@ class MemoryMapType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -117,7 +112,7 @@ class MemoryMapType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

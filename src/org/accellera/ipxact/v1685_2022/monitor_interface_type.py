@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.interface_type import InterfaceType
@@ -8,11 +9,11 @@ from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MonitorInterfaceType(InterfaceType):
     """
-    Hierarchical reference to an interface being monitored or monitoring another
-    interface.
+    Hierarchical reference to an interface being monitored or monitoring
+    another interface.
 
     :ivar description:
     :ivar vendor_extensions:
@@ -26,14 +27,14 @@ class MonitorInterfaceType(InterfaceType):
     class Meta:
         name = "monitorInterfaceType"
 
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -41,7 +42,7 @@ class MonitorInterfaceType(InterfaceType):
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022",
         },
     )
-    path: Optional[str] = field(
+    path: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

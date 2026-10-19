@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_4.address_unit_bits import AddressUnitBits
 from org.accellera.spirit.v1_4.memory_map_type import MemoryMapType
@@ -8,7 +9,7 @@ from org.accellera.spirit.v1_4.memory_map_type import MemoryMapType
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class MemoryMaps:
     """
     Lists all the slave memory maps defined by the component.
@@ -21,7 +22,7 @@ class MemoryMaps:
         name = "memoryMaps"
         namespace = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.4"
 
-    memory_map: Iterable["MemoryMaps.MemoryMap"] = field(
+    memory_map: Sequence[MemoryMaps.MemoryMap] = field(
         default_factory=list,
         metadata={
             "name": "memoryMap",
@@ -30,9 +31,9 @@ class MemoryMaps:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class MemoryMap(MemoryMapType):
-        address_unit_bits: Optional[AddressUnitBits] = field(
+        address_unit_bits: None | AddressUnitBits = field(
             default=None,
             metadata={
                 "name": "addressUnitBits",

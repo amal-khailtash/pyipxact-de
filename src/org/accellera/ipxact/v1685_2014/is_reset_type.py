@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.unsigned_bit_expression import (
     UnsignedBitExpression,
@@ -8,9 +9,10 @@ from org.accellera.ipxact.v1685_2014.unsigned_bit_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IsResetType(UnsignedBitExpression):
-    """If this evaluates to true, it indicates this port triggers the reset of
+    """
+    If this evaluates to true, it indicates this port triggers the reset of
     registers and fields, if not present its value is assumed to be false.
 
     The resetTypeRef attribute indicates the triggered reset event.
@@ -23,14 +25,14 @@ class IsResetType(UnsignedBitExpression):
     class Meta:
         name = "isResetType"
 
-    reset_type_ref: Optional[str] = field(
+    reset_type_ref: None | str = field(
         default=None,
         metadata={
             "name": "resetTypeRef",
             "type": "Attribute",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

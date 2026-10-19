@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_0.parameter import Parameter
 from org.accellera.spirit.v1_0.phase import Phase
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_0.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class GeneratorType:
     """
     Types of generators.
@@ -27,29 +28,27 @@ class GeneratorType:
     class Meta:
         name = "generatorType"
 
-    name: Optional[str] = field(
+    name: str = field(
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
+        }
+    )
+    phase: None | Phase = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-            "required": True,
         },
     )
-    phase: Optional[Phase] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-        },
-    )
-    parameter: Iterable[Parameter] = field(
+    parameter: Sequence[Parameter] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    access_type: Optional["GeneratorType.AccessType"] = field(
+    access_type: None | GeneratorType.AccessType = field(
         default=None,
         metadata={
             "name": "accessType",
@@ -57,16 +56,14 @@ class GeneratorType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
         },
     )
-    loose_generator_exe: Optional[str] = field(
-        default=None,
+    loose_generator_exe: str = field(
         metadata={
             "name": "looseGeneratorExe",
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -75,7 +72,7 @@ class GeneratorType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AccessType:
         """
         :ivar read_only: If true then this generator will not make
@@ -96,7 +93,6 @@ class GeneratorType:
                 "name": "readOnly",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                "required": True,
             },
         )
         hierarchical: bool = field(
@@ -104,7 +100,6 @@ class GeneratorType:
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                "required": True,
             },
         )
         instance_required: bool = field(
@@ -113,10 +108,9 @@ class GeneratorType:
                 "name": "instanceRequired",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                "required": True,
             },
         )
-        subset_only: Optional["GeneratorType.AccessType.SubsetOnly"] = field(
+        subset_only: None | GeneratorType.AccessType.SubsetOnly = field(
             default=None,
             metadata={
                 "name": "subsetOnly",
@@ -125,7 +119,7 @@ class GeneratorType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class SubsetOnly:
             """
             :ivar design_file: If true then the generator only needs to
@@ -142,7 +136,6 @@ class GeneratorType:
                     "name": "designFile",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                    "required": True,
                 },
             )
             component_defs: bool = field(
@@ -151,7 +144,6 @@ class GeneratorType:
                     "name": "componentDefs",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                    "required": True,
                 },
             )
             bus_defs: bool = field(
@@ -160,6 +152,5 @@ class GeneratorType:
                     "name": "busDefs",
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0",
-                    "required": True,
                 },
             )

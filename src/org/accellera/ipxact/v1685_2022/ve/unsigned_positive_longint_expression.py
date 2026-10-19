@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.ve.complex_base_expression import (
     ComplexBaseExpression,
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2022.ve.complex_base_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class UnsignedPositiveLongintExpression(ComplexBaseExpression):
     """
     A positive unsigned longint which supports an expression value.
@@ -24,13 +25,13 @@ class UnsignedPositiveLongintExpression(ComplexBaseExpression):
     class Meta:
         name = "unsignedPositiveLongintExpression"
 
-    minimum: Optional[int] = field(
+    minimum: None | int = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    maximum: Optional[int] = field(
+    maximum: None | int = field(
         default=None,
         metadata={
             "type": "Attribute",

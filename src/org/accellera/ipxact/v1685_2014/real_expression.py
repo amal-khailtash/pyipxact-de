@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.complex_base_expression import (
     ComplexBaseExpression,
@@ -8,7 +9,7 @@ from org.accellera.ipxact.v1685_2014.complex_base_expression import (
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class RealExpression(ComplexBaseExpression):
     """
     A real which supports an expression value.
@@ -24,13 +25,13 @@ class RealExpression(ComplexBaseExpression):
     class Meta:
         name = "realExpression"
 
-    minimum: Optional[float] = field(
+    minimum: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",
         },
     )
-    maximum: Optional[float] = field(
+    maximum: None | float = field(
         default=None,
         metadata={
             "type": "Attribute",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.signal_type_1 import SignalType1
 
@@ -8,12 +9,13 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class SignalType:
-    """The type of the signal.
+    """
+    The type of the signal.
 
-    Possible values are continuous-conservative, continuous-non-
-    conservative, and discrete.
+    Possible values are continuous-conservative,
+    continuous-non-conservative, and discrete.
     """
 
     class Meta:
@@ -22,9 +24,4 @@ class SignalType:
             "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/AMS-1.0"
         )
 
-    value: Optional[SignalType1] = field(
-        default=None,
-        metadata={
-            "required": True,
-        },
-    )
+    value: SignalType1 = field()

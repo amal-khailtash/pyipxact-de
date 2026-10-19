@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.component_port_direction_type import (
     ComponentPortDirectionType,
@@ -12,7 +13,7 @@ from org.accellera.spirit.v1_5.wire_type_defs import WireTypeDefs
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortWireType:
     """
     Wire port type for a component.
@@ -39,22 +40,20 @@ class PortWireType:
     class Meta:
         name = "portWireType"
 
-    direction: Optional[ComponentPortDirectionType] = field(
+    direction: ComponentPortDirectionType = field(
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
+        }
+    )
+    vector: None | Vector = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-            "required": True,
         },
     )
-    vector: Optional[Vector] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
-        },
-    )
-    wire_type_defs: Optional[WireTypeDefs] = field(
+    wire_type_defs: None | WireTypeDefs = field(
         default=None,
         metadata={
             "name": "wireTypeDefs",
@@ -62,14 +61,14 @@ class PortWireType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    driver: Optional[Driver] = field(
+    driver: None | Driver = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5",
         },
     )
-    constraint_sets: Optional[ConstraintSets] = field(
+    constraint_sets: None | ConstraintSets = field(
         default=None,
         metadata={
             "name": "constraintSets",

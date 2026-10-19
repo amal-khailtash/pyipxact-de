@@ -1,6 +1,7 @@
-from collections.abc import Iterable, Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.access import Access
 from org.accellera.spirit.v1685_2009.ve.power.description import Description
@@ -22,7 +23,7 @@ from org.accellera.spirit.v1685_2009.ve.power.volatile import Volatile
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class BankedBlockType:
     """
     Address blocks inside a bank do not specify address.
@@ -54,15 +55,13 @@ class BankedBlockType:
     class Meta:
         name = "bankedBlockType"
 
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    display_name: Optional[DisplayName] = field(
+    display_name: None | DisplayName = field(
         default=None,
         metadata={
             "name": "displayName",
@@ -70,65 +69,61 @@ class BankedBlockType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    range: Optional["BankedBlockType.Range"] = field(
-        default=None,
+    range: BankedBlockType.Range = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    width: Optional["BankedBlockType.Width"] = field(
-        default=None,
+    width: BankedBlockType.Width = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            "required": True,
-        },
+        }
     )
-    usage: Optional[UsageType] = field(
-        default=None,
-        metadata={
-            "type": "Element",
-            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-        },
-    )
-    volatile: Optional[Volatile] = field(
+    usage: None | UsageType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    access: Optional[Access] = field(
+    volatile: None | Volatile = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    parameters: Optional[Parameters] = field(
+    access: None | Access = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    register: Iterable["BankedBlockType.Register"] = field(
+    parameters: None | Parameters = field(
+        default=None,
+        metadata={
+            "type": "Element",
+            "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+        },
+    )
+    register: Sequence[BankedBlockType.Register] = field(
         default_factory=list,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    register_file: Iterable[RegisterFile] = field(
+    register_file: Sequence[RegisterFile] = field(
         default_factory=list,
         metadata={
             "name": "registerFile",
@@ -136,7 +131,7 @@ class BankedBlockType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -144,7 +139,7 @@ class BankedBlockType:
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -152,12 +147,11 @@ class BankedBlockType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Range:
         value: str = field(
             default="",
             metadata={
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0]*[1-9a-fA-F][0-9a-fA-F]*[kmgtKMGT]?",
             },
         )
@@ -175,14 +169,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -196,7 +190,7 @@ class BankedBlockType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -204,14 +198,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -220,7 +214,7 @@ class BankedBlockType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -228,14 +222,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -250,7 +244,7 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -258,14 +252,9 @@ class BankedBlockType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Width:
-        value: Optional[int] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
+        value: int = field()
         format: FormatType = field(
             default=FormatType.LONG,
             metadata={
@@ -280,14 +269,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dependency: Optional[str] = field(
+        dependency: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -301,7 +290,7 @@ class BankedBlockType:
                 "namespace": "##any",
             },
         )
-        choice_ref: Optional[str] = field(
+        choice_ref: None | str = field(
             default=None,
             metadata={
                 "name": "choiceRef",
@@ -309,14 +298,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        order: Optional[float] = field(
+        order: None | float = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        config_groups: Iterable[str] = field(
+        config_groups: Sequence[str] = field(
             default_factory=list,
             metadata={
                 "name": "configGroups",
@@ -325,7 +314,7 @@ class BankedBlockType:
                 "tokens": True,
             },
         )
-        bit_string_length: Optional[int] = field(
+        bit_string_length: None | int = field(
             default=None,
             metadata={
                 "name": "bitStringLength",
@@ -333,14 +322,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        minimum: Optional[str] = field(
+        minimum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        maximum: Optional[str] = field(
+        maximum: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -355,7 +344,7 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        prompt: Optional[str] = field(
+        prompt: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -363,7 +352,7 @@ class BankedBlockType:
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class Register:
         """
         :ivar name: Unique name
@@ -392,15 +381,13 @@ class BankedBlockType:
         :ivar id:
         """
 
-        name: Optional[str] = field(
-            default=None,
+        name: str = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                "required": True,
-            },
+            }
         )
-        display_name: Optional[DisplayName] = field(
+        display_name: None | DisplayName = field(
             default=None,
             metadata={
                 "name": "displayName",
@@ -408,31 +395,29 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        description: Optional[Description] = field(
+        description: None | Description = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        dim: Iterable[int] = field(
+        dim: Sequence[int] = field(
             default_factory=list,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        address_offset: Optional[str] = field(
-            default=None,
+        address_offset: str = field(
             metadata={
                 "name": "addressOffset",
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                "required": True,
                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
-            },
+            }
         )
-        type_identifier: Optional[str] = field(
+        type_identifier: None | str = field(
             default=None,
             metadata={
                 "name": "typeIdentifier",
@@ -440,36 +425,34 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        size: Optional["BankedBlockType.Register.Size"] = field(
-            default=None,
+        size: BankedBlockType.Register.Size = field(
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                "required": True,
-            },
+            }
         )
-        volatile: Optional[Volatile] = field(
-            default=None,
-            metadata={
-                "type": "Element",
-                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-            },
-        )
-        access: Optional[Access] = field(
+        volatile: None | Volatile = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        reset: Optional["BankedBlockType.Register.Reset"] = field(
+        access: None | Access = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        field_value: Iterable[FieldType] = field(
+        reset: None | BankedBlockType.Register.Reset = field(
+            default=None,
+            metadata={
+                "type": "Element",
+                "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
+            },
+        )
+        field_value: Sequence[FieldType] = field(
             default_factory=list,
             metadata={
                 "name": "field",
@@ -477,9 +460,9 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        alternate_registers: Optional[
-            "BankedBlockType.Register.AlternateRegisters"
-        ] = field(
+        alternate_registers: (
+            None | BankedBlockType.Register.AlternateRegisters
+        ) = field(
             default=None,
             metadata={
                 "name": "alternateRegisters",
@@ -487,14 +470,14 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        parameters: Optional[Parameters] = field(
+        parameters: None | Parameters = field(
             default=None,
             metadata={
                 "type": "Element",
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        vendor_extensions: Optional[VendorExtensions] = field(
+        vendor_extensions: None | VendorExtensions = field(
             default=None,
             metadata={
                 "name": "vendorExtensions",
@@ -502,7 +485,7 @@ class BankedBlockType:
                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -510,15 +493,15 @@ class BankedBlockType:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AlternateRegisters:
             """
             :ivar alternate_register: Alternate definition for the
                 current register
             """
 
-            alternate_register: Iterable[
-                "BankedBlockType.Register.AlternateRegisters.AlternateRegister"
+            alternate_register: Sequence[
+                BankedBlockType.Register.AlternateRegisters.AlternateRegister
             ] = field(
                 default_factory=list,
                 metadata={
@@ -529,7 +512,7 @@ class BankedBlockType:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class AlternateRegister:
                 """
                 :ivar name: Unique name
@@ -551,15 +534,13 @@ class BankedBlockType:
                 :ivar id:
                 """
 
-                name: Optional[str] = field(
-                    default=None,
+                name: str = field(
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                        "required": True,
-                    },
+                    }
                 )
-                display_name: Optional[DisplayName] = field(
+                display_name: None | DisplayName = field(
                     default=None,
                     metadata={
                         "name": "displayName",
@@ -567,25 +548,21 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                description: Optional[Description] = field(
+                description: None | Description = field(
                     default=None,
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                alternate_groups: Optional[
-                    "BankedBlockType.Register.AlternateRegisters.AlternateRegister.AlternateGroups"
-                ] = field(
-                    default=None,
+                alternate_groups: BankedBlockType.Register.AlternateRegisters.AlternateRegister.AlternateGroups = field(
                     metadata={
                         "name": "alternateGroups",
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                        "required": True,
-                    },
+                    }
                 )
-                type_identifier: Optional[str] = field(
+                type_identifier: None | str = field(
                     default=None,
                     metadata={
                         "name": "typeIdentifier",
@@ -593,30 +570,31 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                volatile: Optional[Volatile] = field(
+                volatile: None | Volatile = field(
                     default=None,
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                access: Optional[Access] = field(
+                access: None | Access = field(
                     default=None,
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                reset: Optional[
-                    "BankedBlockType.Register.AlternateRegisters.AlternateRegister.Reset"
-                ] = field(
+                reset: (
+                    None
+                    | BankedBlockType.Register.AlternateRegisters.AlternateRegister.Reset
+                ) = field(
                     default=None,
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                field_value: Iterable[FieldType] = field(
+                field_value: Sequence[FieldType] = field(
                     default_factory=list,
                     metadata={
                         "name": "field",
@@ -624,14 +602,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                parameters: Optional[Parameters] = field(
+                parameters: None | Parameters = field(
                     default=None,
                     metadata={
                         "type": "Element",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                vendor_extensions: Optional[VendorExtensions] = field(
+                vendor_extensions: None | VendorExtensions = field(
                     default=None,
                     metadata={
                         "name": "vendorExtensions",
@@ -639,7 +617,7 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -647,14 +625,14 @@ class BankedBlockType:
                     },
                 )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class AlternateGroups:
                     """
                     :ivar alternate_group: Defines a grouping name that
                         this register description belongs.
                     """
 
-                    alternate_group: Iterable[str] = field(
+                    alternate_group: Sequence[str] = field(
                         default_factory=list,
                         metadata={
                             "name": "alternateGroup",
@@ -664,7 +642,7 @@ class BankedBlockType:
                         },
                     )
 
-                @dataclass(slots=True)
+                @dataclass(slots=True, kw_only=True)
                 class Reset:
                     """
                     :ivar value: The value itself.
@@ -672,19 +650,16 @@ class BankedBlockType:
                         comparing to the reset value.
                     """
 
-                    value: Optional[
-                        "BankedBlockType.Register.AlternateRegisters.AlternateRegister.Reset.Value"
-                    ] = field(
-                        default=None,
+                    value: BankedBlockType.Register.AlternateRegisters.AlternateRegister.Reset.Value = field(
                         metadata={
                             "type": "Element",
                             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                            "required": True,
-                        },
+                        }
                     )
-                    mask: Optional[
-                        "BankedBlockType.Register.AlternateRegisters.AlternateRegister.Reset.Mask"
-                    ] = field(
+                    mask: (
+                        None
+                        | BankedBlockType.Register.AlternateRegisters.AlternateRegister.Reset.Mask
+                    ) = field(
                         default=None,
                         metadata={
                             "type": "Element",
@@ -692,12 +667,11 @@ class BankedBlockType:
                         },
                     )
 
-                    @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
                     class Value:
                         value: str = field(
                             default="",
                             metadata={
-                                "required": True,
                                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                             },
                         )
@@ -715,14 +689,14 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        id: Optional[str] = field(
+                        id: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        dependency: Optional[str] = field(
+                        dependency: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -736,7 +710,7 @@ class BankedBlockType:
                                 "namespace": "##any",
                             },
                         )
-                        choice_ref: Optional[str] = field(
+                        choice_ref: None | str = field(
                             default=None,
                             metadata={
                                 "name": "choiceRef",
@@ -744,14 +718,14 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        order: Optional[float] = field(
+                        order: None | float = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        config_groups: Iterable[str] = field(
+                        config_groups: Sequence[str] = field(
                             default_factory=list,
                             metadata={
                                 "name": "configGroups",
@@ -760,7 +734,7 @@ class BankedBlockType:
                                 "tokens": True,
                             },
                         )
-                        bit_string_length: Optional[int] = field(
+                        bit_string_length: None | int = field(
                             default=None,
                             metadata={
                                 "name": "bitStringLength",
@@ -768,14 +742,14 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        minimum: Optional[str] = field(
+                        minimum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        maximum: Optional[str] = field(
+                        maximum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -790,7 +764,7 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        prompt: Optional[str] = field(
+                        prompt: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -798,12 +772,11 @@ class BankedBlockType:
                             },
                         )
 
-                    @dataclass(slots=True)
+                    @dataclass(slots=True, kw_only=True)
                     class Mask:
                         value: str = field(
                             default="",
                             metadata={
-                                "required": True,
                                 "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                             },
                         )
@@ -821,14 +794,14 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        id: Optional[str] = field(
+                        id: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        dependency: Optional[str] = field(
+                        dependency: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -842,7 +815,7 @@ class BankedBlockType:
                                 "namespace": "##any",
                             },
                         )
-                        choice_ref: Optional[str] = field(
+                        choice_ref: None | str = field(
                             default=None,
                             metadata={
                                 "name": "choiceRef",
@@ -850,14 +823,14 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        order: Optional[float] = field(
+                        order: None | float = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        config_groups: Iterable[str] = field(
+                        config_groups: Sequence[str] = field(
                             default_factory=list,
                             metadata={
                                 "name": "configGroups",
@@ -866,7 +839,7 @@ class BankedBlockType:
                                 "tokens": True,
                             },
                         )
-                        bit_string_length: Optional[int] = field(
+                        bit_string_length: None | int = field(
                             default=None,
                             metadata={
                                 "name": "bitStringLength",
@@ -874,14 +847,14 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        minimum: Optional[str] = field(
+                        minimum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        maximum: Optional[str] = field(
+                        maximum: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -896,7 +869,7 @@ class BankedBlockType:
                                 "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                             },
                         )
-                        prompt: Optional[str] = field(
+                        prompt: None | str = field(
                             default=None,
                             metadata={
                                 "type": "Attribute",
@@ -904,14 +877,9 @@ class BankedBlockType:
                             },
                         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Size:
-            value: Optional[int] = field(
-                default=None,
-                metadata={
-                    "required": True,
-                },
-            )
+            value: int = field()
             format: FormatType = field(
                 default=FormatType.LONG,
                 metadata={
@@ -926,14 +894,14 @@ class BankedBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            id: Optional[str] = field(
+            id: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            dependency: Optional[str] = field(
+            dependency: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -947,7 +915,7 @@ class BankedBlockType:
                     "namespace": "##any",
                 },
             )
-            choice_ref: Optional[str] = field(
+            choice_ref: None | str = field(
                 default=None,
                 metadata={
                     "name": "choiceRef",
@@ -955,14 +923,14 @@ class BankedBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            order: Optional[float] = field(
+            order: None | float = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            config_groups: Iterable[str] = field(
+            config_groups: Sequence[str] = field(
                 default_factory=list,
                 metadata={
                     "name": "configGroups",
@@ -971,7 +939,7 @@ class BankedBlockType:
                     "tokens": True,
                 },
             )
-            bit_string_length: Optional[int] = field(
+            bit_string_length: None | int = field(
                 default=None,
                 metadata={
                     "name": "bitStringLength",
@@ -979,14 +947,14 @@ class BankedBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            minimum: Optional[str] = field(
+            minimum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            maximum: Optional[str] = field(
+            maximum: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -1001,7 +969,7 @@ class BankedBlockType:
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                 },
             )
-            prompt: Optional[str] = field(
+            prompt: None | str = field(
                 default=None,
                 metadata={
                     "type": "Attribute",
@@ -1009,7 +977,7 @@ class BankedBlockType:
                 },
             )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class Reset:
             """
             :ivar value: The value itself.
@@ -1017,15 +985,13 @@ class BankedBlockType:
                 to the reset value.
             """
 
-            value: Optional["BankedBlockType.Register.Reset.Value"] = field(
-                default=None,
+            value: BankedBlockType.Register.Reset.Value = field(
                 metadata={
                     "type": "Element",
                     "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
-                    "required": True,
-                },
+                }
             )
-            mask: Optional["BankedBlockType.Register.Reset.Mask"] = field(
+            mask: None | BankedBlockType.Register.Reset.Mask = field(
                 default=None,
                 metadata={
                     "type": "Element",
@@ -1033,12 +999,11 @@ class BankedBlockType:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Value:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                     },
                 )
@@ -1056,14 +1021,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1077,7 +1042,7 @@ class BankedBlockType:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -1085,14 +1050,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -1101,7 +1066,7 @@ class BankedBlockType:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -1109,14 +1074,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1131,7 +1096,7 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1139,12 +1104,11 @@ class BankedBlockType:
                     },
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class Mask:
                 value: str = field(
                     default="",
                     metadata={
-                        "required": True,
                         "pattern": r"[+]?(0x|0X|#)?[0-9a-fA-F]+[kmgtKMGT]?",
                     },
                 )
@@ -1162,14 +1126,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                dependency: Optional[str] = field(
+                dependency: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1183,7 +1147,7 @@ class BankedBlockType:
                         "namespace": "##any",
                     },
                 )
-                choice_ref: Optional[str] = field(
+                choice_ref: None | str = field(
                     default=None,
                     metadata={
                         "name": "choiceRef",
@@ -1191,14 +1155,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                order: Optional[float] = field(
+                order: None | float = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                config_groups: Iterable[str] = field(
+                config_groups: Sequence[str] = field(
                     default_factory=list,
                     metadata={
                         "name": "configGroups",
@@ -1207,7 +1171,7 @@ class BankedBlockType:
                         "tokens": True,
                     },
                 )
-                bit_string_length: Optional[int] = field(
+                bit_string_length: None | int = field(
                     default=None,
                     metadata={
                         "name": "bitStringLength",
@@ -1215,14 +1179,14 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                minimum: Optional[str] = field(
+                minimum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                maximum: Optional[str] = field(
+                maximum: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -1237,7 +1201,7 @@ class BankedBlockType:
                         "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
                     },
                 )
-                prompt: Optional[str] = field(
+                prompt: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",

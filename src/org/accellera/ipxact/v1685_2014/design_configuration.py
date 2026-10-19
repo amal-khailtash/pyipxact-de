@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.assertions import Assertions
 from org.accellera.ipxact.v1685_2014.configurable_element_values import (
@@ -20,11 +21,12 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DesignConfiguration:
-    """Top level element for describing the current configuration of a design.
+    """
+    Top level element for describing the current configuration of a design.
 
-    Does not describe instance parameterization
+    Does not describe instance parameterization.
 
     :ivar vendor: Name of the vendor who supplies this file.
     :ivar library: Name of the logical library this element belongs to.
@@ -51,42 +53,34 @@ class DesignConfiguration:
         name = "designConfiguration"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    design_ref: Optional[LibraryRefType] = field(
+    design_ref: None | LibraryRefType = field(
         default=None,
         metadata={
             "name": "designRef",
             "type": "Element",
         },
     )
-    generator_chain_configuration: Iterable[ConfigurableLibraryRefType] = (
+    generator_chain_configuration: Sequence[ConfigurableLibraryRefType] = (
         field(
             default_factory=list,
             metadata={
@@ -95,8 +89,8 @@ class DesignConfiguration:
             },
         )
     )
-    interconnection_configuration: Iterable[
-        "DesignConfiguration.InterconnectionConfiguration"
+    interconnection_configuration: Sequence[
+        DesignConfiguration.InterconnectionConfiguration
     ] = field(
         default_factory=list,
         metadata={
@@ -104,7 +98,7 @@ class DesignConfiguration:
             "type": "Element",
         },
     )
-    view_configuration: Iterable["DesignConfiguration.ViewConfiguration"] = (
+    view_configuration: Sequence[DesignConfiguration.ViewConfiguration] = (
         field(
             default_factory=list,
             metadata={
@@ -113,32 +107,32 @@ class DesignConfiguration:
             },
         )
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    assertions: Optional[Assertions] = field(
+    assertions: None | Assertions = field(
         default=None,
         metadata={
             "type": "Element",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -146,7 +140,7 @@ class DesignConfiguration:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class InterconnectionConfiguration:
         """
         :ivar is_present:
@@ -162,23 +156,21 @@ class DesignConfiguration:
         :ivar id:
         """
 
-        is_present: Optional[IsPresent] = field(
+        is_present: None | IsPresent = field(
             default=None,
             metadata={
                 "name": "isPresent",
                 "type": "Element",
             },
         )
-        interconnection_ref: Optional[str] = field(
-            default=None,
+        interconnection_ref: str = field(
             metadata={
                 "name": "interconnectionRef",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        abstractor_instances: Iterable[
-            "DesignConfiguration.InterconnectionConfiguration.AbstractorInstances"
+        abstractor_instances: Sequence[
+            DesignConfiguration.InterconnectionConfiguration.AbstractorInstances
         ] = field(
             default_factory=list,
             metadata={
@@ -187,7 +179,7 @@ class DesignConfiguration:
                 "min_occurs": 1,
             },
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -195,7 +187,7 @@ class DesignConfiguration:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class AbstractorInstances:
             """
             :ivar is_present:
@@ -207,15 +199,15 @@ class DesignConfiguration:
                 which the abstractors should be chained together.
             """
 
-            is_present: Optional[IsPresent] = field(
+            is_present: None | IsPresent = field(
                 default=None,
                 metadata={
                     "name": "isPresent",
                     "type": "Element",
                 },
             )
-            interface_ref: Iterable[
-                "DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.InterfaceRef"
+            interface_ref: Sequence[
+                DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.InterfaceRef
             ] = field(
                 default_factory=list,
                 metadata={
@@ -223,8 +215,8 @@ class DesignConfiguration:
                     "type": "Element",
                 },
             )
-            abstractor_instance: Iterable[
-                "DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance"
+            abstractor_instance: Sequence[
+                DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance
             ] = field(
                 default_factory=list,
                 metadata={
@@ -234,7 +226,7 @@ class DesignConfiguration:
                 },
             )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class InterfaceRef:
                 """
                 :ivar is_present:
@@ -244,31 +236,27 @@ class DesignConfiguration:
                     name.
                 """
 
-                is_present: Optional[IsPresent] = field(
+                is_present: None | IsPresent = field(
                     default=None,
                     metadata={
                         "name": "isPresent",
                         "type": "Element",
                     },
                 )
-                component_ref: Optional[str] = field(
-                    default=None,
+                component_ref: str = field(
                     metadata={
                         "name": "componentRef",
                         "type": "Attribute",
-                        "required": True,
-                    },
+                    }
                 )
-                bus_ref: Optional[str] = field(
-                    default=None,
+                bus_ref: str = field(
                     metadata={
                         "name": "busRef",
                         "type": "Attribute",
-                        "required": True,
-                    },
+                    }
                 )
 
-            @dataclass(slots=True)
+            @dataclass(slots=True, kw_only=True)
             class AbstractorInstance:
                 """
                 :ivar instance_name: Instance name for the abstractor
@@ -280,44 +268,38 @@ class DesignConfiguration:
                 :ivar id:
                 """
 
-                instance_name: Optional[str] = field(
-                    default=None,
+                instance_name: str = field(
                     metadata={
                         "name": "instanceName",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                display_name: Optional[DisplayName] = field(
+                display_name: None | DisplayName = field(
                     default=None,
                     metadata={
                         "name": "displayName",
                         "type": "Element",
                     },
                 )
-                description: Optional[Description] = field(
+                description: None | Description = field(
                     default=None,
                     metadata={
                         "type": "Element",
                     },
                 )
-                abstractor_ref: Optional[ConfigurableLibraryRefType] = field(
-                    default=None,
+                abstractor_ref: ConfigurableLibraryRefType = field(
                     metadata={
                         "name": "abstractorRef",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                view_name: Optional[str] = field(
-                    default=None,
+                view_name: str = field(
                     metadata={
                         "name": "viewName",
                         "type": "Element",
-                        "required": True,
-                    },
+                    }
                 )
-                id: Optional[str] = field(
+                id: None | str = field(
                     default=None,
                     metadata={
                         "type": "Attribute",
@@ -325,7 +307,7 @@ class DesignConfiguration:
                     },
                 )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class ViewConfiguration:
         """
         :ivar instance_name:
@@ -334,29 +316,25 @@ class DesignConfiguration:
         :ivar id:
         """
 
-        instance_name: Optional[InstanceName] = field(
-            default=None,
+        instance_name: InstanceName = field(
             metadata={
                 "name": "instanceName",
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        is_present: Optional[IsPresent] = field(
+        is_present: None | IsPresent = field(
             default=None,
             metadata={
                 "name": "isPresent",
                 "type": "Element",
             },
         )
-        view: Optional["DesignConfiguration.ViewConfiguration.View"] = field(
-            default=None,
+        view: DesignConfiguration.ViewConfiguration.View = field(
             metadata={
                 "type": "Element",
-                "required": True,
-            },
+            }
         )
-        id: Optional[str] = field(
+        id: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
@@ -364,7 +342,7 @@ class DesignConfiguration:
             },
         )
 
-        @dataclass(slots=True)
+        @dataclass(slots=True, kw_only=True)
         class View:
             """
             :ivar configurable_element_values: Parameter values to set
@@ -372,20 +350,18 @@ class DesignConfiguration:
             :ivar view_ref:
             """
 
-            configurable_element_values: Optional[
-                ConfigurableElementValues
-            ] = field(
-                default=None,
-                metadata={
-                    "name": "configurableElementValues",
-                    "type": "Element",
-                },
+            configurable_element_values: None | ConfigurableElementValues = (
+                field(
+                    default=None,
+                    metadata={
+                        "name": "configurableElementValues",
+                        "type": "Element",
+                    },
+                )
             )
-            view_ref: Optional[str] = field(
-                default=None,
+            view_ref: str = field(
                 metadata={
                     "name": "viewRef",
                     "type": "Attribute",
-                    "required": True,
-                },
+                }
             )

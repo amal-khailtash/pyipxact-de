@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2022.index import Index
@@ -6,12 +8,12 @@ from org.accellera.ipxact.v1685_2022.index import Index
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class IndicesType:
     class Meta:
         name = "indicesType"
 
-    index: Iterable[Index] = field(
+    index: Sequence[Index] = field(
         default_factory=list,
         metadata={
             "type": "Element",

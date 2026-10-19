@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2022.vendor_extensions import VendorExtensions
 
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class ConstraintSetRef:
     """
     A reference to a set of port constraints.
@@ -16,22 +17,20 @@ class ConstraintSetRef:
         name = "constraintSetRef"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    local_name: Optional[str] = field(
-        default=None,
+    local_name: str = field(
         metadata={
             "name": "localName",
             "type": "Element",
-            "required": True,
-        },
+        }
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
             "type": "Element",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",

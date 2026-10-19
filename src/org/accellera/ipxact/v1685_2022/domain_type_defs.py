@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from org.accellera.ipxact.v1685_2022.domain_type_def import DomainTypeDef
@@ -6,7 +8,7 @@ from org.accellera.ipxact.v1685_2022.domain_type_def import DomainTypeDef
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class DomainTypeDefs:
     """
     The group of domain type definitions.
@@ -16,7 +18,7 @@ class DomainTypeDefs:
         name = "domainTypeDefs"
         namespace = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
-    domain_type_def: Iterable[DomainTypeDef] = field(
+    domain_type_def: Sequence[DomainTypeDef] = field(
         default_factory=list,
         metadata={
             "name": "domainTypeDef",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1_5.name_value_pair_type import NameValuePairType
 from org.accellera.spirit.v1_5.name_value_type_type_usage_type import (
@@ -9,7 +10,7 @@ from org.accellera.spirit.v1_5.name_value_type_type_usage_type import (
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.5"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class NameValueTypeType(NameValuePairType):
     """
     Name value pair with data type information.
@@ -24,7 +25,7 @@ class NameValueTypeType(NameValuePairType):
     class Meta:
         name = "nameValueTypeType"
 
-    data_type: Optional[str] = field(
+    data_type: None | str = field(
         default=None,
         metadata={
             "name": "dataType",

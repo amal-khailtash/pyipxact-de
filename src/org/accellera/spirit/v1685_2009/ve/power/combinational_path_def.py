@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.spirit.v1685_2009.ve.power.name_ref_vector_pairs import (
     NameRefVectorPairs,
@@ -11,23 +12,21 @@ __NAMESPACE__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class CombinationalPathDef:
     class Meta:
         name = "combinationalPathDef"
 
-    vector: Optional[Vector] = field(
+    vector: None | Vector = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009",
         },
     )
-    sources: Optional[NameRefVectorPairs] = field(
-        default=None,
+    sources: NameRefVectorPairs = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/SPIRIT/1685-2009-VE/PDP-1.0",
-            "required": True,
-        },
+        }
     )

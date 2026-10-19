@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 __NAMESPACE__ = "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class PortAccessHandle:
-    """If present, is a method to be used to get hold of the object representing
-    the port.
+    """
+    If present, is a method to be used to get hold of the object
+    representing the port.
 
     This is typically a function call or array element reference in
     systemC.
@@ -18,9 +21,4 @@ class PortAccessHandle:
             "http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
         )
 
-    value: str = field(
-        default="",
-        metadata={
-            "required": True,
-        },
-    )
+    value: str = field(default="")

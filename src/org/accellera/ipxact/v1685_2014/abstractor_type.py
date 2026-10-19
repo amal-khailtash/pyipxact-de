@@ -1,6 +1,7 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from org.accellera.ipxact.v1685_2014.abstractor_bus_interface_type import (
     AbstractorBusInterfaceType,
@@ -25,7 +26,7 @@ from org.accellera.ipxact.v1685_2014.vendor_extensions import VendorExtensions
 __NAMESPACE__ = "http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class AbstractorType:
     """
     Abstractor-specific extension to abstractorType.
@@ -60,75 +61,59 @@ class AbstractorType:
     class Meta:
         name = "abstractorType"
 
-    vendor: Optional[str] = field(
-        default=None,
+    vendor: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    library: Optional[str] = field(
-        default=None,
+    library: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    name: Optional[str] = field(
-        default=None,
+    name: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    version: Optional[str] = field(
-        default=None,
+    version: str = field(
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    abstractor_mode: Optional["AbstractorType.AbstractorMode"] = field(
-        default=None,
+    abstractor_mode: AbstractorType.AbstractorMode = field(
         metadata={
             "name": "abstractorMode",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    bus_type: Optional[LibraryRefType] = field(
-        default=None,
+    bus_type: LibraryRefType = field(
         metadata={
             "name": "busType",
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-            "required": True,
-        },
+        }
     )
-    abstractor_interfaces: Optional["AbstractorType.AbstractorInterfaces"] = (
-        field(
-            default=None,
-            metadata={
-                "name": "abstractorInterfaces",
-                "type": "Element",
-                "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
-                "required": True,
-            },
-        )
+    abstractor_interfaces: AbstractorType.AbstractorInterfaces = field(
+        metadata={
+            "name": "abstractorInterfaces",
+            "type": "Element",
+            "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
+        }
     )
-    model: Optional[AbstractorModelType] = field(
+    model: None | AbstractorModelType = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    abstractor_generators: Optional[AbstractorGenerators] = field(
+    abstractor_generators: None | AbstractorGenerators = field(
         default=None,
         metadata={
             "name": "abstractorGenerators",
@@ -136,14 +121,14 @@ class AbstractorType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    choices: Optional[Choices] = field(
+    choices: None | Choices = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    file_sets: Optional[FileSets] = field(
+    file_sets: None | FileSets = field(
         default=None,
         metadata={
             "name": "fileSets",
@@ -151,28 +136,28 @@ class AbstractorType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    description: Optional[Description] = field(
+    description: None | Description = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    parameters: Optional[Parameters] = field(
+    parameters: None | Parameters = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    assertions: Optional[Assertions] = field(
+    assertions: None | Assertions = field(
         default=None,
         metadata={
             "type": "Element",
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    vendor_extensions: Optional[VendorExtensions] = field(
+    vendor_extensions: None | VendorExtensions = field(
         default=None,
         metadata={
             "name": "vendorExtensions",
@@ -180,7 +165,7 @@ class AbstractorType:
             "namespace": "http://www.accellera.org/XMLSchema/IPXACT/1685-2014",
         },
     )
-    id: Optional[str] = field(
+    id: None | str = field(
         default=None,
         metadata={
             "type": "Attribute",
@@ -188,7 +173,7 @@ class AbstractorType:
         },
     )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AbstractorMode:
         """
         :ivar value:
@@ -196,27 +181,22 @@ class AbstractorType:
             system
         """
 
-        value: Optional[AbstractorModeType] = field(
-            default=None,
-            metadata={
-                "required": True,
-            },
-        )
-        group: Optional[str] = field(
+        value: AbstractorModeType = field()
+        group: None | str = field(
             default=None,
             metadata={
                 "type": "Attribute",
             },
         )
 
-    @dataclass(slots=True)
+    @dataclass(slots=True, kw_only=True)
     class AbstractorInterfaces:
         """
         :ivar abstractor_interface: An abstractor must have exactly 2
             Interfaces.
         """
 
-        abstractor_interface: Iterable[AbstractorBusInterfaceType] = field(
+        abstractor_interface: Sequence[AbstractorBusInterfaceType] = field(
             default_factory=list,
             metadata={
                 "name": "abstractorInterface",
