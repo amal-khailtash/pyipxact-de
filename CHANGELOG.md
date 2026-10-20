@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Correct seven wire/transactional property setters to edit the supplied mode handle selectively.
+- Validate mode enums, initialize generated protocol types, and preserve property handles during updates.
 - Implement logical mode setters and validated system-group editing using generated mode models.
 - Preserve mode identity and correct creation ownership for immediate removal without traversal.
 - Traverse logical-port system modes for both generated styles and restore parsed mode ownership.

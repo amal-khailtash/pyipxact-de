@@ -1826,28 +1826,9 @@ def removeAbstractionDefPortWireRequiresDriver(portID: str) -> bool:
     return False
 
 
-def setAbstractionDefPortTransactionalModeBusWidth(portID: str, value: int | str) -> bool:
-    """Set transactional mode busWidth.
-
-    Section: F.7.3.48.
-
-    Args:
-        portID: Transactional port handle.
-        value: Integer or expression for width.
-
-    Returns:
-        True on success.
-    """
-    tr = _ensure_transactional(portID)
-    # Ensure at least one on_system entry exists to hold bus_width per earlier getter logic.
-    if not getattr(tr, "on_system", []):  # type: ignore[truthy-bool]
-        tr.on_system.append(AbstractionDefinition.Ports.Port.Transactional.OnSystem(group="default"))  # type: ignore[attr-defined]
-    from org.accellera.ipxact.v1685_2022.unresolved_unsigned_positive_int_expression import (
-        UnresolvedUnsignedPositiveIntExpression,
-    )
-    bw_expr = UnresolvedUnsignedPositiveIntExpression(value=str(value))  # type: ignore[arg-type]
-    tr.on_system[0].bus_width = bw_expr  # type: ignore[attr-defined]
-    return True
+def setAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str, width: str) -> bool:
+    """Set bus_width on the supplied transactional mode (F.7.3.48)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, width, "transactional", "bus_width")
 
 
 def setAbstractionDefPortTransactionalModeInitiative(portID: str, value: str) -> bool:
@@ -1870,68 +1851,19 @@ def setAbstractionDefPortTransactionalModeInitiative(portID: str, value: str) ->
     return True
 
 
-def setAbstractionDefPortTransactionalModeKind(portID: str, value: str) -> bool:
-    """Set transactional mode kind (stored on initiator locus or raw string).
-
-    Section: F.7.3.50.
-
-    Args:
-        portID: Transactional port handle.
-        value: Kind enumeration string.
-
-    Returns:
-        True on success.
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_initiator is None:
-        tr.on_initiator = AbstractionDefinition.Ports.Port.Transactional.OnInitiator()  # type: ignore[attr-defined]
-    # KIND maps to 'kind' simple element; underlying xsdata class 'Kind' if present else store raw string
-    try:  # pragma: no cover - defensive
-        from org.accellera.ipxact.v1685_2022.kind import Kind  # type: ignore
-        tr.on_initiator.kind = Kind(value=value)  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        tr.on_initiator.kind = value  # type: ignore[assignment]
-    return True
+def setAbstractionDefPortTransactionalModeKind(abstractionDefPortModeID: str, kind: str) -> bool:
+    """Set kind on the supplied transactional mode (F.7.3.50)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, kind, "transactional", "kind")
 
 
-def setAbstractionDefPortTransactionalModePresence(portID: str, value: str) -> bool:
-    """Set transactional mode presence (initiator locus).
-
-    Section: F.7.3.51.
-
-    Args:
-        portID: Transactional port handle.
-        value: Presence enumeration string.
-
-    Returns:
-        True on success.
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_initiator is None:
-        tr.on_initiator = AbstractionDefinition.Ports.Port.Transactional.OnInitiator()  # type: ignore[attr-defined]
-    from org.accellera.ipxact.v1685_2022.presence import Presence
-    tr.on_initiator.presence = Presence(value=value)  # type: ignore[arg-type]
-    return True
+def setAbstractionDefPortTransactionalModePresence(abstractionDefPortModeID: str, presence: str) -> bool:
+    """Set presence on the supplied transactional mode (F.7.3.51)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, presence, "transactional", "presence")
 
 
-def setAbstractionDefPortTransactionalModeProtocol(portID: str, protocol: str) -> bool:
-    """Set transactional mode protocol (initiator locus).
-
-    Section: F.7.3.52.
-
-    Args:
-        portID: Transactional port handle.
-        protocol: Protocol enumeration / identifier string.
-
-    Returns:
-        True on success.
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_initiator is None:
-        tr.on_initiator = AbstractionDefinition.Ports.Port.Transactional.OnInitiator()  # type: ignore[attr-defined]
-    from org.accellera.ipxact.v1685_2022.protocol import Protocol
-    tr.on_initiator.protocol = Protocol(value=protocol)  # type: ignore[arg-type]
-    return True
+def setAbstractionDefPortTransactionalModeProtocol(abstractionDefPortModeID: str, protocolType: str) -> bool:
+    """Set protocol on the supplied transactional mode (F.7.3.52)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, protocolType, "transactional", "protocol")
 
 
 def setAbstractionDefPortTransactionalOnInitiator(portID: str) -> bool:
@@ -2021,22 +1953,9 @@ def setAbstractionDefPortWireDefaultValue(portID: str, value: int | str) -> bool
     return True
 
 
-def setAbstractionDefPortWireModeDirection(portID: str, direction: str) -> bool:
-    """Set wire mode direction.
-
-    Section: F.7.3.59.
-
-    Args:
-        portID: Wire port handle.
-        direction: Direction enumeration string.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.direction import Direction
-    w.direction = Direction(value=direction)  # type: ignore[arg-type]
-    return True
+def setAbstractionDefPortWireModeDirection(abstractionDefPortModeID: str, direction: str) -> bool:
+    """Set direction on the supplied wire mode (F.7.3.59)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, direction, "wire", "direction")
 
 
 def setAbstractionDefPortWireModeMirroredModeConstraints(portID: str) -> bool:
@@ -2077,42 +1996,14 @@ def setAbstractionDefPortWireModeModeConstraints(portID: str) -> bool:
     return True
 
 
-def setAbstractionDefPortWireModePresence(portID: str, value: str) -> bool:
-    """Set wire mode presence.
-
-    Section: F.7.3.62.
-
-    Args:
-        portID: Wire port handle.
-        value: Presence enumeration string.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.presence import Presence
-    w.presence = Presence(value=value)  # type: ignore[arg-type]
-    return True
+def setAbstractionDefPortWireModePresence(abstractionDefPortModeID: str, presence: str) -> bool:
+    """Set presence on the supplied wire mode (F.7.3.62)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, presence, "wire", "presence")
 
 
-def setAbstractionDefPortWireModeWidth(portID: str, value: int | str) -> bool:
-    """Set wire mode width.
-
-    Section: F.7.3.63.
-
-    Args:
-        portID: Wire port handle.
-        value: Integer or expression string.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.unresolved_unsigned_positive_int_expression import (
-        UnresolvedUnsignedPositiveIntExpression,
-    )
-    w.width = UnresolvedUnsignedPositiveIntExpression(value=str(value))  # type: ignore[arg-type]
-    return True
+def setAbstractionDefPortWireModeWidth(abstractionDefPortModeID: str, width: str) -> bool:
+    """Set width on the supplied wire mode (F.7.3.63)."""
+    return _set_logical_mode_property(abstractionDefPortModeID, width, "wire", "width")
 
 
 def setAbstractionDefPortWireOnInitiator(portID: str) -> bool:
@@ -2360,3 +2251,49 @@ def _ensure_port_locus(portID: str, style_type: type, mode: str) -> str:
 
 
 __all__ += ["setOnSystemGroup", "setAbstractionDefPortMode"]
+
+
+def _set_logical_mode_property(handle: str, value: str, style: str, attr: str) -> bool:
+    from org.accellera.ipxact.v1685_2022 import (
+        Direction, Kind, KindType, Presence, PresenceType, Protocol, ProtocolTypeType,
+        UnsignedPositiveIntExpression,
+    )
+
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    types = (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem) if style == "wire" else (
+        tr.OnInitiator, tr.OnTarget, tr.OnSystem)
+    mode = resolve_handle(handle)
+    if not isinstance(mode, types):
+        raise TgiError("Invalid logical port mode handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError("Property requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        if attr == "presence":
+            converted = PresenceType(value)
+            replacement = Presence(value=converted)
+        elif attr == "kind":
+            converted = KindType(value)
+            replacement = Kind(value=converted)
+        elif attr == "protocol":
+            converted = ProtocolTypeType(value)
+            replacement = Protocol(protocol_type=Protocol.ProtocolType(value=converted))
+        elif attr == "direction":
+            converted = Direction(value)
+            mode.direction = converted
+            return True
+        else:
+            converted = value
+            model = type(mode).Width if attr == "width" else UnsignedPositiveIntExpression
+            replacement = model(value=value)
+    except ValueError as error:
+        raise TgiError("Invalid mode property value", TgiFaultCode.INVALID_ARGUMENT) from error
+    child = getattr(mode, attr)
+    if child is None:
+        child = replacement
+        setattr(mode, attr, child)
+    elif attr == "protocol":
+        child.protocol_type.value = converted
+    else:
+        child.value = converted
+    register_parent(child, mode, (attr,), "single")
+    return True
