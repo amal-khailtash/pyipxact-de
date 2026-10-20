@@ -5,6 +5,7 @@ Provides traversal of ports, parameters, choices and basic metadata getters
 for :class:`AbstractionDefinition` objects.
 """
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent, detach_child_by_handle
+from org.accellera.ipxact.v1685_2022.wire import Wire
 from org.accellera.ipxact.v1685_2022 import AbstractionDefinition
 
 __all__ = [
@@ -375,9 +376,9 @@ def getAbstractionDefPortStyle(abstractionDefPortModeID: str) -> str | None:
     p = _resolve_port(abstractionDefPortModeID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    if p.transactional is not None:
+    if isinstance(p.wire_or_transactional, AbstractionDefinition.Ports.Port.Transactional):
         return "transactional"
-    if p.wire is not None:
+    if isinstance(p.wire_or_transactional, Wire):
         return "wire"
     if p.packets is not None:
         return "packet"

@@ -283,15 +283,15 @@ Unmarked operations may have existing implementations that still need audit.
 Abstraction definition (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ☐ ``getAbstractionDefBusTypeRefByVLNV`` (F.7.2.1)
+* ☑ ``getAbstractionDefBusTypeRefByVLNV`` (F.7.2.1)
 * ☐ ``getAbstractionDefChoiceIDs`` (F.7.2.2)
 * ☐ ``getAbstractionDefExtendsRefByVLNV`` (F.7.2.3)
-* ☐ ``getAbstractionDefPortIDs`` (F.7.2.4)
-* ☐ ``getAbstractionDefPortLogicalName`` (F.7.2.5)
+* ☑ ``getAbstractionDefPortIDs`` (F.7.2.4)
+* ☑ ``getAbstractionDefPortLogicalName`` (F.7.2.5)
 * ☐ ``getAbstractionDefPortMatch`` (F.7.2.6)
 * ☐ ``getAbstractionDefPortOnSystemIDs`` (F.7.2.7)
 * ☐ ``getAbstractionDefPortPacketIDs`` (F.7.2.8)
-* ☐ ``getAbstractionDefPortStyle`` (F.7.2.9)
+* ☑ ``getAbstractionDefPortStyle`` (F.7.2.9)
 * ☐ ``getAbstractionDefPortTransactionalModeBusWidth`` (F.7.2.10)
 * ☐ ``getAbstractionDefPortTransactionalModeBusWidthExpression`` (F.7.2.11)
 * ☐ ``getAbstractionDefPortTransactionalModeBusWidthID`` (F.7.2.12)
@@ -417,13 +417,13 @@ Abstractor (BASE)
 ~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractorAbstractorGeneratorIDs`` (F.7.4.1)
-* ☐ ``getAbstractorAbstractorInterfaceIDs`` (F.7.4.2)
-* ☐ ``getAbstractorAbstractorMode`` (F.7.4.3)
-* ☐ ``getAbstractorAbstractorModeID`` (F.7.4.4)
-* ☐ ``getAbstractorBusTypeRefByVLNV`` (F.7.4.5)
+* ☑ ``getAbstractorAbstractorInterfaceIDs`` (F.7.4.2)
+* ☑ ``getAbstractorAbstractorMode`` (F.7.4.3)
+* ☑ ``getAbstractorAbstractorModeID`` (F.7.4.4)
+* ☑ ``getAbstractorBusTypeRefByVLNV`` (F.7.4.5)
 * ☐ ``getAbstractorChoiceIDs`` (F.7.4.6)
 * ☐ ``getAbstractorComponentInstantiationIDs`` (F.7.4.7)
-* ☐ ``getAbstractorFileSetIDs`` (F.7.4.8)
+* ☑ ``getAbstractorFileSetIDs`` (F.7.4.8)
 * ☐ ``getAbstractorInterfaceAbstractionTypeIDs`` (F.7.4.9)
 * ☐ ``getAbstractorPortIDs`` (F.7.4.10)
 * ☐ ``getAbstractorViewIDs`` (F.7.4.11)
@@ -434,7 +434,7 @@ Abstractor (EXTENDED)
 * ☐ ``addAbstractorAbstractorGenerator`` (F.7.5.1)
 * ☐ ``addAbstractorChoice`` (F.7.5.2)
 * ☐ ``addAbstractorComponentInstantiation`` (F.7.5.3)
-* ☐ ``addAbstractorFileSet`` (F.7.5.4)
+* ☑ ``addAbstractorFileSet`` (F.7.5.4)
 * ☐ ``addAbstractorInterfaceAbstractionType`` (F.7.5.5)
 * ☐ ``addAbstractorStructuredInterfacePort`` (F.7.5.6)
 * ☐ ``addAbstractorStructuredStructPort`` (F.7.5.7)
@@ -446,13 +446,13 @@ Abstractor (EXTENDED)
 * ☐ ``removeAbstractorAbstractorInterface`` (F.7.5.13)
 * ☐ ``removeAbstractorChoice`` (F.7.5.14)
 * ☐ ``removeAbstractorComponentInstantiation`` (F.7.5.15)
-* ☐ ``removeAbstractorFileSet`` (F.7.5.16)
+* ☑ ``removeAbstractorFileSet`` (F.7.5.16)
 * ☐ ``removeAbstractorInterfaceAbstractionType`` (F.7.5.17)
 * ☐ ``removeAbstractorPort`` (F.7.5.18)
 * ☐ ``removeAbstractorView`` (F.7.5.19)
 * ☐ ``removeFileSetRefGroupFileSetRef`` (F.7.5.20)
-* ☐ ``setAbstractorAbstractorMode`` (F.7.5.21)
-* ☐ ``setAbstractorBusType`` (F.7.5.22)
+* ☑ ``setAbstractorAbstractorMode`` (F.7.5.21)
+* ☑ ``setAbstractorBusType`` (F.7.5.22)
 
 Access Policy (BASE)
 ~~~~~~~~~~~~~~~~~~~~
@@ -2918,8 +2918,8 @@ Top element (BASE)
 Top element (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~
 
-* ☐ ``createAbstractionDef`` (F.7.80.1)
-* ☐ ``createAbstractor`` (F.7.80.2)
+* ☑ ``createAbstractionDef`` (F.7.80.1)
+* ☑ ``createAbstractor`` (F.7.80.2)
 * ☑ ``createBusDefinition`` (F.7.80.3)
 * ☑ ``createCatalog`` (F.7.80.4)
 * ☑ ``createComponent`` (F.7.80.5)
@@ -3110,3 +3110,11 @@ Release automation
 
 - ☑ Dispatch publication directly with the configured PyPI trusted publisher workflow identity.
 - ☑ Synchronize and activate released Read the Docs versions before requesting their builds.
+
+Abstraction root creation verification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Create abstraction definitions with bus references and initial wire/transactional logical ports.
+- ☑ Create abstractors with standard modes and exactly two named interfaces.
+- ☑ Verify ten creation/traversal contracts, registry identity, parent handles, and XML round trips.
+- ☐ Complete semantic validation, including required groups for system-mode abstractors.
