@@ -3109,3 +3109,4 @@ Release automation
 ~~~~~~~~~~~~~~~~~~
 
 - ☑ Dispatch publication directly with the configured PyPI trusted publisher workflow identity.
+- ☑ Synchronize and activate released Read the Docs versions before requesting their builds.

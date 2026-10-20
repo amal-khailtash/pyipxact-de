@@ -5,6 +5,12 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [Unreleased]
+
+### Fixed
+
+- Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
+
 ## [0.4.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.1...v0.4.0) (2026-10-20)
 
 ### Features

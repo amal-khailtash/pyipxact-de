@@ -14,7 +14,7 @@ on:
         default: pypi
         required: true
       tag:
-        description: Existing release tag to publish (for example v0.3.0)
+        description: Existing immutable release tag to publish
         type: string
         required: true
 permissions:
@@ -31,19 +31,37 @@ jobs:
   verify:
     needs: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14'
       - name: Verify immutable tag and package version
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           git -c safe.directory="$PWD" show-ref --verify "refs/tags/$RELEASE_TAG"
           git -c safe.directory="$PWD" merge-base --is-ancestor HEAD origin/main
-          uv run --no-project python -c 'import os,tomllib; from pathlib import Path; v=tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_TAG"] == "v"+v'
+          uv run --no-project python -c 'import os, tomllib; from pathlib import Path; version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_TAG"] == "v" + version, "Release tag must match pyproject.toml version"'
+      - uses: actions/download-artifact@v7
+        with:
+          name: ci-distributions
+          path: dist/
+      # Test as a wheel consumer, without the manylinux compiler toolset's
+      # headers and runtime paths affecting Cling's runtime C++ compilation.
+      - name: Install and test bundled wheel
+        if: github.event.repository.name == 'pysystemc'
+        run: |
+          wheel=$(realpath dist/*.whl)
+          check=$(realpath tools/check_wheel.py)
+          examples_check=$(realpath tools/check_installed_examples.py)
+          cd /tmp
+          uv run --no-project --with "$wheel" python -c "import subprocess, sys; subprocess.run([sys.executable, sys.argv[1]], check=True, timeout=120)" "$check"
+          uv run --no-project --with "$wheel" python "$examples_check"
   publish:
     needs: verify
     runs-on: ubuntu-latest
@@ -65,20 +83,49 @@ jobs:
         if: inputs.repository == 'testpypi'
         run: uv publish --trusted-publishing always --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/
   documentation:
+    timeout-minutes: 10
     needs: publish
     if: inputs.repository != 'testpypi'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger released documentation after PyPI publication
+      - name: Synchronize, activate, and build released documentation
         env:
           RTD_TOKEN: ${{ secrets.READTHEDOCS_TOKEN }}
-          RTD_PROJECT: pyipxact-de
+          RTD_PROJECT: ${{ github.event.repository.name }}
           RTD_VERSION: ${{ inputs.tag }}
         run: |
-          test -n "$RTD_TOKEN"
-          curl --fail-with-body --silent --show-error \
-            --request POST \
-            --header "Authorization: Token $RTD_TOKEN" \
-            --header "Content-Type: application/json" \
-            --data '{}' \
-            "https://readthedocs.org/api/v3/projects/$RTD_PROJECT/versions/$RTD_VERSION/builds/"
+          python - <<'PYTHON'
+          import json
+          import os
+          import time
+          from urllib.error import HTTPError
+          from urllib.parse import quote
+          from urllib.request import Request, urlopen
+
+          token = os.environ["RTD_TOKEN"]
+          if not token:
+              raise SystemExit("READTHEDOCS_TOKEN is required")
+          base = "https://app.readthedocs.org/api/v3/projects/" + quote(os.environ["RTD_PROJECT"], safe="")
+          version = base + "/versions/" + quote(os.environ["RTD_VERSION"], safe="") + "/"
+
+          def request(url, method="GET", data=None):
+              headers = {"Authorization": "Token " + token, "Content-Type": "application/json"}
+              body = None if data is None else json.dumps(data).encode()
+              with urlopen(Request(url, data=body, headers=headers, method=method), timeout=30) as response:
+                  return response.read()
+
+          request(base + "/sync-versions/", "POST")
+          for attempt in range(30):
+              try:
+                  request(version)
+                  break
+              except HTTPError as error:
+                  if error.code != 404:
+                      raise SystemExit(f"Read the Docs version lookup failed: HTTP {error.code}") from None
+                  if attempt == 29:
+                      raise SystemExit("Read the Docs did not discover the release tag within five minutes") from None
+                  time.sleep(10)
+          request(version, "PATCH", {"active": True})
+          result = request(version + "builds/", "POST", {})
+          print("Read the Docs release build requested:", result.decode())
+          PYTHON
