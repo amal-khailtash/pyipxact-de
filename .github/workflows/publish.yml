@@ -14,7 +14,7 @@ on:
         default: pypi
         required: true
       tag:
-        description: Existing release tag to publish (for example v0.3.0)
+        description: Existing immutable release tag to publish
         type: string
         required: true
 permissions:
@@ -31,19 +31,22 @@ jobs:
   verify:
     needs: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14'
       - name: Verify immutable tag and package version
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           git -c safe.directory="$PWD" show-ref --verify "refs/tags/$RELEASE_TAG"
           git -c safe.directory="$PWD" merge-base --is-ancestor HEAD origin/main
-          uv run --no-project python -c 'import os,tomllib; from pathlib import Path; v=tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_TAG"] == "v"+v'
+          uv run --no-project python -c 'import os, tomllib; from pathlib import Path; version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_TAG"] == "v" + version, "Release tag must match pyproject.toml version"'
   publish:
     needs: verify
     runs-on: ubuntu-latest

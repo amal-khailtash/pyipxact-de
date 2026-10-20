@@ -18,7 +18,7 @@ jobs:
   tests:
     name: Tests and coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,22 +26,25 @@ jobs:
           submodules: recursive
       - uses: astral-sh/setup-uv@v7
         with:
+          python-version: '3.14'
           enable-cache: true
       - run: sudo apt-get update && sudo apt-get install -y libxml2-utils xsltproc
       - run: uv sync --locked --all-groups
-      - name: Test handwritten application code
-        run: uv run --locked pytest --cov=amal --cov-report=term-missing --cov-report=xml:coverage.xml
-      - uses: actions/upload-artifact@v7
+      - name: Run semantic tests and coverage
+        run: uv run --locked pytest --cov=amal --cov-report=term-missing --cov-report=xml:build/coverage/coverage.xml --cov-report=html:build/coverage/html
+      - name: Save coverage reports
         if: always()
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
-          path: coverage.xml
+          path: build/coverage/
+          if-no-files-found: warn
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
-        if: ${{ !cancelled() && hashFiles('coverage.xml') != '' }}
+        if: ${{ !cancelled() && hashFiles('build/coverage/coverage.xml') != '' }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
+          files: build/coverage/coverage.xml
           disable_search: true
           fail_ci_if_error: false
   build:
@@ -52,6 +55,9 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14'
+          enable-cache: true
       - run: uv build
       - run: uvx twine check dist/*
       - uses: actions/upload-artifact@v7
@@ -66,6 +72,9 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14'
+          enable-cache: true
       - run: uv sync --locked --all-groups
       - run: uv run --locked make -C docs api html
       - uses: actions/upload-artifact@v7
