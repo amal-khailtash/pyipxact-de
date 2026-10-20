@@ -146,3 +146,22 @@ def test_cached_registration_failure_falls_back_to_parsed_document(tmp_path):
         loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
     assert attempts == 2
     assert registry.get_id(("v", "l", "one", "1")) is not None
+
+
+def test_cache_only_duplicate_keeps_first(tmp_path):
+    first = tmp_path / "first.xml"
+    second = tmp_path / "second.xml"
+    write_component(first)
+    write_component(second)
+    records = {}
+    for source in (first, second):
+        records[str(source)] = loader.CacheEntry(
+            str(source), source.stat().st_mtime, "component", "ipxact", "1685-2022",
+            ("v", "l", "one", "1"), loader._fingerprint(source),
+        )
+    loader._save_cache(tmp_path / loader.CACHE_BASENAME, records)
+    with patch.object(loader.logger, "warning") as warning:
+        assert loader.load_registry_from_cache(cache_dir=tmp_path)
+    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import resolve_handle
+    assert resolve_handle(registry.get_id(("v", "l", "one", "1"))).xml_path == str(first)
+    assert any("Duplicate cached VLNV" in str(call) for call in warning.call_args_list)

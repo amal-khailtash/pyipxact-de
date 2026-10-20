@@ -153,3 +153,64 @@ def test_catalog_incomplete_entry_diagnostic(tmp_path):
     with patch.object(loader.logger, "warning") as warning:
         loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
     assert any("Incomplete catalog entry" in str(call) for call in warning.call_args_list)
+
+
+@pytest.mark.parametrize("uri", ["file:", "file://[bad", "target.xml?query=1", "target.xml#fragment"])
+def test_invalid_uri_does_not_stop_valid_sibling(tmp_path, uri):
+    document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [(uri, VLNV), ("target.xml", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is not None
+    assert any("catalog URI" in str(call) for call in warning.call_args_list)
+
+
+def test_incomplete_vlnv_is_not_followed(tmp_path):
+    source = catalog(tmp_path / "root.xml", [("target.xml", ("", *VLNV[1:]))])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert any("Incomplete catalog VLNV" in str(call) for call in warning.call_args_list)
+    assert registry.get_id(VLNV) is None
+
+
+def test_catalog_category_mismatch_diagnostic(tmp_path):
+    document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [("target.xml", VLNV)])
+    source.write_text(source.read_text().replace("components", "designs"))
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert any("category mismatch" in str(call) for call in warning.call_args_list)
+    assert registry.get_id(VLNV) is not None
+
+
+def test_malformed_target_does_not_stop_valid_sibling(tmp_path):
+    (tmp_path / "bad.xml").write_text("<broken")
+    document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [("bad.xml", VLNV), ("target.xml", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is not None
+    assert any("catalog target" in str(call) for call in warning.call_args_list)
+
+
+@pytest.mark.parametrize(
+    "category,root_name",
+    [
+        ("catalogs", "catalog"), ("busDefinitions", "busDefinition"),
+        ("abstractionDefinitions", "abstractionDefinition"), ("components", "component"),
+        ("abstractors", "abstractor"), ("designs", "design"),
+        ("designConfigurations", "designConfiguration"), ("generatorChains", "generatorChain"),
+        ("typeDefinitions", "typeDefinitions"),
+    ],
+)
+def test_catalog_supported_category_matches(tmp_path, category, root_name):
+    target = document(tmp_path / "target.xml")
+    target.write_text(
+        target.read_text().replace("<component ", f"<{root_name} ").replace("</component>", f"</{root_name}>")
+    )
+    source = catalog(tmp_path / "root.xml", [("target.xml", VLNV)])
+    source.write_text(source.read_text().replace("components", category))
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is not None
+    assert not any("category mismatch" in str(call) for call in warning.call_args_list)

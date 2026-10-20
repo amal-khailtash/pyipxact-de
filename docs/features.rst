@@ -64,6 +64,15 @@ Repository cache integrity
 * ☑ Create requested cache directories before persisting scan results.
 * ☑ Replace cache files atomically and preserve existing data when replacement fails.
 
+Catalog reference validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Reject catalog references with incomplete VLNV attributes.
+* ☑ Diagnose referenced root-category mismatches across supported catalog categories.
+* ☑ Recover from malformed XML targets without skipping valid sibling references.
+* ☑ Reject invalid or empty local URIs and unsupported query/fragment forms per entry.
+* ☑ Retain first-record precedence and diagnose duplicate VLNVs during cache-only loading.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

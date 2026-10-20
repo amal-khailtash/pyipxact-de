@@ -22,6 +22,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Validate catalog reference VLNVs and diagnose referenced document-category mismatches.
+- Recover per entry from invalid URIs and malformed target XML while processing valid siblings.
+- Preserve first-record precedence for duplicate VLNVs during cache-only loading.
 - Validate individual cache records and invalidate stale registrations using file fingerprints.
 - Clear empty cached registries and skip deleted or modified cached files.
 - Create cache directories and atomically replace cache files without losing prior data on failure.

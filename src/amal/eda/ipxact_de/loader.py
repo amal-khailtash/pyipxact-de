@@ -174,6 +174,7 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
     if not cache:
         return False
     loaded = 0
+    seen_vlnvs: set[VLNV] = set()
     for f, ce in cache.items():
         if not ce.vlnv:
             continue
@@ -182,6 +183,9 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
         path = Path(f)
         try:
             if not path.is_file() or ce.fingerprint != _fingerprint(path):
+                continue
+            if ce.vlnv in seen_vlnvs:
+                logger.warning(f"Duplicate cached VLNV {ce.vlnv}: skipping {f}")
                 continue
             class _CachedProxy:
                 """Proxy used for re-registration from cache only."""
@@ -199,6 +203,7 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
                 replace=True,
                 element_type=etype,
             )
+            seen_vlnvs.add(ce.vlnv)
             loaded += 1
         except Exception:  # pragma: no cover - defensive
             continue
@@ -239,7 +244,7 @@ def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
     return None
 
 
-def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV]]:
+def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV, str]]:
     """Resolve local catalog entry URIs without fetching remote resources."""
     if doc.tree is None:
         return
@@ -247,19 +252,34 @@ def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV]]:
     ns = etree.QName(root).namespace
     if not ns:
         return
-    for entry in root.findall(f".//{{{ns}}}ipxactFile"):
-        reference = entry.find(f"{{{ns}}}vlnv")
-        name = entry.findtext(f"{{{ns}}}name")
-        if reference is None or not name or not name.strip():
-            logger.warning(f"Incomplete catalog entry in {doc.path}")
-            continue
-        uri = urlsplit(name.strip())
-        if uri.scheme not in ("", "file") or uri.netloc not in ("", "localhost") or uri.query or uri.fragment:
-            logger.warning(f"Unsupported catalog URI in {doc.path}: {name}")
-            continue
-        target = (doc.path.parent / unquote(uri.path)).resolve()
-        expected = tuple(reference.get(key, "") for key in ("vendor", "library", "name", "version"))
-        yield target, expected
+    categories = {
+        "catalogs": "catalog", "busDefinitions": "busDefinition",
+        "abstractionDefinitions": "abstractionDefinition", "components": "component",
+        "abstractors": "abstractor", "designs": "design", "designConfigurations": "designConfiguration",
+        "generatorChains": "generatorChain", "typeDefinitions": "typeDefinitions",
+    }
+    for category, expected_type in categories.items():
+        for entry in root.findall(f"{{{ns}}}{category}/{{{ns}}}ipxactFile"):
+            reference = entry.find(f"{{{ns}}}vlnv")
+            name = entry.findtext(f"{{{ns}}}name")
+            if reference is None or not name or not name.strip():
+                logger.warning(f"Incomplete catalog entry in {doc.path}")
+                continue
+            expected = tuple(reference.get(key, "") for key in ("vendor", "library", "name", "version"))
+            if not all(part.strip() for part in expected):
+                logger.warning(f"Incomplete catalog VLNV in {doc.path}")
+                continue
+            try:
+                uri = urlsplit(name.strip())
+                if (uri.scheme not in ("", "file") or uri.netloc not in ("", "localhost")
+                        or uri.query or uri.fragment or not uri.path):
+                    logger.warning(f"Unsupported catalog URI in {doc.path}: {name}")
+                    continue
+                target = (doc.path.parent / unquote(uri.path)).resolve()
+            except (ValueError, OSError) as exc:
+                logger.warning(f"Invalid catalog URI in {doc.path}: {name}: {exc}")
+                continue
+            yield target, expected, expected_type
 
 
 def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[str, XmlDocument]]:
@@ -286,14 +306,20 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
             root = doc.tree.getroot()
             if etree.QName(root).localname != "catalog":
                 return
-            for target, expected in _catalog_references(doc):
+            for target, expected, expected_type in _catalog_references(doc):
                 target_name = str(target)
                 try:
                     child = parsed.get(target_name)
                     if child is None:
                         child = XmlDocument(target)
                         parsed[target_name] = child
-                    actual = _extract_vlnv_from_root(child.tree.getroot()) if child.tree is not None else None
+                    if child.tree is None:
+                        logger.warning(f"Malformed catalog target {target}")
+                        continue
+                    actual_type = etree.QName(child.tree.getroot()).localname
+                    if actual_type != expected_type:
+                        logger.warning(f"Catalog category mismatch for {target}: expected {expected_type}, got {actual_type}")
+                    actual = _extract_vlnv_from_root(child.tree.getroot())
                     if actual != expected:
                         logger.warning(f"VLNV mismatch for {target}: catalog {expected} vs file {actual}")
                     ordered.setdefault(target_name, None)
