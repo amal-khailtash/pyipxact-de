@@ -22,6 +22,15 @@ XML document identification
 * ☑ Reject unsupported standard versions during document identification.
 * ☑ Leave identification failures retryable after the source document is corrected.
 
+XML schema validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Return structured validation issues for missing or unreadable XML files.
+* ☑ Return malformed-XML diagnostics with line and column locations.
+* ☑ Validate offline using an explicit local Accellera schema directory.
+* ☑ Return actual XSD diagnostics and source locations from in-process validation.
+* ☑ Return structured failures for missing, malformed, or invalid local schemas.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

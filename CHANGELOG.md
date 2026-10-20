@@ -9,6 +9,9 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Add explicit offline schema validation with local Accellera schemas and detailed
+  XSD diagnostics, including source locations and structured schema-load failures.
+
 - Add Markdown lint configuration and normalize repository documentation formatting.
 - new persistent xml registration `register` with `scan`, and `list` subcommands.
 - add registry loader and scanner for IP-XACT XML files, enhance VLNV management
@@ -17,6 +20,8 @@ This document lists notable changes for each release and follows:
 - Add the bus-definition extended-VLNV accessor and feature implementation checklist.
 
 ### Fixed
+
+- Return structured validation failures for missing and malformed XML documents.
 
 - Identify SPIRIT/IP-XACT documents from the expanded root namespace, supporting
   default and arbitrary prefixes; reject unsupported versions and allow retry

@@ -10,6 +10,8 @@ This module provides a small, typed wrapper around the lower-level
 from dataclasses import dataclass
 from pathlib import Path
 
+from lxml import etree
+
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from amal.utilities import XmlValidator
 
@@ -24,6 +26,8 @@ class ValidationIssue:
     """
 
     message: str
+    line: int | None = None
+    column: int | None = None
 
 
 @dataclass(slots=True)
@@ -79,16 +83,18 @@ def _resolve_schema_for_xml(xml_path: Path) -> tuple[str | None, str | None, str
     return schema_path, version, standard, root_element
 
 
-def validate_ipxact_xml(xml: str | Path) -> ValidationResult:
+def validate_ipxact_xml(xml: str | Path, *, schema_root: str | Path | None = None) -> ValidationResult:
     """Validate an IP-XACT XML document using strict XSD rules.
 
-    This helper always uses the existing :class:`XmlValidator` in ``xmllint``
-    mode, matching the current CLI behaviour, so that diagnostics remain
-    consistent across interfaces.
+    With ``schema_root``, resolve schemas as FAMILY/version/index.xsd under
+    that directory and validate in-process without network access. Otherwise
+    retain the existing xmllint backend.
 
     Args:
         xml: Either a filesystem path to the XML document or a string that can
             be interpreted as such.
+        schema_root: Optional local Accellera schema tree containing IPXACT/
+            and SPIRIT/ directories.
 
     Returns:
         A :class:`ValidationResult` instance summarising validation outcome.
@@ -96,7 +102,11 @@ def validate_ipxact_xml(xml: str | Path) -> ValidationResult:
 
     xml_path = Path(xml)
 
-    schema_path, version, standard, root_element = _resolve_schema_for_xml(xml_path)
+    try:
+        schema_path, version, standard, root_element = _resolve_schema_for_xml(xml_path)
+    except (OSError, etree.XMLSyntaxError) as error:
+        line, column = getattr(error, "position", (None, None))
+        return ValidationResult(False, [ValidationIssue(str(error), line, column)], None, None, None, None)
 
     if not schema_path:
         return ValidationResult(
@@ -107,6 +117,25 @@ def validate_ipxact_xml(xml: str | Path) -> ValidationResult:
             standard=standard,
             root_element=root_element,
         )
+
+    if schema_root is not None:
+        local_schema = Path(schema_root) / standard / version / "index.xsd"
+        schema_path = str(local_schema)
+        parser = etree.XMLParser(no_network=True, resolve_entities=False)
+        try:
+            schema = etree.XMLSchema(etree.parse(str(local_schema), parser))
+        except (OSError, etree.XMLSyntaxError, etree.XMLSchemaParseError) as error:
+            return ValidationResult(False, [ValidationIssue(f"Schema could not be loaded: {error}")],
+                                    schema_path, version, standard, root_element)
+        try:
+            tree = etree.parse(str(xml_path), parser)
+            ok = schema.validate(tree)
+            issues = [ValidationIssue(entry.message, entry.line or None, entry.column or None)
+                      for entry in schema.error_log]
+        except (OSError, etree.XMLSyntaxError) as error:
+            line, column = getattr(error, "position", (None, None))
+            ok, issues = False, [ValidationIssue(str(error), line, column)]
+        return ValidationResult(ok, issues, schema_path, version, standard, root_element)
 
     validator = XmlValidator(schema_path, use_lxml=False)
     ok = validator.validate(str(xml_path))
