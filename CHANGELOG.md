@@ -17,11 +17,37 @@ This document lists notable changes for each release and follows:
 
 ### CI
 
-- Consolidate numbered PR, CI, release, and publication workflows; reuse validated distributions and trigger release docs after PyPI.
+- Dispatch production publication directly so PEP 740 identity matches the PyPI trusted publisher.
 
+- Consolidate numbered PR, CI, release, and publication workflows; reuse validated distributions
+  and trigger release docs after PyPI.
 
 ### Fixed
 
+- Implement bus-definition creation with Boolean capabilities and generator-chain creation with an initial generator.
+- Verify strict Boolean bus-capability setters, duplicate creation, parent identity, and XML preservation.
+- Implement VLNV-based catalog, component, design, design-configuration, and type-definition creation.
+- Return generated roots with registry identity, reject invalid VLNVs, and return null for duplicates.
+- Clear repository registrations and cached entries when search paths are removed.
+- Recover from unreadable caches and verify explicit/environment precedence and same-size file edits.
+- Verify unsupported discovered documents do not prevent supported sibling registration.
+- Reject unsupported catalog target versions and targets with incomplete VLNVs.
+- Validate encoded local URI paths and isolate invalid escapes, UTF-8, and NUL paths per entry.
+- Verify that vendor-extension lookalikes do not participate in catalog dependency discovery.
+- Validate catalog reference VLNVs and diagnose referenced document-category mismatches.
+- Recover per entry from invalid URIs and malformed target XML while processing valid siblings.
+- Preserve first-record precedence for duplicate VLNVs during cache-only loading.
+- Validate individual cache records and invalidate stale registrations using file fingerprints.
+- Clear empty cached registries and skip deleted or modified cached files.
+- Create cache directories and atomically replace cache files without losing prior data on failure.
+- Expand cache recovery tests; focused loader coverage reaches 93%.
+- Discover nested catalog dependencies through local URIs, including percent-encoded paths.
+- Detect catalog cycles and shared targets; diagnose missing files and VLNV mismatches.
+- Recheck unchanged catalogs when dependencies disappear or return; reject unsupported remote URIs.
+- Make repository VLNV extraction independent of XML namespace prefixes.
+- Discover uppercase XML extensions, retain search-path order, and deduplicate overlapping files.
+- Warn on duplicate VLNVs and keep the first match on fresh and cached scans.
+- Continue scanning after a discovered file disappears.
 - Avoid duplicate API navigation trees and fully expanded sidebars during documentation rendering.
 - Match the pysystemc screenshot badge order and labels for release automation, tests, publishing, and documentation.
 - Match pysystemc CI/CD badge order and styling, including Documentation and RELEASE_PLEASE badges.
@@ -31,6 +57,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Record standard-first implementation priorities and defer further caching and GUI work.
 - Show the Release Please action version in the README Standards badges.
 - Exercise verified uv trusted publishing and attestations through the manual TestPyPI workflow;
   confirm successful wheel and source publication.

@@ -7,6 +7,10 @@ The implementation scope includes all IP-XACT data and behavior; TGI coverage
 is tracked separately and does not replace core feature implementation. Checked operations
 do not imply complete semantic, transport, expression, or GUI conformance.
 
+Current priority is IEEE/IP-XACT document semantics, validation, and applicable TGI requirements.
+Further caching and GUI work is deferred until the remaining standard aspects are implemented.
+Deferred items remain visible below; existing checked items retain their verification status.
+
 Update this checklist and the local plan with each implemented set of changes,
 and commit the implementation, tests, checklist, and changelog together.
 
@@ -36,6 +40,68 @@ XML schema validation
 * ☑ Validate offline using an explicit local Accellera schema directory.
 * ☑ Return actual XSD diagnostics and source locations from in-process validation.
 * ☑ Return structured failures for missing, malformed, or invalid local schemas.
+
+Repository discovery
+~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Extract root VLNV values independently of default or arbitrary XML namespace prefixes.
+* ☑ Discover XML files case-insensitively in recursive repository scans.
+* ☑ Preserve search-path order and scan overlapping files once.
+* ☑ Diagnose duplicate VLNV values and retain the first search-path match on fresh and cached scans.
+* ☑ Continue scanning when a discovered file disappears before it can be read.
+
+Catalog dependency discovery
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Resolve relative, absolute, and percent-encoded local file URIs from catalogs.
+* ☑ Discover nested catalogs and register referenced documents outside the search paths.
+* ☑ Detect catalog reference cycles and deduplicate shared dependencies.
+* ☑ Diagnose missing targets, mismatched VLNVs, incomplete entries, and unsupported remote URIs.
+* ☑ Recheck unchanged catalogs and remove or restore dependency registrations as files disappear or return.
+
+Repository cache integrity
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Validate cache records independently and retain valid records beside malformed entries.
+* ☑ Detect changed files using nanosecond modification/change times and file size.
+* ☑ Discard stale or deleted files during cache-only registry loading and clear empty cached registries.
+* ☑ Create requested cache directories before persisting scan results.
+* ☑ Replace cache files atomically and preserve existing data when replacement fails.
+
+Catalog reference validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Reject catalog references with incomplete VLNV attributes.
+* ☑ Diagnose referenced root-category mismatches across supported catalog categories.
+* ☑ Recover from malformed XML targets without skipping valid sibling references.
+* ☑ Reject invalid or empty local URIs and unsupported query/fragment forms per entry.
+* ☑ Retain first-record precedence and diagnose duplicate VLNVs during cache-only loading.
+
+Catalog target eligibility
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Reject unsupported referenced standard/version combinations before registration.
+* ☑ Reject referenced roots with incomplete VLNVs.
+* ☑ Reject malformed percent escapes and invalid UTF-8 encoded paths per entry.
+* ☑ Reject decoded NUL paths without stopping sibling discovery.
+* ☑ Ignore vendor-extension lookalikes when discovering catalog references.
+
+
+Repository refresh behavior
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Clear registrations and persisted cache when no search paths remain.
+* ☑ Verify explicit-path precedence over environment search paths.
+* ☑ Recover from unreadable cache files during fresh scans.
+* ☑ Diagnose unsupported discovered documents while loading valid siblings.
+* ☑ Invalidate same-size edits with preserved modification times.
+
+Standard root creation
+~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Create generated catalog, component, design, design configuration, and typeDefinitions roots from VLNVs.
+* ☑ Register created roots, return null for duplicate VLNVs, and reject malformed VLNV arguments.
+* ☑ Preserve root metadata across XML round trips for the five verified creators.
 
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2854,13 +2920,13 @@ Top element (EXTENDED)
 
 * ☐ ``createAbstractionDef`` (F.7.80.1)
 * ☐ ``createAbstractor`` (F.7.80.2)
-* ☐ ``createBusDefinition`` (F.7.80.3)
-* ☐ ``createCatalog`` (F.7.80.4)
-* ☐ ``createComponent`` (F.7.80.5)
-* ☐ ``createDesign`` (F.7.80.6)
-* ☐ ``createDesignConfiguration`` (F.7.80.7)
-* ☐ ``createGeneratorChain`` (F.7.80.8)
-* ☐ ``createTypeDefinitions`` (F.7.80.9)
+* ☑ ``createBusDefinition`` (F.7.80.3)
+* ☑ ``createCatalog`` (F.7.80.4)
+* ☑ ``createComponent`` (F.7.80.5)
+* ☑ ``createDesign`` (F.7.80.6)
+* ☑ ``createDesignConfiguration`` (F.7.80.7)
+* ☑ ``createGeneratorChain`` (F.7.80.8)
+* ☑ ``createTypeDefinitions`` (F.7.80.9)
 * ☐ ``edit`` (F.7.80.10)
 * ☐ ``setXMLPath`` (F.7.80.11)
 
@@ -3038,3 +3104,8 @@ Development and release automation
 * ☑ Configure release-please version/changelog PRs and verified uv trusted publication.
 * ☑ Add Read the Docs configuration and contributor/release setup instructions.
 * ☐ Activate external service integrations and verify hosted PR checks and automatic publication.
+
+Release automation
+~~~~~~~~~~~~~~~~~~
+
+- ☑ Dispatch publication directly with the configured PyPI trusted publisher workflow identity.

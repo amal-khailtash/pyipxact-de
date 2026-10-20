@@ -9,10 +9,12 @@ removed.
 Design notes:
 - Caching: a simple JSON cache keyed by absolute file path storing mtime,
   root tag, standard, version, and VLNV quadruple. On startup we compare
-  mtimes to decide whether to reparse.
+  mtimes to reuse registry metadata. Dependency discovery reparses current files
+  to recheck catalog references, including references outside the search paths.
 - Persistence: we recompute the full registry on each invocation based on
   the current filesystem view, clearing the registry first to reflect
   additions/removals.
+- Search precedence: explicit paths precede environment paths; first duplicate VLNV wins with a warning.
 - VLNV validation: for catalog files we traverse ipxact:ipxactFile entries
   and verify the referenced file's VLNV matches the vlnv attributes; we log
   a warning on mismatch.
@@ -25,7 +27,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 import json
 import os
+import math
+import re
+import tempfile
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 from lxml import etree
 
@@ -50,6 +56,7 @@ class CacheEntry:
         standard: "ipxact" or "spirit".
         version: Version string e.g. "1685-2022" or "1.5".
         vlnv: VLNV quadruple for the root element when available, else None.
+        fingerprint: Nanosecond mtime, nanosecond ctime, and size; absent for legacy records.
     """
 
     path: str
@@ -58,6 +65,7 @@ class CacheEntry:
     standard: str
     version: str
     vlnv: VLNV | None
+    fingerprint: tuple[int, int, int] | None = None
 
 
 def _default_cache_dir() -> Path:
@@ -70,23 +78,43 @@ def _default_cache_dir() -> Path:
 
 def _load_cache(cache_path: Path) -> dict[str, CacheEntry]:
     """Load cache file (array of records) into a dict keyed by absolute path."""
-    if not cache_path.exists():
-        return {}
     try:
+        if not cache_path.exists():
+            return {}
         items = json.loads(cache_path.read_text())
         out: dict[str, CacheEntry] = {}
         if not isinstance(items, list):  # expect array; otherwise ignore
             return {}
         for v in items:
-            ce = CacheEntry(
-                path=v["path"],
-                mtime=v["mtime"],
-                element=v.get("element", ""),
-                standard=v.get("standard", ""),
-                version=v.get("version", ""),
-                vlnv=tuple(v["vlnv"]) if v.get("vlnv") else None,  # type: ignore[arg-type]
-            )
-            out[ce.path] = ce
+            try:
+                if not isinstance(v, dict) or not isinstance(v.get("path"), str) or not Path(v["path"]).is_absolute():
+                    raise ValueError("cache path must be absolute")
+                mtime = v["mtime"]
+                if isinstance(mtime, bool) or not isinstance(mtime, (float, int)) or not math.isfinite(mtime):
+                    raise ValueError("invalid modification time")
+                vlnv = v.get("vlnv")
+                if vlnv is not None and (
+                    not isinstance(vlnv, list) or len(vlnv) != 4
+                    or not all(isinstance(part, str) and part for part in vlnv)
+                ):
+                    raise ValueError("invalid VLNV")
+                fingerprint = v.get("fingerprint")
+                if fingerprint is not None and (
+                    not isinstance(fingerprint, list) or len(fingerprint) != 3
+                    or not all(type(part) is int and part >= 0 for part in fingerprint)
+                ):
+                    raise ValueError("invalid file fingerprint")
+                if not all(isinstance(v.get(key, ""), str) for key in ("element", "standard", "version")):
+                    raise ValueError("invalid document metadata")
+                ce = CacheEntry(
+                    path=v["path"], mtime=mtime, element=v.get("element", ""),
+                    standard=v.get("standard", ""), version=v.get("version", ""),
+                    vlnv=tuple(vlnv) if vlnv is not None else None,
+                    fingerprint=tuple(fingerprint) if fingerprint is not None else None,
+                )
+                out[ce.path] = ce
+            except (KeyError, TypeError, ValueError) as exc:
+                logger.warning(f"Ignoring invalid cache record in {cache_path}: {exc}")
         return out
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning(f"Failed to load cache '{cache_path}': {exc}")
@@ -103,16 +131,33 @@ def _save_cache(cache_path: Path, cache: dict[str, CacheEntry]) -> None:
             "standard": e.standard,
             "version": e.version,
             "vlnv": list(e.vlnv) if e.vlnv else None,
+            "fingerprint": list(e.fingerprint) if e.fingerprint else None,
         }
         for e in cache.values()
     ]
-    cache_path.write_text(json.dumps(payload, indent=2))
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", dir=cache_path.parent, delete=False, encoding="utf-8") as stream:
+            temporary = Path(stream.name)
+            json.dump(payload, stream, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, cache_path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _fingerprint(path: Path) -> tuple[int, int, int]:
+    stat = path.stat()
+    return stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
 
 
 def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
     """Load the in-memory registry solely from the on-disk cache.
 
-    This does not touch the filesystem for discovery. It reads the cache file
+    This does not discover files, but checks cached paths and their fingerprints. It reads the cache file
     (from the current working directory by default) and re-registers cached
     entries into the global VLNV registry. Unsupported standards/versions are
     skipped. Returns True if any entries were loaded.
@@ -126,10 +171,11 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
     cache_base = cache_dir or _default_cache_dir()
     cache_path = cache_base / CACHE_BASENAME
     cache = _load_cache(cache_path)
+    registry.clear()
     if not cache:
         return False
-    registry.clear()
     loaded = 0
+    seen_vlnvs: set[VLNV] = set()
     for f, ce in cache.items():
         if not ce.vlnv:
             continue
@@ -137,6 +183,11 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
             continue
         path = Path(f)
         try:
+            if not path.is_file() or ce.fingerprint != _fingerprint(path):
+                continue
+            if ce.vlnv in seen_vlnvs:
+                logger.warning(f"Duplicate cached VLNV {ce.vlnv}: skipping {f}")
+                continue
             class _CachedProxy:
                 """Proxy used for re-registration from cache only."""
                 __slots__ = ("vendor", "library", "name", "version", "xml_path")
@@ -153,6 +204,7 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
                 replace=True,
                 element_type=etype,
             )
+            seen_vlnvs.add(ce.vlnv)
             loaded += 1
         except Exception:  # pragma: no cover - defensive
             continue
@@ -167,7 +219,7 @@ def _iter_xml_files(paths: Iterable[Path]) -> Iterable[Path]:
     """
     for p in paths:
         if p.is_dir():
-            yield from p.rglob("*.xml")
+            yield from sorted(child for child in p.rglob("*") if child.is_file() and child.suffix.lower() == ".xml")
         elif p.is_file() and p.suffix.lower() == ".xml":
             yield p
 
@@ -179,7 +231,7 @@ def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
     which carry vendor/library/name/version children in the same namespace.
     Returns None if not all parts are present.
     """
-    ns = root.nsmap.get("ipxact") or root.nsmap.get("spirit")
+    ns = etree.QName(root).namespace
     if not ns:
         return None
     def _t(tag: str) -> str:
@@ -193,51 +245,108 @@ def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
     return None
 
 
-def _validate_catalog_ipxact_files(doc: XmlDocument, base_dir: Path) -> None:
-    """Validate ipxactFile entries in a catalog match underlying file VLNVs.
-
-    If an entry path is relative, it is resolved against `base_dir`.
-    Logs warnings for missing files or VLNV mismatches.
-    """
+def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV, str]]:
+    """Resolve local catalog entry URIs without fetching remote resources."""
     if doc.tree is None:
         return
     root = doc.tree.getroot()
-    ns = root.nsmap.get("ipxact")
+    ns = etree.QName(root).namespace
     if not ns:
         return
-    q_ipxactFile = f".//{{{ns}}}ipxactFile"
-    q_vlnv = f"{{{ns}}}vlnv"
-    q_name = f"{{{ns}}}name"
-    for ipf in root.findall(q_ipxactFile):
-        vlnv_elem = ipf.find(q_vlnv)
-        name_elem = ipf.find(q_name)
-        if vlnv_elem is None or name_elem is None:
-            continue
-        expected: VLNV = (
-            vlnv_elem.get("vendor", ""),
-            vlnv_elem.get("library", ""),
-            vlnv_elem.get("name", ""),
-            vlnv_elem.get("version", ""),
-        )
-        rel_path = (name_elem.text or "").strip()
-        if not rel_path:
-            continue
-        target = (base_dir / rel_path).resolve()
-        if not target.exists():
-            logger.warning(f"ipxactFile target missing: {target}")
-            continue
+    categories = {
+        "catalogs": "catalog", "busDefinitions": "busDefinition",
+        "abstractionDefinitions": "abstractionDefinition", "components": "component",
+        "abstractors": "abstractor", "designs": "design", "designConfigurations": "designConfiguration",
+        "generatorChains": "generatorChain", "typeDefinitions": "typeDefinitions",
+    }
+    for category, expected_type in categories.items():
+        for entry in root.findall(f"{{{ns}}}{category}/{{{ns}}}ipxactFile"):
+            reference = entry.find(f"{{{ns}}}vlnv")
+            name = entry.findtext(f"{{{ns}}}name")
+            if reference is None or not name or not name.strip():
+                logger.warning(f"Incomplete catalog entry in {doc.path}")
+                continue
+            expected = tuple(reference.get(key, "") for key in ("vendor", "library", "name", "version"))
+            if not all(part.strip() for part in expected):
+                logger.warning(f"Incomplete catalog VLNV in {doc.path}")
+                continue
+            try:
+                uri = urlsplit(name.strip())
+                if (uri.scheme not in ("", "file") or uri.netloc not in ("", "localhost")
+                        or uri.query or uri.fragment or not uri.path):
+                    logger.warning(f"Unsupported catalog URI in {doc.path}: {name}")
+                    continue
+                if re.search(r"%(?![0-9A-Fa-f]{2})", uri.path):
+                    raise ValueError("malformed percent escape")
+                decoded = unquote(uri.path, errors="strict")
+                if "\x00" in decoded:
+                    raise ValueError("NUL in decoded path")
+                target = (doc.path.parent / decoded).resolve()
+            except (ValueError, OSError) as exc:
+                logger.warning(f"Invalid catalog URI in {doc.path}: {name}: {exc}")
+                continue
+            yield target, expected, expected_type
+
+
+def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[str, XmlDocument]]:
+    """Expand catalogs with cycle detection; explicit discoveries retain precedence."""
+    ordered = dict.fromkeys(files)
+    parsed: dict[str, XmlDocument] = {}
+    visited: set[str] = set()
+    active: set[str] = set()
+
+    def visit(file_name: str) -> None:
+        if file_name in active:
+            logger.warning(f"Catalog reference cycle at {file_name}")
+            return
+        if file_name in visited:
+            return
+        active.add(file_name)
         try:
-            t_doc = XmlDocument(target)
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning(f"Failed parsing ipxactFile target {target}: {exc}")
-            continue
-        if t_doc.tree is None:
-            continue
-        v_actual = _extract_vlnv_from_root(t_doc.tree.getroot())
-        if v_actual and v_actual != expected:
-            logger.warning(
-                f"VLNV mismatch for {target}: catalog {expected} vs file {v_actual}"
-            )
+            doc = parsed.get(file_name)
+            if doc is None:
+                doc = XmlDocument(Path(file_name))
+                parsed[file_name] = doc
+            if doc.tree is None or (doc.standard or "").lower() != SUPPORTED_STANDARD or doc.version != SUPPORTED_VERSION:
+                return
+            root = doc.tree.getroot()
+            if etree.QName(root).localname != "catalog":
+                return
+            for target, expected, expected_type in _catalog_references(doc):
+                target_name = str(target)
+                try:
+                    child = parsed.get(target_name)
+                    if child is None:
+                        child = XmlDocument(target)
+                        parsed[target_name] = child
+                    if child.tree is None:
+                        logger.warning(f"Malformed catalog target {target}")
+                        continue
+                    if (child.standard or "").lower() != SUPPORTED_STANDARD or child.version != SUPPORTED_VERSION:
+                        logger.warning(f"Unsupported catalog target standard {target}: {child.standard}/{child.version}")
+                        continue
+                    actual_type = etree.QName(child.tree.getroot()).localname
+                    if actual_type != expected_type:
+                        logger.warning(f"Catalog category mismatch for {target}: expected {expected_type}, got {actual_type}")
+                    actual = _extract_vlnv_from_root(child.tree.getroot())
+                    if actual is None:
+                        logger.warning(f"Incomplete target VLNV for {target}")
+                        continue
+                    if actual != expected:
+                        logger.warning(f"VLNV mismatch for {target}: catalog {expected} vs file {actual}")
+                    ordered.setdefault(target_name, None)
+                    visit(target_name)
+                except Exception as exc:
+                    logger.warning(f"Cannot read catalog target {target}: {exc}")
+        except Exception as exc:
+            logger.warning(f"Cannot discover catalog dependencies in {file_name}: {exc}")
+        finally:
+            active.remove(file_name)
+            visited.add(file_name)
+
+    for file_name in files:
+        visit(file_name)
+    return list(ordered), parsed
 
 
 def _register_root(doc: XmlDocument) -> VLNV | None:
@@ -290,9 +399,9 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
     for p in paths:
         if p:
             search_paths.append(Path(p).expanduser().resolve())
-    # Environment paths (colon-separated)
+    # Environment paths (platform path separator)
     env = os.environ.get("IPXACT_XML_PATHS", "")
-    for p in (e for e in env.split(":") if e):
+    for p in (e for e in env.split(os.pathsep) if e):
         search_paths.append(Path(p).expanduser().resolve())
     # De-duplicate while preserving order
     seen: set[Path] = set()
@@ -302,6 +411,8 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
             seen.add(p)
             unique_paths.append(p)
     if not unique_paths:
+        registry.clear()
+        _save_cache((cache_dir or _default_cache_dir()) / CACHE_BASENAME, {})
         return
 
     cache_base = cache_dir or _default_cache_dir()
@@ -309,17 +420,32 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
     cache = _load_cache(cache_path)
 
     # Compute current file set
-    files = sorted({str(p.resolve()) for p in _iter_xml_files(unique_paths)})
+    files = list(dict.fromkeys(str(p.resolve()) for p in _iter_xml_files(unique_paths)))
+    files, parsed_documents = _discover_catalog_dependencies(files)
 
     # Clear registry; we'll rebuild from current files
     registry.clear()
 
     new_cache: dict[str, CacheEntry] = {}
+    registered: dict[VLNV, str] = {}
+
+    def accept(vlnv: VLNV, file_name: str) -> bool:
+        if vlnv in registered:
+            logger.warning(f"Duplicate VLNV {vlnv}: keeping {registered[vlnv]}, skipping {file_name}")
+            return False
+        registered[vlnv] = file_name
+        return True
+
     for f in files:
         path = Path(f)
-        mtime = path.stat().st_mtime
+        try:
+            mtime = path.stat().st_mtime
+            fingerprint = _fingerprint(path)
+        except OSError as exc:
+            logger.warning(f"Cannot read discovered XML {path}: {exc}")
+            continue
         ce = cache.get(f)
-        if ce and abs(ce.mtime - mtime) < 1e-6 and ce.vlnv:
+        if ce and ce.fingerprint == fingerprint and ce.vlnv:
             # Skip unsupported standards/versions even if cached
             if (ce.standard or "").lower() != SUPPORTED_STANDARD or (ce.version or "") != SUPPORTED_VERSION:
                 logger.warning(
@@ -328,6 +454,8 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 )
                 continue
             # unchanged; fast register using cached VLNV
+            if not accept(ce.vlnv, f):
+                continue
             try:
                 class _CachedProxy:
                     """Proxy used for fast re-registration from cache."""
@@ -352,15 +480,16 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                     standard=ce.standard,
                     version=ce.version,
                     vlnv=ce.vlnv,
+                    fingerprint=fingerprint,
                 )
                 continue
             except Exception:
                 # fall through to reparse on any issue
-                pass
+                registered.pop(ce.vlnv, None)
 
         # Parse fresh
         try:
-            doc = XmlDocument(path)
+            doc = parsed_documents.get(f) or XmlDocument(path)
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(f"{ARROW} Failed parsing '{f}': {exc}")
             continue
@@ -371,12 +500,13 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 f"(detected {doc.standard}/{doc.version}); only {SUPPORTED_STANDARD}/{SUPPORTED_VERSION} is supported"
             )
             continue
+        if doc.tree is not None:
+            discovered_vlnv = _extract_vlnv_from_root(doc.tree.getroot())
+            if discovered_vlnv is not None and not accept(discovered_vlnv, f):
+                continue
         vlnv = _register_root(doc)
         if doc.tree is not None:
-            # If catalog, validate its ipxactFile entries
             tag_local = etree.QName(doc.tree.getroot()).localname
-            if tag_local.lower() == "catalog":
-                _validate_catalog_ipxact_files(doc, base_dir=path.parent)
             standard = doc.standard
             version = doc.version
             new_cache[f] = CacheEntry(
@@ -386,6 +516,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 standard=standard,
                 version=version,
                 vlnv=vlnv,
+                fingerprint=fingerprint,
             )
 
     # Persist cache for next run
