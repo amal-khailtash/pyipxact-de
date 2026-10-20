@@ -7,6 +7,11 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### CI
+
+- Consolidate numbered PR, CI, release, and publication workflows; reuse validated distributions and trigger release docs after PyPI.
+
+
 ### Fixed
 
 - Avoid duplicate API navigation trees and fully expanded sidebars during documentation rendering.
