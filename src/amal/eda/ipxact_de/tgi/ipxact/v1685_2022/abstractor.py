@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
+    AbstractorBusInterfaceType,
     AbstractorGenerator,
     AbstractorGenerators,
     AbstractorPortType,
@@ -190,23 +191,14 @@ def getAbstractorFileSetIDs(abstractorID: str) -> list[str]:
     return [get_handle(fs) for fs in getattr(a.file_sets, "file_set", [])]
 
 
-def getAbstractorInterfaceAbstractionTypeIDs(abstractorID: str) -> list[str]:
-    """Return handles of abstractionType elements of both abstractorInterfaces.
-
-    Section: F.7.4.9.
-    """
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.abstractor_interfaces is None:
+def getAbstractorInterfaceAbstractionTypeIDs(abstractorInterfaceID: str) -> list[str]:
+    """List abstraction types on the supplied interface (F.7.4.9)."""
+    interface = resolve_handle(abstractorInterfaceID)
+    if not isinstance(interface, AbstractorBusInterfaceType):
+        raise TgiError("Invalid abstractor interface handle", TgiFaultCode.INVALID_ID)
+    if interface.abstraction_types is None:
         return []
-    ids: list[str] = []
-    for iface in getattr(a.abstractor_interfaces, "abstractor_interface", []):
-        if iface.abstraction_types is None:
-            continue
-        for at in getattr(iface.abstraction_types, "abstraction_type", []):
-            ids.append(get_handle(at))
-    return ids
+    return [get_handle(item) for item in interface.abstraction_types.abstraction_type]
 
 
 def getAbstractorPortIDs(abstractorID: str) -> list[str]:
@@ -286,6 +278,8 @@ def addAbstractorComponentInstantiation(abstractorID: str, name: str) -> str:
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Instantiation name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     if a.model is None:
         from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
         a.model = AbstractorModelType()
@@ -294,7 +288,7 @@ def addAbstractorComponentInstantiation(abstractorID: str, name: str) -> str:
         a.model.instantiations = AbstractorModelType.Instantiations()
     ci = ComponentInstantiationType(name=name)
     a.model.instantiations.component_instantiation.append(ci)  # type: ignore[attr-defined]
-    register_parent(ci, a, ("model", "instantiations"), "list")
+    register_parent(ci, a, ("model", "instantiations", "component_instantiation"), "list")
     return get_handle(ci)
 
 
@@ -317,41 +311,25 @@ def addAbstractorFileSet(abstractorID: str, name: str) -> str:
 
 
 def addAbstractorInterfaceAbstractionType(
-    abstractorID: str,
-    interfaceIndex: int,
-    abstractionRefVLNV: tuple[str, str, str, str],
+    abstractorBusInterfaceID: str, abstractionRef: tuple[str, str, str, str],
 ) -> str:
-    """Add an ``abstractionType`` to one of the two abstractorInterfaces.
+    """Add a validated abstraction reference to an interface (F.7.5.5)."""
+    from .core import vlnv_to_tuple
 
-    Section: F.7.5.5.
-    Args:
-        interfaceIndex: 0 or 1 selecting which of the two interfaces.
-        abstractionRefVLNV: (vendor, library, name, version) of abstractionDef.
-    """
-    if interfaceIndex not in (0, 1):
-        raise TgiError("interfaceIndex must be 0 or 1", TgiFaultCode.INVALID_ARGUMENT)
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.abstractor_interfaces is None:
-        raise TgiError("Abstractor missing interfaces", TgiFaultCode.INVALID_ARGUMENT)
-    interfaces = list(getattr(a.abstractor_interfaces, "abstractor_interface", []))
-    if len(interfaces) <= interfaceIndex:
-        raise TgiError("Interface index out of range", TgiFaultCode.INVALID_ARGUMENT)
-    iface = interfaces[interfaceIndex]
-    if iface.abstraction_types is None:
-        iface.abstraction_types = AbstractionTypes()
-    at = AbstractionTypes.AbstractionType(
-        abstraction_ref=ConfigurableLibraryRefType(
-            vendor=abstractionRefVLNV[0],
-            library=abstractionRefVLNV[1],
-            name=abstractionRefVLNV[2],
-            version=abstractionRefVLNV[3],
-        )
-    )
-    iface.abstraction_types.abstraction_type.append(at)  # type: ignore[attr-defined]
-    register_parent(at, iface, ("abstraction_types",), "list")
-    return get_handle(at)
+    interface = resolve_handle(abstractorBusInterfaceID)
+    if not isinstance(interface, AbstractorBusInterfaceType):
+        raise TgiError("Invalid abstractor interface handle", TgiFaultCode.INVALID_ID)
+    parts = vlnv_to_tuple(abstractionRef)
+    if not all(isinstance(part, str) and part.strip() for part in parts):
+        raise TgiError("Abstraction VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    item = AbstractionTypes.AbstractionType(abstraction_ref=ConfigurableLibraryRefType(
+        vendor=parts[0], library=parts[1], name=parts[2], version=parts[3],
+    ))
+    if interface.abstraction_types is None:
+        interface.abstraction_types = AbstractionTypes()
+    interface.abstraction_types.abstraction_type.append(item)
+    register_parent(item, interface, ("abstraction_types", "abstraction_type"), "list")
+    return get_handle(item)
 
 
 def addAbstractorTransactionalPort(abstractorID: str, name: str, initiative: str | None = None) -> str:
@@ -546,7 +524,7 @@ def removeAbstractorChoice(choiceID: str) -> bool:
 def removeAbstractorComponentInstantiation(componentInstantiationID: str) -> bool:
     """Remove a componentInstantiation.
 
-    Section: F.7.5.14.
+    Section: F.7.5.15.
     """
     return detach_child_by_handle(componentInstantiationID)
 
@@ -562,7 +540,7 @@ def removeAbstractorFileSet(fileSetID: str) -> bool:
 def removeAbstractorInterfaceAbstractionType(abstractionTypeID: str) -> bool:
     """Remove an abstractionType from an abstractorInterface.
 
-    Section: F.7.5.16.
+    Section: F.7.5.17.
     """
     return detach_child_by_handle(abstractionTypeID)
 

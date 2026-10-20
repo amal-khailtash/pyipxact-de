@@ -17,6 +17,10 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Use standard interface handles for abstractor abstraction-type creation and traversal.
+- Validate abstraction references and component-instantiation names before mutation.
+- Repair abstraction-type and component-instantiation parent paths for removal and verify XML round trips.
+
 - Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
 - Validate abstractor mode and bus-reference updates before mutation; preserve mode handles and existing groups.
 - Correct abstractor file-set parent paths and verify add/list/remove behavior and XML round trips.
