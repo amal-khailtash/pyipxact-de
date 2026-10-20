@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Traverse logical-port system modes for both generated styles and restore parsed mode ownership.
+- Implement typed wire/transactional mode removal with selective detachment and handle invalidation.
 - Initialize packet-field qualifiers without replacing existing content or handles.
 - Remove optional packet-field qualifiers and values with correct ownership and handle invalidation.
 - Verify explicit packet/field endianness values and absence through XML round trips.

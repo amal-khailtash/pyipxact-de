@@ -207,6 +207,7 @@ def _resolve_packet_field(packetFieldID: str):  # type: ignore[return-type]
 # BASE
 # ---------------------------------------------------------------------------
 
+
 def getAbstractionDefBusTypeRefByVLNV(
     abstractionDefinitionID: str,
 ) -> tuple[str | None, str | None, str | None, str | None]:
@@ -329,23 +330,16 @@ def getAbstractionDefPortMatch(abstractionDefPortID: str) -> bool | None:
 
 
 def getAbstractionDefPortOnSystemIDs(abstractionDefPortID: str) -> list[str]:
-    """Return handles of transactional onSystem elements.
-
-    Section: F.7.2.7 (transactional port context).
-
-    Args:
-        abstractionDefPortID: Handle to an abstractionDefPort element.
-
-    Returns:
-        List of onSystem handles (empty if none or port not transactional).
-    """
-    p = _resolve_port(abstractionDefPortID)
-    if p is None:
+    """Return all system modes in document order for either style (F.7.2.7)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    style = port.wire_or_transactional
+    if not isinstance(style, (Wire, AbstractionDefinition.Ports.Port.Transactional)):
         return []
-    return [get_handle(os) for os in getattr(tr, "on_system", [])]
+    for mode in style.on_system:
+        register_parent(mode, style, ("on_system",), "list")
+    return [get_handle(mode) for mode in style.on_system]
 
 
 def getAbstractionDefPortPacketIDs(abstractionDefPortID: str) -> list[str]:
@@ -599,6 +593,7 @@ def getAbstractionDefPortTransactionalOnInitiatorID(abstractionDefPortID: str) -
         return None
     if tr is None or tr.on_initiator is None:
         return None
+    register_parent(tr.on_initiator, tr, ("on_initiator",), "single")
     return get_handle(tr.on_initiator)
 
 
@@ -619,7 +614,9 @@ def getAbstractionDefPortTransactionalOnSystemIDs(abstractionDefPortID: str) -> 
     style = port.wire_or_transactional
     if not isinstance(style, AbstractionDefinition.Ports.Port.Transactional):
         return []
-    return [get_handle(item) for item in style.on_system]
+    for mode in style.on_system:
+        register_parent(mode, style, ("on_system",), "list")
+    return [get_handle(mode) for mode in style.on_system]
 
 
 def getAbstractionDefPortTransactionalOnTargetID(abstractionDefPortID: str) -> str | None:
@@ -641,6 +638,7 @@ def getAbstractionDefPortTransactionalOnTargetID(abstractionDefPortID: str) -> s
         return None
     if tr is None or tr.on_target is None:
         return None
+    register_parent(tr.on_target, tr, ("on_target",), "single")
     return get_handle(tr.on_target)
 
 
@@ -882,6 +880,7 @@ def getAbstractionDefPortWireOnInitiatorID(abstractionDefPortID: str) -> str | N
         return None
     if w is None or getattr(w, "on_initiator", None) is None:
         return None
+    register_parent(w.on_initiator, w, ("on_initiator",), "single")
     return get_handle(w.on_initiator)
 
 
@@ -902,7 +901,9 @@ def getAbstractionDefPortWireOnSystemIDs(portID: str) -> list[str]:
         return []
     if w is None:
         return []
-    return [get_handle(os) for os in getattr(w, "on_system", [])]
+    for mode in w.on_system:
+        register_parent(mode, w, ("on_system",), "list")
+    return [get_handle(mode) for mode in w.on_system]
 
 
 def getAbstractionDefPortWireOnTargetID(abstractionDefPortID: str) -> str | None:
@@ -922,6 +923,7 @@ def getAbstractionDefPortWireOnTargetID(abstractionDefPortID: str) -> str | None
         return None
     if w is None or getattr(w, "on_target", None) is None:
         return None
+    register_parent(w.on_target, w, ("on_target",), "single")
     return get_handle(w.on_target)
 
 
@@ -990,6 +992,7 @@ def getAbstractionDefPortWireRequiresDriverID(abstractionDefPortModeID: str) -> 
 # ---------------------------------------------------------------------------
 # Additional BASE getters not previously implemented (constraints, packets)
 # ---------------------------------------------------------------------------
+
 
 def getModeConstraintsDriveConstraintCellSpecificationID(modeConstraintsID: str) -> str | None:
     """Return handle to driveConstraint/cellSpecification.
@@ -1270,6 +1273,7 @@ def getPacketPacketFieldIDs(packetID: str) -> list[str]:
 # EXTENDED
 # ---------------------------------------------------------------------------
 
+
 def addAbstractionDefChoice(abstractionDefinitionID: str, name: str, enumerations: Sequence[str]) -> str:
     """Add the named choice and its supplied enumeration expressions (F.7.3.1)."""
     from .choice import _validated_choice
@@ -1464,55 +1468,26 @@ def removeAbstractionDefPort(portID: str) -> bool:
     return detach_child_by_handle(portID)
 
 
-def removeAbstractionDefPortMode(portModeID: str) -> bool:  # pragma: no cover - scaffold
-    """Remove a port mode element.
-
-    Section: F.7.3.13.
-
-    Args:
-        portModeID: Handle of onInitiator/onTarget/onSystem element.
-
-    Returns:
-        True if removed, False otherwise.
-    """
+def removeAbstractionDefPortMode(portModeID: str) -> bool:
+    """Detach a wire or transactional mode by its handle (F.7.3.13)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
     obj = resolve_handle(portModeID)
-    if obj is None:
+    if not isinstance(obj, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem,
+                            tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
         return False
     return detach_child_by_handle(portModeID)
 
 
-def removeAbstractionDefPortTransactionalOnSystem(onSystemID: str) -> bool:  # pragma: no cover - scaffold
-    """Remove a transactional onSystem element.
-
-    Section: F.7.3.20.
-
-    Args:
-        onSystemID: onSystem handle.
-
-    Returns:
-        True if removed, False otherwise.
-    """
-    obj = resolve_handle(onSystemID)
-    if obj is None:
+def removeAbstractionDefPortTransactionalOnSystem(onSystemID: str) -> bool:
+    """Detach only a transactional system mode (F.7.3.20)."""
+    if not isinstance(resolve_handle(onSystemID), AbstractionDefinition.Ports.Port.Transactional.OnSystem):
         return False
     return detach_child_by_handle(onSystemID)
 
 
-def removeAbstractionDefPortWireOnSystem(onSystemID: str) -> bool:  # pragma: no cover - scaffold
-    """Remove a wire onSystem element.
-
-    Section: F.7.3.30.
-
-    Args:
-        onSystemID: onSystem handle.
-
-    Returns:
-        True if removed, False otherwise.
-    """
-    obj = resolve_handle(onSystemID)
-    if obj is None:
-        return False
-    return detach_child_by_handle(onSystemID)
+def removeAbstractionDefPortWireOnSystem(onSystemID: str) -> bool:
+    """Detach only a wire system mode (F.7.3.30)."""
+    return isinstance(resolve_handle(onSystemID), Wire.OnSystem) and detach_child_by_handle(onSystemID)
 
 
 def setAbstractionDefExtends(
@@ -1665,39 +1640,13 @@ def removeAbstractionDefPortTransactionalModeProtocol(portID: str) -> bool:
 
 
 def removeAbstractionDefPortTransactionalOnInitiator(portID: str) -> bool:
-    """Remove the transactional onInitiator element.
-
-    Section: F.7.3.19.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if removed, False if absent.
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_initiator is not None:
-        tr.on_initiator = None  # type: ignore[attr-defined]
-        return True
-    return False
+    """Remove the transactional on_initiator and invalidate its handle (F.7.3.19)."""
+    return _remove_port_locus(portID, AbstractionDefinition.Ports.Port.Transactional, "on_initiator")
 
 
 def removeAbstractionDefPortTransactionalOnTarget(portID: str) -> bool:
-    """Remove the transactional onTarget element.
-
-    Section: F.7.3.20.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if removed, else False.
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_target is not None:
-        tr.on_target = None  # type: ignore[attr-defined]
-        return True
-    return False
+    """Remove the transactional on_target and invalidate its handle (F.7.3.21)."""
+    return _remove_port_locus(portID, AbstractionDefinition.Ports.Port.Transactional, "on_target")
 
 
 def removeAbstractionDefPortTransactionalQualifier(portID: str) -> bool:
@@ -1831,32 +1780,13 @@ def removeAbstractionDefPortWireModeWidth(portID: str) -> bool:
 
 
 def removeAbstractionDefPortWireOnInitiator(portID: str) -> bool:
-    """Remove wire onInitiator (not explicitly modeled).
-
-    Section: F.7.3.27 (stub – underlying schema lacks explicit element).
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        Always False (no separate element to remove).
-    """
-    # Not modeled distinctly; return False.
-    return False
+    """Remove the wire on_initiator and invalidate its handle (F.7.3.29)."""
+    return _remove_port_locus(portID, Wire, "on_initiator")
 
 
 def removeAbstractionDefPortWireOnTarget(portID: str) -> bool:
-    """Remove wire onTarget (not explicitly modeled).
-
-    Section: F.7.3.28 (stub – underlying schema lacks explicit element).
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        Always False.
-    """
-    return False
+    """Remove the wire on_target and invalidate its handle (F.7.3.31)."""
+    return _remove_port_locus(portID, Wire, "on_target")
 
 
 def removeAbstractionDefPortWireQualifier(portID: str) -> bool:
@@ -2418,3 +2348,15 @@ def removePacketFieldValue(packetFieldID: str) -> bool:
 
 
 __all__ += ["setPacketFieldQualifier", "removePacketFieldQualifier", "removePacketFieldValue"]
+
+
+def _remove_port_locus(portID: str, style_type: type, attr: str) -> bool:
+    port = _resolve_port(portID)
+    if port is None or not isinstance(port.wire_or_transactional, style_type):
+        return False
+    style = port.wire_or_transactional
+    mode = getattr(style, attr)
+    if mode is None:
+        return False
+    register_parent(mode, style, (attr,), "single")
+    return detach_child_by_handle(get_handle(mode))
