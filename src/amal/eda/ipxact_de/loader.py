@@ -27,6 +27,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 import json
 import os
+import math
+import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -53,6 +55,7 @@ class CacheEntry:
         standard: "ipxact" or "spirit".
         version: Version string e.g. "1685-2022" or "1.5".
         vlnv: VLNV quadruple for the root element when available, else None.
+        fingerprint: Nanosecond mtime, nanosecond ctime, and size; absent for legacy records.
     """
 
     path: str
@@ -61,6 +64,7 @@ class CacheEntry:
     standard: str
     version: str
     vlnv: VLNV | None
+    fingerprint: tuple[int, int, int] | None = None
 
 
 def _default_cache_dir() -> Path:
@@ -81,15 +85,35 @@ def _load_cache(cache_path: Path) -> dict[str, CacheEntry]:
         if not isinstance(items, list):  # expect array; otherwise ignore
             return {}
         for v in items:
-            ce = CacheEntry(
-                path=v["path"],
-                mtime=v["mtime"],
-                element=v.get("element", ""),
-                standard=v.get("standard", ""),
-                version=v.get("version", ""),
-                vlnv=tuple(v["vlnv"]) if v.get("vlnv") else None,  # type: ignore[arg-type]
-            )
-            out[ce.path] = ce
+            try:
+                if not isinstance(v, dict) or not isinstance(v.get("path"), str) or not Path(v["path"]).is_absolute():
+                    raise ValueError("cache path must be absolute")
+                mtime = v["mtime"]
+                if isinstance(mtime, bool) or not isinstance(mtime, (float, int)) or not math.isfinite(mtime):
+                    raise ValueError("invalid modification time")
+                vlnv = v.get("vlnv")
+                if vlnv is not None and (
+                    not isinstance(vlnv, list) or len(vlnv) != 4
+                    or not all(isinstance(part, str) and part for part in vlnv)
+                ):
+                    raise ValueError("invalid VLNV")
+                fingerprint = v.get("fingerprint")
+                if fingerprint is not None and (
+                    not isinstance(fingerprint, list) or len(fingerprint) != 3
+                    or not all(type(part) is int and part >= 0 for part in fingerprint)
+                ):
+                    raise ValueError("invalid file fingerprint")
+                if not all(isinstance(v.get(key, ""), str) for key in ("element", "standard", "version")):
+                    raise ValueError("invalid document metadata")
+                ce = CacheEntry(
+                    path=v["path"], mtime=mtime, element=v.get("element", ""),
+                    standard=v.get("standard", ""), version=v.get("version", ""),
+                    vlnv=tuple(vlnv) if vlnv is not None else None,
+                    fingerprint=tuple(fingerprint) if fingerprint is not None else None,
+                )
+                out[ce.path] = ce
+            except (KeyError, TypeError, ValueError) as exc:
+                logger.warning(f"Ignoring invalid cache record in {cache_path}: {exc}")
         return out
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning(f"Failed to load cache '{cache_path}': {exc}")
@@ -106,16 +130,33 @@ def _save_cache(cache_path: Path, cache: dict[str, CacheEntry]) -> None:
             "standard": e.standard,
             "version": e.version,
             "vlnv": list(e.vlnv) if e.vlnv else None,
+            "fingerprint": list(e.fingerprint) if e.fingerprint else None,
         }
         for e in cache.values()
     ]
-    cache_path.write_text(json.dumps(payload, indent=2))
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", dir=cache_path.parent, delete=False, encoding="utf-8") as stream:
+            temporary = Path(stream.name)
+            json.dump(payload, stream, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, cache_path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _fingerprint(path: Path) -> tuple[int, int, int]:
+    stat = path.stat()
+    return stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
 
 
 def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
     """Load the in-memory registry solely from the on-disk cache.
 
-    This does not touch the filesystem for discovery. It reads the cache file
+    This does not discover files, but checks cached paths and their fingerprints. It reads the cache file
     (from the current working directory by default) and re-registers cached
     entries into the global VLNV registry. Unsupported standards/versions are
     skipped. Returns True if any entries were loaded.
@@ -129,9 +170,9 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
     cache_base = cache_dir or _default_cache_dir()
     cache_path = cache_base / CACHE_BASENAME
     cache = _load_cache(cache_path)
+    registry.clear()
     if not cache:
         return False
-    registry.clear()
     loaded = 0
     for f, ce in cache.items():
         if not ce.vlnv:
@@ -140,6 +181,8 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
             continue
         path = Path(f)
         try:
+            if not path.is_file() or ce.fingerprint != _fingerprint(path):
+                continue
             class _CachedProxy:
                 """Proxy used for re-registration from cache only."""
                 __slots__ = ("vendor", "library", "name", "version", "xml_path")
@@ -357,11 +400,12 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
         path = Path(f)
         try:
             mtime = path.stat().st_mtime
+            fingerprint = _fingerprint(path)
         except OSError as exc:
             logger.warning(f"Cannot read discovered XML {path}: {exc}")
             continue
         ce = cache.get(f)
-        if ce and abs(ce.mtime - mtime) < 1e-6 and ce.vlnv:
+        if ce and ce.fingerprint == fingerprint and ce.vlnv:
             # Skip unsupported standards/versions even if cached
             if (ce.standard or "").lower() != SUPPORTED_STANDARD or (ce.version or "") != SUPPORTED_VERSION:
                 logger.warning(
@@ -396,6 +440,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                     standard=ce.standard,
                     version=ce.version,
                     vlnv=ce.vlnv,
+                    fingerprint=fingerprint,
                 )
                 continue
             except Exception:
@@ -431,6 +476,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 standard=standard,
                 version=version,
                 vlnv=vlnv,
+                fingerprint=fingerprint,
             )
 
     # Persist cache for next run

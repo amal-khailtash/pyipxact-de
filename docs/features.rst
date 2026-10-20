@@ -55,6 +55,15 @@ Catalog dependency discovery
 * ☑ Diagnose missing targets, mismatched VLNVs, incomplete entries, and unsupported remote URIs.
 * ☑ Recheck unchanged catalogs and remove or restore dependency registrations as files disappear or return.
 
+Repository cache integrity
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Validate cache records independently and retain valid records beside malformed entries.
+* ☑ Detect changed files using nanosecond modification/change times and file size.
+* ☑ Discard stale or deleted files during cache-only registry loading and clear empty cached registries.
+* ☑ Create requested cache directories before persisting scan results.
+* ☑ Replace cache files atomically and preserve existing data when replacement fails.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

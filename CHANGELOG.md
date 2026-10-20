@@ -22,6 +22,10 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Validate individual cache records and invalidate stale registrations using file fingerprints.
+- Clear empty cached registries and skip deleted or modified cached files.
+- Create cache directories and atomically replace cache files without losing prior data on failure.
+- Expand cache recovery tests; focused loader coverage reaches 93%.
 - Discover nested catalog dependencies through local URIs, including percent-encoded paths.
 - Detect catalog cycles and shared targets; diagnose missing files and VLNV mismatches.
 - Recheck unchanged catalogs when dependencies disappear or return; reject unsupported remote URIs.
