@@ -130,15 +130,6 @@ html_theme_options = {
     'titles_only': True,
 }
 
-# Always render a global ToC in the left sidebar so navigation doesn't disappear
-html_sidebars = {
-    "**": [
-        "globaltoc.html",
-        "relations.html",
-        "searchbox.html",
-    ]
-}
-
 html_context = {
     'display_github': True,           # Integrate GitHub
     'github_user': 'amal-khailtash',  # Username
