@@ -5,7 +5,7 @@ GitHub Releases (generated)
 ---------------------------
 
 .. changelog::
-    :changelog-url: https://amal-khailtash.github.io/pyipxact-de/release_notes.html
+    :changelog-url: https://pyipxact-de.readthedocs.io/en/latest/intro/release_notes.html
     :pypi: https://pypi.org/project/pyipxact-de/
     :github: https://github.com/amal-khailtash/pyipxact-de/releases/
 

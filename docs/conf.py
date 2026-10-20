@@ -3,12 +3,9 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import json
 import os
 import sys
 import tomllib
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 src = (Path(__file__).resolve().parents[1] / "src")
@@ -45,48 +42,15 @@ def _read_pyproject_metadata(pyproject_path: Path) -> tuple[str, str]:
     return name, ver
 
 
-def _get_pypi_version(package_name: str, timeout: float = 2.5) -> str | None:
-    """Return the latest published version for a package on PyPI.
-
-    This uses PyPI's simple JSON API. Network errors or missing packages
-    return None so doc builds remain resilient offline or before first release.
-
-    Args:
-        package_name: The PyPI package name to query.
-        timeout: Timeout in seconds for the HTTP request.
-
-    Returns:
-        The version string if available, otherwise None.
-    """
-    if not package_name:
-        return None
-    url: str = f"https://pypi.org/pypi/{package_name}/json"
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
-            payload: dict = json.load(resp)
-        info: dict | None = payload.get("info") if isinstance(payload, dict) else None
-        ver: str | None = None
-        if isinstance(info, dict):
-            raw = info.get("version")
-            if isinstance(raw, str) and raw.strip():
-                ver = raw.strip()
-        return ver
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError):
-        return None
-    except Exception:
-        # Be conservative: never crash docs for unexpected issues
-        return None
-
-
-# Resolve versions: local (from pyproject) and latest published (from PyPI)
+# Resolve the version from the current checkout.
 _repo_root: Path = Path(__file__).resolve().parents[1]
 _pyproject_toml: Path = _repo_root / "pyproject.toml"
 _pkg_name, _local_version = _read_pyproject_metadata(_pyproject_toml)
 
 # Sphinx semantics: "version" is typically the project version, "release" is the full release string.
-# We use the local version for "version" and the latest published PyPI version for "release" when available.
+# Use checkout metadata so PR and tagged documentation report their own version.
 version = _local_version or "__version__"
-release = _get_pypi_version(_pkg_name) or version
+release = version
 
 
 # -- General configuration ---------------------------------------------------
@@ -164,15 +128,6 @@ html_theme_options = {
     'navigation_depth': 4,
     'includehidden': True,
     'titles_only': False,
-}
-
-# Always render a global ToC in the left sidebar so navigation doesn't disappear
-html_sidebars = {
-    "**": [
-        "globaltoc.html",
-        "relations.html",
-        "searchbox.html",
-    ]
 }
 
 html_context = {
@@ -255,3 +210,44 @@ _optional_modules: list[str] = [
     "uvicorn",
 ]
 autodoc_mock_imports: list[str] = _compute_autodoc_mock_imports(_optional_modules)
+
+def _cache_python_reference_lookups(app, env):
+    """Index suffix searches after Sphinx finishes collecting Python objects."""
+    from collections import defaultdict
+    from functools import lru_cache
+
+    domain = env.domains["py"]
+    original = domain.find_obj
+    suffixes = defaultdict(list)
+    for fullname, entry in domain.objects.items():
+        parts = fullname.split(".")
+        for offset in range(1, len(parts)):
+            suffixes[".".join(parts[offset:])].append((fullname, entry))
+
+    @lru_cache(maxsize=16384)
+    def find_obj(env, modname, classname, name, role, searchmode=0):
+        if searchmode != 1:
+            return original(env, modname, classname, name, role, searchmode)
+        name = name.removesuffix("()")
+        if not name:
+            return []
+        objtypes = list(domain.object_types) if role is None else domain.objtypes_for_role(role)
+        if objtypes is None:
+            return []
+        candidates = []
+        if modname and classname:
+            candidates.append(f"{modname}.{classname}.{name}")
+        if modname:
+            candidates.append(f"{modname}.{name}")
+        candidates.append(name)
+        for candidate in candidates:
+            entry = domain.objects.get(candidate)
+            if entry is not None and entry.objtype in objtypes:
+                return [(candidate, entry)]
+        return [(fullname, entry) for fullname, entry in suffixes.get(name, ()) if entry.objtype in objtypes]
+
+    domain.find_obj = find_obj
+
+
+def setup(app):
+    app.connect("env-updated", _cache_python_reference_lookups)

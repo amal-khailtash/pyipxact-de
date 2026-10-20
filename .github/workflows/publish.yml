@@ -1,71 +1,61 @@
-name: 2. Release + Publish to PyPI (manual)
-
+name: Publish release to PyPI
 on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
   workflow_dispatch:
-
+    inputs:
+      tag:
+        description: Existing release tag to publish (for example v0.3.0)
+        type: string
+        required: true
 permissions:
-  contents: write
-  id-token: write
-
+  contents: read
+concurrency:
+  group: publish-${{ inputs.tag }}
+  cancel-in-progress: false
 jobs:
-  release-and-publish:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version-file: '.python-version'
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v5
+      - name: Verify immutable tag and package version
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          git show-ref --verify "refs/tags/$RELEASE_TAG"
+          uv run --no-project python -c 'import os,tomllib; from pathlib import Path; v=tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_TAG"] == "v"+v'
+          git merge-base --is-ancestor HEAD origin/main
+      - run: sudo apt-get update && sudo apt-get install -y libxml2-utils xsltproc
+      - run: uv sync --locked --all-groups
+      - run: uv run --locked pytest -q
+      - run: uv build
+      - run: uvx twine check dist/*
+      - uses: actions/upload-artifact@v4
         with:
-          enable-cache: true
-
-      - name: Sync deps and build dist
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv venv
-          source .venv/bin/activate
-          uv sync --locked --all-groups
-          # Build sdist and wheel using hatchling via uv
-          uv build
-          ls -l dist
-
-      - name: Compute version and tag
-        id: v
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION=$(python -c "import tomllib,sys;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          TAG="v${VERSION}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate CHANGELOG contains current version section
-        shell: bash
-        run: |
-          set -euo pipefail
-          VER="${{ steps.v.outputs.version }}"
-          if ! grep -qE "^## \[${VER}\] - " CHANGELOG.md; then
-            echo "CHANGELOG.md is missing section for ${VER}." >&2
-            echo "Please finalize the changelog (scripts/changelog.py finalize --version ${VER}) before releasing." >&2
-            exit 1
-          fi
-
-      - name: Create GitHub Release and upload artifacts
-        uses: softprops/action-gh-release@v2
+          name: release-distributions
+          path: dist/*
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          tag_name: ${{ steps.v.outputs.tag }}
-          name: ${{ steps.v.outputs.tag }}
-          generate_release_notes: true
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
+          name: release-distributions
+          path: dist/
+      - uses: astral-sh/setup-uv@v5
+      - name: Generate PEP 740 attestations
+        uses: astral-sh/attest-action@f589a42a7efb6fe400b4f400de60b4bc90390027 # v0.0.6
+      - name: Publish with uv trusted publishing
+        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/
