@@ -17,231 +17,152 @@ Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Separate versioned generated data models, document/workspace services, semantic analysis, command/mutation services, TGI adapters, and GUI models.
-
 * ☐ Define document ownership, dirty state, atomic save, save-as, XML encoding, namespace handling, schema location, optional/default values, extension preservation, and recoverable diagnostics.
-
 * ☐ Repository service: ordered search paths, relative URI resolution, catalogs, VLNV/version resolution, duplicate/conflict handling, missing references, cycle detection, incremental invalidation, and cache validation.
-
 * ☐ Resolve names and references in the proper hierarchy/configuration, keeping source and effective configured values distinct.
-
 * ☐ Mutation commands preserve invariants, parent relationships, ordering and ID lifecycle; enable transactions, undo/redo, change notification, and rollback after validation failure.
-
 * ☐ One semantic/command backend serves Python, CLI, TGI and GUI. GUI operations must not bypass constraints or implement separate expression evaluation.
-
 * ☐ Every top-level item below supports create/open/import, inspect, full schema-valid editing, validate, resolve dependencies, clone, save/export, reload, version-aware conversion, and complete relevant TGI access.
-
 * ☐ Every optional element/attribute, choice alternative, nested collection, inherited type/group, vendor extension and expression has an explicit model and GUI representation, including advanced properties when absent from the primary panel.
-
 * ☐ Per-item acceptance: minimal and maximal valid documents; each choice arm; malformed/invalid input; round trips; mutation/save/reload; reference failures; relevant Annex B rules; all applicable TGI positive/negative contracts; GUI edits, undo/redo, navigation and diagnostics.
 
 Feature plan by top-level IP-XACT document
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-busDefinition — IEEE 5.2, 5.12–5.13; TGI F.7.17–18
+busDefinition - IEEE 5.2, 5.12-5.13; TGI F.7.17-18
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ VLNV/name metadata; direct connection, addressability, maximum initiators/targets, system group names, extension references and vendor extensions.
-
 * ☐ Resolve extension chains and compatibility; reject cycles/incompatible modes and cross-reference errors. Apply clock/reset semantics with abstraction definitions.
-
 * ☐ GUI: library entry, identity/properties editor, allowed-mode/system-group tables, inheritance graph and compatibility diagnostics.
-
 * ☐ Tests: base/derived buses, addressable/nonaddressable cases, connection limits, incompatible definitions and unresolved parents.
 
-abstractionDefinition — IEEE 5.3–5.13; TGI F.7.2–3
+abstractionDefinition - IEEE 5.3-5.13; TGI F.7.2-3
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Bus type reference, abstraction inheritance, logical ports, matching rules, choices, wire and transactional alternatives, packets and packet fields.
-
 * ☐ Initiator/target/system modes and mirrored constraints; presence, direction, width, default values, driver requirements, qualifiers, load/drive/timing constraints, transactional initiative/kind/protocol/bus width.
-
 * ☐ Packet width/value expressions, field/packet endianness, ordering and qualifiers; inherited port merging and compatibility.
-
 * ☐ GUI: logical-port matrix by mode, wire/transactional detail panels, packet layout viewer, constraints editor, bus/inheritance navigation.
-
 * ☐ Tests: all port styles/modes, inherited overrides, packet boundaries and mode-specific compatibility.
 
-component — IEEE 6.1–6.21; TGI component and dependent categories
+component - IEEE 6.1-6.21; TGI component and dependent categories
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Identity, descriptions, parameters/choices, external type-definition references, vendor extensions and general component metadata.
-
 * ☐ Power domains: always-on/configurable values, hierarchy, domain membership, supply/ground relationships and port/field power constraints.
-
 * ☐ Bus interfaces: references to bus/abstraction definitions; all interface modes and mirrored/system/monitor forms; abstraction types/view references, physical/logical port maps, slices, exclusions, bridges, memory-map/address-space references, endian/bit-steering behavior and parameters.
-
 * ☐ Indirect interfaces: access handles, indirect addressing, index/data references, address range/offset and field relationships.
-
 * ☐ Channels: participating interfaces, address modifications and bit steering; modes: conditions, port/field slices and validity across configurations.
-
 * ☐ Address spaces: address unit bits, range/width, segments, local memory maps, parameters and addressable interface relationships.
-
 * ☐ Memory maps/remaps: address blocks, nested banks, register files/registers, subspace maps, usage, access policies, addressing, remap states and conditions.
-
 * ☐ Registers/fields: sizes/offsets, nested arrays and strides, volatility/access, resets/reset-type references, enumerated values, write/read effects and constraints, access policies, aliases/definition references, reserved bits, field slices, testability and extensions. Distinguish source metadata from computed address and effective values.
-
 * ☐ Model: views; component/design/design-configuration instantiations; module parameters; language/model names; file-set references; physical ports (wire, transactional, structured), vectors, arrays, type definitions, drivers, default/tied values, port slices and subports; model assertions and constraints.
-
 * ☐ Component generators: API type, executable, parameters, scope/phase and invocation requirements.
-
 * ☐ File sets/files/builders: file types, paths/dependencies, include/logical names, build commands/flags, environment/configuration, exported names/functions and extension metadata, preserving full schema detail.
-
 * ☐ Clearbox elements and references, CPU regions/executable images/memory-map references, other clock drivers and reset types.
-
 * ☐ GUI: component overview plus model/view editor; ports/interface mapping matrix and connection preview; memory hierarchy/address-map and register bitfield views; parameters with source/evaluated values; power/mode diagrams; file/build browser; CPU/clearbox/clock/reset panels; generator configuration.
-
 * ☐ Tests: all component schema choices, constructor-safe builders, nested structures, register boundary/reset/access cases, multiple views, arrays/structured ports, configuration-dependent addressing, external reusable definitions and serialization choice preservation.
 
-design — IEEE 7; TGI F.7.37–38
+design - IEEE 7; TGI F.7.37-38
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Component instances, VLNV references, instance names/display names, configurable element values, power-domain links and vendor metadata.
-
 * ☐ Interconnections and monitor interconnections; active/hierarchical/monitored/monitor interfaces; exclusions, complex interconnections and abstractor/configuration relationships.
-
 * ☐ Ad hoc connections: internal/external port references, structured subports, part selects and tied values; choices and hierarchy resolution.
-
 * ☐ Validate all connectivity, direction/width/type/mode compatibility and endpoint existence; compute configured hierarchy, address routes and visibility.
-
 * ☐ GUI: hierarchical block diagram, connection inspector and matrix, instance browser, property/configuration editor, external ports, power links, address-route and field/bit visibility overlays. Persist layout separately from normative metadata unless an explicit extension is used.
-
 * ☐ Tests: nested designs, monitors, multichannel connections, tied/sliced ports, duplicate instances, missing references and incompatible connections.
 
-abstractor — IEEE 8; TGI F.7.4–5
+abstractor - IEEE 8; TGI F.7.4-5
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Bus/abstraction interfaces and mode mapping; models/views, wire/transactional/structured physical ports, vectors/types/constraints and generators.
-
 * ☐ Resolve supported abstraction transitions; validate interface and port correspondence and configured placement.
-
 * ☐ GUI: abstraction bridge diagram, side-by-side interface/port mapping, model/view details and generator panel.
-
 * ☐ Tests: both sides of transition, structured and transactional alternatives, incompatible abstractions and configured abstractor instances.
 
-typeDefinitions — IEEE 9; TGI F.7.81–82 and memory/register/access-policy categories
+typeDefinitions - IEEE 9; TGI F.7.81-82 and memory/register/access-policy categories
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Reusable field access policies, enumerations, fields, registers, register files, address blocks, banks, memory maps and memory remaps; parameters, nested definitions, identifiers/references and extensions.
-
 * ☐ External definition imports, resolution scope, overrides/configuration, cyclic-reference rejection and effective instance expansion without destroying reusable source definitions.
-
 * ☐ GUI: definition library and dependency graph, reusable memory/register/field editors, preview of instantiations and impact analysis for edits.
-
 * ☐ Tests: each reusable definition family, nested/external references, cycles, overrides and definition-versus-instance round trips.
-
 * ☐ These are members of the typeDefinitions document; do not invent independent roots for the commented-out schema choices.
 
-generatorChain — IEEE 10; TGI F.7.51–52 and generator/file-builder categories
+generatorChain - IEEE 10; TGI F.7.51-52 and generator/file-builder categories
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Chain identity, selectors, component selectors, generator references/executables, ordering/phases, parameters, choices and vendor extensions.
-
 * ☐ Generator execution lifecycle, invocation URL resolution/encoding, API negotiation and session linkage; deterministic selection, errors, cancellation and diagnostics.
-
 * ☐ GUI: chain steps/ordering editor, selector preview, parameters, run monitor/logs and generated-artifact review.
-
 * ☐ Tests: selector combinations, order, parameter defaults/fixed values, invocation formatting and failed/cancelled executions using controlled generators.
 
-designConfiguration — IEEE 11; TGI F.7.39–40
+designConfiguration - IEEE 11; TGI F.7.39-40
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Design reference, view configurations, interconnection configurations, abstractor instances and their references/parameters/extensions.
-
 * ☐ Resolve active views and hierarchy, configure abstractor placements, validate completeness/consistency without mutating the original design implicitly.
-
 * ☐ GUI: configuration selection/comparison, per-instance view table, interconnection/abstractor overlay and effective-design preview.
-
 * ☐ Tests: alternative valid configurations, broken design/view references, abstractor mismatches, expression/configuration propagation and round trips.
 
-catalog — IEEE 12; TGI F.7.23–24
+catalog - IEEE 12; TGI F.7.23-24
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Entries for all catalog-supported item categories, nested catalogs, VLNV/path pairs, descriptions/extensions and path-relative dependency resolution.
-
 * ☐ Detect referenced-file identity mismatch, duplicates, cycles, moved/missing files and incomplete packages; inspect version ordering separately from arbitrary version strings.
-
 * ☐ GUI: repository browser with type filters, search, preview, dependency graph, validation status and import/package management.
-
 * ☐ Tests: every entry family, nested/relative paths, stale cache, duplicate VLNV and mismatched file identity.
 
 Cross-cutting IEEE behavior
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ☐ Clauses 1–4: interoperability roles and exchange flows; define supported DE capabilities, import/export/package behavior and conformance statements.
-
+* ☐ Clauses 1-4: interoperability roles and exchange flows; define supported DE capabilities, import/export/package behavior and conformance statements.
 * ☐ Clause 13: calculate bit addresses, bus addresses, indirect-interface addresses, channel modifications and bridge translation with units, overflow/range checks, arrays and configured hierarchy.
-
 * ☐ Clause 14: mapped address masks, interconnection modifications, channel bit steering and visibility of bits. Provide explainable route/visibility results and disconnected/ambiguous diagnostics.
-
 * ☐ Annex B: individually inventory and implement all consistency rules for cross-references/VLNVs, interconnections, channels/bridges/abstractors, monitors, configurable elements, ports, registers, memory maps, addressing, hierarchy, hierarchy/memory maps, constraints, design configurations, expressions and access handles. Separate XSD validation from these semantic checks.
-
 * ☐ Annex C: all access-handle variants/access resolution/access policies; arrays/indices/strides; assertions; cell specifications/strength/function; choices; configurable values; constraints; defaults; endianness; file types; references and paths; name groups/name-value pairs; parameters; part selects/slices/vectors/ranges; power constraints; vendor extensions; versioned identifiers/version comparison; view references; xml:id and component-versus-abstraction port distinctions.
-
 * ☐ Annex D: enforce lexical/value domains for every standard type, enum and constrained scalar; represent unspecified values distinctly from valid zero/false/empty values.
-
 * ☐ Annex E: expression parser/evaluator for the specified SystemVerilog subset, literals/types/operators/functions, escaped identifiers, parameter references, scope/resolution/configuration, arrays and IP-XACT functions. Record unsupported syntax explicitly during development; final complete-2022 scope requires all standard-supported forms. Detect cycles and invalid types/ranges; retain source expressions and evaluation provenance.
-
 * ☐ GUI shared tools: expression editor/completion/dependency graph and effective value preview; validation panel with rule IDs and navigation; extension XML editor; identity/name metadata panels; access-handle browser; source XML with synchronized semantic selection.
 
-Complete TGI delivery — Annex F
+Complete TGI delivery - Annex F
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ☐ F.1–F.2: SOAP/REST communication modes, generator invocation, URL construction, endpoint resolution, argument encoding and example-derived tests.
-
+* ☐ F.1-F.2: SOAP/REST communication modes, generator invocation, URL construction, endpoint resolution, argument encoding and example-derived tests.
 * ☐ F.3: full API contract, administrative commands, standard fault codes, return types, BASE/EXTENDED profiles and support discovery; do not substitute Python convenience semantics for normative returns.
-
-* ☐ F.4–F.6: session-scoped IDs, configurable/evaluated values, messages and vendor attributes accessible through eligible IDs; preserve XML IDs as a distinct concept.
-
+* ☐ F.4-F.6: session-scoped IDs, configurable/evaluated values, messages and vendor attributes accessible through eligible IDs; preserve XML IDs as a distinct concept.
 * ☐ Every getter, list/reference accessor, expression/evaluated-value/ID accessor, setter, adder and remover: precise argument types/order, accepted ID types, ordering, absent optional behavior, successful/no-op return, invalid-ID/type/reference/configuration faults and mutation side effects.
-
 * ☐ F.7.89: all ID types, validity/lifetime, parent lookup, deletion invalidation, session boundaries and access-handle identity.
-
 * ☐ Category coverage includes abstraction definition, abstractor, access handle/policy, address space, array, assertion, bus definition/interface, CPU, catalog, choice, clearbox, component, configurable element, constraint/set, design/configuration, driver, element attribute, file builder/set, generator/chain, indirect interface, instantiation, memory map, miscellaneous, module parameter, name group, parameter, port/map, power, register/file, slice, top element, type definitions, vector, vendor extensions and view.
-
 * ☐ Audit category exports and imports, duplicate definitions, spelling/case-sensitive names, dynamic/generated functions and wrong signatures. Existing explicit-function matches in the ledger remain unverified.
-
 * ☐ Bind transport schemas to Python contracts; validate SOAP requests/responses/faults and REST mappings with integration fixtures. Preserve all required transport capabilities independently of the deferred MCP server.
-
 * ☐ Contract tests for every ledger row: valid minimal input, nontrivial nested input, absent optionals, invalid/wrong/stale ID, configured versus expression value, and save/reload after mutation where applicable.
-
 * ☐ GUI uses corresponding service/TGI operations where suitable; protocol-only operations belong in session/runner tooling rather than an artificial form widget. Record explicit GUI placement or reason for no direct widget for every row.
 
 Older standards and conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Build a feature/version matrix for each top-level root and nested feature: available, changed, deprecated, unsupported editing, preserved-only, convertible and lossy. Select older editable features in future plan updates without shrinking full 2022 scope.
-
 * ☐ Cover historical initiator/target terminology, optional presence/configuration semantics, port/interface/model changes, register/access/reset representations, hierarchy, type reuse and standard vendor extensions. Derive actual mappings from schemas/stylesheets rather than assuming name substitutions suffice.
-
 * ☐ Conversion engine selects a supported directed route, records stylesheet versions and parameters, keeps originals, uses atomic output, validates every stage and updates related repository files/references coherently.
-
 * ☐ Produce structured diagnostics for lost, changed, extension-carried and unresolved information. Preserve unknown extensions when feasible; do not promise lossless conversion or silent downgrades.
-
 * ☐ Reverse/downgrade conversion remains an explicit future capability requiring new mappings and loss policy; never infer it from forward XSLT availability.
-
 * ☐ GUI: source-version badges, capability-aware forms, preserved-only fields, migration wizard with route preview/diff/loss report and destination selection, batch conversion and result validation.
-
 * ☐ Tests: each actual stylesheet edge, abstraction-specific routes, complete chains, malformed/intermediate failures, legacy feature fixtures, extension preservation, changed semantics and mixed-version repository references. Define older TGI profiles separately if later required.
 
 Future GUI delivery
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Audit existing Qt prototypes; choose Qt model/view architecture and documented service boundaries before expanding them.
-
 * ☐ Workspace shell: repository tree, document tabs, recent/open/save actions, dirty indicators, global search, dependency navigation, properties, diagnostics and source viewer.
-
 * ☐ Schema-aware property editor covers every supported declaration, choice/cardinality, ordering, defaults and extensions. Specialized views supplement the complete property editor.
-
 * ☐ Diagrams: component/design connectivity and hierarchy, definition dependencies, power/modes, address translation and generator chains. Bidirectional selection links diagrams, tree, tables and XML.
-
 * ☐ Memory/register views show address units, computed offsets/ranges, arrays, bitfield layouts, resets/access/enumerations and visibility with zoom/filter/export.
-
 * ☐ Editing: transactions, undo/redo, copy/paste/clone, identity/reference refactoring, conflict detection on external changes, validation before save and recoverable errors.
-
 * ☐ Performance: lazy trees, virtualization for large maps/designs, background parsing/validation/evaluation, cancellable tasks and deterministic model notifications.
-
 * ☐ Accessibility: keyboard navigation, readable colors/labels, stable focus and diagnostics beyond color alone. GUI state/layout stays separate from standard documents.
-
 * ☐ GUI tests exercise each top-level editor and critical nested flows, unsupported older features, conversion, dirty/save behavior, undo/redo and large-workspace responsiveness.
 
 Milestones and dependency order
@@ -251,19 +172,12 @@ Verification and living-plan maintenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Maintain schema, TGI, semantic and version matrices as separate linked evidence; automate completeness checks against their authoritative inputs.
-
 * ☐ Reconcile extracted declarations with reachable roots, all restrictions/facets/groups/choices and normative prose; inventory additions cannot remain implicitly unowned.
-
 * ☐ Use deterministic checked-in or otherwise stable local fixtures for routine tests; isolate network-dependent archive acquisition from core conformance checks.
-
 * ☐ Round trips compare semantic meaning plus required XML preservation; namespace prefixes alone must not create false failures, and semantic loss must not be hidden by canonicalization.
-
 * ☐ Measure large repository scans, configured hierarchy, expression graphs, register arrays and GUI responsiveness with recorded limits.
-
 * ☐ Run wheel/source installation and resource-loading checks outside the checkout; verify schema/XSL/WSDL assets and supported Python environments.
-
 * ☐ At each update record finished tasks, exact evidence, new gaps, scope decisions for older versions, dependency changes and next milestone. Mark verified only after scoped tests and review.
-
 * ☐ Final full-2022 completion requires all nine roots, all reachable schema features, all applicable semantic rules/types/expressions, addressing/visibility, all Annex F operation and ID contracts, required transports and GUI representations to have evidence. Older support claims must match their explicit feature/version matrix.
 
 TGI operation checklist
