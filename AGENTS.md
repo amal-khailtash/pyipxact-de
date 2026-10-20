@@ -79,7 +79,8 @@ failures. Do not publish, tag, or deploy unless requested.
 
 Implement features in sets of 5–10 depending on complexity. After each completed set of changes, update
 `docs/features.rst` , the ignored `.ai/implementation-plan.md` and relevant coverage ledgers, and `CHANGELOG.md` , then
-commit the changes. Organize feature documentation by category, without batch headings.
+commit the changes. Organize both `docs/features.rst` and `.ai/implementation-plan.md` by feature category,
+without batch headings.
 Use ASCII dashes and no blank lines between consecutive bullets in `docs/features.rst`.
 Ask the user to continue before starting the next set. Keep all planned items visible
 and tick only features supported by scoped verification.
