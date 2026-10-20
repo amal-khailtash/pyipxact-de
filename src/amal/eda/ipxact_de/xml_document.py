@@ -12,6 +12,8 @@ from xsdata.formats.dataclass.serializers.xml import XmlSerializer
 
 from amal.utilities import ARROW, CHECK, CROSS
 
+from org.accellera.standard import Standard
+
 T = TypeVar("T")
 
 
@@ -63,9 +65,10 @@ class XmlDocument:
     # Shared serializer/parser singletons
     # ------------------------------------------------------------------
     _XML_CONTEXT: XmlContext = XmlContext()
+    _SCHEMA_LOCATION = Standard.schema_location_for("ipxact", "1685-2022")
     _SERIALIZER: XmlSerializer = XmlSerializer(
         context=_XML_CONTEXT,
-        config=SerializerConfig(indent="  ")
+        config=SerializerConfig(indent="  ", schema_location=_SCHEMA_LOCATION)
     )
     _PARSER: XmlParser = XmlParser(context=_XML_CONTEXT)
 

@@ -11,11 +11,11 @@ from rich.theme import Theme
 
 from amal.utilities import ARROW, logger
 from org.accellera.standard import STANDARDS
-
-from .commands import convert_xml, identify_xml, validate_xml
-from .. import __description__, __version__
 from ..loader import load_registry_from_cache, load_registry_from_paths
 from ..tgi.ipxact.v1685_2022.core import registry
+
+from .. import __description__, __version__
+from .commands import convert_xml, identify_xml, validate_xml
 
 # Global Rich console (single theme) reused for all help rendering.
 console = Console(
@@ -56,6 +56,9 @@ _COMMANDS_ORDER: list[str] = [
     "validate",
     "convert",
     "registry",
+    "web",
+    "gui",
+    "mcp",
     "help",
     "version",
 ]
@@ -146,7 +149,7 @@ class _RichSubHelpAction(argparse.Action):
         option_string: str | None = None,
     ) -> None:  # type: ignore[override]
         parts = parser.prog.split()
-        parent_prog = parts[0] if parts else 'ipxact'
+        parent_prog = parts[0] if parts else 'ipxact-de'
         subcmd = parts[-1] if len(parts) > 1 else parser.prog
         _print_subcommand_help(parent_prog, subcmd, parser)
         parser.exit()
@@ -496,6 +499,26 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
             help="Display results as flat lines: vendor:library:name:version",
         )
         parser_rlist.add_argument(
+            "-t",
+            "--type",
+            choices=[
+                "busDefinition",
+                "abstractionDefinition",
+                "typeDefinitions",
+                "component",
+                "design",
+                "abstractor",
+                "generatorChain",
+                "designConfiguration",
+                "catalog",
+            ],
+            help=(
+                "Filter by top-level IP-XACT element type. "
+                "Valid types: busDefinition, abstractionDefinition, typeDefinitions, "
+                "component, design, abstractor, generatorChain, designConfiguration, catalog"
+            ),
+        )
+        parser_rlist.add_argument(
             "-h",
             "--help",
             action=_RichSubHelpAction,
@@ -559,6 +582,93 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         parser_convert.set_defaults(func=_run_convert, __convert_parser=parser_convert)
         return parser_convert
 
+    def _register_web(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        """Register the 'web' subcommand to run the FastAPI app.
+
+        Args:
+            subparsers: Subparsers action to register with.
+
+        Returns:
+            The configured subparser.
+        """
+        parser_web = subparsers.add_parser(
+            "web",
+            description="Run the FastAPI GUI web app",
+            help="Run the FastAPI GUI web app",
+            add_help=False,
+        )
+        parser_web.add_argument(
+            "--host",
+            type=str,
+            default="localhost",
+            help="Host interface to bind (default: localhost)",
+        )
+        parser_web.add_argument(
+            "--port",
+            type=int,
+            default=8000,
+            help="Port to bind (default: 8000)",
+        )
+        parser_web.add_argument(
+            "-h",
+            "--help",
+            action=_RichSubHelpAction,
+            nargs=0,
+            help="Show this message and exit",
+        )
+        parser_web.set_defaults(func=_run_web)
+        return parser_web
+
+    def _register_gui(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        """Register the 'gui' subcommand to run the Qt GUI application.
+
+        Args:
+            subparsers: Subparsers action to register with.
+
+        Returns:
+            The configured subparser.
+        """
+        parser_gui = subparsers.add_parser(
+            "gui",
+            description="Run the Qt GUI application",
+            help="Run the Qt GUI app",
+            add_help=False,
+        )
+        parser_gui.add_argument(
+            "-h",
+            "--help",
+            action=_RichSubHelpAction,
+            nargs=0,
+            help="Show this message and exit",
+        )
+        parser_gui.set_defaults(func=_run_gui)
+        return parser_gui
+
+    def _register_mcp(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        """Register the 'mcp' subcommand to run the MCP server.
+
+        Args:
+            subparsers: Subparsers action to register with.
+
+        Returns:
+            The configured subparser.
+        """
+        parser_mcp = subparsers.add_parser(
+            "mcp",
+            description="Run the Model Context Protocol (MCP) server for IP-XACT validation",
+            help="Run the MCP server",
+            add_help=False,
+        )
+        parser_mcp.add_argument(
+            "-h",
+            "--help",
+            action=_RichSubHelpAction,
+            nargs=0,
+            help="Show this message and exit",
+        )
+        parser_mcp.set_defaults(func=_run_mcp)
+        return parser_mcp
+
     def _register_version(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
         """Register the 'version' subcommand (just program version)."""
         parser_version = subparsers.add_parser(
@@ -583,6 +693,9 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         CommandSpec("validate", "Validate IP-XACT xml files", _register_validate),
         CommandSpec("registry", "Manage the in-memory VLNV registry", _register_registry),
         CommandSpec("convert", "Convert IP-XACT xml files", _register_convert),
+        CommandSpec("web", "Run the FastAPI GUI web app", _register_web),
+        CommandSpec("gui", "Run the Qt GUI app", _register_gui),
+        CommandSpec("mcp", "Run the MCP server", _register_mcp),
         CommandSpec("version", "Show CLI version", _register_version),
     ]
 
@@ -592,7 +705,7 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
 
 def _print_version(args: argparse.Namespace) -> None:
     """Print CLI version only."""
-    console.print(f"ipxact v{__version__}")
+    console.print(f"ipxact-de v{__version__}")
 
 
 def _print_standards(args: argparse.Namespace) -> None:
@@ -620,7 +733,7 @@ def _run_scan(args: argparse.Namespace) -> None:
         # No arguments provided: show the scan command help and exit.
         scan_parser: argparse.ArgumentParser = getattr(args, "__scan_parser")  # type: ignore[assignment]
         parts = scan_parser.prog.split()
-        parent_prog = parts[0] if parts else "ipxact"
+        parent_prog = parts[0] if parts else "ipxact-de"
         subname = " ".join(parts[1:]) if len(parts) > 1 else "registry scan"
         _print_subcommand_help(parent_prog, subname, scan_parser)
         return
@@ -641,7 +754,7 @@ def _run_validate(args: argparse.Namespace) -> None:
     if not xml_files:
         validate_parser: argparse.ArgumentParser = getattr(args, "__validate_parser")  # type: ignore[assignment]
         parts = validate_parser.prog.split()
-        parent_prog = parts[0] if parts else "ipxact"
+        parent_prog = parts[0] if parts else "ipxact-de"
         _print_subcommand_help(parent_prog, "validate", validate_parser)
         return
     # With files provided, run the standard validate flow.
@@ -661,7 +774,7 @@ def _run_convert(args: argparse.Namespace) -> None:
     if not xml_files:
         convert_parser: argparse.ArgumentParser = getattr(args, "__convert_parser")  # type: ignore[assignment]
         parts = convert_parser.prog.split()
-        parent_prog = parts[0] if parts else "ipxact"
+        parent_prog = parts[0] if parts else "ipxact-de"
         _print_subcommand_help(parent_prog, "convert", convert_parser)
         return
     # With files provided, run the standard convert flow.
@@ -674,6 +787,8 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     Optional pattern filtering: 'vendor:library:name:version'. Without --regex, uses
     case-insensitive substring matching and allows '*' to match anything for a part.
     With --regex, treats each provided part as a regular expression (empty/omitted matches all).
+
+    Optional type filtering: use --type to show only entries of a specific IP-XACT element type.
     """
     # If registry is empty, attempt to load from local cache.
     any_entries = any(True for _ in registry.iter_by_predicate(lambda _r: True))
@@ -681,6 +796,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         load_registry_from_cache()
     pattern = getattr(args, "pattern", None)
     use_regex = bool(getattr(args, "regex", False))
+    type_filter = getattr(args, "type", None)
     vendor_pat = library_pat = name_pat = version_pat = None
     rx_vendor = rx_library = rx_name = rx_version = None
     if pattern:
@@ -716,6 +832,13 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         if not vlnv:
             continue
         vendor, library, name, version = vlnv
+        # Filter by type if specified
+        if type_filter:
+            element_type = _get_type_for_handle(handle)
+            # Convert user-friendly camelCase to PascalCase for comparison
+            expected_type = type_filter[0].upper() + type_filter[1:]
+            if element_type != expected_type:
+                continue
         # Filter if needed
         if pattern:
             if use_regex:
@@ -827,8 +950,71 @@ def _run_registry(args: argparse.Namespace) -> None:
     """
     reg_parser: argparse.ArgumentParser = getattr(args, "__registry_parser")  # type: ignore[assignment]
     parts = reg_parser.prog.split()
-    parent_prog = parts[0] if parts else "ipxact"
+    parent_prog = parts[0] if parts else "ipxact-de"
     _print_subcommand_help(parent_prog, "registry", reg_parser)
+
+
+def _run_web(args: argparse.Namespace) -> None:
+    """Run the FastAPI GUI web app via Uvicorn.
+
+    Args:
+        args: Parsed CLI arguments containing 'host' and 'port'.
+    """
+    host: str = getattr(args, "host", "localhost")
+    port: int = int(getattr(args, "port", 8000) or 8000)
+    try:
+        import uvicorn  # type: ignore[import-not-found]
+    except Exception:
+        console.print(
+            "Uvicorn is not installed. Install it via 'uv add uvicorn' or 'pip install uvicorn' and retry."
+        )
+        return
+    # Use module path to the ASGI app to avoid import cycles.
+    uvicorn.run(
+        "amal.eda.ipxact_de.web:app",
+        host=host,
+        port=port,
+        reload=True,
+    )
+
+
+def _run_gui(args: argparse.Namespace) -> None:
+    """Run the Qt GUI application.
+
+    Args:
+        args: Parsed CLI arguments (unused).
+    """
+    # try:
+    #     # Import lazily to avoid importing Qt unless requested
+    #     from amal.eda.ipxact_de.gui import main as gui_main  # type: ignore
+    # except Exception as ex:  # pragma: no cover - environment dependent
+    #     console.print(
+    #         "GUI dependencies are not installed. Install extras via 'uv add pyipxact-de[gui]' "
+    #         "or 'pip install qtpy pyqt5'."
+    #     )
+    #     console.print(f"Details: {ex}")
+    #     return
+    from amal.eda.ipxact_de.gui import main as gui_main  # type: ignore
+    gui_main()
+
+
+def _run_mcp(args: argparse.Namespace) -> None:
+    """Run the Model Context Protocol (MCP) server.
+
+    Args:
+        args: Parsed CLI arguments (unused).
+    """
+    try:
+        # Import lazily to avoid dependencies unless requested
+        from amal.eda.ipxact_de.mcp.server import main as mcp_main  # type: ignore
+    except Exception as ex:  # pragma: no cover - environment dependent
+        console.print(
+            "MCP dependencies are not installed. Install them via 'uv add mcp' "
+            "or 'pip install mcp'."
+        )
+        console.print(f"Details: {ex}")
+        return
+    mcp_main()
 
 
 def main() -> None:
@@ -847,7 +1033,7 @@ def main() -> None:
     # logger.critical("CRITICAL")
 
     parser = argparse.ArgumentParser(
-        prog="ipxact",
+        prog="ipxact-de",
         description=__description__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Text at the bottom of help",
@@ -920,6 +1106,41 @@ def main() -> None:
     _ACTION_METADATA[id(verbose_action)] = ("Log levels:", 20)
     _ACTION_METADATA[id(quiet_action)] = ("Log levels:", 20)
     _ACTION_METADATA[id(silent_action)] = ("Log levels:", 20)
+
+    # Pre-parse guard: if the first non-flag token is not a known command,
+    # show styled help and a concise diagnostic instead of argparse's error.
+    argv = sys.argv[1:]
+    first_non_flag: str | None = next((t for t in argv if not t.startswith("-")), None)
+    if first_non_flag is not None and first_non_flag not in subparser_map:
+        console.print(f"Invalid command '{first_non_flag}'.")
+        console.print()
+        _print_top_level_help(parser)
+        sys.exit(2)
+
+    # Special-case: unknown registry subcommand -> show styled registry help
+    if first_non_flag == "registry":
+        # Determine the next non-flag token after 'registry'
+        try:
+            idx = next(i for i, t in enumerate(argv) if t == "registry")
+        except StopIteration:
+            idx = -1
+        if idx != -1:
+            rest = argv[idx + 1 :]
+            # Skip flags like -h/--help etc., take the first positional
+            second_non_flag = next((t for t in rest if not t.startswith("-")), None)
+            if second_non_flag is not None:
+                # Discover allowed registry subcommands from the parser to avoid duplication
+                reg_parser = subparser_map.get("registry")
+                allowed: set[str] = set()
+                if reg_parser is not None:
+                    for action in reg_parser._actions:  # type: ignore[attr-defined]
+                        if isinstance(action, argparse._SubParsersAction):  # type: ignore[attr-defined]
+                            allowed.update(action._name_parser_map.keys())  # type: ignore[attr-defined]
+                if second_non_flag not in allowed:
+                    console.print(f"Invalid subcommand '{second_non_flag}' for 'registry'.")
+                    console.print()
+                    _print_subcommand_help(parser.prog, "registry", reg_parser)  # type: ignore[arg-type]
+                    sys.exit(2)
 
     args = parser.parse_args()
     # print(vars(args))

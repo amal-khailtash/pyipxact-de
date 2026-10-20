@@ -31,7 +31,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version-file: '.python-version'
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v5
@@ -41,11 +41,10 @@ jobs:
       - name: Sync dependencies (default + dev)
         shell: bash
         run: |
-          uv python install 3.13
-          uv venv --python 3.13
+          uv venv
           source .venv/bin/activate
           # Install project default deps and dev toolchain (Sphinx, theme, etc.)
-          uv sync --all-groups
+          uv sync --locked --all-groups
 
       - name: Install optional extras for autodoc imports (gui, web)
         shell: bash

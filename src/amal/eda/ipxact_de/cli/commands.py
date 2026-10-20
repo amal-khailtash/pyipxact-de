@@ -68,9 +68,9 @@ def validate_xml(args: argparse.Namespace) -> None:
     print("=" * 120)
 
 
-def get_transformations_paths(from_version, to_version):
+def get_transformations_paths(from_version: str, to_version: str):
     print(f"{ARROW} Getting transformation paths from '{from_version}' to '{to_version}' ...")
-    paths = []
+    paths: list[tuple[str, str, str]] = []
     for start, end, xsls in TRANSFORMATIONS:
         # print(f"  {ARROW} {start:10} ➜ {end:20} : {xsls}")
         if start == from_version:
@@ -83,7 +83,7 @@ def get_transformations_paths(from_version, to_version):
     return paths
 
 
-def run_transformation(input_file, output_file, xsl_file):
+def run_transformation(input_file: str, output_file: str, xsl_file: str) -> None:
     # import lxml.etree as ET
     # dom = ET.parse(xml_filename)
     # xslt = ET.parse(xsl_filename)

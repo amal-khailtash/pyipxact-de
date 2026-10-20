@@ -1,4 +1,4 @@
-"""CLI smoke tests for the ipxact argparse implementation.
+"""CLI smoke tests for the ipxact-de argparse implementation.
 
 These tests focus on exercising the public command line surface and the Rich
 custom help action. They don't validate full business logic (which is covered
@@ -45,7 +45,7 @@ def test_subcommand_help_smoke(subcmd: str) -> None:
     out = proc.stdout
     # Anchor strings
     assert "Usage:" in out
-    assert f"ipxact {subcmd}" in out
+    assert f"ipxact-de {subcmd}" in out
     # Per design subcommand help should not show raw argparse error messages.
     assert "error:" not in out.lower()
 
@@ -66,10 +66,10 @@ def test_top_level_help_sections_order() -> None:
 
 
 def test_version_and_standards_commands() -> None:
-    """`ipxact version` prints version; `ipxact standards` lists standards."""
+    """`ipxact-de version` prints version; `ipxact-de standards` lists standards."""
     proc_v = _run_cli("version")
     assert proc_v.returncode == 0
-    assert proc_v.stdout.strip().startswith("ipxact v"), proc_v.stdout
+    assert proc_v.stdout.strip().startswith("ipxact-de v"), proc_v.stdout
     proc_s = _run_cli("standards")
     assert proc_s.returncode == 0
     assert "Supported standards:" in proc_s.stdout

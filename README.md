@@ -14,7 +14,7 @@
 | Project | [![github](https://img.shields.io/badge/pyipxact--de-29b6f6.svg?longCache=true&logo=GitHub&labelColor=0277bd)](https://github.com/amal-khailtash/pyipxact-de/) [![PyPI](https://img.shields.io/pypi/v/pyipxact-de?longCache=true&logo=PyPI&logoColor=FBE072)](https://pypi.org/project/pyipxact-de/) ![GitHub Release](https://img.shields.io/github/v/release/amal-khailtash/pyipxact-de?logo=GitHub&label=github%20release&color=g) [![Project - Repo downloads](https://img.shields.io/github/downloads/amal-khailtash/pyipxact-de/total?label=repo%20downloads)](https://github.com/amal-khailtash/pyipxact-de/releases) |
 | Docs | [![Documentation](https://img.shields.io/website?longCache=true&label=amal-khailtash.github.io%2Fpyipxact-de&logo=GitHub&logoColor=fff&up_color=blueviolet&up_message=Read%20now%20%E2%9E%9A&url=https%3A%2F%2Famal-khailtash.github.io%2Fpyipxact-de%2Findex.html)](https://amal-khailtash.github.io/pyipxact-de/) [![Documentation (GitHub deployments)](https://img.shields.io/github/deployments/amal-khailtash/pyipxact-de/github-pages?label=)](https://amal-khailtash.github.io/pyipxact-de/) |
 | Meta | [![GitHub - License](https://img.shields.io/github/license/amal-khailtash/pyipxact-de?longCache=true)](https://github.com/amal-khailtash/pyipxact-de/LICENSE) ![GitHub forks](https://img.shields.io/github/forks/amal-khailtash/pyipxact-de?longCache=true&logoColor=0277bd&labelColor=0277bd) ![GitHub Repo stars](https://img.shields.io/github/stars/amal-khailtash/pyipxact-de?longCache=true&logoColor=0277bd&labelColor=0277bd) ![GitHub contributors](https://img.shields.io/github/contributors/amal-khailtash/pyipxact-de) [![Commit activity](https://img.shields.io/github/commit-activity/m/amal-khailtash/pyipxact-de)](https://img.shields.io/github/commit-activity/m/amal-khailtash/pyipxact-de) |
-| . | [![Python](https://img.shields.io/badge/python-3.13-blue?logo=python)](https://www.python.org/) [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-333333.svg?logo=semver)](https://semver.org/) [![Keep a Changelog](https://img.shields.io/badge/Keep%20a%20Changelog-1.1.0-0c7fb0.svg?logo=keepachangelog)](https://keepachangelog.com/en/1.1.0/) |
+| . | [![Python](https://img.shields.io/badge/python-3.14-blue?logo=python)](https://www.python.org/) [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-333333.svg?logo=semver)](https://semver.org/) [![Keep a Changelog](https://img.shields.io/badge/Keep%20a%20Changelog-1.1.0-0c7fb0.svg?logo=keepachangelog)](https://keepachangelog.com/en/1.1.0/) |
 
 
 <!--
@@ -95,7 +95,7 @@
 
 <!--
 
-[![Python](https://img.shields.io/badge/python-3.13-blue?logo=python)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.14-blue?logo=python)](https://www.python.org/)
 [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-333333.svg?logo=semver)](https://semver.org/)
 [![Keep a Changelog](https://img.shields.io/badge/Keep%20a%20Changelog-1.1.0-0c7fb0.svg?logo=keepachangelog)](https://keepachangelog.com/en/1.1.0/)
 
@@ -112,7 +112,7 @@
 Key features:
 - Generated, schema-accurate models via [xsData](https://github.com/tefra/xsdata) (initial version used [PyXB](https://pyxb.sourceforge.net/)) under `org.accellera.*`
 - High-level APIs, CLI tools, and TGI helpers for common workflows (identify, validate, convert, , ...).
-- Modern Python 3.13 tooling and type-annotated, docstring-rich codebase.
+- Modern Python 3.14 tooling and type-annotated, docstring-rich codebase.
 
 See the documentation for detailed guides, examples, and API references.
 
@@ -122,9 +122,80 @@ See the documentation for detailed guides, examples, and API references.
 
 
 # Installation
+
+## Standard Installation
+
 ```bash
-pip install ipxact-de[cli,gui,web]
+pip install pyipxact-de[cli,gui,web]
 ```
+
+## MCP Server Installation
+
+The package includes an MCP (Model Context Protocol) server for IP-XACT validation that can be used with VS Code and other MCP-compatible clients.
+
+### Global Installation with uv
+
+```bash
+uv tool install pyipxact-de
+```
+
+**Note**: The package name on PyPI is `pyipxact-de`, but it provides the `ipxact-de-mcp` command.
+
+### Configuration for VS Code
+
+Add the following to your VS Code MCP configuration (`~/.config/Code/User/mcp.json`):
+
+```json
+{
+  "servers": {
+    "ipxact-de": {
+      "command": "ipxact-de-mcp",
+      "args": [],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "restart": "on-failure",
+      "timeoutMs": 30000
+    }
+  }
+}
+```
+
+### Alternative MCP Installation
+
+You can also install in your current environment:
+
+```bash
+# Using uv
+uv add pyipxact-de
+
+# Using pip
+pip install pyipxact-de
+```
+
+Then reference the full path to the executable in your MCP configuration:
+
+```json
+{
+  "servers": {
+    "ipxact-de": {
+      "command": "/path/to/your/venv/bin/ipxact-de-mcp",
+      "args": [],
+      "cwd": "/path/to/your/project",
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "restart": "on-failure",
+      "timeoutMs": 30000
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+The MCP server provides the following tools:
+- `validate_xml`: Validate IP-XACT XML files against Accellera schemas
 
 ## Contributing
 

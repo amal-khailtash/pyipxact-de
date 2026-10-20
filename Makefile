@@ -108,13 +108,16 @@ uv-list-outdated:
   XSDATA_OPTIONS += --slots
 # XSDATA_OPTIONS += --kw-only
 # XSDATA_OPTIONS += --union-type
-# XSDATA_OPTIONS += --compound-fields
+  XSDATA_OPTIONS += --compound-fields
 # XSDATA_OPTIONS += --wrapper-fields
 # XSDATA_OPTIONS += --subscriptable-types
   XSDATA_OPTIONS += --generic-collections
 # XSDATA_OPTIONS += --relative-imports
   XSDATA_OPTIONS += --structure-style $(XSDATA_STRUCTURE_STYLE)
 # XSDATA_OPTIONS += --unnest-classes
+
+# pydantic
+# --unnest-classes
 
 # XML_SCHEMAS_ROOT ?= http://www.accellera.org/XMLSchema
   XML_SCHEMAS_ROOT ?= ../submodules/accellera-schemas
@@ -175,6 +178,63 @@ generate-bindings:
 	(cd src; xsdata generate $(XSDATA_OPTIONS) --package org.accellera.ipxact.v1685_2022.ve        $(XML_SCHEMAS_ROOT)/IPXACT/1685-2022-VE-1.0/index.xsd)
 #
 
+.PHONY: generate-pydantic-bindings
+generate-pydantic-bindings:
+	@rm -rf src/org/accellera/ipxact0
+	@rm -rf src/org/accellera/spirit0
+#
+	@echo "========================================================================================================================"
+	@echo "Generating SPIRIT/1.0 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_0                 $(XML_SCHEMAS_ROOT)/SPIRIT/1.0/index.xsd)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating SPIRIT/1.1 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_1                 $(XML_SCHEMAS_ROOT)/SPIRIT/1.1/index.xsd)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating SPIRIT/1.2 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_2                 $(XML_SCHEMAS_ROOT)/SPIRIT/1.2/index.xsd)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating SPIRIT/1.4 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_4                 $(XML_SCHEMAS_ROOT)/SPIRIT/1.4/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_4.tgi             $(XML_SCHEMAS_ROOT)/SPIRIT/1.4/TGI/TGI.wsdl)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating SPIRIT/1.5 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_5                 $(XML_SCHEMAS_ROOT)/SPIRIT/1.5/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1_5.tgi             $(XML_SCHEMAS_ROOT)/SPIRIT/1.5/TGI/TGI.wsdl)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating SPIRIT/1685-2009 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009           $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009.tgi       $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009/TGI/TGI.wsdl)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009.ve        $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009-VE-1.0/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009.ve.ams    $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009-VE-1.0/AMS/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009.ve.core   $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009-VE-1.0/CORE/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009.ve.pdp    $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009-VE-1.0/PDP/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.spirit0.v1685_2009.ve.power  $(XML_SCHEMAS_ROOT)/SPIRIT/1685-2009-VE-1.0/POWER/index.xsd)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating IPXACT/1685-2014 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.ipxact0.v1685_2014           $(XML_SCHEMAS_ROOT)/IPXACT/1685-2014/index.xsd)
+#
+	@echo "========================================================================================================================"
+	@echo "Generating IPXACT/1685-2022 bindings..."
+	@echo "========================================================================================================================"
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.ipxact0.v1685_2022           $(XML_SCHEMAS_ROOT)/IPXACT/1685-2022/index.xsd)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.ipxact0.v1685_2022.tgi       $(XML_SCHEMAS_ROOT)/IPXACT/1685-2022/TGI/TGI.wsdl)
+	(cd src; xsdata generate $(XSDATA_OPTIONS) --output pydantic --package org.accellera.ipxact0.v1685_2022.ve        $(XML_SCHEMAS_ROOT)/IPXACT/1685-2022-VE-1.0/index.xsd)
+#
+
+
 # # Adds "compare = False" to "id" fields
 # .PHONY: fix-bindings
 # fix-bindings:
@@ -197,7 +257,7 @@ generate-bindings:
 
 .PHONY: generate-app
 generate-app:
-	mkdri -p .temp/
+	mkdir -p .temp/
 	fastapi-codegen \
 		--input <(curl --silent $(XML_SCHEMAS_ROOT)/IPXACT/1685-2022/TGI/TGI.yaml) \
 		--python-version 3.13 \
@@ -231,7 +291,7 @@ test:
 ## ----------------------------------------------------------------------------------------------------------------------
 .PHONY: run-app
 run-app:
-	@$(run) uvicorn --host ${HOSTNAME} --app-dir src amal.eda.ipxact_webapp.main:app --reload
+	@$(run) uvicorn --host ${HOSTNAME} --app-dir src amal.eda.ipxact_de.web:app --reload
 
 
 ## ----------------------------------------------------------------------------------------------------------------------

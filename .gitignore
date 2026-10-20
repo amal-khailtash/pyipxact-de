@@ -171,6 +171,8 @@ cython_debug/
 .vscode/cache/
 
 # TEMPORARY
+.cline_storage/
+.codex/
 .github/instructions/
 .ipxact-de-cache.json
 .pre-commit-config.yaml
@@ -178,3 +180,6 @@ RELEASING.md
 scripts/
 src/amal/eda/ipxact_de/gui
 src/amal/eda/ipxact_de/web
+
+# Local implementation plans and reference material
+.ai/

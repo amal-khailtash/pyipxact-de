@@ -17,7 +17,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version-file: '.python-version'
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v5
@@ -28,10 +28,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          uv python install 3.13
-          uv venv --python 3.13
+          uv venv
           source .venv/bin/activate
-          uv sync --all-groups
+          uv sync --locked --all-groups
           # Build sdist and wheel using hatchling via uv
           uv build
           ls -l dist
