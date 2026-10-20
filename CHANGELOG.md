@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement interface, struct, and union abstractor ports using generated structured choice models.
+- Preserve required sub-port names, structured type names, direction values, and parent identity in XML round trips.
 - Implement abstractor wire and transactional ports using generated choice fields and validated schema values.
 - Validate abstractor view names and repair port/view parent paths for ordered traversal and removal.
 - Initialize abstractor generators with generated URI values and choices with standard enumeration arrays.

@@ -436,9 +436,9 @@ Abstractor (EXTENDED)
 * ☑ ``addAbstractorComponentInstantiation`` (F.7.5.3)
 * ☑ ``addAbstractorFileSet`` (F.7.5.4)
 * ☑ ``addAbstractorInterfaceAbstractionType`` (F.7.5.5)
-* ☐ ``addAbstractorStructuredInterfacePort`` (F.7.5.6)
-* ☐ ``addAbstractorStructuredStructPort`` (F.7.5.7)
-* ☐ ``addAbstractorStructuredUnionPort`` (F.7.5.8)
+* ☑ ``addAbstractorStructuredInterfacePort`` (F.7.5.6)
+* ☑ ``addAbstractorStructuredStructPort`` (F.7.5.7)
+* ☑ ``addAbstractorStructuredUnionPort`` (F.7.5.8)
 * ☑ ``addAbstractorTransactionalPort`` (F.7.5.9)
 * ☑ ``addAbstractorView`` (F.7.5.10)
 * ☑ ``addAbstractorWirePort`` (F.7.5.11)
@@ -3118,3 +3118,10 @@ Abstraction root creation verification
 - ☑ Create abstractors with standard modes and exactly two named interfaces.
 - ☑ Verify ten creation/traversal contracts, registry identity, parent handles, and XML round trips.
 - ☐ Complete semantic validation, including required groups for system-mode abstractors.
+
+Abstractor structured model initialization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Initialize named sub-ports with registered parent identity during structured-port creation.
+- ☑ Initialize structured type definitions with the supplied type name and preserve XML round trips.
+- ☐ Validate structured type resolution and complete sub-port semantic constraints.

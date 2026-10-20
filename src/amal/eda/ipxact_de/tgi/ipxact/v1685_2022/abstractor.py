@@ -391,106 +391,64 @@ def addAbstractorWirePort(abstractorID: str, name: str, direction: str) -> str:
     return _append_model_port(abstractorID, name, AbstractorPortWireType(direction=value))
 
 
-def addAbstractorStructuredInterfacePort(
-    abstractorID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
-) -> str:
-    """Add a structured interface port (adds a subPort reference).
-
-    Section: F.7.5.8.
-    """
+def _structured_port(abstractorID: str, name: str, subPortName: str, typeName: str, kind: str,
+                     direction: str | None = None) -> str:
+    """Initialize a structured choice, required sub-port, and type definition."""
+    from org.accellera.ipxact.v1685_2022 import ComponentPortDirectionType, StructPortTypeDefs
     from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
-        AbstractorPortStructuredType,
-        AbstractorSubPortType,
+        AbstractorPortStructuredType, AbstractorSubPortType,
     )
-    a = _resolve(abstractorID)
-    if a is None:
+
+    if _resolve(abstractorID) is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.structured = AbstractorPortStructuredType()
-    sp = AbstractorSubPortType(name=subPortName)
-    p.structured.interface_port.append(sp)  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    for value in (name, subPortName, typeName):
+        if not isinstance(value, str) or not value.strip():
+            raise TgiError("Structured port names require nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    if kind == "interface":
+        choice = AbstractorPortStructuredType.Interface()
+    else:
+        try:
+            value = ComponentPortDirectionType(direction)
+        except (TypeError, ValueError):
+            raise TgiError("Invalid structured port direction", TgiFaultCode.INVALID_ARGUMENT) from None
+        cls = AbstractorPortStructuredType.Struct if kind == "struct" else AbstractorPortStructuredType.UnionType
+        choice = cls(direction=value)
+    subport = AbstractorSubPortType(name=subPortName)
+    definition = StructPortTypeDefs.StructPortTypeDef(
+        type_name=StructPortTypeDefs.StructPortTypeDef.TypeName(value=typeName),
+    )
+    structured = AbstractorPortStructuredType(
+        struct_or_union_or_interface=choice,
+        sub_ports=AbstractorPortStructuredType.SubPorts(sub_port=[subport]),
+        struct_port_type_defs=StructPortTypeDefs(struct_port_type_def=[definition]),
+    )
+    handle = _append_model_port(abstractorID, name, structured)
+    port = resolve_handle(handle)
+    register_parent(structured, port, ("wire_or_transactional_or_structured",), "scalar")
+    register_parent(subport, structured, ("sub_ports", "sub_port"), "list")
+    register_parent(definition, structured, ("struct_port_type_defs", "struct_port_type_def"), "list")
+    return handle
+
+
+def addAbstractorStructuredInterfacePort(
+    abstractorID: str, name: str, subPortName: str, structPortTypeDefTypeName: str,
+) -> str:
+    """Add an interface-style structured port (F.7.5.6)."""
+    return _structured_port(abstractorID, name, subPortName, structPortTypeDefTypeName, "interface")
 
 
 def addAbstractorStructuredStructPort(
-    abstractorID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
-    direction: str | None = None,
+    abstractorID: str, name: str, subPortName: str, structPortTypeDefTypeName: str, direction: str,
 ) -> str:
-    """Add a structured structPort with direction.
-
-    Section: F.7.5.9.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
-        AbstractorPortStructuredType,
-        AbstractorSubPortType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.structured = AbstractorPortStructuredType()
-    sp = AbstractorSubPortType(name=subPortName)
-    if direction:
-        sp.direction = direction  # type: ignore[attr-defined]
-    p.structured.struct_port.append(sp)  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    """Add a struct-style port with its direction (F.7.5.7)."""
+    return _structured_port(abstractorID, name, subPortName, structPortTypeDefTypeName, "struct", direction)
 
 
 def addAbstractorStructuredUnionPort(
-    abstractorID: str,
-    name: str,
-    structPortTypeDefTypeName: str,
-    subPortName: str,
-    direction: str | None = None,
+    abstractorID: str, name: str, structPortTypeDefTypeName: str, subPortName: str, direction: str,
 ) -> str:
-    """Add a structured unionPort with direction.
-
-    Section: F.7.5.10.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
-        AbstractorPortStructuredType,
-        AbstractorSubPortType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.structured = AbstractorPortStructuredType()
-    sp = AbstractorSubPortType(name=subPortName)
-    if direction:
-        sp.direction = direction  # type: ignore[attr-defined]
-    p.structured.union_port.append(sp)  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    """Add a union-style port with its direction (F.7.5.8)."""
+    return _structured_port(abstractorID, name, subPortName, structPortTypeDefTypeName, "union", direction)
 
 
 def addAbstractorView(abstractorID: str, name: str) -> str:
