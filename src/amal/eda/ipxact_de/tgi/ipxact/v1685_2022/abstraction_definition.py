@@ -2268,3 +2268,115 @@ def setAbstractionDefPortWireRequiresDriver(portID: str, flag: bool) -> bool:
     from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
     w.requires_driver = RequiresDriver(value=flag)  # type: ignore[arg-type]
     return True
+
+
+# Packet editing preserves generated models and existing expression identity.
+def addPacketPacketField(packetID: str, fieldName: str, width: int) -> str:
+    """Append a named field with a positive integer width (F.7.3.8)."""
+    from org.accellera.ipxact.v1685_2022.port_packet_field_type import PortPacketFieldType
+    from org.accellera.ipxact.v1685_2022.port_packet_fields_type import PortPacketFieldsType
+    from org.accellera.ipxact.v1685_2022.unresolved_unsigned_positive_int_expression import (
+        UnresolvedUnsignedPositiveIntExpression,
+    )
+
+    packet = _resolve_packet(packetID)
+    if packet is None:
+        raise TgiError("Invalid packet handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(fieldName, str) or not fieldName.strip() or type(width) is not int or width <= 0:
+        raise TgiError("Field requires a name and positive integer width", TgiFaultCode.INVALID_ARGUMENT)
+    field = PortPacketFieldType(name=fieldName, width=UnresolvedUnsignedPositiveIntExpression(value=str(width)))
+    if packet.packet_fields is None:
+        packet.packet_fields = PortPacketFieldsType()
+    packet.packet_fields.packet_field.append(field)
+    register_parent(field, packet.packet_fields, ("packet_field",), "list")
+    return get_handle(field)
+
+
+def removePacketPacketField(packetFieldID: str) -> bool:
+    """Detach the identified packet field (F.7.3.43)."""
+    return _resolve_packet_field(packetFieldID) is not None and detach_child_by_handle(packetFieldID)
+
+
+def removeAbstractionDefPortPacket(packetID: str) -> bool:
+    """Detach the identified logical-port packet (F.7.68.38)."""
+    return _resolve_packet(packetID) is not None and detach_child_by_handle(packetID)
+
+
+def _set_packet_endianness(handle: str, endianness: str, *, field: bool) -> bool:
+    from org.accellera.ipxact.v1685_2022.endianess_type import EndianessType
+
+    target = _resolve_packet_field(handle) if field else _resolve_packet(handle)
+    if target is None:
+        raise TgiError("Invalid packet or field handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(endianness, str) or endianness not in ("big", "little"):
+        raise TgiError("Endianness must be big or little", TgiFaultCode.INVALID_ARGUMENT)
+    target.endianness = EndianessType(endianness)
+    return True
+
+
+def setPacketEndianness(packetID: str, endianness: str) -> bool:
+    """Set explicit packet endianness (F.7.3.71)."""
+    return _set_packet_endianness(packetID, endianness, field=False)
+
+
+def setPacketFieldEndianness(packetFieldID: str, endianness: str) -> bool:
+    """Set explicit field endianness (F.7.3.72)."""
+    return _set_packet_endianness(packetFieldID, endianness, field=True)
+
+
+def removePacketEndianness(packetID: str) -> bool:
+    """Remove explicit packet endianness (F.7.3.39)."""
+    packet = _resolve_packet(packetID)
+    if packet is None or packet.endianness is None:
+        return False
+    packet.endianness = None
+    return True
+
+
+def removePacketFieldEndianness(packetFieldID: str) -> bool:
+    """Remove explicit field endianness (F.7.3.40)."""
+    field = _resolve_packet_field(packetFieldID)
+    if field is None or field.endianness is None:
+        return False
+    field.endianness = None
+    return True
+
+
+def _set_packet_field_expression(packetFieldID: str, expression: str, *, width: bool) -> bool:
+    from org.accellera.ipxact.v1685_2022.unresolved_unsigned_positive_int_expression import (
+        UnresolvedUnsignedPositiveIntExpression,
+    )
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import UnsignedBitVectorExpression
+
+    field = _resolve_packet_field(packetFieldID)
+    if field is None:
+        raise TgiError("Invalid packetField handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(expression, str) or not expression.strip():
+        raise TgiError("Expression requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    attr = "width" if width else "value"
+    element = getattr(field, attr)
+    if element is None:
+        element = (UnresolvedUnsignedPositiveIntExpression(value=expression) if width
+                   else UnsignedBitVectorExpression(value=expression))
+        setattr(field, attr, element)
+    else:
+        element.value = expression
+    register_parent(element, field, (attr,), "single")
+    return True
+
+
+def setPacketFieldValue(packetFieldID: str, expression: str) -> bool:
+    """Set the source value expression without resolving it (F.7.3.74)."""
+    return _set_packet_field_expression(packetFieldID, expression, width=False)
+
+
+def setPacketFieldWidth(packetFieldID: str, expression: str) -> bool:
+    """Set the source width expression without resolving it (F.7.3.75)."""
+    return _set_packet_field_expression(packetFieldID, expression, width=True)
+
+
+__all__ += [
+    "addPacketPacketField", "removePacketPacketField", "removeAbstractionDefPortPacket",
+    "setPacketEndianness", "setPacketFieldEndianness", "removePacketEndianness",
+    "removePacketFieldEndianness", "setPacketFieldValue", "setPacketFieldWidth",
+]

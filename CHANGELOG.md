@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement packet-field creation and selective packet/field removal with parsed ownership.
+- Add validated packet/field endianness editing and expression setters that preserve handles and metadata.
 - Validate logical-port packet creation before mutation and restore parsed packet/field ownership.
 - Add packet-field value handles and preserve width/value expressions, qualifiers, and child identity.
 - Implement standard logical-port mode names and grouped wire/transactional system modes.
