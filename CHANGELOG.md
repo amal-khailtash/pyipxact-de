@@ -5,6 +5,14 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.3.1](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.0...v0.3.1) (2026-10-20)
+
+### Bug Fixes
+
+- automate verified releases and complete documentation builds
+  ([#11](https://github.com/amal-khailtash/pyipxact-de/issues/11))
+  ([39da93f](https://github.com/amal-khailtash/pyipxact-de/commit/39da93fa9b0b9fb93b7cca779996ff6d8e61f166))
+
 ## [Unreleased]
 
 ### Fixed
