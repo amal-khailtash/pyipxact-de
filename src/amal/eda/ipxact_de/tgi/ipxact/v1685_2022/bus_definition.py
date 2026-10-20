@@ -21,7 +21,7 @@ Assumptions:
     their dedicated category modules; minimal add/remove helpers are exposed
     here for completeness per F.7 classification symmetry.
 """
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import BusDefinition
@@ -42,6 +42,7 @@ from .core import (
         resolve_handle,
         register_parent,
         detach_child_by_handle,
+        vlnv_to_tuple,
 )
 
 __all__: list[str] = [
@@ -65,6 +66,7 @@ __all__: list[str] = [
         "getBusDefinitionExtendsName",
         "getBusDefinitionExtendsVersion",
         "getBusDefinitionExtendsVLNV",
+        "getBusDefinitionExtendsRefByVLNV",
         "getBusDefinitionMaxInitiators",
         "getBusDefinitionMaxInitiatorsExpression",
         "getBusDefinitionMaxInitiatorsID",
@@ -268,6 +270,11 @@ def getBusDefinitionExtendsVLNV(busDefinitionID: str) -> str | None:  # F.7.17.x
     return ":".join(str(p) for p in parts_raw)
 
 
+def getBusDefinitionExtendsRefByVLNV(busDefinitionID: str) -> str | None:  # F.7.17.4
+    """Return the extended bus VLNV in vendor:library:name:version form."""
+    return getBusDefinitionExtendsVLNV(busDefinitionID)
+
+
 def getBusDefinitionMaxInitiators(busDefinitionID: str) -> int | None:  # F.7.17.x
     """Return integer value of ``maxInitiators`` if convertible."""
     expr = getattr(_resolve(busDefinitionID), "max_initiators", None)
@@ -332,12 +339,12 @@ def getBusDefinitionSystemGroupNameValue(systemGroupNameID: str) -> str | None: 
 # EXTENDED (F.7.18)
 # ---------------------------------------------------------------------------
 
-def addBusDefinitionSystemGroupName(busDefinitionID: str, name: str) -> str:  # F.7.18.x
+def addBusDefinitionSystemGroupName(busDefinitionID: str, value: str) -> str:  # F.7.18.2
     """Append a new ``systemGroupName`` element.
 
     Args:
         busDefinitionID: Bus definition handle.
-        name: Group name string.
+        value: Group name string.
 
     Returns:
         str: Handle of created element.
@@ -345,20 +352,20 @@ def addBusDefinitionSystemGroupName(busDefinitionID: str, name: str) -> str:  # 
     bd = _resolve(busDefinitionID)
     if bd.system_group_names is None:
         bd.system_group_names = BusDefinition.SystemGroupNames()  # type: ignore[attr-defined]
-    sgn = BusDefinition.SystemGroupNames.SystemGroupName(value=name)
+    sgn = BusDefinition.SystemGroupNames.SystemGroupName(value=value)
     bd.system_group_names.system_group_name.append(sgn)  # type: ignore[attr-defined]
-    register_parent(sgn, bd, ("system_group_names",), "list")
+    register_parent(sgn, bd, ("system_group_names", "system_group_name"), "list")
     return get_handle(sgn)
 
 
-def addBusDefinitionChoice(busDefinitionID: str, name: str) -> str:  # F.7.18.x
-    """Append a ``choice`` element with given name."""
+def addBusDefinitionChoice(busDefinitionID: str, name: str, enumerations: Sequence[str]) -> str:  # F.7.18.1
+    """Append a named choice with its enumeration values in supplied order."""
     bd = _resolve(busDefinitionID)
     if bd.choices is None:
         bd.choices = Choices()  # type: ignore[attr-defined]
-    ch = Choices.Choice(name=name)  # type: ignore[attr-defined]
+    ch = Choices.Choice(name=name, enumeration=[Choices.Choice.Enumeration(value=value) for value in enumerations])
     bd.choices.choice.append(ch)  # type: ignore[attr-defined]
-    register_parent(ch, bd, ("choices",), "list")
+    register_parent(ch, bd, ("choices", "choice"), "list")
     return get_handle(ch)
 
 
@@ -400,7 +407,18 @@ def removeBusDefinitionSystemGroupName(systemGroupNameID: str) -> bool:  # F.7.1
 
 def removeBusDefinitionChoice(choiceID: str) -> bool:  # F.7.18.x
     """Remove a ``choice`` element by handle."""
-    return detach_child_by_handle(choiceID)
+    obj = resolve_handle(choiceID)
+    if not isinstance(obj, Choices.Choice):
+        raise TgiError("Invalid choice handle", TgiFaultCode.INVALID_ID)
+    from .core import get_parent_info
+
+    info = get_parent_info(choiceID)
+    removed = detach_child_by_handle(choiceID)
+    if removed and info is not None:
+        parent = resolve_handle(info.parent_handle)
+        if isinstance(parent, BusDefinition) and parent.choices is not None and not parent.choices.choice:
+            parent.choices = None
+    return removed
 
 
 def removeBusDefinitionParameter(parameterID: str) -> bool:  # F.7.18.x
@@ -439,14 +457,12 @@ def setBusDefinitionDescription(busDefinitionID: str, value: str) -> bool:  # F.
 
 
 def setBusDefinitionExtends(
-    busDefinitionID: str,
-    vendor: str,
-    library: str,
-    name: str,
-    version: str,
+    busDefID: str,
+    busDefVLNV: Sequence[str],
 ) -> bool:  # F.7.18.x
     """Set or create the ``extends`` reference (VLNV)."""
-    bd = _resolve(busDefinitionID)
+    bd = _resolve(busDefID)
+    vendor, library, name, version = vlnv_to_tuple(busDefVLNV)
     bd.extends = LibraryRefType(vendor=vendor, library=library, name=name, version=version)  # type: ignore[attr-defined]
     return True
 
@@ -538,4 +554,3 @@ def removeBusDefinitionMaxTargets(busDefinitionID: str) -> bool:  # F.7.18.x
         bd.max_targets = None  # type: ignore[attr-defined]
         return True
     return False
-

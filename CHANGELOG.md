@@ -4,7 +4,18 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: https://keepachangelog.com
 - Semantic Versioning: https://semver.org
 
+
 ## [Unreleased]
+
+### Added
+- Add the bus-definition extended-VLNV accessor and feature implementation checklist.
+
+### Fixed
+- Align bus-definition extends and choice inputs with Annex F; preserve choice enumerations and correct choice/system-group ownership during removal.
+
+### Added
+- new persistent xml registration `register` with `scan`, and `list` subcommands.
+- add registry loader and scanner for IP-XACT XML files, enhance VLNV management
 
 
 ## [0.2.0] - 2025-09-01
