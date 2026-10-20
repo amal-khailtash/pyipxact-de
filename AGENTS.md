@@ -89,6 +89,8 @@ and tick only features supported by scoped verification.
 
 Implement the full IP-XACT feature plan, not only TGI operations. Track core document/model semantics, validation,
 configuration, addressing, older-version conversion, and GUI work independently from TGI coverage.
+Prioritize IEEE/IP-XACT standard requirements. Defer further caching, cache optimization, GUI, and other
+nonstandard convenience work until the remaining standard aspects are implemented, unless explicitly requested.
 
 ## Pull requests and releases
 

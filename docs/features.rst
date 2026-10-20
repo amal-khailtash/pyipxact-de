@@ -7,6 +7,10 @@ The implementation scope includes all IP-XACT data and behavior; TGI coverage
 is tracked separately and does not replace core feature implementation. Checked operations
 do not imply complete semantic, transport, expression, or GUI conformance.
 
+Current priority is IEEE/IP-XACT document semantics, validation, and applicable TGI requirements.
+Further caching and GUI work is deferred until the remaining standard aspects are implemented.
+Deferred items remain visible below; existing checked items retain their verification status.
+
 Update this checklist and the local plan with each implemented set of changes,
 and commit the implementation, tests, checklist, and changelog together.
 
