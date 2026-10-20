@@ -559,23 +559,15 @@ def getAbstractionDefPortTransactionalOnTargetID(abstractionDefPortID: str) -> s
 
 
 def getAbstractionDefPortTransactionalQualifierID(portID: str) -> str | None:
-    """Return transactional qualifier handle.
-
-    Section: F.7.2.20.
-
-    Args:
-        portID: Handle to a transactional port element.
-
-    Returns:
-        Handle string or ``None`` if absent.
-    """
-    p = _resolve_port(portID)
-    if p is None:
+    """Return the owned transactional qualifier handle (F.7.2.20)."""
+    port = _resolve_port(portID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None or tr.qualifier is None:
+    style = port.wire_or_transactional
+    if not isinstance(style, AbstractionDefinition.Ports.Port.Transactional) or style.qualifier is None:
         return None
-    return get_handle(tr.qualifier)
+    register_parent(style.qualifier, style, ("qualifier",), "single")
+    return get_handle(style.qualifier)
 
 
 def getAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> int | None:
@@ -794,21 +786,15 @@ def getAbstractionDefPortWireOnTargetID(abstractionDefPortID: str) -> str | None
 
 
 def getAbstractionDefPortWireQualifierID(portID: str) -> str | None:
-    """F.7.2.34 Return handle to wire qualifier element.
-
-    Args:
-        portID: Handle to a logical wire port element.
-
-    Returns:
-        Qualifier element handle or None if absent.
-    """
-    p = _resolve_port(portID)
-    if p is None:
+    """Return the owned wire qualifier handle (F.7.2.34)."""
+    port = _resolve_port(portID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    if w is None or getattr(w, "qualifier", None) is None:
+    style = port.wire_or_transactional
+    if not isinstance(style, Wire) or style.qualifier is None:
         return None
-    return get_handle(w.qualifier)
+    register_parent(style.qualifier, style, ("qualifier",), "single")
+    return get_handle(style.qualifier)
 
 
 def getAbstractionDefPortWireRequiresDriver(abstractionDefPortID: str) -> bool | None:
@@ -1465,21 +1451,15 @@ def removeAbstractionDefPortTransactionalOnTarget(portID: str) -> bool:
 
 
 def removeAbstractionDefPortTransactionalQualifier(portID: str) -> bool:
-    """Remove transactional qualifier element.
-
-    Section: F.7.3.21.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if qualifier removed.
-    """
-    tr = _ensure_transactional(portID)
-    if getattr(tr, "qualifier", None) is not None:
-        tr.qualifier = None  # type: ignore[attr-defined]
-        return True
-    return False
+    """Remove only the transactional qualifier and invalidate its handle (F.7.3.22)."""
+    port = _resolve_port(portID)
+    if port is None:
+        return False
+    style = port.wire_or_transactional
+    if not isinstance(style, AbstractionDefinition.Ports.Port.Transactional) or style.qualifier is None:
+        return False
+    register_parent(style.qualifier, style, ("qualifier",), "single")
+    return detach_child_by_handle(get_handle(style.qualifier))
 
 
 def _ensure_wire(portID: str):
@@ -1576,21 +1556,15 @@ def removeAbstractionDefPortWireOnTarget(portID: str) -> bool:
 
 
 def removeAbstractionDefPortWireQualifier(portID: str) -> bool:
-    """Remove wire qualifier.
-
-    Section: F.7.3.29.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if qualifier removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "qualifier", None) is not None:
-        w.qualifier = None  # type: ignore[attr-defined]
-        return True
-    return False
+    """Remove only the wire qualifier and invalidate its handle (F.7.3.32)."""
+    port = _resolve_port(portID)
+    if port is None:
+        return False
+    style = port.wire_or_transactional
+    if not isinstance(style, Wire) or style.qualifier is None:
+        return False
+    register_parent(style.qualifier, style, ("qualifier",), "single")
+    return detach_child_by_handle(get_handle(style.qualifier))
 
 
 def removeAbstractionDefPortWireRequiresDriver(portID: str) -> bool:
@@ -1669,21 +1643,19 @@ def setAbstractionDefPortTransactionalOnTarget(portID: str) -> bool:
     return True
 
 
-def setAbstractionDefPortTransactionalQualifier(portID: str, qualifier: str) -> bool:
-    """Set transactional qualifier.
+def setAbstractionDefPortTransactionalQualifier(portID: str) -> bool:
+    """Ensure the transactional qualifier, preserving existing content (F.7.3.55)."""
+    from org.accellera.ipxact.v1685_2022 import QualifierType
 
-    Section: F.7.3.55.
-
-    Args:
-        portID: Transactional port handle.
-        qualifier: Qualifier string.
-
-    Returns:
-        True on success.
-    """
-    tr = _ensure_transactional(portID)
-    from org.accellera.ipxact.v1685_2022.qualifier_type import QualifierType
-    tr.qualifier = QualifierType(value=qualifier)  # type: ignore[arg-type]
+    port = _resolve_port(portID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    style = port.wire_or_transactional
+    if not isinstance(style, AbstractionDefinition.Ports.Port.Transactional):
+        raise TgiError("Port has the wrong style", TgiFaultCode.INVALID_ARGUMENT)
+    if style.qualifier is None:
+        style.qualifier = QualifierType()
+    register_parent(style.qualifier, style, ("qualifier",), "single")
     return True
 
 
@@ -1809,21 +1781,19 @@ def setAbstractionDefPortWireOnTarget(portID: str) -> bool:
     return True
 
 
-def setAbstractionDefPortWireQualifier(portID: str, qualifier: str) -> bool:
-    """Set wire qualifier.
+def setAbstractionDefPortWireQualifier(abstractionDefPortID: str) -> bool:
+    """Ensure the wire qualifier, preserving existing content (F.7.3.66)."""
+    from org.accellera.ipxact.v1685_2022 import QualifierType
 
-    Section: F.7.3.66.
-
-    Args:
-        portID: Wire port handle.
-        qualifier: Qualifier string.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.qualifier_type import QualifierType
-    w.qualifier = QualifierType(value=qualifier)  # type: ignore[arg-type]
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    style = port.wire_or_transactional
+    if not isinstance(style, Wire):
+        raise TgiError("Port has the wrong style", TgiFaultCode.INVALID_ARGUMENT)
+    if style.qualifier is None:
+        style.qualifier = QualifierType()
+    register_parent(style.qualifier, style, ("qualifier",), "single")
     return True
 
 
