@@ -1621,43 +1621,31 @@ def setAbstractionDefPortTransactionalQualifier(portID: str) -> bool:
     return True
 
 
-def setAbstractionDefPortTransactional(portID: str) -> bool:
-    """Ensure port has transactional style container.
-
-    Section: F.7.3.56.
-
-    Args:
-        portID: Port handle.
-
-    Returns:
-        True (idempotent create).
-    """
-    p = _resolve_port(portID)
-    if p is None:
+def _set_port_style(abstractionDefPortID: str, style_type: type) -> bool:
+    """Set the generated exclusive style choice, preserving an existing matching style."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    if p.transactional is None:
-        p.transactional = AbstractionDefinition.Ports.Port.Transactional()  # type: ignore[attr-defined]
+    style = port.wire_or_transactional
+    if not isinstance(style, style_type):
+        replacement = style_type()
+        if style is not None:
+            register_parent(style, port, ("wire_or_transactional",), "single")
+            detach_child_by_handle(get_handle(style))
+        port.wire_or_transactional = replacement
+        style = replacement
+    register_parent(style, port, ("wire_or_transactional",), "single")
     return True
 
 
-def setAbstractionDefPortWire(portID: str) -> bool:
-    """Ensure port has wire style container.
+def setAbstractionDefPortTransactional(abstractionDefPortID: str) -> bool:
+    """Set transactional style, preserving existing transactional content (F.7.3.57)."""
+    return _set_port_style(abstractionDefPortID, AbstractionDefinition.Ports.Port.Transactional)
 
-    Section: F.7.3.57.
 
-    Args:
-        portID: Port handle.
-
-    Returns:
-        True (idempotent create).
-    """
-    p = _resolve_port(portID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    if p.wire is None:
-        from org.accellera.ipxact.v1685_2022.wire import Wire
-        p.wire = Wire()  # type: ignore[arg-type]
-    return True
+def setAbstractionDefPortWire(abstractionDefPortID: str) -> bool:
+    """Set wire style, preserving existing wire content (F.7.3.56)."""
+    return _set_port_style(abstractionDefPortID, Wire)
 
 
 def setAbstractionDefPortWireDefaultValue(abstractionDefPortID: str, valueExpression: str) -> bool:

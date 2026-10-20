@@ -392,8 +392,8 @@ Abstraction definition (EXTENDED)
 * ☑ ``setAbstractionDefPortTransactionalOnInitiator`` (F.7.3.53)
 * ☑ ``setAbstractionDefPortTransactionalOnTarget`` (F.7.3.54)
 * ☑ ``setAbstractionDefPortTransactionalQualifier`` (F.7.3.55)
-* ☐ ``setAbstractionDefPortWire`` (F.7.3.56)
-* ☐ ``setAbstractionDefPortTransactional`` (F.7.3.57)
+* ☑ ``setAbstractionDefPortWire`` (F.7.3.56)
+* ☑ ``setAbstractionDefPortTransactional`` (F.7.3.57)
 * ☑ ``setAbstractionDefPortWireDefaultValue`` (F.7.3.58)
 * ☑ ``setAbstractionDefPortWireModeDirection`` (F.7.3.59)
 * ☑ ``setAbstractionDefPortWireModeMirroredModeConstraints`` (F.7.3.60)
@@ -3125,3 +3125,11 @@ Abstractor structured model initialization
 - ☑ Initialize named sub-ports with registered parent identity during structured-port creation.
 - ☑ Initialize structured type definitions with the supplied type name and preserve XML round trips.
 - ☐ Validate structured type resolution and complete sub-port semantic constraints.
+
+Logical port style conversion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Set the generated wire/transactional choice and preserve existing matching style content.
+- ☑ Verify style and logical-name getters plus packet traversal across both conversions and XML reload.
+- ☑ Preserve port identity, match metadata and independent packet content; reject invalid handles atomically.
+- ☐ Complete recursive descendant handle invalidation and style semantic validation.

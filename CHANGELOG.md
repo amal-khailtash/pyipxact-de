@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Correct logical port style setters to use the generated exclusive choice while preserving port and packet content.
 - Implement timing constraint lifecycle with generated models, ownership and scoped validation.
 - Implement drive and load constraint traversal with generated models, ownership and scoped validation.
 - Implement wire mode constraint containers with generated models, ownership and scoped validation.
