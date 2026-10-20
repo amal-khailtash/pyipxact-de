@@ -824,48 +824,38 @@ def getAbstractionDefPortWireRequiresDriverID(abstractionDefPortModeID: str) -> 
 
 
 def getModeConstraintsDriveConstraintCellSpecificationID(modeConstraintsID: str) -> str | None:
-    """Return handle to driveConstraint/cellSpecification.
-
-    Section: F.7.2.37.
-
-    Args:
-        modeConstraintsID: Handle to a modeConstraints element.
-
-    Returns:
-        Handle to first cellSpecification element or ``None``.
-    """
-    obj = resolve_handle(modeConstraintsID)
+    """Return the first drive constraint's owned cell specification handle (F.7.2.37)."""
+    constraints = resolve_handle(modeConstraintsID)
     from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
         AbstractionDefPortConstraintsType,
     )
-    if not isinstance(obj, AbstractionDefPortConstraintsType):  # type: ignore[arg-type]
+    from org.accellera.ipxact.v1685_2022.drive_constraint import DriveConstraint
+
+    if not isinstance(constraints, AbstractionDefPortConstraintsType):
         raise TgiError("Invalid modeConstraints handle", TgiFaultCode.INVALID_ID)
-    for dc in getattr(obj, "drive_constraint", []):  # type: ignore[attr-defined]
-        cs = getattr(dc, "cell_specification", None)
-        if cs is not None:
-            return get_handle(cs)
+    for child in constraints.drive_constraint_or_load_constraint:
+        if isinstance(child, DriveConstraint):
+            register_parent(child, constraints, ("drive_constraint_or_load_constraint",), "list")
+            cell_specification = child.cell_specification
+            register_parent(child.cell_specification, child, ("cell_specification",), "single")
+            return get_handle(cell_specification)
     return None
 
 
 def getModeConstraintsLoadConstraintID(modeConstraintsID: str) -> str | None:
-    """Return handle to loadConstraint.
-
-    Section: F.7.2.38.
-
-    Args:
-        modeConstraintsID: Handle to a modeConstraints element.
-
-    Returns:
-        Handle string or ``None`` if absent.
-    """
-    obj = resolve_handle(modeConstraintsID)
+    """Return the first load constraint's owned handle (F.7.2.38)."""
+    constraints = resolve_handle(modeConstraintsID)
     from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
         AbstractionDefPortConstraintsType,
     )
-    if not isinstance(obj, AbstractionDefPortConstraintsType):  # type: ignore[arg-type]
+    from org.accellera.ipxact.v1685_2022.load_constraint import LoadConstraint
+
+    if not isinstance(constraints, AbstractionDefPortConstraintsType):
         raise TgiError("Invalid modeConstraints handle", TgiFaultCode.INVALID_ID)
-    for lc in getattr(obj, "load_constraint", []):  # type: ignore[attr-defined]
-        return get_handle(lc)
+    for child in constraints.drive_constraint_or_load_constraint:
+        if isinstance(child, LoadConstraint):
+            register_parent(child, constraints, ("drive_constraint_or_load_constraint",), "list")
+            return get_handle(child)
     return None
 
 
@@ -2083,3 +2073,59 @@ def removeAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> bool:
     return detach_child_by_handle(child_handle)
 
 __all__ += ["removeAbstractionDefPortWireDefaultValue"]
+
+
+def removeModeConstraintsDriveConstraint(modeConstraintsID: str) -> bool:
+    """Remove all drive constraints while retaining load order and timing children (F.7.3.36)."""
+    constraints = resolve_handle(modeConstraintsID)
+    from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
+        AbstractionDefPortConstraintsType,
+    )
+    from org.accellera.ipxact.v1685_2022.drive_constraint import DriveConstraint
+
+    if not isinstance(constraints, AbstractionDefPortConstraintsType):
+        return False
+    matches = [
+        child
+        for child in constraints.drive_constraint_or_load_constraint
+        if isinstance(child, DriveConstraint)
+    ]
+    if not matches:
+        return False
+    removed = False
+    for child in matches:
+        child_handle = get_handle(child)
+        register_parent(child, constraints, ("drive_constraint_or_load_constraint",), "list")
+        removed = detach_child_by_handle(child_handle) or removed
+    return removed
+
+
+__all__ += ["removeModeConstraintsDriveConstraint"]
+
+
+def removeModeConstraintsLoadConstraint(modeConstraintsID: str) -> bool:
+    """Remove all load constraints while retaining drive order and timing children (F.7.3.37)."""
+    constraints = resolve_handle(modeConstraintsID)
+    from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
+        AbstractionDefPortConstraintsType,
+    )
+    from org.accellera.ipxact.v1685_2022.load_constraint import LoadConstraint
+
+    if not isinstance(constraints, AbstractionDefPortConstraintsType):
+        return False
+    matches = [
+        child
+        for child in constraints.drive_constraint_or_load_constraint
+        if isinstance(child, LoadConstraint)
+    ]
+    if not matches:
+        return False
+    removed = False
+    for child in matches:
+        child_handle = get_handle(child)
+        register_parent(child, constraints, ("drive_constraint_or_load_constraint",), "list")
+        removed = detach_child_by_handle(child_handle) or removed
+    return removed
+
+
+__all__ += ["removeModeConstraintsLoadConstraint"]
