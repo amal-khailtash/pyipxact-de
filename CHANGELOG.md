@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement abstractor wire and transactional ports using generated choice fields and validated schema values.
+- Validate abstractor view names and repair port/view parent paths for ordered traversal and removal.
 - Initialize abstractor generators with generated URI values and choices with standard enumeration arrays.
 - Validate generator/choice inputs before mutation and repair parent paths for selective removal.
 - Use standard interface handles for abstractor abstraction-type creation and traversal.

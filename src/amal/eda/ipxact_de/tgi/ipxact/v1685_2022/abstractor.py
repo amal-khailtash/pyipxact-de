@@ -346,56 +346,49 @@ def addAbstractorInterfaceAbstractionType(
     return get_handle(item)
 
 
-def addAbstractorTransactionalPort(abstractorID: str, name: str, initiative: str | None = None) -> str:
-    """Add a transactional model port.
+def _append_model_port(abstractorID: str, name: str, style) -> str:
+    """Append a generated port after validating its name and owner."""
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
 
-    Section: F.7.5.6.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_port_transactional_type import (
-        AbstractorPortTransactionalType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
+    root = _resolve(abstractorID)
+    if root is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.transactional = AbstractorPortTransactionalType()
-    if initiative:
-        p.transactional.initiative = initiative  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Port name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    port = AbstractorPortType(name=name, wire_or_transactional_or_structured=style)
+    if root.model is None:
+        root.model = AbstractorModelType()
+    if root.model.ports is None:
+        root.model.ports = AbstractorModelType.Ports()
+    root.model.ports.port.append(port)
+    register_parent(port, root, ("model", "ports", "port"), "list")
+    return get_handle(port)
 
 
-def addAbstractorWirePort(abstractorID: str, name: str, direction: str | None = None) -> str:
-    """Add a wire model port.
+def addAbstractorTransactionalPort(abstractorID: str, name: str, initiative: str) -> str:
+    """Add a transactional port with a standard initiative (F.7.5.9)."""
+    from org.accellera.ipxact.v1685_2022 import AbstractorPortTransactionalType, Initiative, InitiativeType
 
-    Section: F.7.5.7.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_port_wire_type import (
-        AbstractorPortWireType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
+    if _resolve(abstractorID) is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.wire = AbstractorPortWireType()
-    if direction:
-        p.wire.direction = direction  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    try:
+        value = InitiativeType(initiative)
+    except (TypeError, ValueError):
+        raise TgiError("Invalid port initiative", TgiFaultCode.INVALID_ARGUMENT) from None
+    return _append_model_port(abstractorID, name, AbstractorPortTransactionalType(initiative=Initiative(value=value)))
+
+
+def addAbstractorWirePort(abstractorID: str, name: str, direction: str) -> str:
+    """Add a wire port with a standard direction (F.7.5.11)."""
+    from org.accellera.ipxact.v1685_2022 import AbstractorPortWireType, ComponentPortDirectionType
+
+    if _resolve(abstractorID) is None:
+        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    try:
+        value = ComponentPortDirectionType(direction)
+    except (TypeError, ValueError):
+        raise TgiError("Invalid port direction", TgiFaultCode.INVALID_ARGUMENT) from None
+    return _append_model_port(abstractorID, name, AbstractorPortWireType(direction=value))
 
 
 def addAbstractorStructuredInterfacePort(
@@ -503,19 +496,21 @@ def addAbstractorStructuredUnionPort(
 def addAbstractorView(abstractorID: str, name: str) -> str:
     """Add a view element under model.views.
 
-    Section: F.7.5.11.
+    Section: F.7.5.10.
     """
     from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("View name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     if a.model is None:
         a.model = AbstractorModelType()
     if a.model.views is None:
         a.model.views = AbstractorModelType.Views()
     v = AbstractorModelType.Views.View(name=name)
     a.model.views.view.append(v)  # type: ignore[attr-defined]
-    register_parent(v, a, ("model", "views"), "list")
+    register_parent(v, a, ("model", "views", "view"), "list")
     return get_handle(v)
 
 
@@ -562,7 +557,7 @@ def removeAbstractorInterfaceAbstractionType(abstractionTypeID: str) -> bool:
 def removeAbstractorPort(portID: str) -> bool:
     """Remove a model port (any style).
 
-    Section: F.7.5.17.
+    Section: F.7.5.18.
     """
     return detach_child_by_handle(portID)
 
@@ -570,7 +565,7 @@ def removeAbstractorPort(portID: str) -> bool:
 def removeAbstractorView(viewID: str) -> bool:
     """Remove a model view.
 
-    Section: F.7.5.18.
+    Section: F.7.5.19.
     """
     return detach_child_by_handle(viewID)
 
