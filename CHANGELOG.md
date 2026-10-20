@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### CI
 
+- Dispatch production publication directly so PEP 740 identity matches the PyPI trusted publisher.
+
 - Consolidate numbered PR, CI, release, and publication workflows; reuse validated distributions
   and trigger release docs after PyPI.
 
@@ -46,7 +48,6 @@ This document lists notable changes for each release and follows:
 - Discover uppercase XML extensions, retain search-path order, and deduplicate overlapping files.
 - Warn on duplicate VLNVs and keep the first match on fresh and cached scans.
 - Continue scanning after a discovered file disappears.
-
 - Avoid duplicate API navigation trees and fully expanded sidebars during documentation rendering.
 - Match the pysystemc screenshot badge order and labels for release automation, tests, publishing, and documentation.
 - Match pysystemc CI/CD badge order and styling, including Documentation and RELEASE_PLEASE badges.

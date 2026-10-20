@@ -3104,3 +3104,8 @@ Development and release automation
 * ☑ Configure release-please version/changelog PRs and verified uv trusted publication.
 * ☑ Add Read the Docs configuration and contributor/release setup instructions.
 * ☐ Activate external service integrations and verify hosted PR checks and automatic publication.
+
+Release automation
+~~~~~~~~~~~~~~~~~~
+
+- ☑ Dispatch publication directly with the configured PyPI trusted publisher workflow identity.
