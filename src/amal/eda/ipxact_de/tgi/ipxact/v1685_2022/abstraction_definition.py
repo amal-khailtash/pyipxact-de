@@ -595,43 +595,38 @@ def getAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> int | No
 
 
 def getAbstractionDefPortWireDefaultValueExpression(abstractionDefPortID: str) -> str | None:
-    """Return wire defaultValue expression.
-
-    Section: F.7.2.22.
-
-    Args:
-        abstractionDefPortID: Handle to a wire port element.
-
-    Returns:
-        Expression string or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortID)
-    if p is None:
+    """Return a wire port's default-value expression text (F.7.2.22)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    dv = getattr(w, "default_value", None) if w is not None else None
-    return getattr(dv, "value", None) if dv is not None else None
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
+        return None
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
+        UnsignedBitVectorExpression,
+    )
+
+    default_value = wire.default_value_or_requires_driver
+    return default_value.value if isinstance(default_value, UnsignedBitVectorExpression) else None
 
 
 def getAbstractionDefPortWireDefaultValueID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle to wire defaultValue element.
-
-    Section: F.7.2.23.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Handle string or ``None`` if absent.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
+    """Return the owned wire default-value handle when that choice is present (F.7.2.23)."""
+    port = _resolve_port(abstractionDefPortModeID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    if w is None:
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
         return None
-    dv = getattr(w, "default_value", None)
-    return get_handle(dv) if dv is not None else None
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
+        UnsignedBitVectorExpression,
+    )
+
+    default_value = wire.default_value_or_requires_driver
+    if not isinstance(default_value, UnsignedBitVectorExpression):
+        return None
+    register_parent(default_value, wire, ("default_value_or_requires_driver",), "single")
+    return get_handle(default_value)
 
 
 def getAbstractionDefPortWireModeDirection(abstractionDefPortModeID: str) -> str | None:
@@ -1698,21 +1693,35 @@ def setAbstractionDefPortWire(portID: str) -> bool:
     return True
 
 
-def setAbstractionDefPortWireDefaultValue(portID: str, value: int | str) -> bool:
-    """Set wire defaultValue.
+def setAbstractionDefPortWireDefaultValue(abstractionDefPortID: str, valueExpression: str) -> bool:
+    """Set a wire default-value expression while preserving choice-child identity (F.7.3.58)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
+        raise TgiError("Port is not wire style", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(valueExpression, str) or not valueExpression.strip():
+        raise TgiError("Default value expression requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
 
-    Section: F.7.3.58.
+    from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
+        UnsignedBitVectorExpression,
+    )
 
-    Args:
-        portID: Wire port handle.
-        value: Integer or expression string.
+    default_value = wire.default_value_or_requires_driver
+    if isinstance(default_value, UnsignedBitVectorExpression):
+        default_value.value = valueExpression
+        register_parent(default_value, wire, ("default_value_or_requires_driver",), "single")
+        return True
+    if isinstance(default_value, RequiresDriver):
+        old_handle = get_handle(default_value)
+        register_parent(default_value, wire, ("default_value_or_requires_driver",), "single")
+        detach_child_by_handle(old_handle)
 
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.value import Value as ValueClass
-    w.default_value = ValueClass(value=str(value))  # type: ignore[arg-type]
+    replacement = UnsignedBitVectorExpression(value=valueExpression)
+    wire.default_value_or_requires_driver = replacement
+    register_parent(replacement, wire, ("default_value_or_requires_driver",), "single")
     return True
 
 
@@ -2058,3 +2067,27 @@ def _set_logical_mode_property(handle: str, value: str, style: str, attr: str) -
         child.value = converted
     register_parent(child, mode, (attr,), "single")
     return True
+
+
+def removeAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> bool:
+    """Remove and invalidate only the wire default-value expression (F.7.3.23)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        return False
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
+        return False
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
+        UnsignedBitVectorExpression,
+    )
+
+    default_value = wire.default_value_or_requires_driver
+    if not isinstance(default_value, UnsignedBitVectorExpression):
+        return False
+    child_handle = get_handle(default_value)
+    register_parent(default_value, wire, ("default_value_or_requires_driver",), "single")
+    return detach_child_by_handle(child_handle)
+
+__all__ += ["removeAbstractionDefPortWireDefaultValue"]
+
+__all__ += ["removeAbstractionDefPortWireDefaultValue"]
