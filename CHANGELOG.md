@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.4.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.1...v0.4.0) (2026-10-20)
+
+
+### Features
+
+* implement standard root creation and robust repository discovery ([#14](https://github.com/amal-khailtash/pyipxact-de/issues/14)) ([91fdece](https://github.com/amal-khailtash/pyipxact-de/commit/91fdece98e3eac4c4e85a5a208761f402c91767a))
+
 ## [0.3.1](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.0...v0.3.1) (2026-10-20)
 
 ### Bug Fixes
