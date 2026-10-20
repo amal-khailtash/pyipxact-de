@@ -1711,41 +1711,45 @@ def setAbstractionDefPortWireModeDirection(abstractionDefPortModeID: str, direct
     return _set_logical_mode_property(abstractionDefPortModeID, direction, "wire", "direction")
 
 
-def setAbstractionDefPortWireModeMirroredModeConstraints(portID: str) -> bool:
-    """Create mirroredModeConstraints container.
+def setAbstractionDefPortWireModeMirroredModeConstraints(
+    abstractionDefPortModeID: str, timingConstraintClockName: str
+) -> bool:
+    """Ensure the supplied wire mode's mirrored_mode_constraints container (F.7.3.60)."""
+    from org.accellera.ipxact.v1685_2022 import AbstractionDefPortConstraintsType, TimingConstraint
 
-    Section: F.7.3.60.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
-        AbstractionDefPortConstraintsType,
-    )
-    w.mirrored_mode_constraints = AbstractionDefPortConstraintsType()  # type: ignore[arg-type]
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(timingConstraintClockName, str) or not timingConstraintClockName.strip():
+        raise TgiError("Timing clock name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    constraints = mode.mirrored_mode_constraints
+    if constraints is None:
+        timing = TimingConstraint(value=0.0, clock_name=timingConstraintClockName)
+        constraints = AbstractionDefPortConstraintsType(timing_constraint=[timing])
+        mode.mirrored_mode_constraints = constraints
+        register_parent(timing, constraints, ("timing_constraint",), "list")
+    register_parent(constraints, mode, ("mirrored_mode_constraints",), "single")
     return True
 
 
-def setAbstractionDefPortWireModeModeConstraints(portID: str) -> bool:
-    """Create modeConstraints container.
+def setAbstractionDefPortWireModeModeConstraints(
+    abstractionDefPortModeID: str, timingConstraintClockName: str
+) -> bool:
+    """Ensure the supplied wire mode's mode_constraints container (F.7.3.61)."""
+    from org.accellera.ipxact.v1685_2022 import AbstractionDefPortConstraintsType, TimingConstraint
 
-    Section: F.7.3.61.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
-    from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
-        AbstractionDefPortConstraintsType,
-    )
-    w.mode_constraints = AbstractionDefPortConstraintsType()  # type: ignore[arg-type]
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(timingConstraintClockName, str) or not timingConstraintClockName.strip():
+        raise TgiError("Timing clock name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    constraints = mode.mode_constraints
+    if constraints is None:
+        timing = TimingConstraint(value=0.0, clock_name=timingConstraintClockName)
+        constraints = AbstractionDefPortConstraintsType(timing_constraint=[timing])
+        mode.mode_constraints = constraints
+        register_parent(timing, constraints, ("timing_constraint",), "list")
+    register_parent(constraints, mode, ("mode_constraints",), "single")
     return True
 
 

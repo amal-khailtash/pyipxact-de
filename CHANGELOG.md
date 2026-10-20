@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement wire mode constraint containers with generated models, ownership and scoped validation.
 - Correct wire driver metadata using selective generated mode handles, ownership, and scoped XML verification.
 - Correct wire default expressions using selective generated mode handles, ownership, and scoped XML verification.
 - Correct logical port qualifiers using selective generated mode handles, ownership, and scoped XML verification.
