@@ -22,6 +22,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement VLNV-based catalog, component, design, design-configuration, and type-definition creation.
+- Return generated roots with registry identity, reject invalid VLNVs, and return null for duplicates.
 - Clear repository registrations and cached entries when search paths are removed.
 - Recover from unreadable caches and verify explicit/environment precedence and same-size file edits.
 - Verify unsupported discovered documents do not prevent supported sibling registration.

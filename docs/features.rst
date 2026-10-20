@@ -96,6 +96,13 @@ Repository refresh behavior
 * ☑ Diagnose unsupported discovered documents while loading valid siblings.
 * ☑ Invalidate same-size edits with preserved modification times.
 
+Standard root creation
+~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Create generated catalog, component, design, design configuration, and typeDefinitions roots from VLNVs.
+* ☑ Register created roots, return null for duplicate VLNVs, and reject malformed VLNV arguments.
+* ☑ Preserve root metadata across XML round trips for the five verified creators.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -2914,12 +2921,12 @@ Top element (EXTENDED)
 * ☐ ``createAbstractionDef`` (F.7.80.1)
 * ☐ ``createAbstractor`` (F.7.80.2)
 * ☐ ``createBusDefinition`` (F.7.80.3)
-* ☐ ``createCatalog`` (F.7.80.4)
-* ☐ ``createComponent`` (F.7.80.5)
-* ☐ ``createDesign`` (F.7.80.6)
-* ☐ ``createDesignConfiguration`` (F.7.80.7)
+* ☑ ``createCatalog`` (F.7.80.4)
+* ☑ ``createComponent`` (F.7.80.5)
+* ☑ ``createDesign`` (F.7.80.6)
+* ☑ ``createDesignConfiguration`` (F.7.80.7)
 * ☐ ``createGeneratorChain`` (F.7.80.8)
-* ☐ ``createTypeDefinitions`` (F.7.80.9)
+* ☑ ``createTypeDefinitions`` (F.7.80.9)
 * ☐ ``edit`` (F.7.80.10)
 * ☐ ``setXMLPath`` (F.7.80.11)
 
