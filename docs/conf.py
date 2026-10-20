@@ -125,7 +125,7 @@ html_theme_options = {
     'collapse_navigation': True,
     'sticky_navigation': True,
     # Keep package and module navigation available for the current branch.
-    'navigation_depth': 4,
+    'navigation_depth': 1,
     'includehidden': True,
     'titles_only': True,
 }
