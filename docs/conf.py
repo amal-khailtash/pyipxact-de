@@ -221,11 +221,41 @@ _optional_modules: list[str] = [
 autodoc_mock_imports: list[str] = _compute_autodoc_mock_imports(_optional_modules)
 
 def _cache_python_reference_lookups(app, env):
-    """Cache repeated Python-domain searches after the object inventory is complete."""
+    """Index suffix searches after Sphinx finishes collecting Python objects."""
+    from collections import defaultdict
     from functools import lru_cache
 
     domain = env.domains["py"]
-    domain.find_obj = lru_cache(maxsize=16384)(domain.find_obj)
+    original = domain.find_obj
+    suffixes = defaultdict(list)
+    for fullname, entry in domain.objects.items():
+        parts = fullname.split(".")
+        for offset in range(1, len(parts)):
+            suffixes[".".join(parts[offset:])].append((fullname, entry))
+
+    @lru_cache(maxsize=16384)
+    def find_obj(env, modname, classname, name, role, searchmode=0):
+        if searchmode != 1:
+            return original(env, modname, classname, name, role, searchmode)
+        name = name.removesuffix("()")
+        if not name:
+            return []
+        objtypes = list(domain.object_types) if role is None else domain.objtypes_for_role(role)
+        if objtypes is None:
+            return []
+        candidates = []
+        if modname and classname:
+            candidates.append(f"{modname}.{classname}.{name}")
+        if modname:
+            candidates.append(f"{modname}.{name}")
+        candidates.append(name)
+        for candidate in candidates:
+            entry = domain.objects.get(candidate)
+            if entry is not None and entry.objtype in objtypes:
+                return [(candidate, entry)]
+        return [(fullname, entry) for fullname, entry in suffixes.get(name, ()) if entry.objtype in objtypes]
+
+    domain.find_obj = find_obj
 
 
 def setup(app):
