@@ -14,7 +14,7 @@ def _make_inst():
     # Build a component instantiation with nested module parameters
     mp1 = ModuleParameterType(name="WIDTH", value=Value(value="8"))
     mp2 = ModuleParameterType(name="DEPTH", value=Value(value="256"))
-    inst = ComponentInstantiationType()
+    inst = ComponentInstantiationType(name="rtl")
     inst.module_parameters = ComponentInstantiationType.ModuleParameters(module_parameter=[mp1, mp2])
     return inst
 

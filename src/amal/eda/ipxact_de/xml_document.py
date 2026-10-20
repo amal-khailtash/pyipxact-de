@@ -17,6 +17,23 @@ from org.accellera.standard import STANDARDS, Standard
 T = TypeVar("T")
 
 
+class IpxactXmlContext(XmlContext):
+    """Preserve QName identity for generic alternatives in compound choices.
+
+    xsdata otherwise reduces an empty anyType alternative to an empty string,
+    which cannot identify the selected element when serializing it again.
+    Marking these alternatives as wildcard content retains an AnyElement.
+    """
+
+    def build(self, clazz, parent_ns=None, globalns=None):
+        meta = super().build(clazz, parent_ns, globalns)
+        for var in meta.get_all_vars():
+            for choice in var.elements.values():
+                if choice.any_type:
+                    choice.is_wildcard = True
+        return meta
+
+
 class XmlDocument:
     """Represents a parsed IP-XACT/SPIRIT XML document.
 
@@ -64,7 +81,7 @@ class XmlDocument:
     # ------------------------------------------------------------------
     # Shared serializer/parser singletons
     # ------------------------------------------------------------------
-    _XML_CONTEXT: XmlContext = XmlContext()
+    _XML_CONTEXT: XmlContext = IpxactXmlContext()
     _SCHEMA_LOCATION = Standard.schema_location_for("ipxact", "1685-2022")
     _SERIALIZER: XmlSerializer = XmlSerializer(
         context=_XML_CONTEXT,

@@ -22,6 +22,12 @@ XML document identification
 * ☑ Reject unsupported standard versions during document identification.
 * ☑ Leave identification failures retryable after the source document is corrected.
 
+XML binding compatibility
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Preserve empty generic bus-interface choice names during 2014/2022 XML round trips.
+* ☑ Construct catalog file URI values using regenerated keyword-only models.
+
 XML schema validation
 ~~~~~~~~~~~~~~~~~~~~~
 
