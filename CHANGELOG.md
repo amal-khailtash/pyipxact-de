@@ -22,6 +22,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement bus-definition creation with Boolean capabilities and generator-chain creation with an initial generator.
+- Verify strict Boolean bus-capability setters, duplicate creation, parent identity, and XML preservation.
 - Implement VLNV-based catalog, component, design, design-configuration, and type-definition creation.
 - Return generated roots with registry identity, reject invalid VLNVs, and return null for duplicates.
 - Clear repository registrations and cached entries when search paths are removed.

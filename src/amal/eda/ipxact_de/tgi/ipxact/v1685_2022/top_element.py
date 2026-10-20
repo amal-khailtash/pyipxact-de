@@ -28,6 +28,8 @@ from org.accellera.ipxact.v1685_2022 import (
     Design,
     DesignConfiguration,
     GeneratorChain,
+    Generator,
+    IpxactUri,
     TypeDefinitions,
 )
 
@@ -149,14 +151,14 @@ def _new_or_ns(cls, **kwargs: Any) -> Any:
         return SimpleNamespace(**kwargs)
 
 
-def _create_registered_root(cls, vlnv: Sequence[str]) -> str | None:
+def _create_registered_root(cls, vlnv: Sequence[str], **kwargs: Any) -> str | None:
     """Create a generated root and register it; duplicate VLNVs return null."""
     parts = vlnv_to_tuple(vlnv)
     if not all(isinstance(part, str) and part.strip() for part in parts):
         raise TgiError("VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
     if registry.get_id(parts) is not None:
         return None
-    obj = cls(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+    obj = cls(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3], **kwargs)
     try:
         registry.register(obj, parts)
     except TgiError as exc:
@@ -368,16 +370,13 @@ def createAbstractor(topElementID: str, name: str) -> str:  # F.7.80.2
     return get_handle(obj)
 
 
-def createBusDefinition(topElementID: str, name: str) -> str:  # F.7.80.3
-    """Create a Bus Definition (EXTENDED)."""
-    top = _resolve_top(topElementID)
-    if top is None:
-        raise TgiError("Invalid top element handle", TgiFaultCode.INVALID_ID)
-    coll = _ensure_collection(top, "bus_definitions")
-    obj = _new_or_ns(BusDefinition, name=name)
-    coll.append(obj)
-    register_parent(obj, top, ("bus_definitions",), "list")
-    return get_handle(obj)
+def createBusDefinition(vlnv: Sequence[str], directConnection: bool, isAddressable: bool) -> str | None:
+    """Create a bus definition with Boolean capabilities (F.7.80.3)."""
+    if not isinstance(directConnection, bool) or not isinstance(isAddressable, bool):
+        raise TgiError("Bus capabilities require Boolean values", TgiFaultCode.INVALID_ARGUMENT)
+    return _create_registered_root(
+        BusDefinition, vlnv, direct_connection=directConnection, is_addressable=isAddressable
+    )
 
 
 def createCatalog(vlnv: Sequence[str] | str, name: str | None = None) -> str | None:  # F.7.80.4
@@ -448,16 +447,23 @@ def createDesignConfiguration(vlnv: Sequence[str] | str, name: str | None = None
     return get_handle(obj)
 
 
-def createGeneratorChain(topElementID: str, name: str) -> str:  # F.7.80.8
-    """Create a Generator Chain (EXTENDED)."""
-    top = _resolve_top(topElementID)
-    if top is None:
-        raise TgiError("Invalid top element handle", TgiFaultCode.INVALID_ID)
-    coll = _ensure_collection(top, "generator_chains")
-    obj = _new_or_ns(GeneratorChain, name=name)
-    coll.append(obj)
-    register_parent(obj, top, ("generator_chains",), "list")
-    return get_handle(obj)
+def createGeneratorChain(generatorChainVLNV: Sequence[str], generatorName: str, generatorExe: str) -> str | None:
+    """Create a chain containing its initial generator (F.7.80.8)."""
+    if not isinstance(generatorName, str) or not generatorName.strip():
+        raise TgiError("Generator name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(generatorExe, str) or not generatorExe.strip():
+        raise TgiError("Generator executable requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    generator = Generator(name=generatorName, generator_exe=IpxactUri(value=generatorExe))
+    handle = _create_registered_root(
+        GeneratorChain, generatorChainVLNV,
+        generator_chain_selector_or_component_generator_selector_or_generator=[generator],
+    )
+    if handle is not None:
+        register_parent(
+            generator, resolve_handle(handle),
+            ("generator_chain_selector_or_component_generator_selector_or_generator",), "list",
+        )
+    return handle
 
 
 def createTypeDefinitions(vlnv: Sequence[str] | str, name: str | None = None) -> str | None:  # F.7.80.9
