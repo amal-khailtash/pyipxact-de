@@ -22,6 +22,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Discover nested catalog dependencies through local URIs, including percent-encoded paths.
+- Detect catalog cycles and shared targets; diagnose missing files and VLNV mismatches.
+- Recheck unchanged catalogs when dependencies disappear or return; reject unsupported remote URIs.
 - Make repository VLNV extraction independent of XML namespace prefixes.
 - Discover uppercase XML extensions, retain search-path order, and deduplicate overlapping files.
 - Warn on duplicate VLNVs and keep the first match on fresh and cached scans.

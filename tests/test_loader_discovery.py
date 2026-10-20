@@ -75,3 +75,81 @@ def test_disappearing_file_does_not_abort_scan(tmp_path):
     with patch.object(loader, "_iter_xml_files", return_value=iter([missing, surviving])):
         loader.load_registry_from_paths([str(tmp_path)], cache_dir=tmp_path)
     assert registry.get_id(VLNV) is not None
+
+
+def catalog(path, entries, name="catalog"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    root = etree.Element(f"{{{NS}}}catalog", nsmap={None: NS})
+    for key, value in zip(VLNV_KEYS, ("vendor", "library", name, "1.0"), strict=True):
+        etree.SubElement(root, f"{{{NS}}}{key}").text = value
+    files = etree.SubElement(root, f"{{{NS}}}components")
+    for uri, vlnv in entries:
+        entry = etree.SubElement(files, f"{{{NS}}}ipxactFile")
+        etree.SubElement(entry, f"{{{NS}}}vlnv", dict(zip(VLNV_KEYS, vlnv, strict=True)))
+        etree.SubElement(entry, f"{{{NS}}}name").text = uri
+    path.write_bytes(etree.tostring(root))
+    return path
+
+
+@pytest.mark.parametrize("uri_kind", ["relative", "absolute", "file"])
+def test_catalog_discovers_local_uri(tmp_path, uri_kind):
+    target = document(tmp_path / "external" / "with space.xml")
+    uris = {"relative": "../external/with%20space.xml", "absolute": str(target), "file": target.as_uri()}
+    source = catalog(tmp_path / "catalogs" / "root.xml", [(uris[uri_kind], VLNV)])
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert resolve_handle(registry.get_id(VLNV)).xml_path == str(target)
+
+
+def test_nested_catalog_cycle_and_shared_target(tmp_path):
+    target = document(tmp_path / "target.xml")
+    a_vlnv = ("vendor", "library", "a", "1.0")
+    b_vlnv = ("vendor", "library", "b", "1.0")
+    a = catalog(tmp_path / "a.xml", [("b.xml", b_vlnv), ("target.xml", VLNV)], "a")
+    catalog(tmp_path / "b.xml", [("a.xml", a_vlnv), ("target.xml", VLNV)], "b")
+    with patch.object(loader.logger, "warning") as warning, patch.object(
+        loader, "XmlDocument", wraps=loader.XmlDocument
+    ) as parse:
+        loader.load_registry_from_paths([str(a)], cache_dir=tmp_path)
+    assert parse.call_count == 3
+    assert registry.get_id(VLNV) is not None
+    assert target.exists()
+    assert any("cycle" in str(call) for call in warning.call_args_list)
+
+
+def test_catalog_mismatch_and_missing_targets(tmp_path):
+    document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [("target.xml", ("wrong", *VLNV[1:])), ("missing.xml", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    messages = str(warning.call_args_list)
+    assert "VLNV mismatch" in messages
+    assert "Cannot read catalog target" in messages
+    assert registry.get_id(VLNV) is not None
+
+
+def test_unchanged_catalog_rechecks_deleted_dependency(tmp_path):
+    target = document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [("target.xml", VLNV)])
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is not None
+    target.unlink()
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is None
+    document(target)
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is not None
+
+
+def test_remote_catalog_uri_is_not_fetched(tmp_path):
+    source = catalog(tmp_path / "root.xml", [("https://example.org/target.xml", VLNV)])
+    with patch.object(loader, "XmlDocument", wraps=loader.XmlDocument) as parse:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert parse.call_count == 1
+    assert registry.get_id(VLNV) is None
+
+
+def test_catalog_incomplete_entry_diagnostic(tmp_path):
+    source = catalog(tmp_path / "root.xml", [("", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert any("Incomplete catalog entry" in str(call) for call in warning.call_args_list)

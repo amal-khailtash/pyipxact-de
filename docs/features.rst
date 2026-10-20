@@ -46,6 +46,15 @@ Repository discovery
 * ☑ Diagnose duplicate VLNV values and retain the first search-path match on fresh and cached scans.
 * ☑ Continue scanning when a discovered file disappears before it can be read.
 
+Catalog dependency discovery
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Resolve relative, absolute, and percent-encoded local file URIs from catalogs.
+* ☑ Discover nested catalogs and register referenced documents outside the search paths.
+* ☑ Detect catalog reference cycles and deduplicate shared dependencies.
+* ☑ Diagnose missing targets, mismatched VLNVs, incomplete entries, and unsupported remote URIs.
+* ☑ Recheck unchanged catalogs and remove or restore dependency registrations as files disappear or return.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

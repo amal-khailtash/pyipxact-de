@@ -9,7 +9,8 @@ removed.
 Design notes:
 - Caching: a simple JSON cache keyed by absolute file path storing mtime,
   root tag, standard, version, and VLNV quadruple. On startup we compare
-  mtimes to decide whether to reparse.
+  mtimes to reuse registry metadata. Dependency discovery reparses current files
+  to recheck catalog references, including references outside the search paths.
 - Persistence: we recompute the full registry on each invocation based on
   the current filesystem view, clearing the registry first to reflect
   additions/removals.
@@ -27,6 +28,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 from lxml import etree
 
@@ -194,51 +196,76 @@ def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
     return None
 
 
-def _validate_catalog_ipxact_files(doc: XmlDocument, base_dir: Path) -> None:
-    """Validate ipxactFile entries in a catalog match underlying file VLNVs.
-
-    If an entry path is relative, it is resolved against `base_dir`.
-    Logs warnings for missing files or VLNV mismatches.
-    """
+def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV]]:
+    """Resolve local catalog entry URIs without fetching remote resources."""
     if doc.tree is None:
         return
     root = doc.tree.getroot()
     ns = etree.QName(root).namespace
     if not ns:
         return
-    q_ipxactFile = f".//{{{ns}}}ipxactFile"
-    q_vlnv = f"{{{ns}}}vlnv"
-    q_name = f"{{{ns}}}name"
-    for ipf in root.findall(q_ipxactFile):
-        vlnv_elem = ipf.find(q_vlnv)
-        name_elem = ipf.find(q_name)
-        if vlnv_elem is None or name_elem is None:
+    for entry in root.findall(f".//{{{ns}}}ipxactFile"):
+        reference = entry.find(f"{{{ns}}}vlnv")
+        name = entry.findtext(f"{{{ns}}}name")
+        if reference is None or not name or not name.strip():
+            logger.warning(f"Incomplete catalog entry in {doc.path}")
             continue
-        expected: VLNV = (
-            vlnv_elem.get("vendor", ""),
-            vlnv_elem.get("library", ""),
-            vlnv_elem.get("name", ""),
-            vlnv_elem.get("version", ""),
-        )
-        rel_path = (name_elem.text or "").strip()
-        if not rel_path:
+        uri = urlsplit(name.strip())
+        if uri.scheme not in ("", "file") or uri.netloc not in ("", "localhost") or uri.query or uri.fragment:
+            logger.warning(f"Unsupported catalog URI in {doc.path}: {name}")
             continue
-        target = (base_dir / rel_path).resolve()
-        if not target.exists():
-            logger.warning(f"ipxactFile target missing: {target}")
-            continue
+        target = (doc.path.parent / unquote(uri.path)).resolve()
+        expected = tuple(reference.get(key, "") for key in ("vendor", "library", "name", "version"))
+        yield target, expected
+
+
+def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[str, XmlDocument]]:
+    """Expand catalogs with cycle detection; explicit discoveries retain precedence."""
+    ordered = dict.fromkeys(files)
+    parsed: dict[str, XmlDocument] = {}
+    visited: set[str] = set()
+    active: set[str] = set()
+
+    def visit(file_name: str) -> None:
+        if file_name in active:
+            logger.warning(f"Catalog reference cycle at {file_name}")
+            return
+        if file_name in visited:
+            return
+        active.add(file_name)
         try:
-            t_doc = XmlDocument(target)
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning(f"Failed parsing ipxactFile target {target}: {exc}")
-            continue
-        if t_doc.tree is None:
-            continue
-        v_actual = _extract_vlnv_from_root(t_doc.tree.getroot())
-        if v_actual and v_actual != expected:
-            logger.warning(
-                f"VLNV mismatch for {target}: catalog {expected} vs file {v_actual}"
-            )
+            doc = parsed.get(file_name)
+            if doc is None:
+                doc = XmlDocument(Path(file_name))
+                parsed[file_name] = doc
+            if doc.tree is None or (doc.standard or "").lower() != SUPPORTED_STANDARD or doc.version != SUPPORTED_VERSION:
+                return
+            root = doc.tree.getroot()
+            if etree.QName(root).localname != "catalog":
+                return
+            for target, expected in _catalog_references(doc):
+                target_name = str(target)
+                try:
+                    child = parsed.get(target_name)
+                    if child is None:
+                        child = XmlDocument(target)
+                        parsed[target_name] = child
+                    actual = _extract_vlnv_from_root(child.tree.getroot()) if child.tree is not None else None
+                    if actual != expected:
+                        logger.warning(f"VLNV mismatch for {target}: catalog {expected} vs file {actual}")
+                    ordered.setdefault(target_name, None)
+                    visit(target_name)
+                except Exception as exc:
+                    logger.warning(f"Cannot read catalog target {target}: {exc}")
+        except Exception as exc:
+            logger.warning(f"Cannot discover catalog dependencies in {file_name}: {exc}")
+        finally:
+            active.remove(file_name)
+            visited.add(file_name)
+
+    for file_name in files:
+        visit(file_name)
+    return list(ordered), parsed
 
 
 def _register_root(doc: XmlDocument) -> VLNV | None:
@@ -311,6 +338,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
 
     # Compute current file set
     files = list(dict.fromkeys(str(p.resolve()) for p in _iter_xml_files(unique_paths)))
+    files, parsed_documents = _discover_catalog_dependencies(files)
 
     # Clear registry; we'll rebuild from current files
     registry.clear()
@@ -376,7 +404,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
 
         # Parse fresh
         try:
-            doc = XmlDocument(path)
+            doc = parsed_documents.get(f) or XmlDocument(path)
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(f"{ARROW} Failed parsing '{f}': {exc}")
             continue
@@ -393,10 +421,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 continue
         vlnv = _register_root(doc)
         if doc.tree is not None:
-            # If catalog, validate its ipxactFile entries
             tag_local = etree.QName(doc.tree.getroot()).localname
-            if tag_local.lower() == "catalog":
-                _validate_catalog_ipxact_files(doc, base_dir=path.parent)
             standard = doc.standard
             version = doc.version
             new_cache[f] = CacheEntry(
