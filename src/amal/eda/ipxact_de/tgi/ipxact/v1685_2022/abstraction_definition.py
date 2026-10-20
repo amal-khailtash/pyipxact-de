@@ -1074,7 +1074,7 @@ def getOnSystemGroup(onSystemID: str) -> str | None:
 
 
 def getPacketEndianness(packetID: str) -> str | None:
-    """Return packet endianness.
+    """Return explicitly defined packet endianness.
 
     Section: F.7.2.41.
 
@@ -1092,7 +1092,7 @@ def getPacketEndianness(packetID: str) -> str | None:
 
 
 def getPacketFieldEndianness(packetFieldID: str) -> str | None:
-    """Return packetField endianness.
+    """Return explicitly defined packetField endianness.
 
     Section: F.7.2.42.
 
@@ -2380,3 +2380,41 @@ __all__ += [
     "setPacketEndianness", "setPacketFieldEndianness", "removePacketEndianness",
     "removePacketFieldEndianness", "setPacketFieldValue", "setPacketFieldWidth",
 ]
+
+
+def setPacketFieldQualifier(packetFieldID: str) -> bool:
+    """Ensure a qualifier container exists (F.7.3.73; WSDL takes only the field ID).
+
+    Existing qualifier content and handle identity are preserved. Qualifier
+    flags are edited through the qualifier category operations.
+    """
+    from org.accellera.ipxact.v1685_2022.qualifier_type import QualifierType
+
+    field = _resolve_packet_field(packetFieldID)
+    if field is None:
+        raise TgiError("Invalid packetField handle", TgiFaultCode.INVALID_ID)
+    if field.qualifier is None:
+        field.qualifier = QualifierType()
+    register_parent(field.qualifier, field, ("qualifier",), "single")
+    return True
+
+
+def removePacketFieldQualifier(packetFieldID: str) -> bool:
+    """Remove the field qualifier and invalidate its handle (F.7.3.41)."""
+    field = _resolve_packet_field(packetFieldID)
+    if field is None or field.qualifier is None:
+        return False
+    register_parent(field.qualifier, field, ("qualifier",), "single")
+    return detach_child_by_handle(get_handle(field.qualifier))
+
+
+def removePacketFieldValue(packetFieldID: str) -> bool:
+    """Remove the optional field value and invalidate its handle (F.7.3.42)."""
+    field = _resolve_packet_field(packetFieldID)
+    if field is None or field.value is None:
+        return False
+    register_parent(field.value, field, ("value",), "single")
+    return detach_child_by_handle(get_handle(field.value))
+
+
+__all__ += ["setPacketFieldQualifier", "removePacketFieldQualifier", "removePacketFieldValue"]

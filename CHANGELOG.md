@@ -17,6 +17,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Initialize packet-field qualifiers without replacing existing content or handles.
+- Remove optional packet-field qualifiers and values with correct ownership and handle invalidation.
+- Verify explicit packet/field endianness values and absence through XML round trips.
 - Implement packet-field creation and selective packet/field removal with parsed ownership.
 - Add validated packet/field endianness editing and expression setters that preserve handles and metadata.
 - Validate logical-port packet creation before mutation and restore parsed packet/field ownership.
