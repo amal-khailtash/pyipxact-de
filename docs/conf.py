@@ -230,4 +230,3 @@ def _cache_python_reference_lookups(app, env):
 
 def setup(app):
     app.connect("env-updated", _cache_python_reference_lookups)
-
