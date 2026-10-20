@@ -1071,9 +1071,10 @@ def getOnSystemGroup(onSystemID: str) -> str | None:
     Returns:
         Group name string or ``None``.
     """
-    obj = resolve_handle(onSystemID)
-    # onSystem may originate from transactional or wire variants; both expose 'group'
-    return getattr(obj, "group", None)
+    obj = _resolve_logical_system(onSystemID)
+    if obj is None:
+        raise TgiError("Invalid onSystem handle", TgiFaultCode.INVALID_ID)
+    return obj.group
 
 
 def getPacketEndianness(packetID: str) -> str | None:
@@ -1337,7 +1338,7 @@ def addAbstractionDefPortMode(abstractionDefPortID: str, mode: str) -> str:
         if item is None:
             item = cls()
             setattr(style, attr, item)
-        container = "scalar"
+        container = "single"
     register_parent(item, style, (attr,), container)
     return get_handle(item)
 
@@ -1934,36 +1935,14 @@ def setAbstractionDefPortTransactionalModeProtocol(portID: str, protocol: str) -
 
 
 def setAbstractionDefPortTransactionalOnInitiator(portID: str) -> bool:
-    """Ensure presence of onInitiator element.
-
-    Section: F.7.3.53.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True (idempotent).
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_initiator is None:
-        tr.on_initiator = AbstractionDefinition.Ports.Port.Transactional.OnInitiator()  # type: ignore[attr-defined]
+    """Ensure the transactional onInitiator exists (F.7.3.53)."""
+    _ensure_port_locus(portID, AbstractionDefinition.Ports.Port.Transactional, "onInitiator")
     return True
 
 
 def setAbstractionDefPortTransactionalOnTarget(portID: str) -> bool:
-    """Ensure presence of onTarget element.
-
-    Section: F.7.3.54.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True (idempotent).
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_target is None:
-        tr.on_target = AbstractionDefinition.Ports.Port.Transactional.OnTarget()  # type: ignore[attr-defined]
+    """Ensure the transactional onTarget exists (F.7.3.54)."""
+    _ensure_port_locus(portID, AbstractionDefinition.Ports.Port.Transactional, "onTarget")
     return True
 
 
@@ -2136,31 +2115,15 @@ def setAbstractionDefPortWireModeWidth(portID: str, value: int | str) -> bool:
     return True
 
 
-def setAbstractionDefPortWireOnInitiator(portID: str) -> bool:  # Not distinct in model
-    """Stub: ensure wire onInitiator (no-op).
-
-    Section: F.7.3.64 (schema does not expose a distinct element).
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True (no-op).
-    """
+def setAbstractionDefPortWireOnInitiator(portID: str) -> bool:
+    """Ensure the wire onInitiator exists (F.7.3.64)."""
+    _ensure_port_locus(portID, Wire, "onInitiator")
     return True
 
 
-def setAbstractionDefPortWireOnTarget(portID: str) -> bool:  # Not distinct in model
-    """Stub: ensure wire onTarget (no-op).
-
-    Section: F.7.3.65 (schema does not expose a distinct element).
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True (no-op).
-    """
+def setAbstractionDefPortWireOnTarget(portID: str) -> bool:
+    """Ensure the wire onTarget exists (F.7.3.65)."""
+    _ensure_port_locus(portID, Wire, "onTarget")
     return True
 
 
@@ -2360,3 +2323,40 @@ def _remove_port_locus(portID: str, style_type: type, attr: str) -> bool:
         return False
     register_parent(mode, style, (attr,), "single")
     return detach_child_by_handle(get_handle(mode))
+
+
+def _resolve_logical_system(handle: str):
+    obj = resolve_handle(handle)
+    return obj if isinstance(obj, (Wire.OnSystem, AbstractionDefinition.Ports.Port.Transactional.OnSystem)) else None
+
+
+def setOnSystemGroup(onSystemID: str, group: str) -> bool:
+    """Set a nonempty logical system group without replacing the mode (F.7.3.70)."""
+    mode = _resolve_logical_system(onSystemID)
+    if mode is None:
+        raise TgiError("Invalid onSystem handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(group, str) or not group.strip():
+        raise TgiError("Group requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    mode.group = group
+    return True
+
+
+def setAbstractionDefPortMode(abstractionDefPortID: str, mode: str) -> str:
+    """Ensure a named mode, or append a system mode (F.7.3.47).
+
+    As with addAbstractionDefPortMode, complete an onSystem group using
+    setOnSystemGroup before semantic validation.
+    """
+    return addAbstractionDefPortMode(abstractionDefPortID, mode)
+
+
+def _ensure_port_locus(portID: str, style_type: type, mode: str) -> str:
+    port = _resolve_port(portID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(port.wire_or_transactional, style_type):
+        raise TgiError("Port style does not match the setter", TgiFaultCode.INVALID_ARGUMENT)
+    return addAbstractionDefPortMode(portID, mode)
+
+
+__all__ += ["setOnSystemGroup", "setAbstractionDefPortMode"]

@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement logical mode setters and validated system-group editing using generated mode models.
+- Preserve mode identity and correct creation ownership for immediate removal without traversal.
 - Traverse logical-port system modes for both generated styles and restore parsed mode ownership.
 - Implement typed wire/transactional mode removal with selective detachment and handle invalidation.
 - Initialize packet-field qualifiers without replacing existing content or handles.
