@@ -17,6 +17,19 @@ Validation: ``tests/test_tgi_bus_definition.py`` covers invalid/wrong-type
 handles, reference replacement, child ordering and removal, XSD validation,
 and XML serialization/parsing of the resulting bus definitions.
 
+Bus definition — batch 2
+------------------------
+
+* ☑ Set broadcast with the standard Boolean ``value`` contract.
+* ☑ Set direct connection with the standard Boolean ``value`` contract.
+* ☑ Set addressability with the standard Boolean ``value`` contract.
+* ☑ Remove broadcast while distinguishing an absent element from ``false``.
+* ☑ Remove and restore the extended bus reference.
+
+Validation: Boolean type rejection leaves data unchanged; true/false values
+and optional removals survive XSD-validated XML round trips. Invalid and
+wrong-type handles are rejected by every operation.
+
 Remaining work
 --------------
 

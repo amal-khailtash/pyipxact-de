@@ -11,6 +11,7 @@ This document lists notable changes for each release and follows:
 - Add the bus-definition extended-VLNV accessor and feature implementation checklist.
 
 ### Fixed
+- Align bus capability setters and optional broadcast/extends removers with Annex F argument names; reject non-Boolean capability values without changing documents.
 - Align bus-definition extends and choice inputs with Annex F; preserve choice enumerations and correct choice/system-group ownership during removal.
 
 ### Added
