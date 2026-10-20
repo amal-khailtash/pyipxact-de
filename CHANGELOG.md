@@ -30,6 +30,7 @@ This document lists notable changes for each release and follows:
 
 - Preserve the QName of empty generic bus-interface choices during XML round trips.
 - Update catalog TGI URI construction and test fixtures for regenerated keyword-only models.
+- Verify rejection of experimental IPXACT/2.0 files included in upstream examples.
 
 - Return structured validation failures for missing and malformed XML documents.
 - Identify SPIRIT/IP-XACT documents from the expanded root namespace, supporting
