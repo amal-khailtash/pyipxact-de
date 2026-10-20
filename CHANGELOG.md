@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Show the Release Please action version in the README Standards badges.
 - Exercise verified uv trusted publishing and attestations through the manual TestPyPI workflow;
   confirm successful wheel and source publication.
 - Align README badges with pysystemc and link documentation to Read the Docs.
