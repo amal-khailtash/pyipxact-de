@@ -100,3 +100,10 @@ reviewed release PR and manages package versions, the lockfile, changelog, and t
 `.github/workflows/publish.yml` to verify, test, build, and publish with `uv publish` using PyPI trusted publishing.
 Manual publication takes an existing release tag for recovery. See `docs/development/releases.rst` for service setup
 and version rules. Use the `amal-khailtash` GitHub account; never use `akhailta_amdeng`.
+
+## Context handoff
+
+At 90% context usage, update the ignored `.ai/HANDOFF.md` before continuing or restarting.
+Record the objective, user constraints, branch/commit/worktree state, completed features, exact test and
+coverage evidence, pending work, live processes, and the next concrete action. Read this file and
+`.ai/implementation-plan.md` when starting a replacement session; verify current Git state before editing.
