@@ -62,7 +62,11 @@ def getChoiceEnumerationIDs(choiceID: str) -> list[str]:
     ch = _resolve_choice(choiceID)
     if ch is None:
         raise TgiError("Invalid choice handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(e) for e in getattr(ch, "enumeration", [])]
+    handles = []
+    for enum in ch.enumeration:
+        register_parent(enum, ch, ("enumeration",), "list")
+        handles.append(get_handle(enum))
+    return handles
 
 def getEnumerationValue(choiceEnumerationID: str) -> str | None:
     """Return the enumerationValue defined on the given enumeration element.
@@ -96,7 +100,7 @@ def getEnumerationValueExpression(choiceEnumerationID: str) -> str | None:
     en = _resolve_enum(choiceEnumerationID)
     if en is None:
         raise TgiError("Invalid enumeration handle", TgiFaultCode.INVALID_ID)
-    return getattr(en, "expression", None)
+    return en.value
 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.26)
@@ -118,10 +122,9 @@ def addChoiceEnumeration(choiceID: str, name: str) -> str:
     ch = _resolve_choice(choiceID)
     if ch is None:
         raise TgiError("Invalid choice handle", TgiFaultCode.INVALID_ID)
-    enum = Choices.Choice.Enumeration()
-    enum.name = name
+    enum = Choices.Choice.Enumeration(value=name)
     ch.enumeration.append(enum)  # type: ignore[attr-defined]
-    register_parent(enum, ch, (), "list")
+    register_parent(enum, ch, ("enumeration",), "list")
     return get_handle(enum)
 
 def removeChoiceEnumeration(choiceEnumerationID: str) -> bool:
@@ -134,6 +137,8 @@ def removeChoiceEnumeration(choiceEnumerationID: str) -> bool:
     Returns:
         True if removed, False if not found.
     """
+    if _resolve_enum(choiceEnumerationID) is None:
+        raise TgiError("Invalid enumeration handle", TgiFaultCode.INVALID_ID)
     return detach_child_by_handle(choiceEnumerationID)
 
 def setEnumerationValue(choiceEnumerationID: str, value: str) -> bool:

@@ -2,7 +2,9 @@ Feature implementation status
 ==================================
 
 ☑ = implemented with focused verification; ☐ = planned or not yet verified.
-Existing source functions alone do not establish completion. Checked operations
+Existing source functions alone do not establish completion.
+The implementation scope includes all IP-XACT data and behavior; TGI coverage
+is tracked separately and does not replace core feature implementation. Checked operations
 do not imply complete semantic, transport, expression, or GUI conformance.
 
 Update this checklist and the local plan with each implemented set of changes,
@@ -903,16 +905,16 @@ Catalog (EXTENDED)
 Choice (BASE)
 ~~~~~~~~~~~~~~~~~~
 
-* ☐ ``getChoiceEnumerationIDs`` (F.7.25.1)
+* ☑ ``getChoiceEnumerationIDs`` (F.7.25.1)
 * ☐ ``getEnumerationValue`` (F.7.25.2)
-* ☐ ``getEnumerationValueExpression`` (F.7.25.3)
+* ☑ ``getEnumerationValueExpression`` (F.7.25.3)
 
 Choice (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~
 
-* ☐ ``addChoiceEnumeration`` (F.7.26.1)
-* ☐ ``removeChoiceEnumeration`` (F.7.26.2)
-* ☐ ``setEnumerationValue`` (F.7.26.3)
+* ☑ ``addChoiceEnumeration`` (F.7.26.1)
+* ☑ ``removeChoiceEnumeration`` (F.7.26.2)
+* ☑ ``setEnumerationValue`` (F.7.26.3)
 
 Clearbox (BASE)
 ~~~~~~~~~~~~~~~~~~~~

@@ -18,6 +18,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Repair choice enumeration creation, source-expression access and parent ownership
+  for new and parsed children; reject invalid removal handles.
+
 - Align bus capability setters and optional broadcast/extends removers with Annex F argument names; reject non-Boolean
   capability values without changing documents.
 - Align bus-definition extends and choice inputs with Annex F; preserve choice enumerations and correct

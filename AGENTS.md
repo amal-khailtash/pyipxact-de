@@ -81,3 +81,6 @@ Implement features in sets of five unless the user changes that scope. After eac
 `docs/features.rst` , the ignored `.ai/implementation-plan.md` and relevant coverage ledgers, and `CHANGELOG.md` , then
 commit the changes. Organize feature documentation by category, without batch headings. Keep all planned items visible
 and tick only features supported by scoped verification.
+
+Implement the full IP-XACT feature plan, not only TGI operations. Track core document/model semantics, validation,
+configuration, addressing, older-version conversion, and GUI work independently from TGI coverage.
