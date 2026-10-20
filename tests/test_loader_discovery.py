@@ -214,3 +214,47 @@ def test_catalog_supported_category_matches(tmp_path, category, root_name):
         loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
     assert registry.get_id(VLNV) is not None
     assert not any("category mismatch" in str(call) for call in warning.call_args_list)
+
+
+@pytest.mark.parametrize("uri", ["bad%path.xml", "bad%2.xml", "bad%FF.xml", "bad%00.xml"])
+def test_invalid_encoded_path_keeps_valid_sibling(tmp_path, uri):
+    document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [(uri, VLNV), ("target.xml", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is not None
+    assert any("Invalid catalog URI" in str(call) for call in warning.call_args_list)
+
+
+def test_unsupported_referenced_version_is_not_registered(tmp_path):
+    target = document(tmp_path / "old.xml")
+    target.write_text(target.read_text().replace("1685-2022", "1685-2014"))
+    source = catalog(tmp_path / "root.xml", [("old.xml", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is None
+    assert any("Unsupported catalog target standard" in str(call) for call in warning.call_args_list)
+
+
+def test_referenced_incomplete_root_vlnv_is_not_cached(tmp_path):
+    target = document(tmp_path / "target.xml")
+    target.write_text(target.read_text().replace("<version>1.0</version>", ""))
+    source = catalog(tmp_path / "root.xml", [("target.xml", VLNV)])
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(VLNV) is None
+    assert str(target) not in loader._load_cache(tmp_path / loader.CACHE_BASENAME)
+    assert any("Incomplete target VLNV" in str(call) for call in warning.call_args_list)
+
+
+def test_vendor_extension_catalog_lookalike_not_followed(tmp_path):
+    document(tmp_path / "target.xml")
+    source = catalog(tmp_path / "root.xml", [("target.xml", VLNV)])
+    root = etree.parse(str(source)).getroot()
+    extension = etree.SubElement(root, f"{{{NS}}}vendorExtensions")
+    extension.append(root.find(f"{{{NS}}}components"))
+    source.write_bytes(etree.tostring(root))
+    with patch.object(loader, "XmlDocument", wraps=loader.XmlDocument) as parse:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert parse.call_count == 1
+    assert registry.get_id(VLNV) is None

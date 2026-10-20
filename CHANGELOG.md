@@ -22,6 +22,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Reject unsupported catalog target versions and targets with incomplete VLNVs.
+- Validate encoded local URI paths and isolate invalid escapes, UTF-8, and NUL paths per entry.
+- Verify that vendor-extension lookalikes do not participate in catalog dependency discovery.
 - Validate catalog reference VLNVs and diagnose referenced document-category mismatches.
 - Recover per entry from invalid URIs and malformed target XML while processing valid siblings.
 - Preserve first-record precedence for duplicate VLNVs during cache-only loading.

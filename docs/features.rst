@@ -73,6 +73,15 @@ Catalog reference validation
 * ☑ Reject invalid or empty local URIs and unsupported query/fragment forms per entry.
 * ☑ Retain first-record precedence and diagnose duplicate VLNVs during cache-only loading.
 
+Catalog target eligibility
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Reject unsupported referenced standard/version combinations before registration.
+* ☑ Reject referenced roots with incomplete VLNVs.
+* ☑ Reject malformed percent escapes and invalid UTF-8 encoded paths per entry.
+* ☑ Reject decoded NUL paths without stopping sibling discovery.
+* ☑ Ignore vendor-extension lookalikes when discovering catalog references.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

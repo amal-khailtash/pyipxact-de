@@ -28,6 +28,7 @@ from dataclasses import dataclass
 import json
 import os
 import math
+import re
 import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -275,7 +276,12 @@ def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV, str]]:
                         or uri.query or uri.fragment or not uri.path):
                     logger.warning(f"Unsupported catalog URI in {doc.path}: {name}")
                     continue
-                target = (doc.path.parent / unquote(uri.path)).resolve()
+                if re.search(r"%(?![0-9A-Fa-f]{2})", uri.path):
+                    raise ValueError("malformed percent escape")
+                decoded = unquote(uri.path, errors="strict")
+                if "\x00" in decoded:
+                    raise ValueError("NUL in decoded path")
+                target = (doc.path.parent / decoded).resolve()
             except (ValueError, OSError) as exc:
                 logger.warning(f"Invalid catalog URI in {doc.path}: {name}: {exc}")
                 continue
@@ -316,10 +322,16 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
                     if child.tree is None:
                         logger.warning(f"Malformed catalog target {target}")
                         continue
+                    if (child.standard or "").lower() != SUPPORTED_STANDARD or child.version != SUPPORTED_VERSION:
+                        logger.warning(f"Unsupported catalog target standard {target}: {child.standard}/{child.version}")
+                        continue
                     actual_type = etree.QName(child.tree.getroot()).localname
                     if actual_type != expected_type:
                         logger.warning(f"Catalog category mismatch for {target}: expected {expected_type}, got {actual_type}")
                     actual = _extract_vlnv_from_root(child.tree.getroot())
+                    if actual is None:
+                        logger.warning(f"Incomplete target VLNV for {target}")
+                        continue
                     if actual != expected:
                         logger.warning(f"VLNV mismatch for {target}: catalog {expected} vs file {actual}")
                     ordered.setdefault(target_name, None)
