@@ -79,7 +79,9 @@ immutable: do not overwrite a published version or reuse a tag with new code.
 Inspect which files were uploaded before retrying a partially completed upload.
 
 The manual TestPyPI and GitHub Pages actions are retained as optional fallback
-flows. They do not run automatically. Disable them in GitHub only after the new
+flows. TestPyPI uses the same uv trusted publishing and attestation steps as
+production, with environment ``testpypi``. Authorize ``publish-testpypi.yml``
+and that environment as a trusted publisher on TestPyPI. They do not run automatically. Disable them in GitHub only after the new
 services have been verified. TestPyPI publication does not create a release.
 
 Implementation sources
@@ -93,3 +95,13 @@ Implementation sources
 
 The local pysystemc project provided the test/coverage and publication patterns.
 Its native manylinux/auditwheel steps are unnecessary for this pure-Python wheel.
+
+Publication verification
+------------------------
+
+The manual TestPyPI run on 2026-10-20 verified the feature branch: the full test
+suite, distribution build and metadata checks passed, attestations were
+generated, and uv uploaded both 0.3.0 distributions using trusted publishing.
+See `the successful run <https://github.com/amal-khailtash/pyipxact-de/actions/runs/39367527992>`_.
+Production PyPI and release-please creation still require their own end-to-end
+verification after merge.
