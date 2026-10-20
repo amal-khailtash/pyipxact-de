@@ -793,52 +793,34 @@ def getAbstractionDefPortWireQualifierID(portID: str) -> str | None:
 
 
 def getAbstractionDefPortWireRequiresDriver(abstractionDefPortID: str) -> bool | None:
-    """Return wire requiresDriver boolean value.
-
-    Section: F.7.2.35.
-
-    Args:
-        abstractionDefPortID: Handle to a wire style abstractionDefPort element.
-
-    Returns:
-        Boolean value if the ``requiresDriver`` element is present, otherwise
-        ``None`` if absent or the port is not wire style.
-    """
-    p = _resolve_port(abstractionDefPortID)
-    if p is None:
+    """Return requiresDriver for a wire port, or None for another choice (F.7.2.35)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    if w is None:
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
         return None
-    req = getattr(w, "requires_driver", None)
-    return bool(getattr(req, "value", False)) if req is not None else None
+    from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
+
+    driver = wire.default_value_or_requires_driver
+    return driver.value if isinstance(driver, RequiresDriver) else None
 
 
 def getAbstractionDefPortWireRequiresDriverID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle of wire requiresDriver element.
-
-    Section: F.7.2.36.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire style abstractionDefPort element.
-
-    Returns:
-        Handle string if the ``requiresDriver`` element exists, otherwise
-        ``None`` if absent or not a wire style port.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
+    """Return the owned requiresDriver handle for a wire port (F.7.2.36)."""
+    port = _resolve_port(abstractionDefPortModeID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    if w is None:
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
         return None
-    req = getattr(w, "requires_driver", None)
-    return get_handle(req) if req is not None else None
+    from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
 
-
-# ---------------------------------------------------------------------------
-# Additional BASE getters not previously implemented (constraints, packets)
-# ---------------------------------------------------------------------------
+    driver = wire.default_value_or_requires_driver
+    if not isinstance(driver, RequiresDriver):
+        return None
+    register_parent(driver, wire, ("default_value_or_requires_driver",), "single")
+    return get_handle(driver)
 
 
 def getModeConstraintsDriveConstraintCellSpecificationID(modeConstraintsID: str) -> str | None:
@@ -1563,21 +1545,20 @@ def removeAbstractionDefPortWireQualifier(portID: str) -> bool:
 
 
 def removeAbstractionDefPortWireRequiresDriver(portID: str) -> bool:
-    """Remove requiresDriver.
+    """Remove only the requiresDriver alternative and invalidate its handle (F.7.3.33)."""
+    port = _resolve_port(portID)
+    if port is None:
+        return False
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
+        return False
+    from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
 
-    Section: F.7.3.30.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if element removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "requires_driver", None) is not None:
-        w.requires_driver = None  # type: ignore[attr-defined]
-        return True
-    return False
+    driver = wire.default_value_or_requires_driver
+    if not isinstance(driver, RequiresDriver):
+        return False
+    register_parent(driver, wire, ("default_value_or_requires_driver",), "single")
+    return detach_child_by_handle(get_handle(driver))
 
 
 def setAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str, width: str) -> bool:
@@ -1806,25 +1787,34 @@ def setAbstractionDefPortWireQualifier(abstractionDefPortID: str) -> bool:
     return True
 
 
-def setAbstractionDefPortWireRequiresDriver(portID: str, flag: bool) -> bool:
-    """Set requiresDriver flag.
-
-    Section: F.7.3.67.
-
-    Args:
-        portID: Wire port handle.
-        flag: Boolean value.
-
-    Returns:
-        True on success.
-    """
-    w = _ensure_wire(portID)
+def setAbstractionDefPortWireRequiresDriver(abstractionDefPortID: str, value: bool) -> bool:
+    """Set the requiresDriver choice while preserving same-alternative identity (F.7.3.67)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    wire = port.wire_or_transactional
+    if not isinstance(wire, Wire):
+        raise TgiError("Port style does not match the setter", TgiFaultCode.INVALID_ARGUMENT)
+    if type(value) is not bool:
+        raise TgiError("requiresDriver value must be a bool", TgiFaultCode.INVALID_ARGUMENT)
     from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
-    w.requires_driver = RequiresDriver(value=flag)  # type: ignore[arg-type]
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import UnsignedBitVectorExpression
+
+    current = wire.default_value_or_requires_driver
+    if isinstance(current, RequiresDriver):
+        current.value = value
+        register_parent(current, wire, ("default_value_or_requires_driver",), "single")
+        return True
+    if isinstance(current, UnsignedBitVectorExpression):
+        register_parent(current, wire, ("default_value_or_requires_driver",), "single")
+        if not detach_child_by_handle(get_handle(current)):
+            return False
+    driver = RequiresDriver(value=value)
+    wire.default_value_or_requires_driver = driver
+    register_parent(driver, wire, ("default_value_or_requires_driver",), "single")
     return True
 
 
-# Packet editing preserves generated models and existing expression identity.
 def addPacketPacketField(packetID: str, fieldName: str, width: int) -> str:
     """Append a named field with a positive integer width (F.7.3.8)."""
     from org.accellera.ipxact.v1685_2022.port_packet_field_type import PortPacketFieldType
@@ -2087,7 +2077,5 @@ def removeAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> bool:
     child_handle = get_handle(default_value)
     register_parent(default_value, wire, ("default_value_or_requires_driver",), "single")
     return detach_child_by_handle(child_handle)
-
-__all__ += ["removeAbstractionDefPortWireDefaultValue"]
 
 __all__ += ["removeAbstractionDefPortWireDefaultValue"]
