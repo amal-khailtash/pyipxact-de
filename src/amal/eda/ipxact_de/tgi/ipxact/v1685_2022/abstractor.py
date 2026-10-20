@@ -8,14 +8,18 @@ for semantic violations as per the general TGI error model.
 # ruff: noqa: I001
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
+    AbstractorBusInterfaceType,
     AbstractorGenerator,
     AbstractorGenerators,
     AbstractorPortType,
     Choices,
     FileSet,
     FileSets,
+    IpxactUri,
 )
 from org.accellera.ipxact.v1685_2022.abstractor_type import AbstractorType
 from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
@@ -190,23 +194,14 @@ def getAbstractorFileSetIDs(abstractorID: str) -> list[str]:
     return [get_handle(fs) for fs in getattr(a.file_sets, "file_set", [])]
 
 
-def getAbstractorInterfaceAbstractionTypeIDs(abstractorID: str) -> list[str]:
-    """Return handles of abstractionType elements of both abstractorInterfaces.
-
-    Section: F.7.4.9.
-    """
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.abstractor_interfaces is None:
+def getAbstractorInterfaceAbstractionTypeIDs(abstractorInterfaceID: str) -> list[str]:
+    """List abstraction types on the supplied interface (F.7.4.9)."""
+    interface = resolve_handle(abstractorInterfaceID)
+    if not isinstance(interface, AbstractorBusInterfaceType):
+        raise TgiError("Invalid abstractor interface handle", TgiFaultCode.INVALID_ID)
+    if interface.abstraction_types is None:
         return []
-    ids: list[str] = []
-    for iface in getattr(a.abstractor_interfaces, "abstractor_interface", []):
-        if iface.abstraction_types is None:
-            continue
-        for at in getattr(iface.abstraction_types, "abstraction_type", []):
-            ids.append(get_handle(at))
-    return ids
+    return [get_handle(item) for item in interface.abstraction_types.abstraction_type]
 
 
 def getAbstractorPortIDs(abstractorID: str) -> list[str]:
@@ -249,29 +244,40 @@ def addAbstractorAbstractorGenerator(abstractorID: str, name: str, generatorExec
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Generator name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(generatorExecutable, str) or not generatorExecutable.strip():
+        raise TgiError("Generator executable requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    gen = AbstractorGenerator(name=name, generator_exe=IpxactUri(value=generatorExecutable))
     if a.abstractor_generators is None:
         a.abstractor_generators = AbstractorGenerators()
-    gen = AbstractorGenerator()
-    gen.name = name
-    gen.generator_executable = generatorExecutable  # type: ignore[attr-defined]
-    a.abstractor_generators.abstractor_generator.append(gen)  # type: ignore[attr-defined]
-    register_parent(gen, a, ("abstractor_generators",), "list")
+    a.abstractor_generators.abstractor_generator.append(gen)
+    register_parent(gen, a, ("abstractor_generators", "abstractor_generator"), "list")
     return get_handle(gen)
 
 
-def addAbstractorChoice(abstractorID: str, name: str) -> str:
-    """Add a ``choice`` element with the given name (no enumerations yet).
+def addAbstractorChoice(abstractorID: str, name: str, enumerations: Sequence[str]) -> str:
+    """Add a named choice with its enumeration expressions (F.7.5.2).
 
-    Section: F.7.5.2.
+    Invalid inputs leave the choices collection unchanged.
     """
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Choice name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if isinstance(enumerations, (str, bytes)) or not isinstance(enumerations, Sequence):
+        raise TgiError("Enumerations require a sequence of strings", TgiFaultCode.INVALID_ARGUMENT)
+    values = list(enumerations)
+    if not values or any(not isinstance(value, str) or not value.strip() for value in values):
+        raise TgiError("Enumerations require nonempty expressions", TgiFaultCode.INVALID_ARGUMENT)
+    ch = Choices.Choice(name=name, enumeration=[Choices.Choice.Enumeration(value=value) for value in values])
     if a.choices is None:
         a.choices = Choices()
-    ch = Choices.Choice(name=name)
-    a.choices.choice.append(ch)  # type: ignore[attr-defined]
-    register_parent(ch, a, ("choices",), "list")
+    a.choices.choice.append(ch)
+    register_parent(ch, a, ("choices", "choice"), "list")
+    for enumeration in ch.enumeration:
+        register_parent(enumeration, ch, ("enumeration",), "list")
     return get_handle(ch)
 
 
@@ -286,6 +292,8 @@ def addAbstractorComponentInstantiation(abstractorID: str, name: str) -> str:
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Instantiation name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     if a.model is None:
         from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
         a.model = AbstractorModelType()
@@ -294,7 +302,7 @@ def addAbstractorComponentInstantiation(abstractorID: str, name: str) -> str:
         a.model.instantiations = AbstractorModelType.Instantiations()
     ci = ComponentInstantiationType(name=name)
     a.model.instantiations.component_instantiation.append(ci)  # type: ignore[attr-defined]
-    register_parent(ci, a, ("model", "instantiations"), "list")
+    register_parent(ci, a, ("model", "instantiations", "component_instantiation"), "list")
     return get_handle(ci)
 
 
@@ -317,213 +325,150 @@ def addAbstractorFileSet(abstractorID: str, name: str) -> str:
 
 
 def addAbstractorInterfaceAbstractionType(
-    abstractorID: str,
-    interfaceIndex: int,
-    abstractionRefVLNV: tuple[str, str, str, str],
+    abstractorBusInterfaceID: str, abstractionRef: tuple[str, str, str, str],
 ) -> str:
-    """Add an ``abstractionType`` to one of the two abstractorInterfaces.
+    """Add a validated abstraction reference to an interface (F.7.5.5)."""
+    from .core import vlnv_to_tuple
 
-    Section: F.7.5.5.
-    Args:
-        interfaceIndex: 0 or 1 selecting which of the two interfaces.
-        abstractionRefVLNV: (vendor, library, name, version) of abstractionDef.
-    """
-    if interfaceIndex not in (0, 1):
-        raise TgiError("interfaceIndex must be 0 or 1", TgiFaultCode.INVALID_ARGUMENT)
-    a = _resolve(abstractorID)
-    if a is None:
+    interface = resolve_handle(abstractorBusInterfaceID)
+    if not isinstance(interface, AbstractorBusInterfaceType):
+        raise TgiError("Invalid abstractor interface handle", TgiFaultCode.INVALID_ID)
+    parts = vlnv_to_tuple(abstractionRef)
+    if not all(isinstance(part, str) and part.strip() for part in parts):
+        raise TgiError("Abstraction VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    item = AbstractionTypes.AbstractionType(abstraction_ref=ConfigurableLibraryRefType(
+        vendor=parts[0], library=parts[1], name=parts[2], version=parts[3],
+    ))
+    if interface.abstraction_types is None:
+        interface.abstraction_types = AbstractionTypes()
+    interface.abstraction_types.abstraction_type.append(item)
+    register_parent(item, interface, ("abstraction_types", "abstraction_type"), "list")
+    return get_handle(item)
+
+
+def _append_model_port(abstractorID: str, name: str, style) -> str:
+    """Append a generated port after validating its name and owner."""
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
+
+    root = _resolve(abstractorID)
+    if root is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.abstractor_interfaces is None:
-        raise TgiError("Abstractor missing interfaces", TgiFaultCode.INVALID_ARGUMENT)
-    interfaces = list(getattr(a.abstractor_interfaces, "abstractor_interface", []))
-    if len(interfaces) <= interfaceIndex:
-        raise TgiError("Interface index out of range", TgiFaultCode.INVALID_ARGUMENT)
-    iface = interfaces[interfaceIndex]
-    if iface.abstraction_types is None:
-        iface.abstraction_types = AbstractionTypes()
-    at = AbstractionTypes.AbstractionType(
-        abstraction_ref=ConfigurableLibraryRefType(
-            vendor=abstractionRefVLNV[0],
-            library=abstractionRefVLNV[1],
-            name=abstractionRefVLNV[2],
-            version=abstractionRefVLNV[3],
-        )
-    )
-    iface.abstraction_types.abstraction_type.append(at)  # type: ignore[attr-defined]
-    register_parent(at, iface, ("abstraction_types",), "list")
-    return get_handle(at)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Port name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    port = AbstractorPortType(name=name, wire_or_transactional_or_structured=style)
+    if root.model is None:
+        root.model = AbstractorModelType()
+    if root.model.ports is None:
+        root.model.ports = AbstractorModelType.Ports()
+    root.model.ports.port.append(port)
+    register_parent(port, root, ("model", "ports", "port"), "list")
+    return get_handle(port)
 
 
-def addAbstractorTransactionalPort(abstractorID: str, name: str, initiative: str | None = None) -> str:
-    """Add a transactional model port.
+def addAbstractorTransactionalPort(abstractorID: str, name: str, initiative: str) -> str:
+    """Add a transactional port with a standard initiative (F.7.5.9)."""
+    from org.accellera.ipxact.v1685_2022 import AbstractorPortTransactionalType, Initiative, InitiativeType
 
-    Section: F.7.5.6.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_port_transactional_type import (
-        AbstractorPortTransactionalType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
+    if _resolve(abstractorID) is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.transactional = AbstractorPortTransactionalType()
-    if initiative:
-        p.transactional.initiative = initiative  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    try:
+        value = InitiativeType(initiative)
+    except (TypeError, ValueError):
+        raise TgiError("Invalid port initiative", TgiFaultCode.INVALID_ARGUMENT) from None
+    return _append_model_port(abstractorID, name, AbstractorPortTransactionalType(initiative=Initiative(value=value)))
 
 
-def addAbstractorWirePort(abstractorID: str, name: str, direction: str | None = None) -> str:
-    """Add a wire model port.
+def addAbstractorWirePort(abstractorID: str, name: str, direction: str) -> str:
+    """Add a wire port with a standard direction (F.7.5.11)."""
+    from org.accellera.ipxact.v1685_2022 import AbstractorPortWireType, ComponentPortDirectionType
 
-    Section: F.7.5.7.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_port_wire_type import (
-        AbstractorPortWireType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
+    if _resolve(abstractorID) is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.wire = AbstractorPortWireType()
-    if direction:
-        p.wire.direction = direction  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    try:
+        value = ComponentPortDirectionType(direction)
+    except (TypeError, ValueError):
+        raise TgiError("Invalid port direction", TgiFaultCode.INVALID_ARGUMENT) from None
+    return _append_model_port(abstractorID, name, AbstractorPortWireType(direction=value))
+
+
+def _structured_port(abstractorID: str, name: str, subPortName: str, typeName: str, kind: str,
+                     direction: str | None = None) -> str:
+    """Initialize a structured choice, required sub-port, and type definition."""
+    from org.accellera.ipxact.v1685_2022 import ComponentPortDirectionType, StructPortTypeDefs
+    from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
+        AbstractorPortStructuredType, AbstractorSubPortType,
+    )
+
+    if _resolve(abstractorID) is None:
+        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    for value in (name, subPortName, typeName):
+        if not isinstance(value, str) or not value.strip():
+            raise TgiError("Structured port names require nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    if kind == "interface":
+        choice = AbstractorPortStructuredType.Interface()
+    else:
+        try:
+            value = ComponentPortDirectionType(direction)
+        except (TypeError, ValueError):
+            raise TgiError("Invalid structured port direction", TgiFaultCode.INVALID_ARGUMENT) from None
+        cls = AbstractorPortStructuredType.Struct if kind == "struct" else AbstractorPortStructuredType.UnionType
+        choice = cls(direction=value)
+    subport = AbstractorSubPortType(name=subPortName)
+    definition = StructPortTypeDefs.StructPortTypeDef(
+        type_name=StructPortTypeDefs.StructPortTypeDef.TypeName(value=typeName),
+    )
+    structured = AbstractorPortStructuredType(
+        struct_or_union_or_interface=choice,
+        sub_ports=AbstractorPortStructuredType.SubPorts(sub_port=[subport]),
+        struct_port_type_defs=StructPortTypeDefs(struct_port_type_def=[definition]),
+    )
+    handle = _append_model_port(abstractorID, name, structured)
+    port = resolve_handle(handle)
+    register_parent(structured, port, ("wire_or_transactional_or_structured",), "scalar")
+    register_parent(subport, structured, ("sub_ports", "sub_port"), "list")
+    register_parent(definition, structured, ("struct_port_type_defs", "struct_port_type_def"), "list")
+    return handle
 
 
 def addAbstractorStructuredInterfacePort(
-    abstractorID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
+    abstractorID: str, name: str, subPortName: str, structPortTypeDefTypeName: str,
 ) -> str:
-    """Add a structured interface port (adds a subPort reference).
-
-    Section: F.7.5.8.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
-        AbstractorPortStructuredType,
-        AbstractorSubPortType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.structured = AbstractorPortStructuredType()
-    sp = AbstractorSubPortType(name=subPortName)
-    p.structured.interface_port.append(sp)  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    """Add an interface-style structured port (F.7.5.6)."""
+    return _structured_port(abstractorID, name, subPortName, structPortTypeDefTypeName, "interface")
 
 
 def addAbstractorStructuredStructPort(
-    abstractorID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
-    direction: str | None = None,
+    abstractorID: str, name: str, subPortName: str, structPortTypeDefTypeName: str, direction: str,
 ) -> str:
-    """Add a structured structPort with direction.
-
-    Section: F.7.5.9.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
-        AbstractorPortStructuredType,
-        AbstractorSubPortType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.structured = AbstractorPortStructuredType()
-    sp = AbstractorSubPortType(name=subPortName)
-    if direction:
-        sp.direction = direction  # type: ignore[attr-defined]
-    p.structured.struct_port.append(sp)  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    """Add a struct-style port with its direction (F.7.5.7)."""
+    return _structured_port(abstractorID, name, subPortName, structPortTypeDefTypeName, "struct", direction)
 
 
 def addAbstractorStructuredUnionPort(
-    abstractorID: str,
-    name: str,
-    structPortTypeDefTypeName: str,
-    subPortName: str,
-    direction: str | None = None,
+    abstractorID: str, name: str, structPortTypeDefTypeName: str, subPortName: str, direction: str,
 ) -> str:
-    """Add a structured unionPort with direction.
-
-    Section: F.7.5.10.
-    """
-    from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import (
-        AbstractorPortStructuredType,
-        AbstractorSubPortType,
-    )
-    a = _resolve(abstractorID)
-    if a is None:
-        raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    if a.model is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model = AbstractorModelType()
-    if a.model.ports is None:
-        from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-        a.model.ports = AbstractorModelType.Ports()
-    p = AbstractorPortType(name=name)
-    p.structured = AbstractorPortStructuredType()
-    sp = AbstractorSubPortType(name=subPortName)
-    if direction:
-        sp.direction = direction  # type: ignore[attr-defined]
-    p.structured.union_port.append(sp)  # type: ignore[attr-defined]
-    a.model.ports.port.append(p)  # type: ignore[attr-defined]
-    register_parent(p, a, ("model", "ports"), "list")
-    return get_handle(p)
+    """Add a union-style port with its direction (F.7.5.8)."""
+    return _structured_port(abstractorID, name, subPortName, structPortTypeDefTypeName, "union", direction)
 
 
 def addAbstractorView(abstractorID: str, name: str) -> str:
     """Add a view element under model.views.
 
-    Section: F.7.5.11.
+    Section: F.7.5.10.
     """
     from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("View name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     if a.model is None:
         a.model = AbstractorModelType()
     if a.model.views is None:
         a.model.views = AbstractorModelType.Views()
     v = AbstractorModelType.Views.View(name=name)
     a.model.views.view.append(v)  # type: ignore[attr-defined]
-    register_parent(v, a, ("model", "views"), "list")
+    register_parent(v, a, ("model", "views", "view"), "list")
     return get_handle(v)
 
 
@@ -538,7 +483,7 @@ def removeAbstractorAbstractorGenerator(abstractorGeneratorID: str) -> bool:
 def removeAbstractorChoice(choiceID: str) -> bool:
     """Remove a choice element.
 
-    Section: F.7.5.13.
+    Section: F.7.5.14.
     """
     return detach_child_by_handle(choiceID)
 
@@ -546,7 +491,7 @@ def removeAbstractorChoice(choiceID: str) -> bool:
 def removeAbstractorComponentInstantiation(componentInstantiationID: str) -> bool:
     """Remove a componentInstantiation.
 
-    Section: F.7.5.14.
+    Section: F.7.5.15.
     """
     return detach_child_by_handle(componentInstantiationID)
 
@@ -562,7 +507,7 @@ def removeAbstractorFileSet(fileSetID: str) -> bool:
 def removeAbstractorInterfaceAbstractionType(abstractionTypeID: str) -> bool:
     """Remove an abstractionType from an abstractorInterface.
 
-    Section: F.7.5.16.
+    Section: F.7.5.17.
     """
     return detach_child_by_handle(abstractionTypeID)
 
@@ -570,7 +515,7 @@ def removeAbstractorInterfaceAbstractionType(abstractionTypeID: str) -> bool:
 def removeAbstractorPort(portID: str) -> bool:
     """Remove a model port (any style).
 
-    Section: F.7.5.17.
+    Section: F.7.5.18.
     """
     return detach_child_by_handle(portID)
 
@@ -578,7 +523,7 @@ def removeAbstractorPort(portID: str) -> bool:
 def removeAbstractorView(viewID: str) -> bool:
     """Remove a model view.
 
-    Section: F.7.5.18.
+    Section: F.7.5.19.
     """
     return detach_child_by_handle(viewID)
 

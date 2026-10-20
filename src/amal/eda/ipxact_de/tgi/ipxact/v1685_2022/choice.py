@@ -7,6 +7,8 @@ Provides traversal and manipulation of enumerations for :class:`Choices.Choice` 
 All functions raise :class:`TgiError` with :class:`TgiFaultCode.INVALID_ID` for invalid handles.
 """
 
+from collections.abc import Sequence
+
 from org.accellera.ipxact.v1685_2022 import Choices
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent, detach_child_by_handle
 
@@ -159,3 +161,15 @@ def setEnumerationValue(choiceEnumerationID: str, value: str) -> bool:
         raise TgiError("Invalid enumeration handle", TgiFaultCode.INVALID_ID)
     en.value = value
     return True
+
+
+def _validated_choice(name: str, enumerations: Sequence[str]) -> Choices.Choice:
+    """Construct a choice only after validating its name and enumeration array."""
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Choice name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if isinstance(enumerations, (str, bytes)) or not isinstance(enumerations, Sequence):
+        raise TgiError("Enumerations require a sequence of strings", TgiFaultCode.INVALID_ARGUMENT)
+    values = list(enumerations)
+    if not values or any(not isinstance(value, str) or not value.strip() for value in values):
+        raise TgiError("Enumerations require nonempty expressions", TgiFaultCode.INVALID_ARGUMENT)
+    return Choices.Choice(name=name, enumeration=[Choices.Choice.Enumeration(value=value) for value in values])

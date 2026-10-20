@@ -75,6 +75,20 @@ application failures.
 Before finishing, run the checks appropriate to the changed behavior and report concrete results and unresolved
 failures. Do not publish, tag, or deploy unless requested.
 
+## Sub-agent delegation
+
+Delegate simple execution tasks to `gpt-6-luna` sub-agents to keep routine work and verbose tool output out of the
+main harness context. Provide a precise, bounded specification, required inputs, acceptance criteria, and a unique
+file or artifact scope. Pass only the context needed for the task; prefer no conversation-history fork.
+
+Run up to three sub-agents concurrently, subject to available agent slots. Give implementation groups non-overlapping
+ownership. Sub-agents should return concise results, artifact paths, exact verification evidence, and unresolved
+issues; keep detailed logs in artifacts rather than forwarding them into the main context.
+
+The main harness evaluates sub-agent results, reviews and integrates changes, and decides whether acceptance criteria
+are met. It owns shared plan, feature, coverage, changelog, and handoff updates and the final commits. A sub-agent's
+completion report alone does not establish verification or feature completion.
+
 ## Implementation tracking
 
 Implement features in sets of 5–10 depending on complexity. After each completed set of changes, update

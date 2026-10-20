@@ -160,7 +160,9 @@ def getBusDefinitionChoiceIDs(busDefinitionID: str) -> list[str]:  # F.7.17.x
     chs = getattr(bd, "choices", None)
     if chs is None:
         return []
-    return [get_handle(c) for c in getattr(chs, "choice", [])]
+    for choice in chs.choice:
+        register_parent(choice, bd, ("choices", "choice"), "list")
+    return [get_handle(choice) for choice in chs.choice]
 
 
 def getBusDefinitionParameterIDs(busDefinitionID: str) -> list[str]:  # F.7.17.x
@@ -360,11 +362,13 @@ def addBusDefinitionSystemGroupName(busDefinitionID: str, value: str) -> str:  #
 
 def addBusDefinitionChoice(busDefinitionID: str, name: str, enumerations: Sequence[str]) -> str:  # F.7.18.1
     """Append a named choice with its enumeration values in supplied order."""
+    from .choice import _validated_choice
+
     bd = _resolve(busDefinitionID)
+    ch = _validated_choice(name, enumerations)
     if bd.choices is None:
-        bd.choices = Choices()  # type: ignore[attr-defined]
-    ch = Choices.Choice(name=name, enumeration=[Choices.Choice.Enumeration(value=value) for value in enumerations])
-    bd.choices.choice.append(ch)  # type: ignore[attr-defined]
+        bd.choices = Choices()
+    bd.choices.choice.append(ch)
     register_parent(ch, bd, ("choices", "choice"), "list")
     return get_handle(ch)
 

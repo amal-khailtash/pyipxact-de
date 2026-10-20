@@ -401,20 +401,13 @@ def getLoadConstraintValue(loadConstraintID: str) -> str | None:
     return None if cspec is None else getattr(cspec, "cell_strength", None)
 
 
-def getTimingConstraintValue(timingConstraintID: str) -> float | None:
-    """Return numeric value of a timingConstraint.
-
-    Section: F.7.33.23.
-    """
+def getTimingConstraintValue(timingConstraintID: str) -> float:
+    """Return a timingConstraint's generated numeric value (F.7.33.23)."""
     tc = _as_timing_constraint(timingConstraintID)
     if tc is None:
         raise TgiError("Invalid timingConstraint handle", TgiFaultCode.INVALID_ID)
-    return getattr(tc, "value", None)
+    return tc.value
 
-
-# ---------------------------------------------------------------------------
-# EXTENDED (F.7.34)
-# ---------------------------------------------------------------------------
 
 def removeConstraintSetDriveConstraint(constraintSetID: str) -> bool:
     """Remove the driveConstraint child from a constraintSet.
@@ -679,16 +672,21 @@ def setLoadConstraintOtherValue(loadConstraintID: str, other: str) -> bool:
 
 
 def setTimingConstraintValue(timingConstraintID: str, value: str) -> bool:
-    """Set ``value`` of a timingConstraint (stored as float).
+    """Set a finite numeric timing value from its WSDL string input (F.7.34.17)."""
+    import math
 
-    Section: F.7.34.17.
-    """
     tc = _as_timing_constraint(timingConstraintID)
     if tc is None:
         raise TgiError("Invalid timingConstraint handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(value, str):
+        raise TgiError("Timing value must be a numeric string from 0 through 100", TgiFaultCode.INVALID_ARGUMENT)
     try:
-        tc.value = float(value)  # type: ignore[assignment]
-    except ValueError as exc:  # pragma: no cover
-        raise TgiError("Invalid timingConstraint value", TgiFaultCode.INVALID_ARGUMENT) from exc
+        numeric_value = float(value)
+    except (ValueError, OverflowError) as error:
+        raise TgiError(
+            "Timing value must be a numeric string from 0 through 100", TgiFaultCode.INVALID_ARGUMENT
+        ) from error
+    if not math.isfinite(numeric_value) or not 0.0 <= numeric_value <= 100.0:
+        raise TgiError("Timing value must be a numeric string from 0 through 100", TgiFaultCode.INVALID_ARGUMENT)
+    tc.value = numeric_value
     return True
-

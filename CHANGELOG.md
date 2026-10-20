@@ -17,6 +17,47 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Correct logical port style setters to use the generated exclusive choice while preserving port and packet content.
+- Implement timing constraint lifecycle with generated models, ownership and scoped validation.
+- Implement drive and load constraint traversal with generated models, ownership and scoped validation.
+- Implement wire mode constraint containers with generated models, ownership and scoped validation.
+- Correct wire driver metadata using selective generated mode handles, ownership, and scoped XML verification.
+- Correct wire default expressions using selective generated mode handles, ownership, and scoped XML verification.
+- Correct logical port qualifiers using selective generated mode handles, ownership, and scoped XML verification.
+- Correct mode initiative and property identity using selective generated mode handles, ownership, and scoped XML verification.
+- Correct wire mode removers using selective generated mode handles, ownership, and scoped XML verification.
+- Correct transactional mode removers using selective generated mode handles, ownership, and scoped XML verification.
+- Correct wire mode getters using selective generated mode handles, ownership, and scoped XML verification.
+- Correct transactional mode getters using selective generated mode handles, ownership, and scoped XML verification.
+- Correct seven wire/transactional property setters to edit the supplied mode handle selectively.
+- Validate mode enums, initialize generated protocol types, and preserve property handles during updates.
+- Implement logical mode setters and validated system-group editing using generated mode models.
+- Preserve mode identity and correct creation ownership for immediate removal without traversal.
+- Traverse logical-port system modes for both generated styles and restore parsed mode ownership.
+- Implement typed wire/transactional mode removal with selective detachment and handle invalidation.
+- Initialize packet-field qualifiers without replacing existing content or handles.
+- Remove optional packet-field qualifiers and values with correct ownership and handle invalidation.
+- Verify explicit packet/field endianness values and absence through XML round trips.
+- Implement packet-field creation and selective packet/field removal with parsed ownership.
+- Add validated packet/field endianness editing and expression setters that preserve handles and metadata.
+- Validate logical-port packet creation before mutation and restore parsed packet/field ownership.
+- Add packet-field value handles and preserve width/value expressions, qualifiers, and child identity.
+- Implement standard logical-port mode names and grouped wire/transactional system modes.
+- Correct six mode getters to use generated style-choice fields and preserve mode identity and XML values.
+- Create logical abstraction ports with generated wire/transactional choice fields and validate inputs before mutation.
+- Restore parsed logical-port parent ownership and verify names, styles, match flags, and selective removal.
+- Use supplied enumeration arrays for abstraction-definition choices and validate bus/abstraction choice inputs atomically.
+- Restore choice parent ownership during root traversal so parsed choices can be removed reliably.
+- Implement interface, struct, and union abstractor ports using generated structured choice models.
+- Preserve required sub-port names, structured type names, direction values, and parent identity in XML round trips.
+- Implement abstractor wire and transactional ports using generated choice fields and validated schema values.
+- Validate abstractor view names and repair port/view parent paths for ordered traversal and removal.
+- Initialize abstractor generators with generated URI values and choices with standard enumeration arrays.
+- Validate generator/choice inputs before mutation and repair parent paths for selective removal.
+- Use standard interface handles for abstractor abstraction-type creation and traversal.
+- Validate abstraction references and component-instantiation names before mutation.
+- Repair abstraction-type and component-instantiation parent paths for removal and verify XML round trips.
+
 - Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
 - Validate abstractor mode and bus-reference updates before mutation; preserve mode handles and existing groups.
 - Correct abstractor file-set parent paths and verify add/list/remove behavior and XML round trips.
