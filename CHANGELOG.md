@@ -13,6 +13,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Align README badges with pysystemc and link documentation to Read the Docs.
 - Add automated release PRs, verified PyPI publishing, PR build/test/documentation
   checks, Codecov reports, and Read the Docs configuration.
 
