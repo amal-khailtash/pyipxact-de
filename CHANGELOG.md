@@ -15,7 +15,6 @@ This document lists notable changes for each release and follows:
 ### CI
 
 - Dispatch production publication directly so PEP 740 identity matches the PyPI trusted publisher.
-
 - Consolidate numbered PR, CI, release, and publication workflows; reuse validated distributions
   and trigger release docs after PyPI.
 
