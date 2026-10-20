@@ -3030,3 +3030,11 @@ View (EXTENDED)
 * ☐ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
 * ☐ ``setViewDesignInstantiationRef`` (F.7.88.8)
 * ☐ ``setViewRefValue`` (F.7.88.9)
+
+Development and release automation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Configure PR tests, distribution and documentation builds, and informational Codecov uploads.
+* ☑ Configure release-please version/changelog PRs and verified uv trusted publication.
+* ☑ Add Read the Docs configuration and contributor/release setup instructions.
+* ☐ Activate external service integrations and verify hosted PR checks and automatic publication.

@@ -7,6 +7,7 @@
    intro/release_notes
    intro/references
    features
+   development/releases
 
 .. intro/introduction
 .. intro/status
@@ -21,12 +22,9 @@
    api/amal.eda
    api/amal.eda.ipxact_de
    api/amal.eda.ipxact_de.cli
-   api/amal.eda.ipxact_de.gui
-   api/amal.eda.ipxact_de.gui.ui
    api/amal.eda.ipxact_de.tgi
    api/amal.eda.ipxact_de.tgi.ipxact
    api/amal.eda.ipxact_de.tgi.ipxact.v1685_2022
-   api/amal.eda.ipxact_de.web
    api/amal.utilities
    api/org.accellera
    api/org.accellera.spirit

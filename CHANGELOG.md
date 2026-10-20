@@ -7,6 +7,11 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Added
+
+- Add automated release PRs, verified PyPI publishing, PR build/test/documentation
+  checks, Codecov reports, and Read the Docs configuration.
+
 ## [0.3.0] - 2026-10-19
 
 ### Added
@@ -15,10 +20,8 @@ This document lists notable changes for each release and follows:
   diagnostics for XML and schema failures.
 - Add source-preserving choice enumeration operations and prefix-independent
   document identification across supported SPIRIT/IP-XACT versions.
-
 - Add explicit offline schema validation with local Accellera schemas and detailed
   XSD diagnostics, including source locations and structured schema-load failures.
-
 - Add Markdown lint configuration and normalize repository documentation formatting.
 - new persistent xml registration `register` with `scan`, and `list` subcommands.
 - add registry loader and scanner for IP-XACT XML files, enhance VLNV management
@@ -31,15 +34,12 @@ This document lists notable changes for each release and follows:
 - Preserve the QName of empty generic bus-interface choices during XML round trips.
 - Update catalog TGI URI construction and test fixtures for regenerated keyword-only models.
 - Verify rejection of experimental IPXACT/2.0 files included in upstream examples.
-
 - Return structured validation failures for missing and malformed XML documents.
 - Identify SPIRIT/IP-XACT documents from the expanded root namespace, supporting
   default and arbitrary prefixes; reject unsupported versions and allow retry
   after failed identification.
-
 - Repair choice enumeration creation, source-expression access and parent ownership
   for new and parsed children; reject invalid removal handles.
-
 - Align bus capability setters and optional broadcast/extends removers with Annex F argument names; reject non-Boolean
   capability values without changing documents.
 - Align bus-definition extends and choice inputs with Annex F; preserve choice enumerations and correct

@@ -18,7 +18,7 @@ decorator API requires MCP 1.x.
 - `src/org/accellera/` : generated bindings for SPIRIT 1.0/1.1/1.2/1.4/1.5/1685-2009 and IP-XACT 1685-2014/1685-2022;
   `standard.py` and the package initializer provide schema/version metadata.
 - `submodules/accellera-schemas/`: upstream XSD/WSDL schemas. `src/org/accellera/xsl/` holds conversion stylesheets.
-- `tests/`: pytest coverage and XML fixtures. `docs/`: Sphinx documentation and TGI reference material.
+- `tests/`: pytest coverage and XML fixtures. `docs/`: Sphinx documentation. `.ai/`: ignored local standard references.
 - `PyXB/`: historical bindings, excluded from distribution; use the current xsdata bindings for new work.
 
 GUI/web prototypes exist locally but are currently ignored by Git. Check tracking before depending on them in a
@@ -93,5 +93,8 @@ configuration, addressing, older-version conversion, and GUI work independently 
 ## Pull requests and releases
 
 This repository uses feature/release branches, pull requests, and merges. Do not push feature commits directly
-to `main`. Prepare version and changelog updates on a release branch, validate and merge the PR, then run
-`.github/workflows/publish.yml` on merged `main` to create the GitHub release/tag and publish to PyPI.
+to `main`. Use Conventional Commit PR titles and squash merges. Release-please collects merged changes into a
+reviewed release PR and manages package versions, the lockfile, changelog, and tags. Merging that PR invokes
+`.github/workflows/publish.yml` to verify, test, build, and publish with `uv publish` using PyPI trusted publishing.
+Manual publication takes an existing release tag for recovery. See `docs/development/releases.rst` for service setup
+and version rules. Use the `amal-khailtash` GitHub account; never use `akhailta_amdeng`.

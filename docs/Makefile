@@ -15,7 +15,7 @@ help:
 .PHONY: help api Makefile
 
 api:
-	@sphinx-apidoc --force --implicit-namespaces --output-dir api/ ../src/amal/
+	@sphinx-apidoc --force --implicit-namespaces --output-dir api/ ../src/amal/ ../src/amal/eda/ipxact_de/gui ../src/amal/eda/ipxact_de/web
 	@sphinx-apidoc --force --implicit-namespaces --output-dir api/ ../src/org/
 
 # Catch-all target: route all unknown targets to Sphinx using the new

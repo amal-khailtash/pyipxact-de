@@ -1,51 +1,69 @@
-name: 0. CI (auto on PR & merges)
-
+name: CI
 on:
   pull_request:
-    branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
   push:
-    branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
-
+    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
-
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   tests:
-    name: Unit tests (uv + pytest)
+    name: Tests and coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version-file: '.python-version'
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-        with:
+          python-version-file: .python-version
           enable-cache: true
-
-      - name: Sync dependencies (default + dev)
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv venv
-          source .venv/bin/activate
-          uv sync --locked --all-groups
-
-      - name: Run tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          source .venv/bin/activate
-          pytest -q
+      - run: sudo apt-get update && sudo apt-get install -y libxml2-utils xsltproc
+      - run: uv sync --locked --all-groups
+      - name: Test handwritten application code
+        run: uv run --locked pytest --cov=amal --cov-report=term-missing --cov-report=xml:coverage.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        if: ${{ !cancelled() && hashFiles('coverage.xml') != '' }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          disable_search: true
+          fail_ci_if_error: false
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version-file: .python-version
+      - run: uv build
+      - run: uvx twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-distributions
+          path: dist/*
+  documentation:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version-file: .python-version
+      - run: uv sync --locked --all-groups
+      - run: uv run --locked make -C docs api html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/_build/html
