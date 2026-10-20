@@ -121,13 +121,13 @@ html_theme_options = {
     'style_external_links': False,
     'style_nav_header_background': '#2980B9',
     # Toc options
-    # Keep navigation expanded so deep API pages don't cause the sidebar to disappear
-    'collapse_navigation': False,
+    # Expand the current branch rather than rendering every API member on each page.
+    'collapse_navigation': True,
     'sticky_navigation': True,
-    # Show deeper levels so package -> module -> class hierarchies remain in the sidebar
+    # Keep package and module navigation available for the current branch.
     'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': False,
+    'titles_only': True,
 }
 
 # Always render a global ToC in the left sidebar so navigation doesn't disappear

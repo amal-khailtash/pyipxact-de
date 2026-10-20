@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Avoid duplicate API navigation trees and fully expanded sidebars during documentation rendering.
 - Match the pysystemc screenshot badge order and labels for release automation, tests, publishing, and documentation.
 - Match pysystemc CI/CD badge order and styling, including Documentation and RELEASE_PLEASE badges.
 - Keep README badge categories aligned with pysystemc: CI/CD, Project, Docs, Meta, and Standards.
