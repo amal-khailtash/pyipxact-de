@@ -11,7 +11,7 @@ This document lists notable changes for each release and follows:
 
 - Match the pysystemc screenshot badge order and labels for release automation, tests, publishing, and documentation.
 - Match pysystemc CI/CD badge order and styling, including Documentation and RELEASE_PLEASE badges.
-- Include PR-title and TestPyPI workflow badges in the README.
+- Keep README badge categories aligned with pysystemc: CI/CD, Project, Docs, Meta, and Standards.
 - Remove unsupported setup-uv input; uv selects the interpreter from .python-version.
 - Split API documentation into module pages to avoid slow rendering of generated binding packages.
 
