@@ -860,23 +860,19 @@ def getModeConstraintsLoadConstraintID(modeConstraintsID: str) -> str | None:
 
 
 def getModeConstraintsTimingConstraintIDs(modeConstraintsID: str) -> list[str]:
-    """Return timingConstraint handles.
-
-    Section: F.7.2.39.
-
-    Args:
-        modeConstraintsID: Handle to a modeConstraints element.
-
-    Returns:
-        List of timingConstraint handles (possibly empty).
-    """
-    obj = resolve_handle(modeConstraintsID)
+    """Return ordered timingConstraint handles and register their ownership."""
     from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
         AbstractionDefPortConstraintsType,
     )
-    if not isinstance(obj, AbstractionDefPortConstraintsType):  # type: ignore[arg-type]
+
+    container = resolve_handle(modeConstraintsID)
+    if not isinstance(container, AbstractionDefPortConstraintsType):
         raise TgiError("Invalid modeConstraints handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(tc) for tc in getattr(obj, "timing_constraint", [])]  # type: ignore[attr-defined]
+    handles = []
+    for timing in container.timing_constraint:
+        register_parent(timing, container, ("timing_constraint",), "list")
+        handles.append(get_handle(timing))
+    return handles
 
 
 def getOnSystemGroup(onSystemID: str) -> str | None:
@@ -2129,3 +2125,49 @@ def removeModeConstraintsLoadConstraint(modeConstraintsID: str) -> bool:
 
 
 __all__ += ["removeModeConstraintsLoadConstraint"]
+
+
+def addModeConstraintsTimingConstraint(modeConstraintsID: str, value: float, clockName: str) -> str:
+    """Append a validated timing constraint (F.7.3.7)."""
+    import math
+
+    from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
+        AbstractionDefPortConstraintsType,
+    )
+    from org.accellera.ipxact.v1685_2022.timing_constraint import TimingConstraint
+
+    container = resolve_handle(modeConstraintsID)
+    if not isinstance(container, AbstractionDefPortConstraintsType):
+        raise TgiError("Invalid modeConstraints handle", TgiFaultCode.INVALID_ID)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TgiError("Timing value must be a finite number from 0 through 100", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise TgiError(
+            "Timing value must be a finite number from 0 through 100", TgiFaultCode.INVALID_ARGUMENT
+        ) from error
+    if not math.isfinite(numeric_value) or not 0.0 <= numeric_value <= 100.0:
+        raise TgiError("Timing value must be a finite number from 0 through 100", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(clockName, str) or not clockName.strip():
+        raise TgiError("Clock name must be a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+
+    timing = TimingConstraint(value=numeric_value, clock_name=clockName)
+    container.timing_constraint.append(timing)
+    register_parent(timing, container, ("timing_constraint",), "list")
+    return get_handle(timing)
+
+
+__all__ += ["addModeConstraintsTimingConstraint"]
+
+
+def removeModeConstraintsTimingConstraint(timingConstraintID: str) -> bool:
+    """Remove an owned timingConstraint by its handle (F.7.3.38)."""
+    from org.accellera.ipxact.v1685_2022.timing_constraint import TimingConstraint
+
+    if not isinstance(resolve_handle(timingConstraintID), TimingConstraint):
+        return False
+    return detach_child_by_handle(timingConstraintID)
+
+
+__all__ += ["removeModeConstraintsTimingConstraint"]
