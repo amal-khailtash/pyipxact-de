@@ -27,8 +27,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
       - uses: astral-sh/setup-uv@v5
-        with:
-          python-version-file: .python-version
       - name: Verify immutable tag and package version
         env:
           RELEASE_TAG: ${{ inputs.tag }}

@@ -20,7 +20,6 @@ jobs:
           submodules: recursive
       - uses: astral-sh/setup-uv@v5
         with:
-          python-version-file: .python-version
           enable-cache: true
       - run: sudo apt-get update && sudo apt-get install -y libxml2-utils xsltproc
       - run: uv sync --locked --all-groups
@@ -45,8 +44,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-        with:
-          python-version-file: .python-version
       - run: uv build
       - run: uvx twine check dist/*
       - uses: actions/upload-artifact@v4
@@ -59,8 +56,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-        with:
-          python-version-file: .python-version
       - run: uv sync --locked --all-groups
       - run: uv run --locked make -C docs api html
       - uses: actions/upload-artifact@v4

@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Remove unsupported setup-uv input; uv selects the interpreter from .python-version.
 - Split API documentation into module pages to avoid slow rendering of generated binding packages.
 
 ### Added
