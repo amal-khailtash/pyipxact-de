@@ -41,6 +41,7 @@ metadata; uv handles uploads. Publication runs in the same automation chain, so
 it does not rely on a bot-created tag triggering another workflow.
 
 The initial manifest starts at 0.3.0, the already merged release preparation.
+The bootstrap commit bounds the first changelog to changes after that release.
 Confirm that v0.3.0 has actually been tagged and published before enabling the
 next release. If it has not, finish that release first; do not silently skip it.
 

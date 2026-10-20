@@ -15,8 +15,8 @@ help:
 .PHONY: help api Makefile
 
 api:
-	@sphinx-apidoc --force --implicit-namespaces --output-dir api/ ../src/amal/ ../src/amal/eda/ipxact_de/gui ../src/amal/eda/ipxact_de/web
-	@sphinx-apidoc --force --implicit-namespaces --output-dir api/ ../src/org/
+	@sphinx-apidoc --force --separate --implicit-namespaces --output-dir api/ ../src/amal/ ../src/amal/eda/ipxact_de/gui ../src/amal/eda/ipxact_de/web
+	@sphinx-apidoc --force --separate --implicit-namespaces --output-dir api/ ../src/org/
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

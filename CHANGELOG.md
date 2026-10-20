@@ -7,6 +7,10 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Fixed
+
+- Split API documentation into module pages to avoid slow rendering of generated binding packages.
+
 ### Added
 
 - Add automated release PRs, verified PyPI publishing, PR build/test/documentation

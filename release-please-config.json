@@ -8,5 +8,6 @@
       "bump-patch-for-minor-pre-major": false,
       "extra-files": ["uv.lock"]
     }
-  }
+  },
+  "bootstrap-sha": "d6efa9a4e6ff1b34da37682d8fd0b21e0565cfa5"
 }
