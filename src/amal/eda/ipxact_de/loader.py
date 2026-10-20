@@ -78,9 +78,9 @@ def _default_cache_dir() -> Path:
 
 def _load_cache(cache_path: Path) -> dict[str, CacheEntry]:
     """Load cache file (array of records) into a dict keyed by absolute path."""
-    if not cache_path.exists():
-        return {}
     try:
+        if not cache_path.exists():
+            return {}
         items = json.loads(cache_path.read_text())
         out: dict[str, CacheEntry] = {}
         if not isinstance(items, list):  # expect array; otherwise ignore
@@ -411,6 +411,8 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
             seen.add(p)
             unique_paths.append(p)
     if not unique_paths:
+        registry.clear()
+        _save_cache((cache_dir or _default_cache_dir()) / CACHE_BASENAME, {})
         return
 
     cache_base = cache_dir or _default_cache_dir()

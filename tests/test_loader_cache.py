@@ -165,3 +165,69 @@ def test_cache_only_duplicate_keeps_first(tmp_path):
     from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import resolve_handle
     assert resolve_handle(registry.get_id(("v", "l", "one", "1"))).xml_path == str(first)
     assert any("Duplicate cached VLNV" in str(call) for call in warning.call_args_list)
+
+
+def test_empty_search_paths_clear_persisted_registry(tmp_path):
+    source = tmp_path / "component.xml"
+    write_component(source)
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    loader.load_registry_from_paths([], cache_dir=tmp_path)
+    assert registry.get_id(("v", "l", "one", "1")) is None
+    assert json.loads((tmp_path / loader.CACHE_BASENAME).read_text()) == []
+    assert not loader.load_registry_from_cache(cache_dir=tmp_path)
+
+
+def test_explicit_path_precedes_environment(tmp_path, monkeypatch):
+    first = tmp_path / "z-explicit.xml"
+    second = tmp_path / "a-environment.xml"
+    write_component(first)
+    write_component(second)
+    monkeypatch.setenv("IPXACT_XML_PATHS", os.pathsep.join([str(second), str(first)]))
+    loader.load_registry_from_paths([str(first)], cache_dir=tmp_path)
+    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import resolve_handle
+    assert resolve_handle(registry.get_id(("v", "l", "one", "1"))).xml_path == str(first)
+
+
+def test_cache_read_error_does_not_stop_scan(tmp_path):
+    source = tmp_path / "component.xml"
+    write_component(source)
+    cache = tmp_path / loader.CACHE_BASENAME
+    cache.write_text("[]")
+    from pathlib import Path
+    original = Path.read_text
+
+    def read(path, *args, **kwargs):
+        if path == cache:
+            raise PermissionError("unreadable cache")
+        return original(path, *args, **kwargs)
+
+    with patch.object(Path, "read_text", read), patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(("v", "l", "one", "1")) is not None
+    assert any("Failed to load cache" in str(call) for call in warning.call_args_list)
+
+
+def test_unsupported_discovered_document_keeps_valid_sibling(tmp_path):
+    old = tmp_path / "old.xml"
+    current = tmp_path / "current.xml"
+    write_component(old, "old")
+    old.write_text(old.read_text().replace("1685-2022", "1685-2014"))
+    write_component(current)
+    with patch.object(loader.logger, "warning") as warning:
+        loader.load_registry_from_paths([str(old), str(current)], cache_dir=tmp_path)
+    assert registry.get_id(("v", "l", "old", "1")) is None
+    assert registry.get_id(("v", "l", "one", "1")) is not None
+    assert any("Skipping unsupported XML" in str(call) for call in warning.call_args_list)
+
+
+def test_same_size_edit_preserving_mtime_invalidates_cache(tmp_path):
+    source = tmp_path / "component.xml"
+    write_component(source, "one")
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    before = source.stat()
+    write_component(source, "two")
+    os.utime(source, ns=(before.st_atime_ns, before.st_mtime_ns))
+    assert source.stat().st_size == before.st_size
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    assert registry.get_id(("v", "l", "one", "1")) is None
+    assert registry.get_id(("v", "l", "two", "1")) is not None

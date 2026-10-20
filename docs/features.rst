@@ -82,6 +82,16 @@ Catalog target eligibility
 * ☑ Reject decoded NUL paths without stopping sibling discovery.
 * ☑ Ignore vendor-extension lookalikes when discovering catalog references.
 
+
+Repository refresh behavior
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Clear registrations and persisted cache when no search paths remain.
+* ☑ Verify explicit-path precedence over environment search paths.
+* ☑ Recover from unreadable cache files during fresh scans.
+* ☑ Diagnose unsupported discovered documents while loading valid siblings.
+* ☑ Invalidate same-size edits with preserved modification times.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

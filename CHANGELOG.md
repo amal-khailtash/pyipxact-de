@@ -22,6 +22,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Clear repository registrations and cached entries when search paths are removed.
+- Recover from unreadable caches and verify explicit/environment precedence and same-size file edits.
+- Verify unsupported discovered documents do not prevent supported sibling registration.
 - Reject unsupported catalog target versions and targets with incomplete VLNVs.
 - Validate encoded local URI paths and isolate invalid escapes, UTF-8, and NUL paths per entry.
 - Verify that vendor-extension lookalikes do not participate in catalog dependency discovery.
