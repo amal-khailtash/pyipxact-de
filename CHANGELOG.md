@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Correct mode initiative and property identity using selective generated mode handles, ownership, and scoped XML verification.
 - Correct wire mode removers using selective generated mode handles, ownership, and scoped XML verification.
 - Correct transactional mode removers using selective generated mode handles, ownership, and scoped XML verification.
 - Correct wire mode getters using selective generated mode handles, ownership, and scoped XML verification.

@@ -718,22 +718,15 @@ def getAbstractionDefPortWireModeWidthExpression(abstractionDefPortModeID: str) 
 
 
 def getAbstractionDefPortWireModeWidthID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle of wire width element.
-
-    Section: F.7.2.30.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Handle string or ``None`` if absent.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    width = getattr(w, "width", None) if w is not None else None
-    return get_handle(width) if width is not None else None
+    """Return the supplied wire mode's owned width handle (F.7.2.30)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.width
+    if child is None:
+        return None
+    register_parent(child, mode, ("width",), "single")
+    return get_handle(child)
 
 
 def getAbstractionDefPortWireOnInitiatorID(abstractionDefPortID: str) -> str | None:
@@ -1623,23 +1616,29 @@ def setAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str
     return _set_logical_mode_property(abstractionDefPortModeID, width, "transactional", "bus_width")
 
 
-def setAbstractionDefPortTransactionalModeInitiative(portID: str, value: str) -> bool:
-    """Set transactional mode initiative (stored on initiator locus).
+def setAbstractionDefPortTransactionalModeInitiative(abstractionDefPortModeID: str, initiative: str) -> bool:
+    """Set the supplied transactional mode's initiative (F.7.3.49)."""
+    from org.accellera.ipxact.v1685_2022 import (
+        OnInitiatorInitiative, OnSystemInitiative, OnTargetInitiative,
+    )
 
-    Section: F.7.3.49.
-
-    Args:
-        portID: Transactional port handle.
-        value: Initiative enumeration string.
-
-    Returns:
-        True on success.
-    """
-    tr = _ensure_transactional(portID)
-    if tr.on_initiator is None:
-        tr.on_initiator = AbstractionDefinition.Ports.Port.Transactional.OnInitiator()  # type: ignore[attr-defined]
-    from org.accellera.ipxact.v1685_2022.initiative import Initiative
-    tr.on_initiator.initiative = Initiative(value=value)  # type: ignore[arg-type]
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    enum_types = {
+        tr.OnInitiator: OnInitiatorInitiative,
+        tr.OnTarget: OnTargetInitiative,
+        tr.OnSystem: OnSystemInitiative,
+    }
+    if not isinstance(mode, tuple(enum_types)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(initiative, str):
+        raise TgiError("Initiative requires a string", TgiFaultCode.INVALID_ARGUMENT)
+    enum_type = next(enum for mode_type, enum in enum_types.items() if isinstance(mode, mode_type))
+    try:
+        converted = enum_type(initiative)
+    except ValueError as error:
+        raise TgiError("Invalid initiative value", TgiFaultCode.INVALID_ARGUMENT) from error
+    mode.initiative = converted
     return True
 
 
