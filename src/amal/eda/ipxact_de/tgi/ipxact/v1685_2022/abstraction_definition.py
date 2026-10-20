@@ -288,7 +288,9 @@ def getAbstractionDefPortIDs(abstractionDefinitionID: str) -> list[str]:
         raise TgiError("Invalid abstraction definition handle", TgiFaultCode.INVALID_ID)
     if ad.ports is None:
         return []
-    return [get_handle(p) for p in ad.ports.port]
+    for port in ad.ports.port:
+        register_parent(port, ad, ("ports", "port"), "list")
+    return [get_handle(port) for port in ad.ports.port]
 
 
 def getAbstractionDefPortLogicalName(abstractionDefPortID: str) -> str | None:
@@ -1246,55 +1248,25 @@ def addAbstractionDefChoice(abstractionDefinitionID: str, name: str, enumeration
     return get_handle(choice)
 
 
-def addAbstractionDefPort(
-    abstractionDefinitionID: str, logicalName: str, type: str
-) -> str:  # pragma: no cover - scaffold
-    """Add an abstractionDefPort.
+def addAbstractionDefPort(abstractionDefinitionID: str, logicalName: str, type: str) -> str:
+    """Add a logical wire or transactional port (F.7.3.2).
 
-    Section: F.7.3.2.
-
-    Creates a new ``port`` with the requested style. Supported ``type`` values:
-    ``wire``, ``transactional`` and ``packet``. For ``packet`` an empty
-    packets container is created; packet content must be added separately via
-    :func:`addAbstractionDefPortPacket`.
-
-    Args:
-        abstractionDefinitionID: Parent abstractionDefinition handle.
-        logicalName: Logical port name.
-        type: Port style ('wire', 'transactional', 'packet').
-
-    Returns:
-        Handle of the created port.
-
-    Raises:
-        TgiError: If the abstractionDefinition handle is invalid or the type is unsupported.
+    Validate inputs before modifying the root. Packet metadata is separate
+    from the standard port-style choice.
     """
     ad = _resolve(abstractionDefinitionID)
     if ad is None:
         raise TgiError("Invalid abstraction definition handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(logicalName, str) or not logicalName.strip():
+        raise TgiError("Logical name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if type not in ("wire", "transactional"):
+        raise TgiError("Port type must be wire or transactional", TgiFaultCode.INVALID_ARGUMENT)
+    style = Wire() if type == "wire" else AbstractionDefinition.Ports.Port.Transactional()
+    port = AbstractionDefinition.Ports.Port(logical_name=logicalName, wire_or_transactional=style)
     if ad.ports is None:
-        # Required container
-        ad.ports = AbstractionDefinition.Ports(port=[])  # type: ignore[arg-type]
-    style = type.lower()
-    from org.accellera.ipxact.v1685_2022.wire import Wire  # local import
-    if style == "wire":
-        port = AbstractionDefinition.Ports.Port(logical_name=logicalName, wire=Wire())
-    elif style == "transactional":
-        port = AbstractionDefinition.Ports.Port(
-            logical_name=logicalName,
-            transactional=AbstractionDefinition.Ports.Port.Transactional(),
-        )
-    elif style == "packet":
-        from org.accellera.ipxact.v1685_2022.packets import Packets
-
-        port = AbstractionDefinition.Ports.Port(
-            logical_name=logicalName,
-            packets=Packets(packet=[]),  # type: ignore[arg-type]
-        )
-    else:  # unsupported
-        raise TgiError("Unsupported port type", TgiFaultCode.INVALID_ARGUMENT)
-    ad.ports.port.append(port)  # type: ignore[attr-defined]
-    register_parent(port, ad.ports, ("port",), "list")
+        ad.ports = AbstractionDefinition.Ports()
+    ad.ports.port.append(port)
+    register_parent(port, ad, ("ports", "port"), "list")
     return get_handle(port)
 
 
@@ -1479,7 +1451,7 @@ def removeAbstractionDefChoice(choiceID: str) -> bool:  # pragma: no cover - sca
     return detach_child_by_handle(choiceID)
 
 
-def removeAbstractionDefPort(portID: str) -> bool:  # pragma: no cover - scaffold
+def removeAbstractionDefPort(portID: str) -> bool:
     """Remove a port.
 
     Section: F.7.3.11.

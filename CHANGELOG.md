@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Create logical abstraction ports with generated wire/transactional choice fields and validate inputs before mutation.
+- Restore parsed logical-port parent ownership and verify names, styles, match flags, and selective removal.
 - Use supplied enumeration arrays for abstraction-definition choices and validate bus/abstraction choice inputs atomically.
 - Restore choice parent ownership during root traversal so parsed choices can be removed reliably.
 - Implement interface, struct, and union abstractor ports using generated structured choice models.
