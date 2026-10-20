@@ -77,9 +77,11 @@ failures. Do not publish, tag, or deploy unless requested.
 
 ## Implementation tracking
 
-Implement features in sets of five unless the user changes that scope. After each completed set of changes, update
+Implement features in sets of 5–10 depending on complexity. After each completed set of changes, update
 `docs/features.rst` , the ignored `.ai/implementation-plan.md` and relevant coverage ledgers, and `CHANGELOG.md` , then
-commit the changes. Organize feature documentation by category, without batch headings. Keep all planned items visible
+commit the changes. Organize feature documentation by category, without batch headings.
+Use ASCII dashes and no blank lines between consecutive bullets in `docs/features.rst`.
+Ask the user to continue before starting the next set. Keep all planned items visible
 and tick only features supported by scoped verification.
 
 Implement the full IP-XACT feature plan, not only TGI operations. Track core document/model semantics, validation,

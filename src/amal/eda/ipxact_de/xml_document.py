@@ -10,9 +10,9 @@ from xsdata.formats.dataclass.parsers import XmlParser
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 from xsdata.formats.dataclass.serializers.xml import XmlSerializer
 
-from amal.utilities import ARROW, CHECK, CROSS
+from amal.utilities import ARROW, CHECK
 
-from org.accellera.standard import Standard
+from org.accellera.standard import STANDARDS, Standard
 
 T = TypeVar("T")
 
@@ -105,52 +105,33 @@ class XmlDocument:
             return  # already parsed
 
         print(f"{ARROW} Parsing ...")
-        try:
-            self.tree = etree.parse(str(self.path))
-            print(f"  {ARROW} Success {CHECK}")
-        except etree.XMLSyntaxError as err:  # pragma: no cover - defensive
-            print(f"  {ARROW} Failed {CROSS}\n{err}")
-            raise
-
-        assert self.tree is not None  # for type checkers
-        root = self.tree.getroot()
-        self.root_name = self.tree.docinfo.root_name
-        attrib = root.attrib
-        nsmap = root.nsmap
-
-        try:
-            xsi = nsmap["xsi"]
-            xsi_location = f"{{{xsi}}}schemaLocation"
-            _schema_decl = attrib.get(xsi_location)
-            if _schema_decl:
-                _schema_decl = ' '.join(_schema_decl.split())
-                print(f"{ARROW} Schema      : '{_schema_decl}'")
-        except KeyError:
-            print(f"{ARROW} xsi namespace is missing in xml file!")
-
-        print(f"{ARROW} Found       : '{self.root_name}'")
-
-        ipxact_ns = nsmap.get("ipxact")
-        spirit_ns = nsmap.get("spirit")
-
-        if spirit_ns:
-            schema_root = "http://www.spiritconsortium.org/XMLSchema/"
-            self.standard, self.version = spirit_ns.removeprefix(schema_root).split("/", 1)
-            print(f"  {ARROW} Standard  : '{self.standard}'")
-            print(f"  {ARROW} Version   : '{self.version}'")
-            self.schema = f"{spirit_ns}/index.xsd"
-            self.is_spirit = True
-        elif ipxact_ns:
-            schema_root = "http://www.accellera.org/XMLSchema/"
-            self.standard, self.version = ipxact_ns.removeprefix(schema_root).split("/", 1)
-            print(f"  {ARROW} Standard  : '{self.standard}'")
-            print(f"  {ARROW} Version   : '{self.version}'")
-            self.schema = f"{ipxact_ns}/index.xsd"
-            self.is_ipxact = True
-        else:  # pragma: no cover - defensive
-            print("Namespace not found!")
-            print("File is neither a well formed SPIRIT or IPXACT.")
+        # Identify the expanded root name, independent of namespace prefix choices.
+        # Keep parsed state local until identification succeeds so a failed parse
+        # can be retried after the source document has been corrected.
+        tree = etree.parse(str(self.path))
+        root = tree.getroot()
+        namespace = etree.QName(root).namespace
+        for meta in STANDARDS.values():
+            base = f"{meta.schema_root}/{meta.token}/"
+            if namespace and namespace.startswith(base):
+                version = namespace[len(base):]
+                Standard.validate(meta.name, version)
+                standard = meta.token
+                break
+        else:
             raise ValueError("Unsupported XML namespace for IP-XACT/SPIRIT")
+
+        self.tree = tree
+        self.root_name = etree.QName(root).localname
+        self.standard = standard
+        self.version = version
+        self.schema = f"{namespace}/index.xsd"
+        self.is_spirit = meta.name == "spirit"
+        self.is_ipxact = meta.name == "ipxact"
+        print(f"  {ARROW} Success {CHECK}")
+        print(f"{ARROW} Found       : '{self.root_name}'")
+        print(f"  {ARROW} Standard  : '{self.standard}'")
+        print(f"  {ARROW} Version   : '{self.version}'")
         return None
 
     # Note: Legacy builder/to_xml helpers were removed (no backward compatibility required).

@@ -13,6 +13,15 @@ and commit the implementation, tests, checklist, and changelog together.
 Data model, semantics, interoperability, and GUI
 -----------------------------------------------------
 
+XML document identification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Identify documents using a default namespace across supported SPIRIT/IP-XACT versions.
+* ☑ Identify documents using arbitrary prefixes rather than fixed ipxact/spirit names.
+* ☑ Use the expanded root name for identity, ignoring unrelated namespace declarations.
+* ☑ Reject unsupported standard versions during document identification.
+* ☑ Leave identification failures retryable after the source document is corrected.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

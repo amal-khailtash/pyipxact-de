@@ -18,6 +18,10 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Identify SPIRIT/IP-XACT documents from the expanded root namespace, supporting
+  default and arbitrary prefixes; reject unsupported versions and allow retry
+  after failed identification.
+
 - Repair choice enumeration creation, source-expression access and parent ownership
   for new and parsed children; reject invalid removal handles.
 
