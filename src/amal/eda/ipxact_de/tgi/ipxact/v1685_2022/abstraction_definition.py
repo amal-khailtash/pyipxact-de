@@ -592,7 +592,9 @@ def getAbstractionDefPortTransactionalOnInitiatorID(abstractionDefPortID: str) -
     p = _resolve_port(abstractionDefPortID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
+    tr = p.wire_or_transactional
+    if not isinstance(tr, AbstractionDefinition.Ports.Port.Transactional):
+        return None
     if tr is None or tr.on_initiator is None:
         return None
     return get_handle(tr.on_initiator)
@@ -609,7 +611,13 @@ def getAbstractionDefPortTransactionalOnSystemIDs(abstractionDefPortID: str) -> 
     Returns:
         List of handles (may be empty).
     """
-    return getAbstractionDefPortOnSystemIDs(abstractionDefPortID)
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    style = port.wire_or_transactional
+    if not isinstance(style, AbstractionDefinition.Ports.Port.Transactional):
+        return []
+    return [get_handle(item) for item in style.on_system]
 
 
 def getAbstractionDefPortTransactionalOnTargetID(abstractionDefPortID: str) -> str | None:
@@ -626,7 +634,9 @@ def getAbstractionDefPortTransactionalOnTargetID(abstractionDefPortID: str) -> s
     p = _resolve_port(abstractionDefPortID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
+    tr = p.wire_or_transactional
+    if not isinstance(tr, AbstractionDefinition.Ports.Port.Transactional):
+        return None
     if tr is None or tr.on_target is None:
         return None
     return get_handle(tr.on_target)
@@ -865,7 +875,9 @@ def getAbstractionDefPortWireOnInitiatorID(abstractionDefPortID: str) -> str | N
     p = _resolve_port(abstractionDefPortID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
+    w = p.wire_or_transactional
+    if not isinstance(w, Wire):
+        return None
     if w is None or getattr(w, "on_initiator", None) is None:
         return None
     return get_handle(w.on_initiator)
@@ -883,7 +895,9 @@ def getAbstractionDefPortWireOnSystemIDs(portID: str) -> list[str]:
     p = _resolve_port(portID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
+    w = p.wire_or_transactional
+    if not isinstance(w, Wire):
+        return []
     if w is None:
         return []
     return [get_handle(os) for os in getattr(w, "on_system", [])]
@@ -901,7 +915,9 @@ def getAbstractionDefPortWireOnTargetID(abstractionDefPortID: str) -> str | None
     p = _resolve_port(abstractionDefPortID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
+    w = p.wire_or_transactional
+    if not isinstance(w, Wire):
+        return None
     if w is None or getattr(w, "on_target", None) is None:
         return None
     return get_handle(w.on_target)
@@ -1270,58 +1286,35 @@ def addAbstractionDefPort(abstractionDefinitionID: str, logicalName: str, type: 
     return get_handle(port)
 
 
-def addAbstractionDefPortMode(abstractionDefPortID: str, mode: str) -> str:  # pragma: no cover - scaffold
-    """Add a mode (initiator/target) to a port.
+def addAbstractionDefPortMode(abstractionDefPortID: str, mode: str) -> str:
+    """Create a standard logical-port mode (F.7.3.3).
 
-    Section: F.7.3.3.
-
-    This helper creates ``onInitiator`` or ``onTarget`` entries for wire and
-    transactional styles. System entries use dedicated onSystem add
-    functions.
-
-    Args:
-        abstractionDefPortID: Port handle.
-        mode: 'initiator' or 'target'.
-
-    Returns:
-        Handle of the created element (existing one reused if already present).
-
-    Raises:
-        TgiError: If the port handle is invalid or mode unsupported.
+    System mode starts with an empty group because this operation has no group
+    input; complete that group before semantic validation.
     """
-    p = _resolve_port(abstractionDefPortID)
-    if p is None:
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    m = mode.lower()
-    if m not in {"initiator", "target"}:
-        raise TgiError("Unsupported mode (use initiator/target)", TgiFaultCode.INVALID_ARGUMENT)
-    # Determine style
-    if p.transactional is not None:
-        tr = p.transactional
-        if m == "initiator":
-            if tr.on_initiator is not None:
-                return get_handle(tr.on_initiator)
-            tr.on_initiator = AbstractionDefinition.Ports.Port.Transactional.OnInitiator()  # type: ignore[attr-defined]
-            return get_handle(tr.on_initiator)
-        if tr.on_target is not None:
-            return get_handle(tr.on_target)
-        tr.on_target = AbstractionDefinition.Ports.Port.Transactional.OnTarget()  # type: ignore[attr-defined]
-        return get_handle(tr.on_target)
-    if p.wire is not None:
-        w = p.wire
-        from org.accellera.ipxact.v1685_2022.wire import Wire as WireClass
-
-        if isinstance(w, WireClass):
-            if m == "initiator":
-                if w.on_initiator is not None:
-                    return get_handle(w.on_initiator)
-                w.on_initiator = WireClass.OnInitiator()  # type: ignore[attr-defined]
-                return get_handle(w.on_initiator)
-            if w.on_target is not None:
-                return get_handle(w.on_target)
-            w.on_target = WireClass.OnTarget()  # type: ignore[attr-defined]
-            return get_handle(w.on_target)
-    raise TgiError("Port has neither transactional nor wire style", TgiFaultCode.INVALID_ARGUMENT)
+    names = {"onInitiator": "on_initiator", "onTarget": "on_target", "onSystem": "on_system"}
+    if not isinstance(mode, str) or mode not in names:
+        raise TgiError("Invalid logical port mode", TgiFaultCode.INVALID_ARGUMENT)
+    style = port.wire_or_transactional
+    if not isinstance(style, (Wire, AbstractionDefinition.Ports.Port.Transactional)):
+        raise TgiError("Port has no supported style", TgiFaultCode.INVALID_ARGUMENT)
+    attr = names[mode]
+    cls = getattr(type(style), mode[0].upper() + mode[1:])
+    if mode == "onSystem":
+        item = cls(group="")
+        style.on_system.append(item)
+        container = "list"
+    else:
+        item = getattr(style, attr)
+        if item is None:
+            item = cls()
+            setattr(style, attr, item)
+        container = "scalar"
+    register_parent(item, style, (attr,), container)
+    return get_handle(item)
 
 
 def addAbstractionDefPortPacket(
@@ -1380,58 +1373,36 @@ def addAbstractionDefPortPacket(
     return get_handle(packet)
 
 
-def addAbstractionDefPortTransactionalOnSystem(portID: str, group: str) -> str:  # pragma: no cover - scaffold
-    """Add a transactional onSystem element.
-
-    Section: F.7.3.5.
-
-    Args:
-        portID: Transactional port handle.
-        group: Group name.
-
-    Returns:
-        Handle of the created onSystem element.
-
-    Raises:
-        TgiError: If the port is invalid or not transactional.
-    """
-    p = _resolve_port(portID)
-    if p is None:
+def addAbstractionDefPortTransactionalOnSystem(portID: str, group: str) -> str:
+    """Append a grouped transactional system mode with atomic input validation."""
+    port = _resolve_port(portID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    if p.transactional is None:
-        raise TgiError("Port is not transactional", TgiFaultCode.INVALID_ARGUMENT)
-    os = AbstractionDefinition.Ports.Port.Transactional.OnSystem(group=group)
-    p.transactional.on_system.append(os)  # type: ignore[attr-defined]
-    register_parent(os, p.transactional, ("on_system",), "list")
-    return get_handle(os)
+    style = port.wire_or_transactional
+    if not isinstance(style, AbstractionDefinition.Ports.Port.Transactional):
+        raise TgiError("Wrong logical port style", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(group, str) or not group.strip():
+        raise TgiError("Group requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    item = AbstractionDefinition.Ports.Port.Transactional.OnSystem(group=group)
+    style.on_system.append(item)
+    register_parent(item, style, ("on_system",), "list")
+    return get_handle(item)
 
 
-def addAbstractionDefPortWireOnSystem(portID: str, group: str) -> str:  # pragma: no cover - scaffold
-    """Add a wire onSystem element.
-
-    Section: F.7.3.6.
-
-    Args:
-        portID: Wire port handle.
-        group: Group name.
-
-    Returns:
-        Handle of the created onSystem element.
-
-    Raises:
-        TgiError: If the port is invalid or not wire style.
-    """
-    p = _resolve_port(portID)
-    if p is None:
+def addAbstractionDefPortWireOnSystem(portID: str, group: str) -> str:
+    """Append a grouped wire system mode with atomic input validation."""
+    port = _resolve_port(portID)
+    if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    if p.wire is None:
-        raise TgiError("Port is not wire style", TgiFaultCode.INVALID_ARGUMENT)
-    from org.accellera.ipxact.v1685_2022.wire import Wire as WireClass
-
-    os = WireClass.OnSystem(group=group)
-    p.wire.on_system.append(os)  # type: ignore[attr-defined]
-    register_parent(os, p.wire, ("on_system",), "list")
-    return get_handle(os)
+    style = port.wire_or_transactional
+    if not isinstance(style, Wire):
+        raise TgiError("Wrong logical port style", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(group, str) or not group.strip():
+        raise TgiError("Group requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    item = Wire.OnSystem(group=group)
+    style.on_system.append(item)
+    register_parent(item, style, ("on_system",), "list")
+    return get_handle(item)
 
 
 def removeAbstractionDefChoice(choiceID: str) -> bool:  # pragma: no cover - scaffold

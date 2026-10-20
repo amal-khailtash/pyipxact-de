@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement standard logical-port mode names and grouped wire/transactional system modes.
+- Correct six mode getters to use generated style-choice fields and preserve mode identity and XML values.
 - Create logical abstraction ports with generated wire/transactional choice fields and validate inputs before mutation.
 - Restore parsed logical-port parent ownership and verify names, styles, match flags, and selective removal.
 - Use supplied enumeration arrays for abstraction-definition choices and validate bus/abstraction choice inputs atomically.
