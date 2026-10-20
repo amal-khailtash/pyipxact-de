@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Validate logical-port packet creation before mutation and restore parsed packet/field ownership.
+- Add packet-field value handles and preserve width/value expressions, qualifiers, and child identity.
 - Implement standard logical-port mode names and grouped wire/transactional system modes.
 - Correct six mode getters to use generated style-choice fields and preserve mode identity and XML values.
 - Create logical abstraction ports with generated wire/transactional choice fields and validate inputs before mutation.

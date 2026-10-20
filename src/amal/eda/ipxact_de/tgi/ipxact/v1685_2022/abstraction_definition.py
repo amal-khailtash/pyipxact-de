@@ -57,6 +57,7 @@ __all__ = [
     "getPacketFieldQualifierID",
     "getPacketFieldValue",
     "getPacketFieldValueExpression",
+    "getPacketFieldValueID",
     "getPacketFieldWidth",
     "getPacketFieldWidthExpression",
     "getPacketFieldWidthID",
@@ -356,7 +357,7 @@ def getAbstractionDefPortPacketIDs(abstractionDefPortID: str) -> list[str]:
         abstractionDefPortID: Handle to an abstractionDefPort element.
 
     Returns:
-        List of packet handles (empty if none or not a packet style port).
+        List of packet handles in document order (empty if none).
     """
     p = _resolve_port(abstractionDefPortID)
     if p is None:
@@ -364,8 +365,9 @@ def getAbstractionDefPortPacketIDs(abstractionDefPortID: str) -> list[str]:
     pkts = p.packets
     if pkts is None:
         return []
-    # Each packet is an element inside packets.packet
-    return [get_handle(pkt) for pkt in getattr(pkts, "packet", [])]
+    for packet in pkts.packet:
+        register_parent(packet, pkts, ("packet",), "list")
+    return [get_handle(packet) for packet in pkts.packet]
 
 
 def getAbstractionDefPortStyle(abstractionDefPortModeID: str) -> str | None:
@@ -1122,7 +1124,10 @@ def getPacketFieldQualifierID(packetFieldID: str) -> str | None:
     if pf is None:
         raise TgiError("Invalid packetField handle", TgiFaultCode.INVALID_ID)
     qual = getattr(pf, "qualifier", None)
-    return get_handle(qual) if qual is not None else None
+    if qual is None:
+        return None
+    register_parent(qual, pf, ("qualifier",), "single")
+    return get_handle(qual)
 
 
 def getPacketFieldValue(packetFieldID: str) -> int | None:
@@ -1164,6 +1169,17 @@ def getPacketFieldValueExpression(packetFieldID: str) -> str | None:
         raise TgiError("Invalid packetField handle", TgiFaultCode.INVALID_ID)
     val = getattr(pf, "value", None)
     return getattr(val, "value", None) if val is not None else None
+
+
+def getPacketFieldValueID(packetFieldID: str) -> str | None:
+    """Return the optional value element handle (F.7.2.46)."""
+    field = _resolve_packet_field(packetFieldID)
+    if field is None:
+        raise TgiError("Invalid packetField handle", TgiFaultCode.INVALID_ID)
+    if field.value is None:
+        return None
+    register_parent(field.value, field, ("value",), "single")
+    return get_handle(field.value)
 
 
 def getPacketFieldWidth(packetFieldID: str) -> int | None:
@@ -1222,7 +1238,10 @@ def getPacketFieldWidthID(packetFieldID: str) -> str | None:
     if pf is None:
         raise TgiError("Invalid packetField handle", TgiFaultCode.INVALID_ID)
     width = getattr(pf, "width", None)
-    return get_handle(width) if width is not None else None
+    if width is None:
+        return None
+    register_parent(width, pf, ("width",), "single")
+    return get_handle(width)
 
 
 def getPacketPacketFieldIDs(packetID: str) -> list[str]:
@@ -1242,7 +1261,9 @@ def getPacketPacketFieldIDs(packetID: str) -> list[str]:
     pf_container = getattr(pkt, "packet_fields", None)
     if pf_container is None:
         return []
-    return [get_handle(pf) for pf in getattr(pf_container, "packet_field", [])]
+    for field in pf_container.packet_field:
+        register_parent(field, pf_container, ("packet_field",), "list")
+    return [get_handle(field) for field in pf_container.packet_field]
 
 
 # ---------------------------------------------------------------------------
@@ -1355,8 +1376,10 @@ def addAbstractionDefPortPacket(
         UnresolvedUnsignedPositiveIntExpression,
     )
 
-    if p.packets is None:
-        p.packets = Packets(packet=[])  # type: ignore[arg-type]
+    for label, value in (("Packet name", packetName), ("Field name", packetFieldName),
+                         ("Field width expression", packetFieldWidth)):
+        if not isinstance(value, str) or not value.strip():
+            raise TgiError(f"{label} requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     field = PortPacketFieldType(
         name=packetFieldName,
         width=UnresolvedUnsignedPositiveIntExpression(value=packetFieldWidth),  # type: ignore[arg-type]
@@ -1365,6 +1388,8 @@ def addAbstractionDefPortPacket(
         name=packetName,
         packet_fields=PortPacketFieldsType(packet_field=[field]),  # type: ignore[arg-type]
     )
+    if p.packets is None:
+        p.packets = Packets()
     p.packets.packet.append(packet)  # type: ignore[attr-defined]
     register_parent(packet, p.packets, ("packet",), "list")
     # Register field relationship
