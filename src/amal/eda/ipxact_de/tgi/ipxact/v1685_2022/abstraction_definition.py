@@ -643,78 +643,45 @@ def getAbstractionDefPortWireDefaultValueID(abstractionDefPortModeID: str) -> st
 
 
 def getAbstractionDefPortWireModeDirection(abstractionDefPortModeID: str) -> str | None:
-    """Return wire direction.
-
-    Section: F.7.2.24.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Direction enumeration or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    return getattr(getattr(w, "direction", None), "value", None) if w is not None else None
+    """Return the direction restriction on a wire mode element (F.7.2.24)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    direction = mode.direction
+    return direction.value if direction is not None else None
 
 
 def getAbstractionDefPortWireModeMirroredModeConstraintsID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle to mirroredModeConstraints.
-
-    Section: F.7.2.25.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Handle string or ``None`` if absent.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    mmc = getattr(w, "mirrored_mode_constraints", None) if w is not None else None
-    return get_handle(mmc) if mmc is not None else None
+    """Return the mirrored-mode constraints child handle, if defined (F.7.2.25)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    constraints = mode.mirrored_mode_constraints
+    if constraints is None:
+        return None
+    register_parent(constraints, mode, ("mirrored_mode_constraints",), "single")
+    return get_handle(constraints)
 
 
 def getAbstractionDefPortWireModeModeConstraintsID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle to modeConstraints.
-
-    Section: F.7.2.26.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Handle string or ``None`` if not present.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    mc = getattr(w, "mode_constraints", None) if w is not None else None
-    return get_handle(mc) if mc is not None else None
+    """Return the mode constraints child handle, if defined (F.7.2.26)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    constraints = mode.mode_constraints
+    if constraints is None:
+        return None
+    register_parent(constraints, mode, ("mode_constraints",), "single")
+    return get_handle(constraints)
 
 
 def getAbstractionDefPortWireModePresence(abstractionDefPortModeID: str) -> str | None:
-    """Return wire presence enumeration.
-
-    Section: F.7.2.27.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Presence value string or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    presence = getattr(w, "presence", None) if w is not None else None
-    return getattr(presence, "value", None) if presence is not None else None
+    """Return the presence value on a wire mode element (F.7.2.27)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    presence = mode.presence
+    return presence.value.value if presence is not None else None
 
 
 def getAbstractionDefPortWireModeWidth(abstractionDefPortModeID: str) -> int | None:
@@ -742,22 +709,12 @@ def getAbstractionDefPortWireModeWidth(abstractionDefPortModeID: str) -> int | N
 
 
 def getAbstractionDefPortWireModeWidthExpression(abstractionDefPortModeID: str) -> str | None:
-    """Return wire width expression.
-
-    Section: F.7.2.29.
-
-    Args:
-        abstractionDefPortModeID: Handle to a wire port element.
-
-    Returns:
-        Expression string or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    width = getattr(w, "width", None) if w is not None else None
-    return getattr(width, "value", None) if width is not None else None
+    """Return the width expression text on a wire mode element (F.7.2.29)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire mode handle", TgiFaultCode.INVALID_ID)
+    width = mode.width
+    return width.value if width is not None else None
 
 
 def getAbstractionDefPortWireModeWidthID(abstractionDefPortModeID: str) -> str | None:
