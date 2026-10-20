@@ -416,162 +416,78 @@ def getAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str
 
 
 def getAbstractionDefPortTransactionalModeBusWidthExpression(abstractionDefPortModeID: str) -> str | None:
-    """Return transactional busWidth expression.
-
-    Section: F.7.2.11.
-
-    Args:
-        abstractionDefPortModeID: Handle to a transactional port element.
-
-    Returns:
-        Expression string or ``None`` if absent.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    """Return the supplied transactional mode's bus width expression (F.7.2.11)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.bus_width
+    if child is None:
         return None
-    for os in getattr(tr, "on_system", []):
-        bw = getattr(os, "bus_width", None)
-        if bw is not None:
-            return getattr(bw, "value", None)
-    return None
+    return child.value
 
 
 def getAbstractionDefPortTransactionalModeBusWidthID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle to busWidth element.
-
-    Section: F.7.2.12.
-
-    Args:
-        abstractionDefPortModeID: Handle to a transactional port element.
-
-    Returns:
-        Handle string or ``None`` if not present.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    """Return the supplied transactional mode's bus width handle (F.7.2.12)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.bus_width
+    if child is None:
         return None
-    for os in getattr(tr, "on_system", []):
-        bw = getattr(os, "bus_width", None)
-        if bw is not None:
-            return get_handle(bw)
-    return None
+    register_parent(child, mode, ("bus_width",), "single")
+    return get_handle(child)
 
 
 def getAbstractionDefPortTransactionalModeInitiative(abstractionDefPortModeID: str) -> str | None:
-    """Return initiative value across loci.
-
-    Section: F.7.2.13.
-
-    Args:
-        abstractionDefPortModeID: Handle to a transactional port element.
-
-    Returns:
-        Initiative enumeration value or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    """Return the supplied transactional mode's initiative value (F.7.2.13)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.initiative
+    if child is None:
         return None
-    init = getattr(tr.on_initiator, "initiative", None)
-    if init is None:
-        init = getattr(tr.on_target, "initiative", None)
-    if init is None and getattr(tr, "on_system", None):
-        for os in tr.on_system:
-            init = getattr(os, "initiative", None)
-            if init is not None:
-                break
-    return getattr(init, "value", None)
+    return child.value
 
 
 def getAbstractionDefPortTransactionalModeKindID(abstractionDefPortModeID: str) -> str | None:
-    """Return handle to kind element.
-
-    Section: F.7.2.14.
-
-    Args:
-        abstractionDefPortModeID: Handle to a transactional port element.
-
-    Returns:
-        Handle string or ``None`` if absent.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    """Return the supplied transactional mode's kind handle (F.7.2.14)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.kind
+    if child is None:
         return None
-    for candidate in [getattr(tr.on_initiator, "kind", None), getattr(tr.on_target, "kind", None)]:
-        if candidate is not None:
-            return get_handle(candidate)
-    for os in getattr(tr, "on_system", []):
-        kind = getattr(os, "kind", None)
-        if kind is not None:
-            return get_handle(kind)
-    return None
+    register_parent(child, mode, ("kind",), "single")
+    return get_handle(child)
 
 
 def getAbstractionDefPortTransactionalModePresence(abstractionDefPortModeID: str) -> str | None:
-    """Return presence value.
-
-    Section: F.7.2.15.
-
-    Args:
-        abstractionDefPortModeID: Handle to a transactional port element.
-
-    Returns:
-        Presence enumeration value or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    """Return the supplied transactional mode's presence value (F.7.2.15)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.presence
+    if child is None:
         return None
-    for locus in [getattr(tr, "on_initiator", None), getattr(tr, "on_target", None)]:
-        presence = getattr(locus, "presence", None)
-        if presence is not None:
-            return getattr(presence, "value", None)
-    for os in getattr(tr, "on_system", []):
-        presence = getattr(os, "presence", None)
-        if presence is not None:
-            return getattr(presence, "value", None)
-    return None
+    return child.value.value
 
 
 def getAbstractionDefPortTransactionalModeProtocolID(abstractionDefPortModeID: str) -> str | None:
-    """Return protocol handle.
-
-    Section: F.7.2.16.
-
-    Args:
-        abstractionDefPortModeID: Handle to a transactional port element.
-
-    Returns:
-        Handle to protocol element or ``None``.
-    """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
+    """Return the supplied transactional mode's protocol handle (F.7.2.16)."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    child = mode.protocol
+    if child is None:
         return None
-    for locus in [getattr(tr, "on_initiator", None), getattr(tr, "on_target", None)]:
-        proto = getattr(locus, "protocol", None)
-        if proto is not None:
-            return get_handle(proto)
-    for os in getattr(tr, "on_system", []):
-        proto = getattr(os, "protocol", None)
-        if proto is not None:
-            return get_handle(proto)
-    return None
+    register_parent(child, mode, ("protocol",), "single")
+    return get_handle(child)
 
 
 def getAbstractionDefPortTransactionalOnInitiatorID(abstractionDefPortID: str) -> str | None:

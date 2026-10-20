@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Correct transactional mode getters using selective generated mode handles, ownership, and scoped XML verification.
 - Correct seven wire/transactional property setters to edit the supplied mode handle selectively.
 - Validate mode enums, initialize generated protocol types, and preserve property handles during updates.
 - Implement logical mode setters and validated system-group editing using generated mode models.
