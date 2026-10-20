@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.4.2](https://github.com/amal-khailtash/pyipxact-de/compare/v0.4.1...v0.4.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* correct generated-model TGI editing and lifecycle contracts ([#19](https://github.com/amal-khailtash/pyipxact-de/issues/19)) ([c5e48af](https://github.com/amal-khailtash/pyipxact-de/commit/c5e48af79eeb3b385147ff6872a5efc1e41259b0))
+
 ## [0.4.1](https://github.com/amal-khailtash/pyipxact-de/compare/v0.4.0...v0.4.1) (2026-10-20)
 
 
