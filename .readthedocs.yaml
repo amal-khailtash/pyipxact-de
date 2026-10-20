@@ -9,8 +9,8 @@ build:
     post_install:
       - UV_PROJECT_ENVIRONMENT="$READTHEDOCS_VIRTUALENV_PATH" uv sync --locked --all-groups --python "$READTHEDOCS_VIRTUALENV_PATH/bin/python"
     pre_build:
-      - sphinx-apidoc --force --separate --implicit-namespaces --output-dir docs/api/ src/amal/ src/amal/eda/ipxact_de/gui src/amal/eda/ipxact_de/web
-      - sphinx-apidoc --force --separate --implicit-namespaces --output-dir docs/api/ src/org/
+      - sphinx-apidoc --force --maxdepth 1 --separate --implicit-namespaces --output-dir docs/api/ src/amal/ src/amal/eda/ipxact_de/gui src/amal/eda/ipxact_de/web
+      - sphinx-apidoc --force --maxdepth 1 --separate --implicit-namespaces --output-dir docs/api/ src/org/
 sphinx:
   configuration: docs/conf.py
   fail_on_warning: false
