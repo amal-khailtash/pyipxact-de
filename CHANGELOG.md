@@ -22,7 +22,6 @@ This document lists notable changes for each release and follows:
 ### Fixed
 
 - Return structured validation failures for missing and malformed XML documents.
-
 - Identify SPIRIT/IP-XACT documents from the expanded root namespace, supporting
   default and arbitrary prefixes; reject unsupported versions and allow retry
   after failed identification.

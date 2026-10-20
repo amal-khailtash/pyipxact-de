@@ -1,5 +1,5 @@
 Feature implementation status
-==================================
+=============================
 
 ☑ = implemented with focused verification; ☐ = planned or not yet verified.
 Existing source functions alone do not establish completion.
@@ -11,10 +11,10 @@ Update this checklist and the local plan with each implemented set of changes,
 and commit the implementation, tests, checklist, and changelog together.
 
 Data model, semantics, interoperability, and GUI
------------------------------------------------------
+------------------------------------------------
 
 XML document identification
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☑ Identify documents using a default namespace across supported SPIRIT/IP-XACT versions.
 * ☑ Identify documents using arbitrary prefixes rather than fixed ipxact/spirit names.
@@ -23,7 +23,7 @@ XML document identification
 * ☑ Leave identification failures retryable after the source document is corrected.
 
 XML schema validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☑ Return structured validation issues for missing or unreadable XML files.
 * ☑ Return malformed-XML diagnostics with line and column locations.
@@ -32,7 +32,7 @@ XML schema validation
 * ☑ Return structured failures for missing, malformed, or invalid local schemas.
 
 Architecture and shared completion contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Separate versioned generated data models, document/workspace services, semantic analysis, command/mutation services, TGI adapters, and GUI models.
 * ☐ Define document ownership, dirty state, atomic save, save-as, XML encoding, namespace handling, schema location, optional/default values, extension preservation, and recoverable diagnostics.
@@ -45,10 +45,10 @@ Architecture and shared completion contract
 * ☐ Per-item acceptance: minimal and maximal valid documents; each choice arm; malformed/invalid input; round trips; mutation/save/reload; reference failures; relevant Annex B rules; all applicable TGI positive/negative contracts; GUI edits, undo/redo, navigation and diagnostics.
 
 Feature plan by top-level IP-XACT document
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 busDefinition - IEEE 5.2, 5.12-5.13; TGI F.7.17-18
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ VLNV/name metadata; direct connection, addressability, maximum initiators/targets, system group names, extension references and vendor extensions.
 * ☐ Resolve extension chains and compatibility; reject cycles/incompatible modes and cross-reference errors. Apply clock/reset semantics with abstraction definitions.
@@ -56,7 +56,7 @@ busDefinition - IEEE 5.2, 5.12-5.13; TGI F.7.17-18
 * ☐ Tests: base/derived buses, addressable/nonaddressable cases, connection limits, incompatible definitions and unresolved parents.
 
 abstractionDefinition - IEEE 5.3-5.13; TGI F.7.2-3
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Bus type reference, abstraction inheritance, logical ports, matching rules, choices, wire and transactional alternatives, packets and packet fields.
 * ☐ Initiator/target/system modes and mirrored constraints; presence, direction, width, default values, driver requirements, qualifiers, load/drive/timing constraints, transactional initiative/kind/protocol/bus width.
@@ -65,7 +65,7 @@ abstractionDefinition - IEEE 5.3-5.13; TGI F.7.2-3
 * ☐ Tests: all port styles/modes, inherited overrides, packet boundaries and mode-specific compatibility.
 
 component - IEEE 6.1-6.21; TGI component and dependent categories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Identity, descriptions, parameters/choices, external type-definition references, vendor extensions and general component metadata.
 * ☐ Power domains: always-on/configurable values, hierarchy, domain membership, supply/ground relationships and port/field power constraints.
@@ -83,7 +83,7 @@ component - IEEE 6.1-6.21; TGI component and dependent categories
 * ☐ Tests: all component schema choices, constructor-safe builders, nested structures, register boundary/reset/access cases, multiple views, arrays/structured ports, configuration-dependent addressing, external reusable definitions and serialization choice preservation.
 
 design - IEEE 7; TGI F.7.37-38
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Component instances, VLNV references, instance names/display names, configurable element values, power-domain links and vendor metadata.
 * ☐ Interconnections and monitor interconnections; active/hierarchical/monitored/monitor interfaces; exclusions, complex interconnections and abstractor/configuration relationships.
@@ -93,7 +93,7 @@ design - IEEE 7; TGI F.7.37-38
 * ☐ Tests: nested designs, monitors, multichannel connections, tied/sliced ports, duplicate instances, missing references and incompatible connections.
 
 abstractor - IEEE 8; TGI F.7.4-5
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Bus/abstraction interfaces and mode mapping; models/views, wire/transactional/structured physical ports, vectors/types/constraints and generators.
 * ☐ Resolve supported abstraction transitions; validate interface and port correspondence and configured placement.
@@ -101,7 +101,7 @@ abstractor - IEEE 8; TGI F.7.4-5
 * ☐ Tests: both sides of transition, structured and transactional alternatives, incompatible abstractions and configured abstractor instances.
 
 typeDefinitions - IEEE 9; TGI F.7.81-82 and memory/register/access-policy categories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Reusable field access policies, enumerations, fields, registers, register files, address blocks, banks, memory maps and memory remaps; parameters, nested definitions, identifiers/references and extensions.
 * ☐ External definition imports, resolution scope, overrides/configuration, cyclic-reference rejection and effective instance expansion without destroying reusable source definitions.
@@ -110,7 +110,7 @@ typeDefinitions - IEEE 9; TGI F.7.81-82 and memory/register/access-policy catego
 * ☐ These are members of the typeDefinitions document; do not invent independent roots for the commented-out schema choices.
 
 generatorChain - IEEE 10; TGI F.7.51-52 and generator/file-builder categories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Chain identity, selectors, component selectors, generator references/executables, ordering/phases, parameters, choices and vendor extensions.
 * ☐ Generator execution lifecycle, invocation URL resolution/encoding, API negotiation and session linkage; deterministic selection, errors, cancellation and diagnostics.
@@ -118,7 +118,7 @@ generatorChain - IEEE 10; TGI F.7.51-52 and generator/file-builder categories
 * ☐ Tests: selector combinations, order, parameter defaults/fixed values, invocation formatting and failed/cancelled executions using controlled generators.
 
 designConfiguration - IEEE 11; TGI F.7.39-40
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Design reference, view configurations, interconnection configurations, abstractor instances and their references/parameters/extensions.
 * ☐ Resolve active views and hierarchy, configure abstractor placements, validate completeness/consistency without mutating the original design implicitly.
@@ -126,7 +126,7 @@ designConfiguration - IEEE 11; TGI F.7.39-40
 * ☐ Tests: alternative valid configurations, broken design/view references, abstractor mismatches, expression/configuration propagation and round trips.
 
 catalog - IEEE 12; TGI F.7.23-24
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ☐ Entries for all catalog-supported item categories, nested catalogs, VLNV/path pairs, descriptions/extensions and path-relative dependency resolution.
 * ☐ Detect referenced-file identity mismatch, duplicates, cycles, moved/missing files and incomplete packages; inspect version ordering separately from arbitrary version strings.
@@ -134,7 +134,7 @@ catalog - IEEE 12; TGI F.7.23-24
 * ☐ Tests: every entry family, nested/relative paths, stale cache, duplicate VLNV and mismatched file identity.
 
 Cross-cutting IEEE behavior
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Clauses 1-4: interoperability roles and exchange flows; define supported DE capabilities, import/export/package behavior and conformance statements.
 * ☐ Clause 13: calculate bit addresses, bus addresses, indirect-interface addresses, channel modifications and bridge translation with units, overflow/range checks, arrays and configured hierarchy.
@@ -146,7 +146,7 @@ Cross-cutting IEEE behavior
 * ☐ GUI shared tools: expression editor/completion/dependency graph and effective value preview; validation panel with rule IDs and navigation; extension XML editor; identity/name metadata panels; access-handle browser; source XML with synchronized semantic selection.
 
 Complete TGI delivery - Annex F
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ F.1-F.2: SOAP/REST communication modes, generator invocation, URL construction, endpoint resolution, argument encoding and example-derived tests.
 * ☐ F.3: full API contract, administrative commands, standard fault codes, return types, BASE/EXTENDED profiles and support discovery; do not substitute Python convenience semantics for normative returns.
@@ -160,7 +160,7 @@ Complete TGI delivery - Annex F
 * ☐ GUI uses corresponding service/TGI operations where suitable; protocol-only operations belong in session/runner tooling rather than an artificial form widget. Record explicit GUI placement or reason for no direct widget for every row.
 
 Older standards and conversion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Build a feature/version matrix for each top-level root and nested feature: available, changed, deprecated, unsupported editing, preserved-only, convertible and lossy. Select older editable features in future plan updates without shrinking full 2022 scope.
 * ☐ Cover historical initiator/target terminology, optional presence/configuration semantics, port/interface/model changes, register/access/reset representations, hierarchy, type reuse and standard vendor extensions. Derive actual mappings from schemas/stylesheets rather than assuming name substitutions suffice.
@@ -171,7 +171,7 @@ Older standards and conversion
 * ☐ Tests: each actual stylesheet edge, abstraction-specific routes, complete chains, malformed/intermediate failures, legacy feature fixtures, extension preservation, changed semantics and mixed-version repository references. Define older TGI profiles separately if later required.
 
 Future GUI delivery
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * ☐ Audit existing Qt prototypes; choose Qt model/view architecture and documented service boundaries before expanding them.
 * ☐ Workspace shell: repository tree, document tabs, recent/open/save actions, dirty indicators, global search, dependency navigation, properties, diagnostics and source viewer.
@@ -184,10 +184,10 @@ Future GUI delivery
 * ☐ GUI tests exercise each top-level editor and critical nested flows, unsupported older features, conversion, dirty/save behavior, undo/redo and large-workspace responsiveness.
 
 Milestones and dependency order
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Verification and living-plan maintenance
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ Maintain schema, TGI, semantic and version matrices as separate linked evidence; automate completeness checks against their authoritative inputs.
 * ☐ Reconcile extracted declarations with reachable roots, all restrictions/facets/groups/choices and normative prose; inventory additions cannot remain implicitly unowned.
@@ -199,7 +199,7 @@ Verification and living-plan maintenance
 * ☐ Final full-2022 completion requires all nine roots, all reachable schema features, all applicable semantic rules/types/expressions, addressing/visibility, all Annex F operation and ID contracts, required transports and GUI representations to have evidence. Older support claims must match their explicit feature/version matrix.
 
 TGI operation checklist
-----------------------------
+-----------------------
 
 This inventory lists operation names and section identifiers for tracking.
 The local IEEE reference, schemas, and WSDL define their contracts. Duplicate
@@ -209,7 +209,7 @@ Checked operations are covered by ``tests/test_tgi_bus_definition.py``.
 Unmarked operations may have existing implementations that still need audit.
 
 Abstraction definition (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractionDefBusTypeRefByVLNV`` (F.7.2.1)
 * ☐ ``getAbstractionDefChoiceIDs`` (F.7.2.2)
@@ -263,7 +263,7 @@ Abstraction definition (BASE)
 * ☐ ``getPacketPacketFieldIDs`` (F.7.2.50)
 
 Abstraction definition (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAbstractionDefChoice`` (F.7.3.1)
 * ☐ ``addAbstractionDefPort`` (F.7.3.2)
@@ -342,7 +342,7 @@ Abstraction definition (EXTENDED)
 * ☐ ``setPacketFieldWidth`` (F.7.3.75)
 
 Abstractor (BASE)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractorAbstractorGeneratorIDs`` (F.7.4.1)
 * ☐ ``getAbstractorAbstractorInterfaceIDs`` (F.7.4.2)
@@ -357,7 +357,7 @@ Abstractor (BASE)
 * ☐ ``getAbstractorViewIDs`` (F.7.4.11)
 
 Abstractor (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAbstractorAbstractorGenerator`` (F.7.5.1)
 * ☐ ``addAbstractorChoice`` (F.7.5.2)
@@ -383,12 +383,12 @@ Abstractor (EXTENDED)
 * ☐ ``setAbstractorBusType`` (F.7.5.22)
 
 Access Policy (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getFieldAccessPolicyModeRefByID`` (F.7.6.1)
 
 Access handle (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAccessHandleForce`` (F.7.7.1)
 * ☐ ``getAccessHandleIDs`` (F.7.7.2)
@@ -398,7 +398,7 @@ Access handle (BASE)
 * ☐ ``getAccessHandleViewRefIDs`` (F.7.7.6)
 
 Access handle (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAccessHandle`` (F.7.8.1)
 * ☐ ``addAccessHandleIndex`` (F.7.8.2)
@@ -413,7 +413,7 @@ Access handle (EXTENDED)
 * ☐ ``setAccessHandleForce`` (F.7.8.11)
 
 Access policy (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAccessPolicyAccess`` (F.7.9.1)
 * ☐ ``getAccessPolicyModeRefByID`` (F.7.9.2)
@@ -466,7 +466,7 @@ Access policy (BASE)
 * ☐ ``getWriteValueConstraintWriteAsRead`` (F.7.9.49)
 
 Access policy (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAccessRestrictionModeRef`` (F.7.10.1)
 * ☐ ``addAddressBlockAccessPolicy`` (F.7.10.2)
@@ -519,7 +519,7 @@ Access policy (EXTENDED)
 * ☐ ``setWriteValueConstraintWriteAsRead`` (F.7.10.49)
 
 Address space (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAddressSpaceAddressUnitBits`` (F.7.11.1)
 * ☐ ``getAddressSpaceAddressUnitBitsExpression`` (F.7.11.2)
@@ -550,7 +550,7 @@ Address space (BASE)
 * ☐ ``getSegmentRangeID`` (F.7.11.27)
 
 Address space (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAddressSpaceSegment`` (F.7.12.1)
 * ☐ ``addExecutableImageFileSetRef`` (F.7.12.2)
@@ -570,7 +570,7 @@ Address space (EXTENDED)
 * ☐ ``setSegmentRange`` (F.7.12.16)
 
 Array (BASE)
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 * ☐ ``getArrayDimIDs`` (F.7.13.1)
 * ☐ ``getArrayIDs`` (F.7.13.2)
@@ -588,7 +588,7 @@ Array (BASE)
 * ☐ ``getRegisterFieldArrayID`` (F.7.13.14)
 
 Array (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``addArray`` (F.7.14.1)
 * ☐ ``addArrayDim`` (F.7.14.2)
@@ -600,7 +600,7 @@ Array (EXTENDED)
 * ☐ ``setDimIndexVar`` (F.7.14.8)
 
 Assertion (BASE)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``getAssertionAssert`` (F.7.15.1)
 * ☐ ``getAssertionAssertExpression`` (F.7.15.2)
@@ -608,14 +608,14 @@ Assertion (BASE)
 * ☐ ``getAssertionIDs`` (F.7.15.4)
 
 Assertion (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAssertion`` (F.7.16.1)
 * ☐ ``removeAssertion`` (F.7.16.2)
 * ☐ ``setAssertionAssert`` (F.7.16.3)
 
 Bus definition (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getBusDefinitionBroadcast`` (F.7.17.1)
 * ☐ ``getBusDefinitionChoiceIDs`` (F.7.17.2)
@@ -631,7 +631,7 @@ Bus definition (BASE)
 * ☐ ``getBusDefinitionSystemGroupNameIDs`` (F.7.17.12)
 
 Bus definition (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☑ ``addBusDefinitionChoice`` (F.7.18.1)
 * ☑ ``addBusDefinitionSystemGroupName`` (F.7.18.2)
@@ -648,7 +648,7 @@ Bus definition (EXTENDED)
 * ☐ ``setBusDefinitionMaxTargets`` (F.7.18.13)
 
 Bus interface (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractionTypeAbstractionRefByID`` (F.7.19.1)
 * ☐ ``getAbstractionTypeAbstractionRefByVLNV`` (F.7.19.2)
@@ -705,7 +705,7 @@ Bus interface (BASE)
 * ☐ ``getTargetTransparentBridgeIDs`` (F.7.19.53)
 
 Bus interface (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAbstractionTypePortMap`` (F.7.20.1)
 * ☐ ``addAbstractionTypeViewRef`` (F.7.20.2)
@@ -764,7 +764,7 @@ Bus interface (EXTENDED)
 * ☐ ``setTargetMemoryMapRef`` (F.7.20.55)
 
 CPU (BASE)
-~~~~~~~~~~~~~~~
+~~~~~~~~~~
 
 * ☐ ``getCpuAddressUnitBits`` (F.7.21.1)
 * ☐ ``getCpuAddressUnitBitsExpression`` (F.7.21.2)
@@ -781,7 +781,7 @@ CPU (BASE)
 * ☐ ``getCpuWidthID`` (F.7.21.13)
 
 CPU (EXTENDED)
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 * ☐ ``addCpuExecutableImage`` (F.7.22.1)
 * ☐ ``addCpuRegion`` (F.7.22.2)
@@ -796,7 +796,7 @@ CPU (EXTENDED)
 * ☐ ``setRegionRange`` (F.7.22.11)
 
 Catalog (BASE)
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 * ☐ ``getCatalogAbstractionDefIpxactFileIDs`` (F.7.23.1)
 * ☐ ``getCatalogAbstractorsIpxactFileIDs`` (F.7.23.2)
@@ -811,7 +811,7 @@ Catalog (BASE)
 * ☐ ``getIpxactFileVlnvRefByVLNV`` (F.7.23.11)
 
 Catalog (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addCatalogAbstractionDefIpxactFile`` (F.7.24.1)
 * ☐ ``addCatalogAbstractorsIpxactFile`` (F.7.24.2)
@@ -835,21 +835,21 @@ Catalog (EXTENDED)
 * ☐ ``setIpxactFileVlnv`` (F.7.24.20)
 
 Choice (BASE)
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 * ☑ ``getChoiceEnumerationIDs`` (F.7.25.1)
 * ☐ ``getEnumerationValue`` (F.7.25.2)
 * ☑ ``getEnumerationValueExpression`` (F.7.25.3)
 
 Choice (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☑ ``addChoiceEnumeration`` (F.7.26.1)
 * ☑ ``removeChoiceEnumeration`` (F.7.26.2)
 * ☑ ``setEnumerationValue`` (F.7.26.3)
 
 Clearbox (BASE)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 * ☐ ``getClearboxElementClearboxType`` (F.7.27.1)
 * ☐ ``getClearboxElementDriveable`` (F.7.27.2)
@@ -857,7 +857,7 @@ Clearbox (BASE)
 * ☐ ``getClearboxElementRefLocationIDs`` (F.7.27.4)
 
 Clearbox (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addClearboxElementRefLocation`` (F.7.28.1)
 * ☐ ``addLocationSlice`` (F.7.28.2)
@@ -867,7 +867,7 @@ Clearbox (EXTENDED)
 * ☐ ``setClearboxElementDriveable`` (F.7.28.6)
 
 Component (BASE)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``getComponentAddressSpaceIDs`` (F.7.29.1)
 * ☐ ``getComponentBusInterfaceIDs`` (F.7.29.2)
@@ -895,7 +895,7 @@ Component (BASE)
 * ☐ ``getModeName`` (F.7.29.24)
 
 Component (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addComponentAddressSpace`` (F.7.30.1)
 * ☐ ``addComponentChannel`` (F.7.30.2)
@@ -953,7 +953,7 @@ Component (EXTENDED)
 * ☐ ``setModeName`` (F.7.30.54)
 
 Configurable element (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getConfigurableElementIDs`` (F.7.31.1)
 * ☐ ``getConfigurableElementValue`` (F.7.31.2)
@@ -964,7 +964,7 @@ Configurable element (BASE)
 * ☐ ``getUnconfiguredID`` (F.7.31.7)
 
 Configurable element (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addConfigurableElementValue`` (F.7.32.1)
 * ☐ ``addViewConfigurationConfigurableElementValue`` (F.7.32.2)
@@ -974,7 +974,7 @@ Configurable element (EXTENDED)
 * ☐ ``setConfigurableElementValueValue`` (F.7.32.6)
 
 Constraint (BASE)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``getCellSpecificationCellClass`` (F.7.33.1)
 * ☐ ``getCellSpecificationCellFunction`` (F.7.33.2)
@@ -1001,7 +1001,7 @@ Constraint (BASE)
 * ☐ ``getTimingConstraintValue`` (F.7.33.23)
 
 Constraint (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``removeConstraintSetDriveConstraint`` (F.7.34.1)
 * ☐ ``removeConstraintSetLoadConstraint`` (F.7.34.2)
@@ -1022,17 +1022,17 @@ Constraint (EXTENDED)
 * ☐ ``setTimingConstraintValue`` (F.7.34.17)
 
 Constraint Set (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getConstraintSetTimingConstraints`` (F.7.35.1)
 
 Constraint Set (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addConstraintSetTimingConstraint`` (F.7.36.1)
 
 Design (BASE)
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 * ☐ ``getActiveinterfaceExcludePortIDs`` (F.7.37.1)
 * ☐ ``getAdHocConnectionExternalPortReferenceIDs`` (F.7.37.2)
@@ -1069,7 +1069,7 @@ Design (BASE)
 * ☐ ``getPowerDomainLinkInternalPowerDomainRefs`` (F.7.37.33)
 
 Design (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``addActiveInterfaceExcludePort`` (F.7.38.1)
 * ☐ ``addAdHocConnectionExternalPortReference`` (F.7.38.2)
@@ -1110,7 +1110,7 @@ Design (EXTENDED)
 * ☐ ``setPowerDomainLinkExternalPowerDomainRef`` (F.7.38.37)
 
 Design configuration (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractorInstanceAbstractorRefByID`` (F.7.39.1)
 * ☐ ``getAbstractorInstanceAbstractorRefByVLNV`` (F.7.39.2)
@@ -1135,7 +1135,7 @@ Design configuration (BASE)
 * ☐ ``getViewConfigurationViewRefByName`` (F.7.39.21)
 
 Design configuration (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAbstractorInstancesAbstractorInstance`` (F.7.40.1)
 * ☐ ``addAbstractorInstancesInterfaceRef`` (F.7.40.2)
@@ -1162,7 +1162,7 @@ Design configuration (EXTENDED)
 * ☐ ``setViewConfigurationView`` (F.7.40.23)
 
 Driver (BASE)
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 * ☐ ``getClockDriverClockPeriod`` (F.7.41.1)
 * ☐ ``getClockDriverClockPeriodExpression`` (F.7.41.2)
@@ -1210,7 +1210,7 @@ Driver (BASE)
 * ☐ ``getSingleShotDriverSingleShotValueID`` (F.7.41.44)
 
 Driver (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``addDriverSingleShotDriver`` (F.7.42.1)
 * ☐ ``addDriverViewRef`` (F.7.42.2)
@@ -1235,7 +1235,7 @@ Driver (EXTENDED)
 * ☐ ``setSingleShotDriverSingleShotValue`` (F.7.42.21)
 
 Element attribute (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAddressBlockRefAttribute`` (F.7.43.1)
 * ☐ ``getAddressBlockRefAttributeByID`` (F.7.43.2)
@@ -1359,7 +1359,7 @@ Element attribute (BASE)
 * ☐ ``getViewRefAttributeByID`` (F.7.43.120)
 
 Element attribute (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addConstrainedAttribute`` (F.7.44.1)
 * ☐ ``isSetAttribute`` (F.7.44.2)
@@ -1527,7 +1527,7 @@ Element attribute (EXTENDED)
 * ☐ ``setViewRefAttribute`` (F.7.44.164)
 
 File builder (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getBuildCommandCommand`` (F.7.45.1)
 * ☐ ``getBuildCommandCommandExpression`` (F.7.45.2)
@@ -1585,7 +1585,7 @@ File builder (BASE)
 * ☐ ``getLinkerCommandFileNameValue`` (F.7.45.54)
 
 File builder (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addExecutableImageFileBuilderID`` (F.7.46.1)
 * ☐ ``addExecutableImageLinkerCommandFile`` (F.7.46.2)
@@ -1626,7 +1626,7 @@ File builder (EXTENDED)
 * ☐ ``setLinkerCommandFileName`` (F.7.46.37)
 
 File set (BASE)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 * ☐ ``getBuildCommandReplaceDefaultFlagsExpression`` (F.7.47.1)
 * ☐ ``getFileDefineIDs`` (F.7.47.2)
@@ -1673,7 +1673,7 @@ File set (BASE)
 * ☐ ``getSourceFileSourceName`` (F.7.47.43)
 
 File set (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addFileDefine`` (F.7.48.1)
 * ☐ ``addFileDependency`` (F.7.48.2)
@@ -1722,7 +1722,7 @@ File set (EXTENDED)
 * ☐ ``setSourceFileSourceName`` (F.7.48.45)
 
 Generator (BASE)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractorGeneratorGroup`` (F.7.49.1)
 * ☐ ``getAbstractorGeneratorGroupIDs`` (F.7.49.2)
@@ -1740,7 +1740,7 @@ Generator (BASE)
 * ☐ ``getTransportMethodsTransportMethodID`` (F.7.49.14)
 
 Generator (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAbstractorGeneratorGroup`` (F.7.50.1)
 * ☐ ``addComponentGeneratorGroup`` (F.7.50.2)
@@ -1760,7 +1760,7 @@ Generator (EXTENDED)
 * ☐ ``setTransportMethodsTransportMethod`` (F.7.50.16)
 
 Generator chain (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getComponentGeneratorSelectorGroupSelectorID`` (F.7.51.1)
 * ☐ ``getGeneratorChainChainGroupIDs`` (F.7.51.2)
@@ -1776,7 +1776,7 @@ Generator chain (BASE)
 * ☐ ``getGroupSelectorSelectionOperator`` (F.7.51.12)
 
 Generator chain (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addGeneratorChainChainGroup`` (F.7.52.1)
 * ☐ ``addGeneratorChainChoice`` (F.7.52.2)
@@ -1795,7 +1795,7 @@ Generator chain (EXTENDED)
 * ☐ ``setGeneratorChainSelectorGroupSelector`` (F.7.52.15)
 
 Indirect interface (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getIndirectAddressRefAddressBlockRefByName`` (F.7.53.1)
 * ☐ ``getIndirectAddressRefAddressBlockRefID`` (F.7.53.2)
@@ -1845,7 +1845,7 @@ Indirect interface (BASE)
 * ☐ ``getIndirectInterfaceTransparentBridgeIDs`` (F.7.53.46)
 
 Indirect interface (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addIndirectAddressRefBankRef`` (F.7.54.1)
 * ☐ ``addIndirectAddressRefRegisterFileRef`` (F.7.54.2)
@@ -1890,7 +1890,7 @@ Indirect interface (EXTENDED)
 * ☐ ``setIndirectInterfaceMemoryMapRef`` (F.7.54.41)
 
 Instantiation (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractionTypeAbstractionRefID`` (F.7.55.1)
 * ☐ ``getAbstractorInstanceAbstractorRefID`` (F.7.55.2)
@@ -1920,7 +1920,7 @@ Instantiation (BASE)
 * ☐ ``getGeneratorChainSelectorGeneratorChainRefID`` (F.7.55.26)
 
 Instantiation (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addComponentInstantiationClearboxElementRef`` (F.7.56.1)
 * ☐ ``addComponentInstantiationConstraintSetRef`` (F.7.56.2)
@@ -1950,7 +1950,7 @@ Instantiation (EXTENDED)
 * ☐ ``setDesignInstantiationDesignRef`` (F.7.56.26)
 
 Memory map (BASE)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAddressBlockAccessPolicyIDs`` (F.7.57.1)
 * ☐ ``getAddressBlockAddressBlockDefinitionRefByExternalTypeDefID`` (F.7.57.2)
@@ -2027,7 +2027,7 @@ Memory map (BASE)
 * ☐ ``getSubspaceMapSegmentRefByName`` (F.7.57.73)
 
 Memory map (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAccessPolicyModeRef`` (F.7.58.1)
 * ☐ ``addAddressBlockRefIndex`` (F.7.58.2)
@@ -2105,7 +2105,7 @@ Memory map (EXTENDED)
 * ☐ ``setSubSpaceMapBaseAddress`` (F.7.58.74)
 
 Miscellaneous (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getArgumentValue`` (F.7.59.1)
 * ☐ ``getArgumentValueExpression`` (F.7.59.2)
@@ -2129,7 +2129,7 @@ Miscellaneous (BASE)
 * ☐ ``getXML`` (F.7.59.20)
 
 Miscellaneous (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addPartSelectIndex`` (F.7.60.1)
 * ☐ ``end`` (F.7.60.2)
@@ -2152,21 +2152,21 @@ Miscellaneous (EXTENDED)
 * ☐ ``unregisterVLNV`` (F.7.60.19)
 
 Module parameter (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getModuleParameterIDs`` (F.7.61.1)
 * ☐ ``getModuleParameterValue`` (F.7.61.2)
 * ☐ ``getModuleParameterValueExpression`` (F.7.61.3)
 
 Module parameter (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addModuleParameter`` (F.7.62.1)
 * ☐ ``removeModuleParameter`` (F.7.62.2)
 * ☐ ``setModuleParameterValue`` (F.7.62.3)
 
 Name group (BASE)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``getDescription`` (F.7.63.1)
 * ☐ ``getDisplayName`` (F.7.63.2)
@@ -2174,7 +2174,7 @@ Name group (BASE)
 * ☐ ``getShortDescription`` (F.7.63.4)
 
 Name group (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``removeDescription`` (F.7.64.1)
 * ☐ ``removeDisplayName`` (F.7.64.2)
@@ -2186,7 +2186,7 @@ Name group (EXTENDED)
 * ☐ ``setShortDescription`` (F.7.64.8)
 
 Parameter (BASE)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``getModuleParameterDataTypeDefinitionRefByID`` (F.7.65.1)
 * ☐ ``getParameterChoiceRefByName`` (F.7.65.2)
@@ -2198,7 +2198,7 @@ Parameter (BASE)
 * ☐ ``getParameterValueID`` (F.7.65.8)
 
 Parameter (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addParameter`` (F.7.66.1)
 * ☐ ``removeConfigGroupsAttribute`` (F.7.66.2)
@@ -2206,7 +2206,7 @@ Parameter (EXTENDED)
 * ☐ ``setParameterValue`` (F.7.66.4)
 
 Port (BASE)
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
 
 * ☐ ``getAccessPortAccessType`` (F.7.67.1)
 * ☐ ``getDomainTypeDefTypeDefinitionIDs`` (F.7.67.2)
@@ -2323,7 +2323,7 @@ Port (BASE)
 * ☐ ``getWireTypeDefViewRefs`` (F.7.67.113)
 
 Port (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 * ☐ ``addDomainTypeDefTypeDefinition`` (F.7.68.1)
 * ☐ ``addDomainTypeDefViewRef`` (F.7.68.2)
@@ -2485,7 +2485,7 @@ Port (EXTENDED)
 * ☐ ``setWireTypeDefTypeName`` (F.7.68.158)
 
 Port map (BASE)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 * ☐ ``getLogicalPortRange`` (F.7.69.1)
 * ☐ ``getLogicalPortRangeExpression`` (F.7.69.2)
@@ -2501,7 +2501,7 @@ Port map (BASE)
 * ☐ ``getPortMapPhysicalPortID`` (F.7.69.12)
 
 Port map (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addPhysicalPortSubPort`` (F.7.70.1)
 * ☐ ``addPortMapPhysicalPortSubPort`` (F.7.70.2)
@@ -2518,7 +2518,7 @@ Port map (EXTENDED)
 * ☐ ``setSubPortMapPartSelect`` (F.7.70.13)
 
 Power (BASE)
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 * ☐ ``getPortTransactionalPowerConstraintIDs`` (F.7.71.1)
 * ☐ ``getPortWirePowerConstraintIDs`` (F.7.71.2)
@@ -2535,7 +2535,7 @@ Power (BASE)
 * ☐ ``getPowerDomainSubDomainOfRefByID`` (F.7.71.13)
 
 Power (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``addComponentInstancePowerDomainLink`` (F.7.72.1)
 * ☐ ``addComponentPowerDomain`` (F.7.72.2)
@@ -2553,7 +2553,7 @@ Power (EXTENDED)
 * ☐ ``setPowerDomainSubDomainOf`` (F.7.72.14)
 
 Register (BASE)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 * ☐ ``getAliasOfAlternateRegisterRefByName`` (F.7.73.1)
 * ☐ ``getAliasOfAlternateRegisterRefID`` (F.7.73.2)
@@ -2640,7 +2640,7 @@ Register (BASE)
 * ☐ ``getResetValueID`` (F.7.73.83)
 
 Register (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAlternateRegisterField`` (F.7.74.1)
 * ☐ ``addAlternaterRegisterModeRef`` (F.7.74.2)
@@ -2713,7 +2713,7 @@ Register (EXTENDED)
 * ☐ ``setResetValue`` (F.7.74.69)
 
 Register file (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAliasOfRegisterFileRefByNames`` (F.7.75.1)
 * ☐ ``getAliasOfRegisterFileRefIDs`` (F.7.75.2)
@@ -2735,7 +2735,7 @@ Register file (BASE)
 * ☐ ``getRegisterFileTypeIdentifier`` (F.7.75.18)
 
 Register file (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addAliasOfRegisterFileRef`` (F.7.76.1)
 * ☐ ``addRegisterFileDefinitionRegisterFile`` (F.7.76.2)
@@ -2753,7 +2753,7 @@ Register file (EXTENDED)
 * ☐ ``setRegisterFileTypeIdentifier`` (F.7.76.14)
 
 Slice (BASE)
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 * ☐ ``getFieldSliceAddressBlockRefByID`` (F.7.77.1)
 * ☐ ``getFieldSliceAddressBlockRefByName`` (F.7.77.2)
@@ -2795,7 +2795,7 @@ Slice (BASE)
 * ☐ ``getSliceRangeRightID`` (F.7.77.38)
 
 Slice (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 * ☐ ``addFieldSliceBankRef`` (F.7.78.1)
 * ☐ ``addFieldSliceRegisterFileRef`` (F.7.78.2)
@@ -2828,7 +2828,7 @@ Slice (EXTENDED)
 * ☐ ``setSliceRange`` (F.7.78.29)
 
 Top element (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAbstractionDefIDs`` (F.7.79.1)
 * ☐ ``getAbstractorIDs`` (F.7.79.2)
@@ -2844,7 +2844,7 @@ Top element (BASE)
 * ☐ ``getXMLPath`` (F.7.79.12)
 
 Top element (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``createAbstractionDef`` (F.7.80.1)
 * ☐ ``createAbstractor`` (F.7.80.2)
@@ -2859,7 +2859,7 @@ Top element (EXTENDED)
 * ☐ ``setXMLPath`` (F.7.80.11)
 
 Type definitions (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getAddressBlockDefinitionAddressUnitBits`` (F.7.81.1)
 * ☐ ``getAddressBlockDefinitionAddressUnitBitsExpression`` (F.7.81.2)
@@ -2910,7 +2910,7 @@ Type definitions (BASE)
 * ☐ ``getViewLinkViewReferenceID`` (F.7.81.47)
 
 Type definitions (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addComponentExternalTypeDefinitions`` (F.7.82.1)
 * ☐ ``addEnumerationDefinition`` (F.7.82.2)
@@ -2971,7 +2971,7 @@ Type definitions (EXTENDED)
 * ☐ ``setViewLinkViewReference`` (F.7.82.57)
 
 Vector (BASE)
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 * ☐ ``getVectorIDs`` (F.7.83.1)
 * ☐ ``getVectorLeftID`` (F.7.83.2)
@@ -2980,25 +2980,25 @@ Vector (BASE)
 * ☐ ``getVectorRightID`` (F.7.83.5)
 
 Vector (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 * ☐ ``addVector`` (F.7.84.1)
 * ☐ ``removeVector`` (F.7.84.2)
 
 Vendor extensions (BASE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``getVendorExtensions`` (F.7.85.1)
 
 Vendor extensions (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ☐ ``addVendorExtensions`` (F.7.86.1)
 * ☐ ``removeVendorExtensions`` (F.7.86.2)
 * ☐ ``setVendorExtensions`` (F.7.86.3)
 
 View (BASE)
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
 
 * ☐ ``getAbstractorInstanceViewNameRefByID`` (F.7.87.1)
 * ☐ ``getViewComponentInstantiationRefByID`` (F.7.87.2)
@@ -3013,7 +3013,7 @@ View (BASE)
 * ☐ ``getViewRefByName`` (F.7.87.11)
 
 View (EXTENDED)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 * ☐ ``addViewEnvIdentifier`` (F.7.88.1)
 * ☐ ``removeViewComponentInstantiationRef`` (F.7.88.2)

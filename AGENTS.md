@@ -82,6 +82,8 @@ Implement features in sets of 5–10 depending on complexity. After each complet
 commit the changes. Organize both `docs/features.rst` and `.ai/implementation-plan.md` by feature category,
 without batch headings.
 Use ASCII dashes and no blank lines between consecutive bullets in `docs/features.rst`.
+Match RST heading underline lengths to their titles.
+Do not add blank lines between consecutive bullet items in `CHANGELOG.md`.
 Ask the user to continue before starting the next set. Keep all planned items visible
 and tick only features supported by scoped verification.
 
