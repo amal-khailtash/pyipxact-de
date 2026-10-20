@@ -18,7 +18,7 @@
 IP-XACT 1685-2009/2014/2022, enabling parsing, validation, transformation, and programmatic manipulation of IP-XACT
 artifacts (components, buses, designs, memory maps).
 
-This project began as Amal Khailtash's idea and was initially hand-coded. Later development adopted AI-assisted "vibe
+This project began as my idea and was initially hand-coded. Later development adopted AI-assisted "vibe
 coding" to complete features faster.
 
 Key features:
