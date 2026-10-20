@@ -89,3 +89,9 @@ and tick only features supported by scoped verification.
 
 Implement the full IP-XACT feature plan, not only TGI operations. Track core document/model semantics, validation,
 configuration, addressing, older-version conversion, and GUI work independently from TGI coverage.
+
+## Pull requests and releases
+
+This repository uses feature/release branches, pull requests, and merges. Do not push feature commits directly
+to `main`. Prepare version and changelog updates on a release branch, validate and merge the PR, then run
+`.github/workflows/publish.yml` on merged `main` to create the GitHub release/tag and publish to PyPI.

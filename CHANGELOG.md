@@ -7,7 +7,14 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-19
+
 ### Added
+
+- Add structured XML validation, offline local schema support, and detailed
+  diagnostics for XML and schema failures.
+- Add source-preserving choice enumeration operations and prefix-independent
+  document identification across supported SPIRIT/IP-XACT versions.
 
 - Add explicit offline schema validation with local Accellera schemas and detailed
   XSD diagnostics, including source locations and structured schema-load failures.
@@ -33,6 +40,11 @@ This document lists notable changes for each release and follows:
   capability values without changing documents.
 - Align bus-definition extends and choice inputs with Annex F; preserve choice enumerations and correct
   choice/system-group ownership during removal.
+
+### Changed
+
+- Regenerate Accellera bindings with keyword-only models and required fields.
+- Require Python 3.14 and refresh locked dependencies and CI setup.
 
 ## [0.2.0] - 2025-09-01
 
@@ -82,7 +94,8 @@ This document lists notable changes for each release and follows:
 - Initial commit and Accellera schemas submodule.
 - Generated bindings snapshot.
 
-[Unreleased]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/amal-khailtash/pyipxact-de/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/amal-khailtash/pyipxact-de/releases/tag/v0.1.0
 [0.0.0]: https://github.com/amal-khailtash/pyipxact-de/tree/b55e147
