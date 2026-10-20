@@ -121,13 +121,22 @@ html_theme_options = {
     'style_external_links': False,
     'style_nav_header_background': '#2980B9',
     # Toc options
-    # Expand the current branch rather than rendering every API member on each page.
-    'collapse_navigation': True,
+    # Keep navigation expanded so deep API pages don't cause the sidebar to disappear
+    'collapse_navigation': False,
     'sticky_navigation': True,
-    # Keep package and module navigation available for the current branch.
-    'navigation_depth': 1,
+    # Show deeper levels so package -> module -> class hierarchies remain in the sidebar
+    'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': True,
+    'titles_only': False,
+}
+
+# Always render a global ToC in the left sidebar so navigation doesn't disappear
+html_sidebars = {
+    "**": [
+        "globaltoc.html",
+        "relations.html",
+        "searchbox.html",
+    ]
 }
 
 html_context = {
@@ -210,3 +219,15 @@ _optional_modules: list[str] = [
     "uvicorn",
 ]
 autodoc_mock_imports: list[str] = _compute_autodoc_mock_imports(_optional_modules)
+
+def _cache_python_reference_lookups(app, env):
+    """Cache repeated Python-domain searches after the object inventory is complete."""
+    from functools import lru_cache
+
+    domain = env.domains["py"]
+    domain.find_obj = lru_cache(maxsize=16384)(domain.find_obj)
+
+
+def setup(app):
+    app.connect("env-updated", _cache_python_reference_lookups)
+
