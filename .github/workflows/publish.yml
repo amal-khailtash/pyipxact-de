@@ -47,6 +47,21 @@ jobs:
           git -c safe.directory="$PWD" show-ref --verify "refs/tags/$RELEASE_TAG"
           git -c safe.directory="$PWD" merge-base --is-ancestor HEAD origin/main
           uv run --no-project python -c 'import os, tomllib; from pathlib import Path; version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_TAG"] == "v" + version, "Release tag must match pyproject.toml version"'
+      - uses: actions/download-artifact@v7
+        with:
+          name: ci-distributions
+          path: dist/
+      # Test as a wheel consumer, without the manylinux compiler toolset's
+      # headers and runtime paths affecting Cling's runtime C++ compilation.
+      - name: Install and test bundled wheel
+        if: github.event.repository.name == 'pysystemc'
+        run: |
+          wheel=$(realpath dist/*.whl)
+          check=$(realpath tools/check_wheel.py)
+          examples_check=$(realpath tools/check_installed_examples.py)
+          cd /tmp
+          uv run --no-project --with "$wheel" python -c "import subprocess, sys; subprocess.run([sys.executable, sys.argv[1]], check=True, timeout=120)" "$check"
+          uv run --no-project --with "$wheel" python "$examples_check"
   publish:
     needs: verify
     runs-on: ubuntu-latest
@@ -76,7 +91,7 @@ jobs:
       - name: Synchronize, activate, and build released documentation
         env:
           RTD_TOKEN: ${{ secrets.READTHEDOCS_TOKEN }}
-          RTD_PROJECT: pyipxact-de
+          RTD_PROJECT: ${{ github.event.repository.name }}
           RTD_VERSION: ${{ inputs.tag }}
         run: |
           python - <<'PYTHON'
