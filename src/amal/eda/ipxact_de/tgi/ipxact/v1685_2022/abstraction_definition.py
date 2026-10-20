@@ -4,9 +4,11 @@
 Provides traversal of ports, parameters, choices and basic metadata getters
 for :class:`AbstractionDefinition` objects.
 """
+from collections.abc import Sequence
+
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent, detach_child_by_handle
 from org.accellera.ipxact.v1685_2022.wire import Wire
-from org.accellera.ipxact.v1685_2022 import AbstractionDefinition
+from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, Choices
 
 __all__ = [
     # BASE (F.7.2)
@@ -243,7 +245,9 @@ def getAbstractionDefChoiceIDs(abstractionDefinitionID: str) -> list[str]:
         raise TgiError("Invalid abstraction definition handle", TgiFaultCode.INVALID_ID)
     if ad.choices is None:
         return []
-    return [get_handle(c) for c in getattr(ad.choices, "choice", [])]
+    for choice in ad.choices.choice:
+        register_parent(choice, ad, ("choices", "choice"), "list")
+    return [get_handle(choice) for choice in ad.choices.choice]
 
 
 def getAbstractionDefExtendsRefByVLNV(
@@ -1227,37 +1231,19 @@ def getPacketPacketFieldIDs(packetID: str) -> list[str]:
 # EXTENDED
 # ---------------------------------------------------------------------------
 
-def addAbstractionDefChoice(abstractionDefinitionID: str, name: str) -> str:  # pragma: no cover - scaffold
-    """Add a ``choice`` element.
+def addAbstractionDefChoice(abstractionDefinitionID: str, name: str, enumerations: Sequence[str]) -> str:
+    """Add the named choice and its supplied enumeration expressions (F.7.3.1)."""
+    from .choice import _validated_choice
 
-    Section: F.7.3.1.
-
-    A minimal enumeration entry is created automatically using ``name`` as the
-    enumeration value to satisfy schema requirements.
-
-    Args:
-        abstractionDefinitionID: Handle of the parent abstractionDefinition.
-        name: Choice name.
-
-    Returns:
-        Handle of the created ``choice`` element.
-
-    Raises:
-        TgiError: If the abstractionDefinition handle is invalid.
-    """
     ad = _resolve(abstractionDefinitionID)
     if ad is None:
         raise TgiError("Invalid abstraction definition handle", TgiFaultCode.INVALID_ID)
-    from org.accellera.ipxact.v1685_2022.choices import Choices  # local import
-
+    choice = _validated_choice(name, enumerations)
     if ad.choices is None:
-        ad.choices = Choices(choice=[])  # type: ignore[arg-type]
-    # Build required enumeration element
-    enum = Choices.Choice.Enumeration(value=name)
-    ch = Choices.Choice(name=name, enumeration=[enum])  # type: ignore[arg-type]
-    ad.choices.choice.append(ch)  # type: ignore[attr-defined]
-    register_parent(ch, ad.choices, ("choice",), "list")
-    return get_handle(ch)
+        ad.choices = Choices()
+    ad.choices.choice.append(choice)
+    register_parent(choice, ad, ("choices", "choice"), "list")
+    return get_handle(choice)
 
 
 def addAbstractionDefPort(

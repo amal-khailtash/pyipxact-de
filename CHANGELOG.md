@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Use supplied enumeration arrays for abstraction-definition choices and validate bus/abstraction choice inputs atomically.
+- Restore choice parent ownership during root traversal so parsed choices can be removed reliably.
 - Implement interface, struct, and union abstractor ports using generated structured choice models.
 - Preserve required sub-port names, structured type names, direction values, and parent identity in XML round trips.
 - Implement abstractor wire and transactional ports using generated choice fields and validated schema values.
