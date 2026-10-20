@@ -8,6 +8,8 @@ for semantic violations as per the general TGI error model.
 # ruff: noqa: I001
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
     AbstractorBusInterfaceType,
@@ -17,6 +19,7 @@ from org.accellera.ipxact.v1685_2022 import (
     Choices,
     FileSet,
     FileSets,
+    IpxactUri,
 )
 from org.accellera.ipxact.v1685_2022.abstractor_type import AbstractorType
 from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
@@ -241,29 +244,40 @@ def addAbstractorAbstractorGenerator(abstractorID: str, name: str, generatorExec
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Generator name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if not isinstance(generatorExecutable, str) or not generatorExecutable.strip():
+        raise TgiError("Generator executable requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    gen = AbstractorGenerator(name=name, generator_exe=IpxactUri(value=generatorExecutable))
     if a.abstractor_generators is None:
         a.abstractor_generators = AbstractorGenerators()
-    gen = AbstractorGenerator()
-    gen.name = name
-    gen.generator_executable = generatorExecutable  # type: ignore[attr-defined]
-    a.abstractor_generators.abstractor_generator.append(gen)  # type: ignore[attr-defined]
-    register_parent(gen, a, ("abstractor_generators",), "list")
+    a.abstractor_generators.abstractor_generator.append(gen)
+    register_parent(gen, a, ("abstractor_generators", "abstractor_generator"), "list")
     return get_handle(gen)
 
 
-def addAbstractorChoice(abstractorID: str, name: str) -> str:
-    """Add a ``choice`` element with the given name (no enumerations yet).
+def addAbstractorChoice(abstractorID: str, name: str, enumerations: Sequence[str]) -> str:
+    """Add a named choice with its enumeration expressions (F.7.5.2).
 
-    Section: F.7.5.2.
+    Invalid inputs leave the choices collection unchanged.
     """
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("Choice name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if isinstance(enumerations, (str, bytes)) or not isinstance(enumerations, Sequence):
+        raise TgiError("Enumerations require a sequence of strings", TgiFaultCode.INVALID_ARGUMENT)
+    values = list(enumerations)
+    if not values or any(not isinstance(value, str) or not value.strip() for value in values):
+        raise TgiError("Enumerations require nonempty expressions", TgiFaultCode.INVALID_ARGUMENT)
+    ch = Choices.Choice(name=name, enumeration=[Choices.Choice.Enumeration(value=value) for value in values])
     if a.choices is None:
         a.choices = Choices()
-    ch = Choices.Choice(name=name)
-    a.choices.choice.append(ch)  # type: ignore[attr-defined]
-    register_parent(ch, a, ("choices",), "list")
+    a.choices.choice.append(ch)
+    register_parent(ch, a, ("choices", "choice"), "list")
+    for enumeration in ch.enumeration:
+        register_parent(enumeration, ch, ("enumeration",), "list")
     return get_handle(ch)
 
 
@@ -516,7 +530,7 @@ def removeAbstractorAbstractorGenerator(abstractorGeneratorID: str) -> bool:
 def removeAbstractorChoice(choiceID: str) -> bool:
     """Remove a choice element.
 
-    Section: F.7.5.13.
+    Section: F.7.5.14.
     """
     return detach_child_by_handle(choiceID)
 

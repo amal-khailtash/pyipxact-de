@@ -17,6 +17,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Initialize abstractor generators with generated URI values and choices with standard enumeration arrays.
+- Validate generator/choice inputs before mutation and repair parent paths for selective removal.
 - Use standard interface handles for abstractor abstraction-type creation and traversal.
 - Validate abstraction references and component-instantiation names before mutation.
 - Repair abstraction-type and component-instantiation parent paths for removal and verify XML round trips.
