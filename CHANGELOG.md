@@ -10,6 +10,9 @@ This document lists notable changes for each release and follows:
 ### Fixed
 
 - Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
+- Implement standard abstraction-definition and abstractor creation contracts with generated models.
+- Correct abstraction port-style traversal for generated wire/transactional choice fields.
+- Verify related bus references, interface/port traversal, mode handles, input faults, and XML round trips.
 
 ## [0.4.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.1...v0.4.0) (2026-10-20)
 

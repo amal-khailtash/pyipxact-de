@@ -22,6 +22,10 @@ from typing import Any
 from org.accellera.ipxact.v1685_2022 import (
     AbstractionDefinition,
     Abstractor,
+    AbstractorBusInterfaceType,
+    AbstractorModeType,
+    LibraryRefType,
+    Wire,
     BusDefinition,
     Catalog,
     Component,
@@ -342,32 +346,76 @@ def getXMLPath(elementID: str) -> str | None:  # F.7.79.12
 # EXTENDED (F.7.80) creation & edit
 # ---------------------------------------------------------------------------
 
-def createAbstractionDef(topElementID: str, name: str) -> str:  # F.7.80.1
-    """Create an Abstraction Definition (EXTENDED).
+def _required_text(value: str, label: str) -> None:
+    """Reject missing or non-string names before registering a root."""
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError(f"{label} requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
 
-    Raises:
-        TgiError: If the top element handle is invalid.
+
+def _bus_reference(vlnv: Sequence[str]) -> LibraryRefType:
+    """Validate a referenced bus VLNV without requiring repository resolution."""
+    parts = vlnv_to_tuple(vlnv)
+    if not all(isinstance(part, str) and part.strip() for part in parts):
+        raise TgiError("Bus VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    return LibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+
+
+def createAbstractionDef(
+    abstractionDefVLNV: Sequence[str], busDefVLNV: Sequence[str], logicalName: str, type: str
+) -> str | None:
+    """Create an abstraction with its initial wire or transactional port (F.7.80.1).
+
+    Invalid inputs raise INVALID_ARGUMENT; duplicate root VLNVs return None.
+    The bus reference need not already exist in the registry.
     """
-    top = _resolve_top(topElementID)
-    if top is None:
-        raise TgiError("Invalid top element handle", TgiFaultCode.INVALID_ID)
-    coll = _ensure_collection(top, "abstraction_definitions")
-    obj = _new_or_ns(AbstractionDefinition, name=name)
-    coll.append(obj)
-    register_parent(obj, top, ("abstraction_definitions",), "list")
-    return get_handle(obj)
+    _required_text(logicalName, "Logical port name")
+    if type not in ("wire", "transactional"):
+        raise TgiError("Port style must be wire or transactional", TgiFaultCode.INVALID_ARGUMENT)
+    bus = _bus_reference(busDefVLNV)
+    port = AbstractionDefinition.Ports.Port(
+        logical_name=logicalName,
+        wire_or_transactional=Wire() if type == "wire" else AbstractionDefinition.Ports.Port.Transactional(),
+    )
+    handle = _create_registered_root(
+        AbstractionDefinition, abstractionDefVLNV, bus_type=bus, ports=AbstractionDefinition.Ports(port=[port])
+    )
+    if handle is not None:
+        register_parent(port, resolve_handle(handle), ("ports", "port"), "list")
+    return handle
 
 
-def createAbstractor(topElementID: str, name: str) -> str:  # F.7.80.2
-    """Create an Abstractor (EXTENDED)."""
-    top = _resolve_top(topElementID)
-    if top is None:
-        raise TgiError("Invalid top element handle", TgiFaultCode.INVALID_ID)
-    coll = _ensure_collection(top, "abstractors")
-    obj = _new_or_ns(Abstractor, name=name)
-    coll.append(obj)
-    register_parent(obj, top, ("abstractors",), "list")
-    return get_handle(obj)
+def createAbstractor(
+    vlnv: Sequence[str], mode: str, busDefVLNV: Sequence[str],
+    firstBusInterfaceName: str, secondBusInterfaceName: str,
+) -> str | None:
+    """Create an abstractor with its mode, bus reference, and two interfaces (F.7.80.2).
+
+    Invalid inputs raise INVALID_ARGUMENT; duplicate root VLNVs return None.
+    System mode is initialized without a group because this operation has no
+    group input; callers must supply it before semantic validation.
+    """
+    try:
+        mode_value = AbstractorModeType(mode)
+    except (ValueError, TypeError):
+        raise TgiError("Invalid abstractor mode", TgiFaultCode.INVALID_ARGUMENT) from None
+    _required_text(firstBusInterfaceName, "First interface name")
+    _required_text(secondBusInterfaceName, "Second interface name")
+    if firstBusInterfaceName == secondBusInterfaceName:
+        raise TgiError("Abstractor interface names must differ", TgiFaultCode.INVALID_ARGUMENT)
+    bus = _bus_reference(busDefVLNV)
+    interfaces = [AbstractorBusInterfaceType(name=firstBusInterfaceName),
+                  AbstractorBusInterfaceType(name=secondBusInterfaceName)]
+    mode_object = Abstractor.AbstractorMode(value=mode_value)
+    handle = _create_registered_root(
+        Abstractor, vlnv, abstractor_mode=mode_object, bus_type=bus,
+        abstractor_interfaces=Abstractor.AbstractorInterfaces(abstractor_interface=interfaces),
+    )
+    if handle is not None:
+        root = resolve_handle(handle)
+        register_parent(mode_object, root, ("abstractor_mode",), "scalar")
+        for interface in interfaces:
+            register_parent(interface, root, ("abstractor_interfaces", "abstractor_interface"), "list")
+    return handle
 
 
 def createBusDefinition(vlnv: Sequence[str], directConnection: bool, isAddressable: bool) -> str | None:
