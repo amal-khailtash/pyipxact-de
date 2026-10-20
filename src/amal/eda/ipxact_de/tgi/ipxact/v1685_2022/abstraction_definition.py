@@ -1511,94 +1511,65 @@ def _ensure_wire(portID: str):
     return p.wire
 
 
-def removeAbstractionDefPortWireModeDirection(portID: str) -> bool:
-    """Remove wire mode direction.
-
-    Section: F.7.3.22.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if direction removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "direction", None) is not None:
-        w.direction = None  # type: ignore[attr-defined]
-        return True
-    return False
+def removeAbstractionDefPortWireModeDirection(abstractionDefPortModeID: str) -> bool:
+    """Remove direction from one wire mode locus (F.7.3.24)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        return False
+    if mode.direction is None:
+        return False
+    mode.direction = None
+    return True
 
 
-def removeAbstractionDefPortWireModeMirroredModeConstraints(portID: str) -> bool:
-    """Remove mirroredModeConstraints.
-
-    Section: F.7.3.23.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if element removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "mirrored_mode_constraints", None) is not None:
-        w.mirrored_mode_constraints = None  # type: ignore[attr-defined]
-        return True
-    return False
+def removeAbstractionDefPortWireModeMirroredModeConstraints(
+    abstractionDefPortModeID: str,
+) -> bool:
+    """Remove mirroredModeConstraints from one wire mode locus (F.7.3.25)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        return False
+    child = mode.mirrored_mode_constraints
+    if child is None:
+        return False
+    register_parent(child, mode, ("mirrored_mode_constraints",), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
-def removeAbstractionDefPortWireModeModeConstraints(portID: str) -> bool:
-    """Remove modeConstraints.
-
-    Section: F.7.3.24.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if element removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "mode_constraints", None) is not None:
-        w.mode_constraints = None  # type: ignore[attr-defined]
-        return True
-    return False
+def removeAbstractionDefPortWireModeModeConstraints(abstractionDefPortModeID: str) -> bool:
+    """Remove modeConstraints from one wire mode locus (F.7.3.26)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        return False
+    child = mode.mode_constraints
+    if child is None:
+        return False
+    register_parent(child, mode, ("mode_constraints",), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
-def removeAbstractionDefPortWireModePresence(portID: str) -> bool:
-    """Remove wire mode presence.
-
-    Section: F.7.3.25.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if presence removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "presence", None) is not None:
-        w.presence = None  # type: ignore[attr-defined]
-        return True
-    return False
+def removeAbstractionDefPortWireModePresence(abstractionDefPortModeID: str) -> bool:
+    """Remove presence from one wire mode locus (F.7.3.27)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        return False
+    child = mode.presence
+    if child is None:
+        return False
+    register_parent(child, mode, ("presence",), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
-def removeAbstractionDefPortWireModeWidth(portID: str) -> bool:
-    """Remove wire mode width.
-
-    Section: F.7.3.26.
-
-    Args:
-        portID: Wire port handle.
-
-    Returns:
-        True if width removed.
-    """
-    w = _ensure_wire(portID)
-    if getattr(w, "width", None) is not None:
-        w.width = None  # type: ignore[attr-defined]
-        return True
-    return False
+def removeAbstractionDefPortWireModeWidth(abstractionDefPortModeID: str) -> bool:
+    """Remove width from one wire mode locus (F.7.3.28)."""
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        return False
+    child = mode.width
+    if child is None:
+        return False
+    register_parent(child, mode, ("width",), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
 def removeAbstractionDefPortWireOnInitiator(portID: str) -> bool:
