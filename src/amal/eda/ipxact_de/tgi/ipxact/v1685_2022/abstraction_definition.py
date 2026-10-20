@@ -1393,124 +1393,72 @@ def setAbstractionDefExtends(
     return True
 
 
-def removeAbstractionDefPortTransactionalModeBusWidth(portID: str) -> bool:
-    """Remove transactional mode busWidth.
-
-    Section: F.7.3.14.
-
-    Args:
-        portID: Handle of a transactional port.
-
-    Returns:
-        True if at least one busWidth element was removed, else False.
-    """
-    tr = _ensure_transactional(portID)
-    removed = False
-    for os in getattr(tr, "on_system", []):
-        if getattr(os, "bus_width", None) is not None:
-            os.bus_width = None  # type: ignore[attr-defined]
-            removed = True
-    return removed
+def removeAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str) -> bool:
+    """Remove busWidth from one transactional mode locus (F.7.3.14)."""
+    transactional = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (transactional.OnInitiator, transactional.OnTarget, transactional.OnSystem)):
+        return False
+    child = mode.bus_width
+    if child is None:
+        return False
+    child_handle = get_handle(child)
+    register_parent(child, mode, ("bus_width",), "single")
+    return detach_child_by_handle(child_handle)
 
 
-def removeAbstractionDefPortTransactionalModeInitiative(portID: str) -> bool:
-    """Remove transactional mode initiative across loci.
-
-    Section: F.7.3.15.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if any initiative element cleared.
-    """
-    tr = _ensure_transactional(portID)
-    removed = False
-    for locus_name in ["on_initiator", "on_target"]:
-        locus = getattr(tr, locus_name, None)
-        if locus is not None and getattr(locus, "initiative", None) is not None:
-            locus.initiative = None  # type: ignore[attr-defined]
-            removed = True
-    for os in getattr(tr, "on_system", []):
-        if getattr(os, "initiative", None) is not None:
-            os.initiative = None  # type: ignore[attr-defined]
-            removed = True
-    return removed
+def removeAbstractionDefPortTransactionalModeInitiative(abstractionDefPortModeID: str) -> bool:
+    """Remove initiative from one transactional mode locus (F.7.3.15)."""
+    transactional = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (transactional.OnInitiator, transactional.OnTarget, transactional.OnSystem)):
+        return False
+    if mode.initiative is None:
+        return False
+    mode.initiative = None
+    return True
 
 
-def removeAbstractionDefPortTransactionalModeKind(portID: str) -> bool:
-    """Remove transactional mode kind across loci.
-
-    Section: F.7.3.16.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if any kind element cleared.
-    """
-    tr = _ensure_transactional(portID)
-    removed = False
-    for locus_name in ["on_initiator", "on_target"]:
-        locus = getattr(tr, locus_name, None)
-        if locus is not None and getattr(locus, "kind", None) is not None:
-            locus.kind = None  # type: ignore[attr-defined]
-            removed = True
-    for os in getattr(tr, "on_system", []):
-        if getattr(os, "kind", None) is not None:
-            os.kind = None  # type: ignore[attr-defined]
-            removed = True
-    return removed
+def removeAbstractionDefPortTransactionalModeKind(abstractionDefPortModeID: str) -> bool:
+    """Remove kind from one transactional mode locus (F.7.3.16)."""
+    transactional = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (transactional.OnInitiator, transactional.OnTarget, transactional.OnSystem)):
+        return False
+    child = mode.kind
+    if child is None:
+        return False
+    child_handle = get_handle(child)
+    register_parent(child, mode, ("kind",), "single")
+    return detach_child_by_handle(child_handle)
 
 
-def removeAbstractionDefPortTransactionalModePresence(portID: str) -> bool:
-    """Remove transactional mode presence across loci.
-
-    Section: F.7.3.17.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if any presence element cleared.
-    """
-    tr = _ensure_transactional(portID)
-    removed = False
-    for locus_name in ["on_initiator", "on_target"]:
-        locus = getattr(tr, locus_name, None)
-        if locus is not None and getattr(locus, "presence", None) is not None:
-            locus.presence = None  # type: ignore[attr-defined]
-            removed = True
-    for os in getattr(tr, "on_system", []):
-        if getattr(os, "presence", None) is not None:
-            os.presence = None  # type: ignore[attr-defined]
-            removed = True
-    return removed
+def removeAbstractionDefPortTransactionalModePresence(abstractionDefPortModeID: str) -> bool:
+    """Remove presence from one transactional mode locus (F.7.3.17)."""
+    transactional = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (transactional.OnInitiator, transactional.OnTarget, transactional.OnSystem)):
+        return False
+    child = mode.presence
+    if child is None:
+        return False
+    child_handle = get_handle(child)
+    register_parent(child, mode, ("presence",), "single")
+    return detach_child_by_handle(child_handle)
 
 
-def removeAbstractionDefPortTransactionalModeProtocol(portID: str) -> bool:
-    """Remove transactional mode protocol across loci.
-
-    Section: F.7.3.18.
-
-    Args:
-        portID: Transactional port handle.
-
-    Returns:
-        True if any protocol element cleared.
-    """
-    tr = _ensure_transactional(portID)
-    removed = False
-    for locus_name in ["on_initiator", "on_target"]:
-        locus = getattr(tr, locus_name, None)
-        if locus is not None and getattr(locus, "protocol", None) is not None:
-            locus.protocol = None  # type: ignore[attr-defined]
-            removed = True
-    for os in getattr(tr, "on_system", []):
-        if getattr(os, "protocol", None) is not None:
-            os.protocol = None  # type: ignore[attr-defined]
-            removed = True
-    return removed
+def removeAbstractionDefPortTransactionalModeProtocol(abstractionDefPortModeID: str) -> bool:
+    """Remove protocol from one transactional mode locus (F.7.3.18)."""
+    transactional = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (transactional.OnInitiator, transactional.OnTarget, transactional.OnSystem)):
+        return False
+    child = mode.protocol
+    if child is None:
+        return False
+    child_handle = get_handle(child)
+    register_parent(child, mode, ("protocol",), "single")
+    return detach_child_by_handle(child_handle)
 
 
 def removeAbstractionDefPortTransactionalOnInitiator(portID: str) -> bool:
