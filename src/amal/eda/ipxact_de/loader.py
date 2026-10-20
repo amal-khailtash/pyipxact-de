@@ -13,6 +13,7 @@ Design notes:
 - Persistence: we recompute the full registry on each invocation based on
   the current filesystem view, clearing the registry first to reflect
   additions/removals.
+- Search precedence: explicit paths precede environment paths; first duplicate VLNV wins with a warning.
 - VLNV validation: for catalog files we traverse ipxact:ipxactFile entries
   and verify the referenced file's VLNV matches the vlnv attributes; we log
   a warning on mismatch.
@@ -167,7 +168,7 @@ def _iter_xml_files(paths: Iterable[Path]) -> Iterable[Path]:
     """
     for p in paths:
         if p.is_dir():
-            yield from p.rglob("*.xml")
+            yield from sorted(child for child in p.rglob("*") if child.is_file() and child.suffix.lower() == ".xml")
         elif p.is_file() and p.suffix.lower() == ".xml":
             yield p
 
@@ -179,7 +180,7 @@ def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
     which carry vendor/library/name/version children in the same namespace.
     Returns None if not all parts are present.
     """
-    ns = root.nsmap.get("ipxact") or root.nsmap.get("spirit")
+    ns = etree.QName(root).namespace
     if not ns:
         return None
     def _t(tag: str) -> str:
@@ -202,7 +203,7 @@ def _validate_catalog_ipxact_files(doc: XmlDocument, base_dir: Path) -> None:
     if doc.tree is None:
         return
     root = doc.tree.getroot()
-    ns = root.nsmap.get("ipxact")
+    ns = etree.QName(root).namespace
     if not ns:
         return
     q_ipxactFile = f".//{{{ns}}}ipxactFile"
@@ -290,9 +291,9 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
     for p in paths:
         if p:
             search_paths.append(Path(p).expanduser().resolve())
-    # Environment paths (colon-separated)
+    # Environment paths (platform path separator)
     env = os.environ.get("IPXACT_XML_PATHS", "")
-    for p in (e for e in env.split(":") if e):
+    for p in (e for e in env.split(os.pathsep) if e):
         search_paths.append(Path(p).expanduser().resolve())
     # De-duplicate while preserving order
     seen: set[Path] = set()
@@ -309,15 +310,28 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
     cache = _load_cache(cache_path)
 
     # Compute current file set
-    files = sorted({str(p.resolve()) for p in _iter_xml_files(unique_paths)})
+    files = list(dict.fromkeys(str(p.resolve()) for p in _iter_xml_files(unique_paths)))
 
     # Clear registry; we'll rebuild from current files
     registry.clear()
 
     new_cache: dict[str, CacheEntry] = {}
+    registered: dict[VLNV, str] = {}
+
+    def accept(vlnv: VLNV, file_name: str) -> bool:
+        if vlnv in registered:
+            logger.warning(f"Duplicate VLNV {vlnv}: keeping {registered[vlnv]}, skipping {file_name}")
+            return False
+        registered[vlnv] = file_name
+        return True
+
     for f in files:
         path = Path(f)
-        mtime = path.stat().st_mtime
+        try:
+            mtime = path.stat().st_mtime
+        except OSError as exc:
+            logger.warning(f"Cannot read discovered XML {path}: {exc}")
+            continue
         ce = cache.get(f)
         if ce and abs(ce.mtime - mtime) < 1e-6 and ce.vlnv:
             # Skip unsupported standards/versions even if cached
@@ -328,6 +342,8 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 )
                 continue
             # unchanged; fast register using cached VLNV
+            if not accept(ce.vlnv, f):
+                continue
             try:
                 class _CachedProxy:
                     """Proxy used for fast re-registration from cache."""
@@ -356,7 +372,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 continue
             except Exception:
                 # fall through to reparse on any issue
-                pass
+                registered.pop(ce.vlnv, None)
 
         # Parse fresh
         try:
@@ -371,6 +387,10 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                 f"(detected {doc.standard}/{doc.version}); only {SUPPORTED_STANDARD}/{SUPPORTED_VERSION} is supported"
             )
             continue
+        if doc.tree is not None:
+            discovered_vlnv = _extract_vlnv_from_root(doc.tree.getroot())
+            if discovered_vlnv is not None and not accept(discovered_vlnv, f):
+                continue
         vlnv = _register_root(doc)
         if doc.tree is not None:
             # If catalog, validate its ipxactFile entries

@@ -37,6 +37,15 @@ XML schema validation
 * ☑ Return actual XSD diagnostics and source locations from in-process validation.
 * ☑ Return structured failures for missing, malformed, or invalid local schemas.
 
+Repository discovery
+~~~~~~~~~~~~~~~~~~~~
+
+* ☑ Extract root VLNV values independently of default or arbitrary XML namespace prefixes.
+* ☑ Discover XML files case-insensitively in recursive repository scans.
+* ☑ Preserve search-path order and scan overlapping files once.
+* ☑ Diagnose duplicate VLNV values and retain the first search-path match on fresh and cached scans.
+* ☑ Continue scanning when a discovered file disappears before it can be read.
+
 Architecture and shared completion contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
