@@ -5,20 +5,16 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
-## [0.3.1](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.0...v0.3.1) (2026-10-20)
+## [0.4.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.1...v0.4.0) (2026-10-20)
 
-### Bug Fixes
+### Features
 
-- automate verified releases and complete documentation builds
-  ([#11](https://github.com/amal-khailtash/pyipxact-de/issues/11))
-  ([39da93f](https://github.com/amal-khailtash/pyipxact-de/commit/39da93fa9b0b9fb93b7cca779996ff6d8e61f166))
-
-## [Unreleased]
+- Implement standard root creation and robust repository discovery
+  ([#14](https://github.com/amal-khailtash/pyipxact-de/pull/14)).
 
 ### CI
 
 - Dispatch production publication directly so PEP 740 identity matches the PyPI trusted publisher.
-
 - Consolidate numbered PR, CI, release, and publication workflows; reuse validated distributions
   and trigger release docs after PyPI.
 
@@ -64,6 +60,15 @@ This document lists notable changes for each release and follows:
 - Align README badges with pysystemc and link documentation to Read the Docs.
 - Add automated release PRs, verified PyPI publishing, PR build/test/documentation
   checks, Codecov reports, and Read the Docs configuration.
+
+## [0.3.1](https://github.com/amal-khailtash/pyipxact-de/compare/v0.3.0...v0.3.1) (2026-10-20)
+
+### Bug Fixes
+
+- automate verified releases and complete documentation builds
+  ([#11](https://github.com/amal-khailtash/pyipxact-de/issues/11))
+  ([39da93f](https://github.com/amal-khailtash/pyipxact-de/commit/39da93fa9b0b9fb93b7cca779996ff6d8e61f166))
+
 
 ## [0.3.0] - 2026-10-19
 
