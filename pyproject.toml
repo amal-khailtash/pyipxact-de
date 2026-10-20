@@ -1,6 +1,6 @@
 [project]
 name = "pyipxact-de"
-version = "0.4.0"
+version = "0.4.1"
 description = "Accellera IP-XACT DE (Design Environment)"
 readme = "README.md"
 license = { text = "MIT License" }

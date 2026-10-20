@@ -5,6 +5,14 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.4.1](https://github.com/amal-khailtash/pyipxact-de/compare/v0.4.0...v0.4.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* complete abstraction contracts and consolidate depot updates ([#18](https://github.com/amal-khailtash/pyipxact-de/issues/18)) ([7586431](https://github.com/amal-khailtash/pyipxact-de/commit/7586431ab172e014755a1cb6cf9f9e59144a0f3e))
+* synchronize and activate Read the Docs release versions ([#16](https://github.com/amal-khailtash/pyipxact-de/issues/16)) ([c5f7821](https://github.com/amal-khailtash/pyipxact-de/commit/c5f7821da356d3bd5ce65260464f9adf37655825))
+
 ## [Unreleased]
 
 ### Fixed
