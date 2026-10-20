@@ -8,6 +8,7 @@ This document lists notable changes for each release and follows:
 ## [Unreleased]
 
 ### Added
+- Expand the categorized feature checklist to track all planned capabilities and all 2,469 TGI operation entries, distinguishing verified work from outstanding work.
 - Add the bus-definition extended-VLNV accessor and feature implementation checklist.
 
 ### Fixed

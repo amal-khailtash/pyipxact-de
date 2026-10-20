@@ -46,3 +46,7 @@ Preserve standard/version namespace mappings, VLNV identity, and serialization s
 Some tests invoke external XML tools; inspect the relevant test/module for executable requirements. Deserialization tests download Leon2 example archives from Accellera during collection and cache them under `/tmp/pyipxact_leon2_cache`; full-suite runs can therefore require network access. Report unavailable tools or downloads separately from application failures.
 
 Before finishing, run the checks appropriate to the changed behavior and report concrete results and unresolved failures. Do not publish, tag, or deploy unless requested.
+
+## Implementation tracking
+
+Implement features in sets of five unless the user changes that scope. After each completed set of changes, update `docs/features.rst`, the ignored `.ai/implementation-plan.md` and relevant coverage ledgers, and `CHANGELOG.md`, then commit the changes. Organize feature documentation by category, without batch headings. Keep all planned items visible and tick only features supported by scoped verification.
