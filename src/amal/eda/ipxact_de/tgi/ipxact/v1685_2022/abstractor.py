@@ -306,11 +306,13 @@ def addAbstractorFileSet(abstractorID: str, name: str) -> str:
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str) or not name.strip():
+        raise TgiError("File set name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     if a.file_sets is None:
         a.file_sets = FileSets()
     fs = FileSet(name=name)
     a.file_sets.file_set.append(fs)  # type: ignore[attr-defined]
-    register_parent(fs, a, ("file_sets",), "list")
+    register_parent(fs, a, ("file_sets", "file_set"), "list")
     return get_handle(fs)
 
 
@@ -552,7 +554,7 @@ def removeAbstractorComponentInstantiation(componentInstantiationID: str) -> boo
 def removeAbstractorFileSet(fileSetID: str) -> bool:
     """Remove a fileSet element.
 
-    Section: F.7.5.15.
+    Section: F.7.5.16.
     """
     return detach_child_by_handle(fileSetID)
 
@@ -582,40 +584,45 @@ def removeAbstractorView(viewID: str) -> bool:
 
 
 def setAbstractorAbstractorMode(abstractorID: str, modeValue: str, group: str | None = None) -> bool:
-    """Set/replace the abstractorMode element.
+    """Set the standard mode while preserving its handle (F.7.5.21).
 
-    Section: F.7.5.19.
+    The optional group argument is a convenience for system-mode completion.
+    Omitting it preserves any existing group. Invalid inputs do not mutate the model.
     """
     from org.accellera.ipxact.v1685_2022.abstractor_mode_type import AbstractorModeType
+
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    a.abstractor_mode = AbstractorType.AbstractorMode(
-        value=AbstractorModeType(modeValue),
-        group=group,
-    )
+    try:
+        mode = AbstractorModeType(modeValue)
+    except (ValueError, TypeError):
+        raise TgiError("Invalid abstractor mode", TgiFaultCode.INVALID_ARGUMENT) from None
+    if group is not None and (not isinstance(group, str) or not group.strip()):
+        raise TgiError("System group requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    if a.abstractor_mode is None:
+        a.abstractor_mode = AbstractorType.AbstractorMode(value=mode, group=group)
+    else:
+        a.abstractor_mode.value = mode
+        if group is not None:
+            a.abstractor_mode.group = group
+    register_parent(a.abstractor_mode, a, ("abstractor_mode",), "scalar")
     return True
 
 
 def setAbstractorBusType(abstractorID: str, vlnv: tuple[str, str, str, str]) -> bool:
-    """Set/replace the busType reference.
+    """Set a validated bus VLNV reference (F.7.5.22).
 
-    Section: F.7.5.20.
+    Reference resolution is deferred; invalid VLNVs leave the existing reference intact.
     """
+    from .core import vlnv_to_tuple
+
     a = _resolve(abstractorID)
     if a is None:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
-    a.bus_type = LibraryRefType(
-        vendor=vlnv[0],
-        library=vlnv[1],
-        name=vlnv[2],
-        version=vlnv[3],
-    )
+    parts = vlnv_to_tuple(vlnv)
+    if not all(isinstance(part, str) and part.strip() for part in parts):
+        raise TgiError("Bus VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    a.bus_type = LibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+    register_parent(a.bus_type, a, ("bus_type",), "scalar")
     return True
-
-
-# Sections F.7.5.21 & F.7.5.22 (if present in spec for additional setters/removers)
-# are not defined here because they either map to vendor extensions or are
-# outside current schema scope. They can be added once underlying schema objects
-# are introduced.
-

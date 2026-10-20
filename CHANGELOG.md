@@ -10,6 +10,8 @@ This document lists notable changes for each release and follows:
 ### Fixed
 
 - Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
+- Validate abstractor mode and bus-reference updates before mutation; preserve mode handles and existing groups.
+- Correct abstractor file-set parent paths and verify add/list/remove behavior and XML round trips.
 - Implement standard abstraction-definition and abstractor creation contracts with generated models.
 - Correct abstraction port-style traversal for generated wire/transactional choice fields.
 - Verify related bus references, interface/port traversal, mode handles, input faults, and XML round trips.
