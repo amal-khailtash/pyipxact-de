@@ -95,7 +95,7 @@ def _add_ipxact_file(
     container = _ensure_ipxact_files(files)
     new_file = IpxactFileType(
         vlnv=LibraryRefType(vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]),
-        name=IpxactUri(file_name),
+        name=IpxactUri(value=file_name),
     )
     current = list(container.ipxact_file)
     current.append(new_file)
@@ -303,7 +303,7 @@ def removeCatalogTypeDefinitionsIpxactFile(catalog: Catalog, ipxactFileID: str) 
 
 def setIpxactFileName(ipxact_file: IpxactFileType, name: str) -> bool:
     """Set the file name of an ipxactFile entry."""
-    ipxact_file.name = IpxactUri(name)
+    ipxact_file.name = IpxactUri(value=name)
     return True
 
 def setIpxactFileVlnv(ipxact_file: IpxactFileType, vlnv: Sequence[str]) -> bool:

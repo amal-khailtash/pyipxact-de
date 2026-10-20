@@ -467,19 +467,21 @@ def setBusDefinitionExtends(
     return True
 
 
-def removeBusDefinitionExtends(busDefinitionID: str) -> bool:  # F.7.18.x
+def removeBusDefinitionExtends(busDefID: str) -> bool:  # F.7.18.x
     """Remove ``extends`` reference if present."""
-    bd = _resolve(busDefinitionID)
+    bd = _resolve(busDefID)
     if bd.extends is not None:
         bd.extends = None  # type: ignore[attr-defined]
         return True
     return False
 
 
-def setBusDefinitionDirectConnection(busDefinitionID: str, flag: bool) -> bool:  # F.7.18.x
-    """Set ``directConnection`` boolean."""
-    bd = _resolve(busDefinitionID)
-    bd.direct_connection = flag  # type: ignore[attr-defined]
+def setBusDefinitionDirectConnection(busDefID: str, value: bool) -> bool:
+    """Set ``directConnection`` using the Annex F Boolean input contract."""
+    bd = _resolve(busDefID)
+    if not isinstance(value, bool):
+        raise TgiError("directConnection requires a Boolean value", TgiFaultCode.INVALID_ARGUMENT)
+    bd.direct_connection = value
     return True
 
 
@@ -492,26 +494,30 @@ def removeBusDefinitionDirectConnection(busDefinitionID: str) -> bool:  # F.7.18
     return False
 
 
-def setBusDefinitionBroadcast(busDefinitionID: str, flag: bool) -> bool:  # F.7.18.x
-    """Set ``broadcast`` flag."""
-    bd = _resolve(busDefinitionID)
-    bd.broadcast = flag  # type: ignore[attr-defined]
+def setBusDefinitionBroadcast(busDefID: str, value: bool) -> bool:
+    """Set ``broadcast`` using the Annex F Boolean input contract."""
+    bd = _resolve(busDefID)
+    if not isinstance(value, bool):
+        raise TgiError("broadcast requires a Boolean value", TgiFaultCode.INVALID_ARGUMENT)
+    bd.broadcast = value
     return True
 
 
-def removeBusDefinitionBroadcast(busDefinitionID: str) -> bool:  # F.7.18.x
+def removeBusDefinitionBroadcast(busDefID: str) -> bool:  # F.7.18.x
     """Remove ``broadcast`` flag if present."""
-    bd = _resolve(busDefinitionID)
+    bd = _resolve(busDefID)
     if bd.broadcast is not None:
         bd.broadcast = None  # type: ignore[attr-defined]
         return True
     return False
 
 
-def setBusDefinitionIsAddressable(busDefinitionID: str, flag: bool) -> bool:  # F.7.18.x
-    """Set ``isAddressable`` flag."""
-    bd = _resolve(busDefinitionID)
-    bd.is_addressable = flag  # type: ignore[attr-defined]
+def setBusDefinitionIsAddressable(busDefID: str, value: bool) -> bool:
+    """Set ``isAddressable`` using the Annex F Boolean input contract."""
+    bd = _resolve(busDefID)
+    if not isinstance(value, bool):
+        raise TgiError("isAddressable requires a Boolean value", TgiFaultCode.INVALID_ARGUMENT)
+    bd.is_addressable = value
     return True
 
 

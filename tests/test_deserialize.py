@@ -172,6 +172,17 @@ SCHEMA_LOCATION = Standard.schema_location_for("ipxact", "1685-2022")
 # def test_parse_leon(xml_file: Path):
 
 def test_parse_leon(xml_file: Path, module_name: str):
+    from lxml import etree
+    from org.accellera.standard import VersionError
+
+    # The upstream archive includes experimental 2.0 files, not a supported
+    # IEEE edition. Verify rejection rather than accepting them as parsed IP.
+    namespace = etree.QName(etree.parse(str(xml_file)).getroot()).namespace
+    if namespace == "http://www.accellera.org/XMLSchema/IPXACT/2.0":
+        with pytest.raises(VersionError, match="Unknown version"):
+            XmlDocument(xml_file)
+        return
+
     parser = XmlDocument.parser()
 
     # for xml_file in xml_files:
@@ -187,10 +198,6 @@ def test_parse_leon(xml_file: Path, module_name: str):
         version_xml = f"{doc.standard}/{doc.version}"  # e.g. IPXACT/1685-2022
     except Exception as e:
         pytest.fail(f"Failed to parse XML file '{xml_file}': {e}")
-
-    # Skip faulty XML files
-    if version_xml == "IPXACT/2.0":
-        return
 
     # xml_text = xml_file.read_text()
     # print(xml_text)

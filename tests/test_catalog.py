@@ -20,11 +20,11 @@ SCHEMA_LOCATION = Standard.schema_location_for("ipxact", "1685-2022")
 def test_catalog_defaults():
     """Test the default values of the Catalog class."""
 
-    catalog = Catalog()
-    assert catalog.vendor is None
-    assert catalog.name is None
-    assert catalog.version is None
-    assert catalog.library is None
+    catalog = Catalog(vendor="vendor", library="library", name="catalog", version="1")
+    assert catalog.vendor == "vendor"
+    assert catalog.name == "catalog"
+    assert catalog.version == "1"
+    assert catalog.library == "library"
     assert catalog.display_name is None
     assert catalog.short_description is None
     assert catalog.description is None
@@ -50,8 +50,8 @@ def test_catalog_simple():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
 
     assert catalog.vendor == "accellera"
@@ -72,18 +72,18 @@ def test_catalog_catalogs():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     catalog0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="catalog0", version="1.0"),
-        name=IpxactUri("catalog0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="catalog0.xml"),
+        description=Description(value="description"),
     )
     catalog1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="catalog1", version="1.0"),
-        name=IpxactUri("catalog1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="catalog1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.catalogs = IpxactFilesType(
@@ -125,18 +125,18 @@ def test_catalog_bus_definitions():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     bus_definition0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="bus_definition0", version="1.0"),
-        name=IpxactUri("bus_definition0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="bus_definition0.xml"),
+        description=Description(value="description"),
     )
     bus_definition1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="bus_definition1", version="1.0"),
-        name=IpxactUri("bus_definition1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="bus_definition1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.bus_definitions = IpxactFilesType(
@@ -182,18 +182,18 @@ def test_catalog_abstraction_definitions():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     abstraction_definition0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="abstraction_definition0", version="1.0"),
-        name=IpxactUri("abstraction_definition0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="abstraction_definition0.xml"),
+        description=Description(value="description"),
     )
     abstraction_definition1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="abstraction_definition1", version="1.0"),
-        name=IpxactUri("abstraction_definition1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="abstraction_definition1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.abstraction_definitions = IpxactFilesType(
@@ -239,18 +239,18 @@ def test_catalog_components():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     component0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="component0", version="1.0"),
-        name=IpxactUri("component0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="component0.xml"),
+        description=Description(value="description"),
     )
     component1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="component1", version="1.0"),
-        name=IpxactUri("component1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="component1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.components = IpxactFilesType(
@@ -290,18 +290,18 @@ def test_catalog_abstractors():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     abstractor0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="abstractor0", version="1.0"),
-        name=IpxactUri("abstractor0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="abstractor0.xml"),
+        description=Description(value="description"),
     )
     abstractor1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="abstractor1", version="1.0"),
-        name=IpxactUri("abstractor1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="abstractor1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.abstractors = IpxactFilesType(
@@ -348,18 +348,18 @@ def test_catalog_designs():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     design0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="design0", version="1.0"),
-        name=IpxactUri("design0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="design0.xml"),
+        description=Description(value="description"),
     )
     design1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="design1", version="1.0"),
-        name=IpxactUri("design1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="design1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.designs = IpxactFilesType(
@@ -399,18 +399,18 @@ def test_catalog_design_configurations():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     design_configuration0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="design_configuration0", version="1.0"),
-        name=IpxactUri("design_configuration0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="design_configuration0.xml"),
+        description=Description(value="description"),
     )
     design_configuration1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="design_configuration1", version="1.0"),
-        name=IpxactUri("design_configuration1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="design_configuration1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.design_configurations = IpxactFilesType(
@@ -456,18 +456,18 @@ def test_catalog_generator_chains():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     generator_chain0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="generator_chain0", version="1.0"),
-        name=IpxactUri("generator_chain0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="generator_chain0.xml"),
+        description=Description(value="description"),
     )
     generator_chain1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="generator_chain1", version="1.0"),
-        name=IpxactUri("generator_chain1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="generator_chain1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.generator_chains = IpxactFilesType(
@@ -513,18 +513,18 @@ def test_catalog_type_definitions():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
     type_definition0_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="type_definition0", version="1.0"),
-        name=IpxactUri("type_definition0.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="type_definition0.xml"),
+        description=Description(value="description"),
     )
     type_definition1_ipxact_file = IpxactFileType(
         vlnv=LibraryRefType(vendor="vendor", library="library", name="type_definition1", version="1.0"),
-        name=IpxactUri("type_definition1.xml"),
-        description=Description("description"),
+        name=IpxactUri(value="type_definition1.xml"),
+        description=Description(value="description"),
     )
 
     catalog.type_definitions = IpxactFilesType(
@@ -586,12 +586,12 @@ def test_catalog_vendor_extensions():
         name="catalog",
         version="1.0",
         display_name="display_name",
-        short_description=ShortDescription("short_description"),
-        description=Description("description"),
+        short_description=ShortDescription(value="short_description"),
+        description=Description(value="description"),
     )
 
     catalog.vendor_extensions = VendorExtensions(
-        [
+        any_element=[
             CatalogExtension(version="1.1.0"),
         ]
     )

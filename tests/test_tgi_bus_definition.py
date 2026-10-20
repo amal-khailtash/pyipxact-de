@@ -74,3 +74,59 @@ def test_invalid_and_wrong_type_handles(operation, args, bus):
         with pytest.raises(TgiError) as error:
             operation(handle, *args)
         assert error.value.fault_code == "INVALID_ID"
+
+
+@pytest.mark.parametrize("setter,attribute", [
+    (api.setBusDefinitionBroadcast, "broadcast"),
+    (api.setBusDefinitionDirectConnection, "direct_connection"),
+    (api.setBusDefinitionIsAddressable, "is_addressable"),
+])
+def test_boolean_setters_contract_and_persistence(bus, setter, attribute):
+    handle = get_handle(bus)
+    for value in [False, True, False]:
+        assert setter(busDefID=handle, value=value) is True
+        assert getattr(bus, attribute) is value
+        assert getattr(roundtrip(bus), attribute) is value
+    for value in ["false", "true", 0, 1, None]:
+        with pytest.raises(TgiError) as error:
+            setter(busDefID=handle, value=value)
+        assert error.value.fault_code == "INVALID_ARGUMENT"
+        assert getattr(bus, attribute) is False
+
+
+def test_remove_broadcast_preserves_false_and_other_fields(bus):
+    handle = get_handle(bus)
+    assert api.removeBusDefinitionBroadcast(busDefID=handle) is False
+    for value in [True, False]:
+        api.setBusDefinitionBroadcast(busDefID=handle, value=value)
+        assert api.removeBusDefinitionBroadcast(busDefID=handle) is True
+        assert roundtrip(bus).broadcast is None
+        assert bus.direct_connection is True
+        assert bus.is_addressable is False
+        assert api.removeBusDefinitionBroadcast(busDefID=handle) is False
+
+
+def test_remove_extends_and_restore(bus):
+    handle = get_handle(bus)
+    assert api.removeBusDefinitionExtends(busDefID=handle) is False
+    api.setBusDefinitionExtends(handle, ["acme", "bus", "base", "1"])
+    assert api.removeBusDefinitionExtends(busDefID=handle) is True
+    assert roundtrip(bus).extends is None
+    assert api.getBusDefinitionExtendsRefByVLNV(handle) is None
+    assert api.removeBusDefinitionExtends(busDefID=handle) is False
+    api.setBusDefinitionExtends(handle, ["acme", "bus", "new", "2"])
+    assert roundtrip(bus).extends.name == "new"
+
+
+@pytest.mark.parametrize("operation,args", [
+    (api.setBusDefinitionBroadcast, (True,)),
+    (api.setBusDefinitionDirectConnection, (False,)),
+    (api.setBusDefinitionIsAddressable, (True,)),
+    (api.removeBusDefinitionBroadcast, ()),
+    (api.removeBusDefinitionExtends, ()),
+])
+def test_batch_two_invalid_handles(operation, args):
+    for handle in ["missing", get_handle(object())]:
+        with pytest.raises(TgiError) as error:
+            operation(handle, *args)
+        assert error.value.fault_code == "INVALID_ID"
