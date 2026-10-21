@@ -3369,3 +3369,17 @@ Instantiation local reference lifecycle
 - ☑ getComponentInstantiationFileSetRefIDs: tests/test_tgi_instantiation_local_refs.py.
 
 Restore parsed reference ownership, validate schema lexical names, preserve siblings and invalidate removed handles. Target existence/configured resolution remain pending.
+
+
+Generated clearbox reference paths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentInstantiationClearboxElementRef: tests/test_tgi_clearbox_paths.py.
+- ☑ getComponentInstantiationClearboxElementRefIDs: tests/test_tgi_clearbox_paths.py.
+- ☑ removeComponentInstantiationClearboxElementRef: tests/test_tgi_clearbox_paths.py.
+- ☑ getClearboxElementRefLocationIDs: tests/test_tgi_clearbox_paths.py.
+- ☑ addClearboxElementRefLocation: tests/test_tgi_clearbox_paths.py.
+- ☑ addLocationSlice: tests/test_tgi_clearbox_paths.py.
+- ☑ removeClearboxElementRefLocation: tests/test_tgi_clearbox_paths.py.
+
+Generated required location/slice/pathSegments preserve HDL source, parsed ownership and descendant invalidation. Clearbox target resolution remains pending.

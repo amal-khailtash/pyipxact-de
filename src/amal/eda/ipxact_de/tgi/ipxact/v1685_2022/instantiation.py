@@ -211,7 +211,9 @@ def getComponentInstantiationClearboxElementRefIDs(componentInstantiationID: str
     refs_container = getattr(inst, "clearbox_element_refs", None)
     if refs_container is None:
         return []
-    return [get_handle(r) for r in getattr(refs_container, "clearbox_element_ref", [])]
+    for ref in refs_container.clearbox_element_ref:
+        register_parent(ref, inst, ("clearbox_element_refs", "clearbox_element_ref"), "list")
+    return [get_handle(ref) for ref in refs_container.clearbox_element_ref]
 
 
 def getComponentInstantiationConfigurationName(componentInstantiationID: str) -> str | None:
@@ -398,13 +400,16 @@ def addComponentInstantiationClearboxElementRef(componentInstantiationID: str, n
 
     Section: F.7.56.1.
     """
+    from .clearbox import _new_location
+
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    _validate_local_reference_name(name, "Name")
+    loc = _new_location(pathSegmentValue)
+    ref = ClearboxElementRefType(name=name, location=[loc])
     if inst.clearbox_element_refs is None:
-        inst.clearbox_element_refs = ComponentInstantiationType.ClearboxElementRefs()  # type: ignore[attr-defined]
-    # clearboxElementRefType has no path segment attribute in schema; ignore
-    ref = ClearboxElementRefType(name=name)
-    inst.clearbox_element_refs.clearbox_element_ref.append(ref)  # type: ignore[attr-defined]
-    register_parent(ref, inst, ("clearbox_element_refs",), "list")
+        inst.clearbox_element_refs = ComponentInstantiationType.ClearboxElementRefs()
+    inst.clearbox_element_refs.clearbox_element_ref.append(ref)
+    register_parent(ref, inst, ("clearbox_element_refs", "clearbox_element_ref"), "list")
     return get_handle(ref)
 
 
@@ -484,8 +489,7 @@ def removeComponentInstantiationClearboxElementRef(clearboxElementRefID: str) ->
     ref = resolve_handle(clearboxElementRefID)
     if not isinstance(ref, ClearboxElementRefType):
         raise TgiError("Invalid clearboxElementRef handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(clearboxElementRefID)
-    return True
+    return detach_child_by_handle(clearboxElementRefID)
 
 
 def removeComponentInstantiationConfigurationName(componentInstantiationID: str) -> bool:
