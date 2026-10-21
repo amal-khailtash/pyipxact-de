@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Verify BASE port, sub-port, field, memory-map and power-domain reference source attributes.
 - Verify BASE interface mode, isIO, group selection operator, packed and phantom attributes.
 - Implement BASE wildcard attribute lookup/names and verify libext, level and imageType source attributes.
 - Verify BASE bus, component-instance, choice, mode and view reference source attributes.
