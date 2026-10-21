@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Implement BASE wildcard attribute lookup/names and verify libext, level and imageType source attributes.
 - Verify BASE bus, component-instance, choice, mode and view reference source attributes.
 - Verify BASE document-reference vendor, library, name, version and executable image ID attributes.
 - Verify BASE address-block, address-space, alternate-register, bank and register reference source attributes.

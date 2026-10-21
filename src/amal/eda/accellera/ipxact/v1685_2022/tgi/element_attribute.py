@@ -443,6 +443,25 @@ def _define_base_functions() -> None:
         g[func_name] = _make(attr_name, rtype, kind, func_name, section)
 
 
+def getOtherAnyAttribute(attributeContainerID: str, attributeName: str) -> str | None:
+    """Return an extension attribute by its expanded XML name.
+
+    Section: F.7.43.77. Names use ``{namespace}local`` for namespaced attributes.
+    Missing names return None; invalid handles raise TgiError.
+    """
+    obj = _resolve(attributeContainerID)
+    return getattr(obj, "other_attributes", {}).get(attributeName)
+
+
+def getOtherAttributes(attributeContainerID: str) -> list[str]:
+    """Return extension attribute names in stored order.
+
+    Section: F.7.43.79. Return a copied list; invalid handles raise TgiError.
+    """
+    obj = _resolve(attributeContainerID)
+    return list(getattr(obj, "other_attributes", {}))
+
+
 _define_base_functions()
 
 
