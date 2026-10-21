@@ -3453,3 +3453,17 @@ Default file builder lifecycle
 - ☑ removeFileSetDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
 
 Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.
+
+
+File BASE source collections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getFileDefineIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileDefineSymbolValue: tests/test_tgi_file_base_sources.py.
+- ☑ getFileDependencyIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileExportedNameIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileExportedNames: tests/test_tgi_file_base_sources.py.
+- ☑ getFileFileTypeIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileFileTypes: tests/test_tgi_file_base_sources.py.
+
+BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.

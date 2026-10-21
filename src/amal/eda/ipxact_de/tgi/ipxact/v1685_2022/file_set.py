@@ -194,6 +194,15 @@ def _resolve_dependency(dependencyID: str) -> Dependency:
     return dep
 
 
+def _owned_file_ids(fileID: str, field: str) -> list[str]:
+    """Return stable generated file-child handles and restore parsed ownership."""
+    owner = _resolve_file(fileID)
+    children = getattr(owner, field)
+    for child in children:
+        register_parent(child, owner, (field,), "list")
+    return [get_handle(child) for child in children]
+
+
 def _ids(items: Iterable[Any]) -> list[str]:
     return [get_handle(x) for x in items]
 
@@ -222,24 +231,24 @@ def getBuildCommandReplaceDefaultFlagsExpression(fileID: str) -> str | None:  # 
 
 
 def getFileDefineIDs(fileID: str) -> list[str]:  # F.7.47.2
-    """Return handles of define symbols (Section: F.7.47.2)."""
-    return _ids(_resolve_file(fileID).define)  # type: ignore[arg-type]
+    """Restore parsed ownership and return handles of define symbols (Section: F.7.47.2)."""
+    return _owned_file_ids(fileID, "define")
 
 
 def getFileDefineSymbolValue(fileDefineID: str) -> str | None:  # F.7.47.3
-    """Return value of a fileDefine (Section: F.7.47.3)."""
+    """Return the generated define value source string (Section: F.7.47.3)."""
     d = _resolve_define(fileDefineID)
-    return getattr(d, "value", None)
+    return d.value.value
 
 
 def getFileDependencyIDs(fileID: str) -> list[str]:  # F.7.47.4
-    """Return dependency handles for a file (Section: F.7.47.4)."""
-    return _ids(_resolve_file(fileID).dependency)  # type: ignore[arg-type]
+    """Restore parsed ownership and return dependency handles for a file (Section: F.7.47.4)."""
+    return _owned_file_ids(fileID, "dependency")
 
 
 def getFileExportedNameIDs(fileID: str) -> list[str]:  # F.7.47.5
-    """Return exportedName handles (Section: F.7.47.5)."""
-    return _ids(_resolve_file(fileID).exported_name)  # type: ignore[arg-type]
+    """Restore parsed ownership and return exportedName handles (Section: F.7.47.5)."""
+    return _owned_file_ids(fileID, "exported_name")
 
 
 def getFileExportedNames(fileID: str) -> list[str]:  # F.7.47.6
@@ -248,8 +257,8 @@ def getFileExportedNames(fileID: str) -> list[str]:  # F.7.47.6
 
 
 def getFileFileTypeIDs(fileID: str) -> list[str]:  # F.7.47.7
-    """Return fileType handles (Section: F.7.47.7)."""
-    return _ids(_resolve_file(fileID).file_type)  # type: ignore[arg-type]
+    """Restore parsed ownership and return fileType handles (Section: F.7.47.7)."""
+    return _owned_file_ids(fileID, "file_type")
 
 
 def getFileFileTypes(fileID: str) -> list[str]:  # F.7.47.8
