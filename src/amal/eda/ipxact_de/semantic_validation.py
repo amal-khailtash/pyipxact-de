@@ -2,10 +2,13 @@
 
 from dataclasses import dataclass
 
-from org.accellera.ipxact.v1685_2022 import AbstractionDefinition
+from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, Component
+from org.accellera.ipxact.v1685_2022.clock_driver import ClockDriver
+from org.accellera.ipxact.v1685_2022.component_port_direction_type import ComponentPortDirectionType
 from org.accellera.ipxact.v1685_2022.direction import Direction
 from org.accellera.ipxact.v1685_2022.drive_constraint import DriveConstraint
 from org.accellera.ipxact.v1685_2022.load_constraint import LoadConstraint
+from org.accellera.ipxact.v1685_2022.port_wire_type import PortWireType
 from org.accellera.ipxact.v1685_2022.wire import Wire
 
 
@@ -94,3 +97,55 @@ def validate_abstraction_constraints(document: AbstractionDefinition) -> Semanti
                             "containing an isClock qualifier.",
                         ))
     return SemanticValidationResult(_ABSTRACTION_CONSTRAINT_RULES, tuple(issues))
+
+
+def validate_component_constraints(document: Component) -> SemanticValidationResult:
+    """Check local component direction and clock rules SCR 12.1, 12.2 and 12.7.
+
+    Clock drivers without clockName use their containing port name. If any clock
+    driver exists, timing references must match a driver clock name; otherwise
+    they must reference another component port. Expressions, configured views,
+    driver bit widths and inheritance remain outside this scoped validation.
+    """
+    if not isinstance(document, Component):
+        raise TypeError("Expected an IEEE 1685-2022 Component")
+    ports = document.model.ports.port if document.model is not None and document.model.ports is not None else []
+    clock_names: set[str] = set()
+    for port in ports:
+        wire = port.wire_or_transactional_or_structured
+        if isinstance(wire, PortWireType) and wire.drivers is not None:
+            for driver in wire.drivers.driver:
+                clock = driver.default_value_or_clock_driver_or_single_shot_driver
+                if isinstance(clock, ClockDriver):
+                    clock_names.add(clock.clock_name if clock.clock_name is not None else port.name)
+    if document.other_clock_drivers is not None:
+        clock_names.update(clock.clock_name for clock in document.other_clock_drivers.other_clock_driver)
+    issues: list[SemanticIssue] = []
+    for port_index, port in enumerate(ports, 1):
+        wire = port.wire_or_transactional_or_structured
+        if not isinstance(wire, PortWireType) or wire.constraint_sets is None:
+            continue
+        port_path = f"/ipxact:component/ipxact:model/ipxact:ports/ipxact:port[{port_index}]/ipxact:wire"
+        for index, constraints in enumerate(wire.constraint_sets.constraint_set, 1):
+            path = f"{port_path}/ipxact:constraintSets/ipxact:constraintSet[{index}]"
+            for direction, attr, child, rule in (
+                (ComponentPortDirectionType.OUT, "drive_constraint", "driveConstraint", "SCR 12.1"),
+                (ComponentPortDirectionType.IN, "load_constraint", "loadConstraint", "SCR 12.2"),
+            ):
+                if wire.direction == direction and getattr(constraints, attr) is not None:
+                    issues.append(SemanticIssue(
+                        rule, f"{path}/ipxact:{child}",
+                        f"Component port {port.name!r} with direction {direction.value!r} "
+                        f"shall not contain {child}.",
+                    ))
+            for timing_index, timing in enumerate(constraints.timing_constraint, 1):
+                valid = timing.clock_name in clock_names if clock_names else any(
+                    candidate is not port and candidate.name == timing.clock_name for candidate in ports
+                )
+                if not valid:
+                    requirement = "a component clock driver" if clock_names else "another component port"
+                    issues.append(SemanticIssue(
+                        "SCR 12.7", f"{path}/ipxact:timingConstraint[{timing_index}]/@clockName",
+                        f"Clock {timing.clock_name!r} shall reference {requirement}.",
+                    ))
+    return SemanticValidationResult(("SCR 12.1", "SCR 12.2", "SCR 12.7"), tuple(issues))

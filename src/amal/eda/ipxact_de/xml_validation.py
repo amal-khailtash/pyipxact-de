@@ -161,7 +161,7 @@ def validate_ipxact_xml(
     """Validate XSD and optionally the implemented local IEEE semantic rules.
 
     Semantic checks run only after successful XSD validation. Currently supported
-    scope is IEEE 1685-2022 abstractionDefinition constraints. An unsupported root
+    scope is IEEE 1685-2022 abstractionDefinition and component constraints. An unsupported root
     or version returns a diagnostic when semantic checks are requested, rather than
     implying that unimplemented rules passed. checked_semantic_rules identifies
     the exact coverage; success does not establish complete semantic conformance.
@@ -169,23 +169,31 @@ def validate_ipxact_xml(
     result = _validate_schema(xml, schema_root=schema_root)
     if not semantic or not result.ok:
         return result
-    if (result.standard, result.version, result.root_element) != ("IPXACT", "1685-2022", "abstractionDefinition"):
+    if result.standard != "IPXACT" or result.version != "1685-2022" or result.root_element not in {
+        "abstractionDefinition", "component",
+    }:
         result.ok = False
         result.issues.append(ValidationIssue("Semantic checks are available only for IEEE 1685-2022 "
-                                             "abstractionDefinition constraints."))
+                                             "abstractionDefinition and component constraints."))
         return result
-    from amal.eda.ipxact_de.semantic_validation import validate_abstraction_constraints
-    from org.accellera.ipxact.v1685_2022 import AbstractionDefinition
+    from amal.eda.ipxact_de.semantic_validation import (
+        validate_abstraction_constraints,
+        validate_component_constraints,
+    )
+    from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, Component
 
+    model_type = AbstractionDefinition if result.root_element == "abstractionDefinition" else Component
+    validate_model = (validate_abstraction_constraints if model_type is AbstractionDefinition
+                      else validate_component_constraints)
     parser = etree.XMLParser(no_network=True, resolve_entities=False)
     try:
         tree = etree.parse(str(xml), parser)
-        document = XmlDocument.parser().from_string(etree.tostring(tree, encoding="unicode"), AbstractionDefinition)
+        document = XmlDocument.parser().from_string(etree.tostring(tree, encoding="unicode"), model_type)
     except (OSError, etree.XMLSyntaxError, ValueError) as error:
         result.ok = False
         result.issues.append(ValidationIssue(f"Semantic model could not be loaded: {error}"))
         return result
-    semantic_result = validate_abstraction_constraints(document)
+    semantic_result = validate_model(document)
     result.checked_semantic_rules = semantic_result.checked_rules
     for issue in semantic_result.issues:
         element_path = issue.path.rsplit("/@", 1)[0]

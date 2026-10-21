@@ -3154,3 +3154,13 @@ XML and CLI semantic validation
 - ☑ Return semantic rule IDs, XPath locations, source lines and checked-rule coverage.
 - ☑ Validate all CLI inputs and return exit status 1 when any document fails.
 - ☐ Extend semantic coverage to other roots, versions and inherited/configured documents.
+
+Component constraint semantic validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Check SCR 12.1 output drive and SCR 12.2 input load constraints.
+- ☑ Check SCR 12.7 timing references against component clockDriver and otherClockDriver names.
+- ☑ Use the containing port name for unnamed clock drivers and another-port fallback when no drivers exist.
+- ☑ Expose scoped component rules through Python XML validation and CLI --semantic.
+- ☑ Preserve document content and return rule coverage with XPath and source diagnostics.
+- ☐ Resolve configured views, driver ranges and expressions for SCR 12.9 single-bit validation.

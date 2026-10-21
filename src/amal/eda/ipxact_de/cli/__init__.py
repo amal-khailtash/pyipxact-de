@@ -425,7 +425,7 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         )
         parser_validate.add_argument(
             "--semantic", action="store_true",
-            help="Also check implemented IEEE 1685-2022 abstraction constraint rules",
+            help="Also check implemented IEEE 1685-2022 abstraction and component constraint rules",
         )
         # Use a wrapper to show subcommand help if no files are provided.
         parser_validate.set_defaults(func=_run_validate, __validate_parser=parser_validate)
