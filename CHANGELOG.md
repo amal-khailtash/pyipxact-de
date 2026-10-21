@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read generated generator API/executable metadata with parsed child ownership through BASE getters.
 - Read instance-generator groups and scope with stable typed handles through BASE getters.
 - Return generated function return/source types and source reference names through BASE getters.
 - Traverse executable-image linker choices and restore parsed child ownership through BASE getters.

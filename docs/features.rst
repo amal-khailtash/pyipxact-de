@@ -1788,14 +1788,14 @@ Generator (BASE)
 - ☑ ``getAbstractorGeneratorGroup`` (F.7.49.1) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
 - ☑ ``getAbstractorGeneratorGroupIDs`` (F.7.49.2) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
 - ☑ ``getComponentGeneratorGroupIDs`` (F.7.49.3) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
-- ☐ ``getGeneratorApiService`` (F.7.49.4)
-- ☐ ``getGeneratorApiTypeID`` (F.7.49.5)
-- ☐ ``getGeneratorExecutable`` (F.7.49.6)
-- ☐ ``getGeneratorGeneratorExe`` (F.7.49.7)
+- ☑ ``getGeneratorApiService`` (F.7.49.4) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
+- ☑ ``getGeneratorApiTypeID`` (F.7.49.5) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
+- ☑ ``getGeneratorExecutable`` (F.7.49.6) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
+- ☑ ``getGeneratorGeneratorExe`` (F.7.49.7) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
 - ☑ ``getGeneratorGroups`` (F.7.49.8) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
 - ☐ ``getGeneratorPhase`` (F.7.49.9)
 - ☐ ``getGeneratorPhaseExpression`` (F.7.49.10)
-- ☐ ``getGeneratorPhaseID`` (F.7.49.11)
+- ☑ ``getGeneratorPhaseID`` (F.7.49.11) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
 - ☑ ``getGeneratorScope`` (F.7.49.12) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
 - ☐ ``getGeneratorTransportMethodsID`` (F.7.49.13)
 - ☐ ``getTransportMethodsTransportMethodID`` (F.7.49.14)

@@ -12,7 +12,6 @@ Error semantics follow the common TGI model:
 """
 # ruff: noqa: I001
 from org.accellera.ipxact.v1685_2022 import (
-    Generator,
     AbstractorGenerator,
     ComponentGenerator,
 )
@@ -149,7 +148,10 @@ def getGeneratorApiTypeID(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     api = g.api_type
-    return None if api is None else get_handle(api)
+    if api is None:
+        return None
+    register_parent(api, g, ("api_type",), "single")
+    return get_handle(api)
 
 
 def getGeneratorExecutable(generatorID: str) -> str | None:
@@ -173,7 +175,10 @@ def getGeneratorGeneratorExe(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     exe = g.generator_exe
-    return None if exe is None else get_handle(exe)
+    if exe is None:
+        return None
+    register_parent(exe, g, ("generator_exe",), "single")
+    return get_handle(exe)
 
 
 def getGeneratorGroups(generatorID: str) -> list[str]:
@@ -218,7 +223,10 @@ def getGeneratorPhaseID(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     ph = g.phase
-    return None if ph is None else get_handle(ph)
+    if ph is None:
+        return None
+    register_parent(ph, g, ("phase",), "single")
+    return get_handle(ph)
 
 
 def getGeneratorScope(generatorID: str) -> str | None:
