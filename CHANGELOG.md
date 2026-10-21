@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Verify BASE bus, component-instance, choice, mode and view reference source attributes.
 - Verify BASE document-reference vendor, library, name, version and executable image ID attributes.
 - Verify BASE address-block, address-space, alternate-register, bank and register reference source attributes.
 - Verify BASE help, prompt, prefix, user and hierarchical path attributes with XML reloads.
