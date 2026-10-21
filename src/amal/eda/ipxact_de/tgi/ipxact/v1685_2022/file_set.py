@@ -412,12 +412,15 @@ def getFileSetRefLocalNameRefByID(fileSetRefID: str) -> str | None:  # F.7.47.26
 def getFunctionArgumentDataType(argumentID: str) -> str | None:  # F.7.47.27
     """Return argument dataType (Section: F.7.47.27)."""
     arg = _resolve_argument(argumentID)
-    return getattr(arg, "data_type", None)
+    return arg.data_type.value
 
 
 def getFunctionArgumentIDs(functionID: str) -> list[str]:  # F.7.47.28
     """Return function argument handles (Section: F.7.47.28)."""
-    return _ids(_resolve_function(functionID).argument)  # type: ignore[arg-type]
+    fn = _resolve_function(functionID)
+    for child in fn.argument:
+        register_parent(child, fn, ("argument",), "list")
+    return _ids(fn.argument)
 
 
 def getFunctionDisabled(functionID: str) -> bool:  # F.7.47.29
@@ -442,12 +445,15 @@ def getFunctionDisabledExpression(functionID: str) -> str | None:  # F.7.47.30
 def getFunctionDisabledID(functionID: str) -> str | None:  # F.7.47.31
     """Return disabled element handle (Section: F.7.47.31)."""
     fn = _resolve_function(functionID)
-    return get_handle(fn.disabled) if fn.disabled is not None else None
+    if fn.disabled is None:
+        return None
+    register_parent(fn.disabled, fn, ("disabled",), "single")
+    return get_handle(fn.disabled)
 
 
 def getFunctionEntryPoint(functionID: str) -> str | None:  # F.7.47.32
     """Return entryPoint (Section: F.7.47.32)."""
-    return getattr(_resolve_function(functionID).entry_point, "value", None)
+    return _resolve_function(functionID).entry_point
 
 
 def getFunctionFileID(functionID: str) -> str | None:  # F.7.47.33
@@ -487,7 +493,10 @@ def getFunctionReturnType(functionID: str) -> str | None:  # F.7.47.37
 
 def getFunctionSourceFileIDs(functionID: str) -> list[str]:  # F.7.47.38
     """Return sourceFile handles (Section: F.7.47.38)."""
-    return _ids(_resolve_function(functionID).source_file)  # type: ignore[arg-type]
+    fn = _resolve_function(functionID)
+    for child in fn.source_file:
+        register_parent(child, fn, ("source_file",), "list")
+    return _ids(fn.source_file)
 
 
 def getFunctionSourceFileName(functionSourceFileID: str) -> str | None:  # F.7.47.39
