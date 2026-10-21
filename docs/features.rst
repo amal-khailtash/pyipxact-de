@@ -947,10 +947,10 @@ Component (BASE)
 * ☐ ``getComponentChoiceIDs`` (F.7.29.4)
 * ☐ ``getComponentClearboxElementIDs`` (F.7.29.5)
 * ☐ ``getComponentComponentGeneratorIDs`` (F.7.29.6)
-* ☐ ``getComponentComponentInstantiationIDs`` (F.7.29.7)
+* ☑ ``getComponentComponentInstantiationIDs`` (F.7.29.7)
 * ☐ ``getComponentCpuIDs`` (F.7.29.8)
-* ☐ ``getComponentDesignConfigurationInstantiationIDs`` (F.7.29.9)
-* ☐ ``getComponentDesignInstantiationIDs`` (F.7.29.10)
+* ☑ ``getComponentDesignConfigurationInstantiationIDs`` (F.7.29.9)
+* ☑ ``getComponentDesignInstantiationIDs`` (F.7.29.10)
 * ☐ ``getComponentExternalTypeDefinitionsIDs`` (F.7.29.11)
 * ☐ ``getComponentFileSetIDs`` (F.7.29.12)
 * ☐ ``getComponentIndirectInterfaceIDs`` (F.7.29.13)
@@ -1003,10 +1003,10 @@ Component (EXTENDED)
 * ☐ ``removeComponentChoice`` (F.7.30.32)
 * ☐ ``removeComponentClearboxElement`` (F.7.30.33)
 * ☐ ``removeComponentComponentGenerator`` (F.7.30.34)
-* ☐ ``removeComponentComponentInstantiation`` (F.7.30.35)
+* ☑ ``removeComponentComponentInstantiation`` (F.7.30.35)
 * ☐ ``removeComponentCpu`` (F.7.30.36)
-* ☐ ``removeComponentDesignConfigurationInstantiation`` (F.7.30.37)
-* ☐ ``removeComponentDesignInstantiation`` (F.7.30.38)
+* ☑ ``removeComponentDesignConfigurationInstantiation`` (F.7.30.37)
+* ☑ ``removeComponentDesignInstantiation`` (F.7.30.38)
 * ☑ ``removeComponentFileSet`` (F.7.30.39)
 * ☐ ``removeComponentIndirectInterface`` (F.7.30.40)
 * ☑ ``removeComponentMemoryMap`` (F.7.30.41)
@@ -3082,7 +3082,7 @@ View (BASE)
 * ☑ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
 * ☑ ``getViewEnvIdentifierIDs`` (F.7.87.9)
 * ☑ ``getViewEnvIdentifiers`` (F.7.87.10)
-* ☐ ``getViewRefByName`` (F.7.87.11)
+* ☑ ``getViewRefByName`` (F.7.87.11)
 
 View (EXTENDED)
 ~~~~~~~~~~~~~~~
@@ -3095,7 +3095,7 @@ View (EXTENDED)
 * ☑ ``setViewComponentInstantiationRef`` (F.7.88.6)
 * ☑ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
 * ☑ ``setViewDesignInstantiationRef`` (F.7.88.8)
-* ☐ ``setViewRefValue`` (F.7.88.9)
+* ☑ ``setViewRefValue`` (F.7.88.9)
 
 Development and release automation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3278,3 +3278,15 @@ Typed component instantiation lifecycle
 - ☑ getComponentDesignConfigurationInstantiationIDs verified with mixed generated choices.
 - ☑ removeComponentDesignConfigurationInstantiation verified with mixed generated choices.
 - Six focused cases passed; view source references remain for subsequent consistency validation.
+
+Generated viewRef source editing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewRefByName and setViewRefValue across driver, wire, structured, domain, transactional and signal definitions.
+- ☑ Preserve source-reference identity and XML metadata through edits and reload.
+- ☑ Verify package exports and reject unrelated handles and empty names before mutation.
+- ☐ Resolve referenced views and complete configured applicability semantics.
+
+ViewRef source APIs take a generated viewRef handle. Getters return the stored
+name; setters accept a nonempty string and preserve the same element and xml:id.
+Target existence and configured applicability are validated separately.

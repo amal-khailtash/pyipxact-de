@@ -38,6 +38,7 @@ __all__: list[str] = [
     "getViewComponentInstantiationRefByName",
     "getViewEnvIdentifierIDs",
     "getViewEnvIdentifiers",
+    "getViewRefByName",
     "getViewFileSetRefIDs",
     "getViewModelName",
     "getViewModelParametersID",
@@ -59,6 +60,7 @@ __all__: list[str] = [
     "setViewComponentInstantiationRef",
     "setViewModelName",
     "setViewName",
+    "setViewRefValue",
     "setViewDesignConfigurationInstantiationRef",
     "removeViewDesignConfigurationInstantiationRef",
     "setViewDesignInstantiationRef",
@@ -137,6 +139,21 @@ def _remove_reference(viewID: str, attr: str) -> bool:
         return False
     setattr(view, attr, None)
     return True
+
+
+def _view_ref(viewRefID: str):
+    from org.accellera.ipxact.v1685_2022.domain_type_def import DomainTypeDef
+    from org.accellera.ipxact.v1685_2022.driver_type import DriverType
+    from org.accellera.ipxact.v1685_2022.signal_type_def import SignalTypeDef
+    from org.accellera.ipxact.v1685_2022.struct_port_type_defs import StructPortTypeDefs
+    from org.accellera.ipxact.v1685_2022.trans_type_def import TransTypeDef
+    from org.accellera.ipxact.v1685_2022.wire_type_def import WireTypeDef
+
+    child = resolve_handle(viewRefID)
+    if not isinstance(child, (DomainTypeDef.ViewRef, DriverType.ViewRef, SignalTypeDef.ViewRef,
+                              StructPortTypeDefs.StructPortTypeDef.ViewRef, TransTypeDef.ViewRef, WireTypeDef.ViewRef)):
+        raise TgiError("Expected a generated viewRef handle", TgiFaultCode.INVALID_ID)
+    return child
 
 
 def _reference_target(viewID: str, attr: str, target_type: type) -> str | None:
@@ -260,6 +277,14 @@ def getViewEnvIdentifiers(viewID: str) -> list[str]:
 
 
 
+def getViewRefByName(viewRefID: str) -> str:
+    """Return the source name from a generated viewRef (F.7.87.11).
+
+    Invalid or unrelated handles raise INVALID_ID. Target resolution is separate.
+    """
+    return _view_ref(viewRefID).value
+
+
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.88)
 # ---------------------------------------------------------------------------
@@ -378,6 +403,19 @@ def setViewDesignInstantiationRef(viewID: str, designInstantiationRef: str) -> b
     """
     return _set_reference(viewID, designInstantiationRef, "design_instantiation_ref")
 
+
+
+def setViewRefValue(viewRefID: str, value: str) -> bool:
+    """Update a generated viewRef source name in place (F.7.88.9).
+
+    Preserve identity and XML metadata. Invalid handles raise INVALID_ID;
+    empty/nonstring names raise INVALID_ARGUMENT before mutation.
+    """
+    child = _view_ref(viewRefID)
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError("Expected a nonempty view name", TgiFaultCode.INVALID_ARGUMENT)
+    child.value = value
+    return True
 
 
 # Legacy compatibility helpers.
