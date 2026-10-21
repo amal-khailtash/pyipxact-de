@@ -18,6 +18,7 @@ sub-element is absent. Numeric getters attempt integer conversion of the
 underlying ``value`` field, otherwise return ``None``.
 """
 
+from collections.abc import Sequence
 from typing import Any
 
 from .core import (
@@ -77,7 +78,7 @@ def _resolve_array(arrayID: str) -> Any:
         TgiError: If the handle is invalid or object lacks a ``dim`` attribute.
     """
     obj = resolve_handle(arrayID)
-    if obj is None or not hasattr(obj, "dim"):
+    if obj is None or not (hasattr(obj, "dim") or (hasattr(obj, "left") and hasattr(obj, "right"))):
         raise TgiError("Invalid array handle", TgiFaultCode.INVALID_ID)
     return obj
 
@@ -143,8 +144,8 @@ def getArrayIDs(parentID: str) -> list[str]:  # F.7.13.2
     Section: F.7.13.2.
 
     The spec enumerates retrieval of arrays contained in a parent object. We
-    treat any attributes named ``array`` or ``arrays`` (list) as array
-    containers. Missing attributes produce an empty list.
+    Traverse generated ``arrays.array`` wrappers or a single memory-map array.
+    Preserve source order and parsed ownership. Missing arrays return an empty list.
 
     Args:
         parentID: Parent handle (any object).
@@ -155,12 +156,20 @@ def getArrayIDs(parentID: str) -> list[str]:  # F.7.13.2
     parent = resolve_handle(parentID)
     if parent is None:
         raise TgiError("Invalid parent handle", TgiFaultCode.INVALID_ID)
-    arrays: list[Any] = []
     cand = _get_attr(parent, "array", "arrays")
     if cand is None:
         return []
-    arrays = cand if isinstance(cand, list) else [cand]
-    return [get_handle(a) for a in arrays if hasattr(a, "dim")]
+    if hasattr(cand, "array"):
+        owner, path, items = parent, ("arrays", "array"), cand.array
+    else:
+        owner, path = parent, ("array",)
+        items = cand if isinstance(cand, Sequence) else [cand]
+    result = []
+    for item in items:
+        if hasattr(item, "dim") or (hasattr(item, "left") and hasattr(item, "right")):
+            register_parent(item, owner, path, "list" if isinstance(cand, Sequence) or len(path) > 1 else "single")
+            result.append(get_handle(item))
+    return result
 
 
 def getArrayLeftID(arrayID: str) -> str | None:  # F.7.13.3
@@ -170,26 +179,28 @@ def getArrayLeftID(arrayID: str) -> str | None:  # F.7.13.3
     """
     arr = _resolve_array(arrayID)
     left = _get_attr(arr, "left")
-    return get_handle(left) if left is not None else None
+    if left is None:
+        return None
+    register_parent(left, arr, ("left",), "single")
+    return get_handle(left)
 
 
-def getArrayRange(arrayID: str) -> int | None:  # F.7.13.4
-    """Return numeric ``range`` value.
+def getArrayRange(arrayID: str) -> list[int | None]:  # F.7.13.4
+    """Return left and right integer literal values, in that order.
 
     Section: F.7.13.4.
     """
     arr = _resolve_array(arrayID)
-    return _int_value(_get_attr(arr, "range"))
+    return [_int_value(_get_attr(arr, bound)) for bound in ("left", "right")]
 
 
-def getArrayRangeExpression(arrayID: str) -> str | None:  # F.7.13.5
-    """Return ``range`` expression string.
+def getArrayRangeExpression(arrayID: str) -> list[str | None]:  # F.7.13.5
+    """Return original left and right expressions, in that order.
 
     Section: F.7.13.5.
     """
     arr = _resolve_array(arrayID)
-    r = _get_attr(arr, "range")
-    return getattr(r, "value", None) if r is not None else None
+    return [getattr(_get_attr(arr, bound), "value", None) for bound in ("left", "right")]
 
 
 def getArrayRightID(arrayID: str) -> str | None:  # F.7.13.6
@@ -199,7 +210,10 @@ def getArrayRightID(arrayID: str) -> str | None:  # F.7.13.6
     """
     arr = _resolve_array(arrayID)
     right = _get_attr(arr, "right")
-    return get_handle(right) if right is not None else None
+    if right is None:
+        return None
+    register_parent(right, arr, ("right",), "single")
+    return get_handle(right)
 
 
 def getArrayStride(arrayID: str) -> int | None:  # F.7.13.7

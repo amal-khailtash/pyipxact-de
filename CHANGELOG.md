@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Traverse bounded arrays and retrieve ordered left/right values, source expressions and owned handles through BASE getters.
 - Read CPU region offset/range through BASE getters using region handles and owned parsed children.
 - Read segment offset/range literals, source expressions and owned child handles through six BASE getters.
 - Move TGI to ``amal.eda.accellera.ipxact.v1685_2022.tgi`` and update application and test imports.
