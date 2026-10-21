@@ -411,6 +411,9 @@ def addComponentInstantiationFileSetRef(componentInstantiationID: str, localName
 def removeComponentInstantiationArchitectureName(componentInstantiationID: str) -> bool:
     """Remove (clear) ``architectureName``.
 
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
+
     Section: F.7.56.5.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -432,6 +435,9 @@ def removeComponentInstantiationClearboxElementRef(clearboxElementRefID: str) ->
 
 def removeComponentInstantiationConfigurationName(componentInstantiationID: str) -> bool:
     """Clear ``configurationName``.
+
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
 
     Section: F.7.56.7.
     """
@@ -499,6 +505,9 @@ def removeComponentInstantiationLanguage(componentInstantiationID: str) -> bool:
 def removeComponentInstantiationLibraryName(componentInstantiationID: str) -> bool:
     """Clear ``libraryName``.
 
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
+
     Section: F.7.56.13.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -509,6 +518,9 @@ def removeComponentInstantiationLibraryName(componentInstantiationID: str) -> bo
 def removeComponentInstantiationModuleName(componentInstantiationID: str) -> bool:
     """Clear ``moduleName``.
 
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
+
     Section: F.7.56.14.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -518,6 +530,9 @@ def removeComponentInstantiationModuleName(componentInstantiationID: str) -> boo
 
 def removeComponentInstantiationPackageName(componentInstantiationID: str) -> bool:
     """Clear ``packageName``.
+
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
 
     Section: F.7.56.15.
     """

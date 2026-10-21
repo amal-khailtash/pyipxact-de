@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Support selective optional instantiation name removal with parsed XML and lifecycle verification.
 - Validate instantiation source name edits while preserving unrestricted XML strings and absent values.
 - Preserve generated instantiation language and reference metadata during validated updates.
 - Create generated component, design and design-configuration instantiations with required references and ownership.

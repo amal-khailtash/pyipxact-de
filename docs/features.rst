@@ -3330,3 +3330,15 @@ Instantiation source name access and editing
 - ☑ setComponentInstantiationPackageName: tests/test_tgi_instantiation_names.py.
 
 Five scoped cases verify unrestricted xs:string values, empty/whitespace preservation, XML reload, exports and atomic type rejection. Source getters do not synthesize configured defaults.
+
+
+Instantiation optional name removal
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ removeComponentInstantiationArchitectureName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationConfigurationName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationLibraryName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationModuleName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationPackageName: tests/test_tgi_instantiation_name_removal.py.
+
+Five scoped cases verify selective removal, repeated calls, parsed XML absence, unrelated/stale handles and sibling preservation.
