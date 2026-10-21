@@ -87,6 +87,44 @@ __all__ = [
 ]
 
 
+def _require_file_builder(handle: str):
+    """Require the generated file-builder type for scoped metadata operations."""
+    from org.accellera.ipxact.v1685_2022 import FileBuilderType
+
+    obj = _resolve(handle)
+    if not isinstance(obj, FileBuilderType):
+        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
+    return obj
+
+
+def _set_builder_expression(handle: str, field: str, value: str) -> bool:
+    """Update generated expression source without replacing metadata or identity."""
+    from org.accellera.ipxact.v1685_2022 import StringExpression, UnsignedBitExpression
+
+    fb = _require_file_builder(handle)
+    if not isinstance(value, str):
+        raise TgiError("Expected expression source text", TgiFaultCode.INVALID_ARGUMENT)
+    child = getattr(fb, field)
+    if child is None:
+        cls = UnsignedBitExpression if field == "replace_default_flags" else StringExpression
+        child = cls(value=value)
+        setattr(fb, field, child)
+    else:
+        child.value = value
+    register_parent(child, fb, (field,), "single")
+    return True
+
+
+def _remove_builder_expression(handle: str, field: str) -> bool:
+    """Detach an optional generated expression and invalidate its descendants."""
+    fb = _require_file_builder(handle)
+    child = getattr(fb, field)
+    if child is None:
+        return False
+    register_parent(child, fb, (field,), "single")
+    return detach_child_by_handle(get_handle(child))
+
+
 def _resolve(handle: str) -> Any:
     obj = resolve_handle(handle)
     if obj is None:
@@ -338,12 +376,11 @@ def getFileBuilderCommand(fileBuilderID: str) -> str | None:  # F.7.45.20
 
     Section: F.7.45.20.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not a FileBuilder", TgiFaultCode.INVALID_ID)
+    fb = _require_file_builder(fileBuilderID)
     if fb.command is None:
         return None
-    return _get_value(fb.command)
+    register_parent(fb.command, fb, ("command",), "single")
+    return fb.command.value
 
 
 # ---------------------------------------------------------------------------
@@ -526,43 +563,31 @@ def removeExecutableImageLinkerCommandFile(executableImageID: str) -> bool:  # F
 def removeFileBuilderCommand(fileBuilderID: str) -> bool:  # F.7.46.13
     """Remove command element of fileBuilder.
 
+    Invalidate the removed expression handle; return False when absent.
+
     Section: F.7.46.13.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    if fb.command is None:
-        return False
-    fb.command = None
-    return True
+    return _remove_builder_expression(fileBuilderID, "command")
 
 
 def removeFileBuilderFlags(fileBuilderID: str) -> bool:  # F.7.46.14
     """Remove flags element of fileBuilder.
 
+    Invalidate the removed expression handle; return False when absent.
+
     Section: F.7.46.14.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    if fb.flags is None:
-        return False
-    fb.flags = None
-    return True
+    return _remove_builder_expression(fileBuilderID, "flags")
 
 
 def removeFileBuilderReplaceDefaultFlags(fileBuilderID: str) -> bool:  # F.7.46.15
     """Remove replaceDefaultFlags element of fileBuilder.
 
+    Invalidate the removed expression handle; return False when absent.
+
     Section: F.7.46.15.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    if fb.replace_default_flags is None:
-        return False
-    fb.replace_default_flags = None
-    return True
+    return _remove_builder_expression(fileBuilderID, "replace_default_flags")
 
 
 def removeLanguageToolsFileBuilder(fileBuilderID: str) -> bool:  # F.7.46.16
@@ -743,51 +768,46 @@ def setFileBuildCommand(fileID: str) -> str:  # F.7.46.27
 
 
 def setFileBuilderCommand(fileBuilderID: str, command: str) -> bool:  # F.7.46.28
-    """Set fileBuilder.command.
+    """Set generated command source text, preserving child identity and metadata.
 
     Section: F.7.46.28.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.command = command  # type: ignore[attr-defined]
-    return True
+    return _set_builder_expression(fileBuilderID, "command", command)
 
 
-def setFileBuilderFileType(fileBuilderID: str, fileType: str) -> bool:  # F.7.46.29
+def setFileBuilderFileType(fileBuilderID: str, fileTypeValue: str) -> bool:  # F.7.46.29
     """Set fileBuilder.fileType.
 
     Section: F.7.46.29.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.file_type = fileType  # type: ignore[attr-defined]
+    from org.accellera.ipxact.v1685_2022 import SimpleFileType
+
+    fb = _require_file_builder(fileBuilderID)
+    if not isinstance(fileTypeValue, str):
+        raise TgiError("Expected file type source string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        value = SimpleFileType(fileTypeValue)
+    except ValueError as exc:
+        raise TgiError("Expected a standard file type value", TgiFaultCode.INVALID_ARGUMENT) from exc
+    fb.file_type.value = value
+    register_parent(fb.file_type, fb, ("file_type",), "single")
     return True
 
 
 def setFileBuilderFlags(fileBuilderID: str, flags: str) -> bool:  # F.7.46.30
-    """Set fileBuilder.flags.
+    """Set generated flags source text, preserving child identity and metadata.
 
     Section: F.7.46.30.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.flags = flags  # type: ignore[attr-defined]
-    return True
+    return _set_builder_expression(fileBuilderID, "flags", flags)
 
 
-def setFileBuilderReplaceDefaultFlags(fileBuilderID: str, replace: bool) -> bool:  # F.7.46.31
+def setFileBuilderReplaceDefaultFlags(fileBuilderID: str, valueExpression: str) -> bool:  # F.7.46.31
     """Set fileBuilder.replaceDefaultFlags.
 
     Section: F.7.46.31.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.replace_default_flags = bool(replace)  # type: ignore[attr-defined]
-    return True
+    return _set_builder_expression(fileBuilderID, "replace_default_flags", valueExpression)
 
 
 def setLanguageToolsLinker(languageToolsID: str, linker: str) -> bool:  # F.7.46.32

@@ -3383,3 +3383,18 @@ Generated clearbox reference paths
 - ☑ removeClearboxElementRefLocation: tests/test_tgi_clearbox_paths.py.
 
 Generated required location/slice/pathSegments preserve HDL source, parsed ownership and descendant invalidation. Clearbox target resolution remains pending.
+
+
+Generated file builder metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
+- ☑ setFileBuilderFileType: tests/test_tgi_file_builder_metadata.py.
+- ☑ setFileBuilderFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ setFileBuilderReplaceDefaultFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ removeFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
+- ☑ removeFileBuilderFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ removeFileBuilderReplaceDefaultFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ getFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
+
+Generated file-builder source edits preserve child identity and metadata; removals invalidate child handles. Expression evaluation remains pending.
