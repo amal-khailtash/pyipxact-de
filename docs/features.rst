@@ -3133,3 +3133,14 @@ Logical port style conversion
 - ☑ Verify style and logical-name getters plus packet traversal across both conversions and XML reload.
 - ☑ Preserve port identity, match metadata and independent packet content; reject invalid handles atomically.
 - ☐ Complete recursive descendant handle invalidation and style semantic validation.
+
+Abstraction constraint semantic validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ SCR 12.3 NoOutputDriveModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.4 NoInputLoadModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.5 NoOutputLoadMirroredModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.6 NoInputDriveMirroredModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.8 ConstraintClockLogicalPortExists for local IEEE 1685-2022 abstraction wire modes.
+- ☑ Return scoped rule coverage and XPath diagnostics without document mutation.
+- ☐ Resolve inherited/configured definitions and complete the remaining Annex B semantic rules.

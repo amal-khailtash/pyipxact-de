@@ -22,6 +22,10 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Added
+
+- Add IEEE abstraction constraint semantic checks with rule IDs and XPath diagnostics for direction and clock references.
+
 ### Fixed
 
 - Correct logical port style setters to use the generated exclusive choice while preserving port and packet content.
