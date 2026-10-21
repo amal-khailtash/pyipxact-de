@@ -28,7 +28,6 @@ from org.accellera.ipxact.v1685_2022.constraint_set_ref import ConstraintSetRef
 from org.accellera.ipxact.v1685_2022.file_builder_type import FileBuilderType
 from org.accellera.ipxact.v1685_2022.file_set_ref import FileSetRef
 from org.accellera.ipxact.v1685_2022.language_type import LanguageType
-from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
 
 from .core import (
     TgiError,
@@ -235,7 +234,7 @@ def getComponentInstantiationLanguage(componentInstantiationID: str) -> str | No
     lang = getattr(inst, "language", None)
     if lang is None:
         return None
-    return getattr(getattr(lang, "value", None), "value", None)  # LanguageType holds a ValueType
+    return lang.value  # LanguageType holds a ValueType
 
 
 def getComponentInstantiationLanguageID(componentInstantiationID: str) -> str | None:
@@ -315,7 +314,7 @@ def getDesignConfigurationInstantiationLanguage(designConfigurationInstantiation
     lang = getattr(dci, "language", None)
     if lang is None:
         return None
-    return getattr(getattr(lang, "value", None), "value", None)
+    return lang.value
 
 
 def getDesignConfigurationInstantiationLanguageID(designConfigurationInstantiationID: str) -> str | None:
@@ -553,25 +552,18 @@ def setComponentInstantiationIsVirtual(componentInstantiationID: str, value: boo
 
 
 def setComponentInstantiationLanguage(componentInstantiationID: str, language: str) -> bool:
-    """Set language element (creates if absent).
+    """Set generated language source text, preserving existing strict metadata.
 
-    Section: F.7.56.20.
+    Section: F.7.56.20. Invalid text raises INVALID_ARGUMENT before mutation.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    lang = getattr(inst, "language", None)
-    if lang is None:
-        lang = LanguageType()
-        inst.language = lang
-        register_parent(lang, inst, tuple(), "single")
-    if getattr(lang, "value", None) is None:
-        # LanguageType.value is a nested simpleContent wrapper; emulate pattern used elsewhere
-        class _V:  # minimal wrapper
-            def __init__(self, value):
-                self.value = value
-
-        lang.value = _V(language)  # type: ignore[attr-defined]
+    if not isinstance(language, str) or not language.strip():
+        raise TgiError("Expected a nonempty language string", TgiFaultCode.INVALID_ARGUMENT)
+    if inst.language is None:
+        inst.language = LanguageType(value=language)
     else:
-        lang.value.value = language  # type: ignore[attr-defined]
+        inst.language.value = language
+    register_parent(inst.language, inst, ("language",), "single")
     return True
 
 
@@ -606,46 +598,36 @@ def setComponentInstantiationPackageName(componentInstantiationID: str, packageN
 
 
 def setDesignConfigurationInstantiationDesignConfigurationRef(
-    designConfigurationInstantiationID: str, designConfigurationVLNV: tuple[str, str, str, str]
+    designConfigurationInstantiationID: str, designConfigurationVLNV: tuple[str, str, str, str],
 ) -> bool:
-    """Set the ``designConfigurationRef`` (creates if absent).
+    """Update the generated reference in place after validating VLNV (F.7.56.24).
 
-    Section: F.7.56.24.
+    Preserve existing configuration values and reference identity. Invalid input
+    raises INVALID_ARGUMENT before mutation; target lookup remains separate.
     """
+    from .core import vlnv_to_tuple
+
     dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
-    ref = getattr(dci, "design_configuration_ref", None)
-    if ref is None:
-        ref = ConfigurableLibraryRefType(
-            vendor=designConfigurationVLNV[0],
-            library=designConfigurationVLNV[1],
-            name=designConfigurationVLNV[2],
-            version=designConfigurationVLNV[3],
-        )
-        dci.design_configuration_ref = ref
-        register_parent(ref, dci, tuple(), "single")
-    else:
-        ref.vendor, ref.library, ref.name, ref.version = designConfigurationVLNV
+    parts = vlnv_to_tuple(designConfigurationVLNV)
+    if any(not isinstance(part, str) or not part.strip() for part in parts):
+        raise TgiError("Expected four nonempty VLNV strings", TgiFaultCode.INVALID_ARGUMENT)
+    ref = dci.design_configuration_ref
+    ref.vendor, ref.library, ref.name, ref.version = parts
+    register_parent(ref, dci, ("design_configuration_ref",), "single")
     return True
 
 
 def setDesignConfigurationInstantiationLanguage(designConfigurationInstantiationID: str, language: str) -> bool:
-    """Set language element for designConfigurationInstantiation.
+    """Set generated language source text, preserving existing strict metadata.
 
-    Section: F.7.56.25.
+    Section: F.7.56.25. Invalid text raises INVALID_ARGUMENT before mutation.
     """
-    dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
-    lang = getattr(dci, "language", None)
-    if lang is None:
-        lang = LanguageType()
-        dci.language = lang
-        register_parent(lang, dci, tuple(), "single")
-    if getattr(lang, "value", None) is None:
-        class _V:  # simple wrapper as above
-            def __init__(self, value):
-                self.value = value
-
-        lang.value = _V(language)  # type: ignore[attr-defined]
+    inst = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
+    if not isinstance(language, str) or not language.strip():
+        raise TgiError("Expected a nonempty language string", TgiFaultCode.INVALID_ARGUMENT)
+    if inst.language is None:
+        inst.language = LanguageType(value=language)
     else:
-        lang.value.value = language  # type: ignore[attr-defined]
+        inst.language.value = language
+    register_parent(inst.language, inst, ("language",), "single")
     return True
-

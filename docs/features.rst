@@ -974,10 +974,10 @@ Component (EXTENDED)
 * ☐ ``addComponentChoice`` (F.7.30.3)
 * ☐ ``addComponentClearboxElement`` (F.7.30.4)
 * ☐ ``addComponentComponentGenerator`` (F.7.30.5)
-* ☐ ``addComponentComponentInstantiation`` (F.7.30.6)
+* ☑ ``addComponentComponentInstantiation`` (F.7.30.6)
 * ☐ ``addComponentCpu`` (F.7.30.7)
-* ☐ ``addComponentDesignConfigurationInstantiation`` (F.7.30.8)
-* ☐ ``addComponentDesignInstantiation`` (F.7.30.9)
+* ☑ ``addComponentDesignConfigurationInstantiation`` (F.7.30.8)
+* ☑ ``addComponentDesignInstantiation`` (F.7.30.9)
 * ☐ ``addComponentFileSet`` (F.7.30.10)
 * ☐ ``addComponentIndirectInterface`` (F.7.30.11)
 * ☐ ``addComponentInitiatorBusInterface`` (F.7.30.12)
@@ -1974,7 +1974,7 @@ Instantiation (BASE)
 * ☐ ``getComponentInstantiationDefaultFileBuilderIDs`` (F.7.55.8)
 * ☐ ``getComponentInstantiationFileSetRefIDs`` (F.7.55.9)
 * ☐ ``getComponentInstantiationIsVirtual`` (F.7.55.10)
-* ☐ ``getComponentInstantiationLanguage`` (F.7.55.11)
+* ☑ ``getComponentInstantiationLanguage`` (F.7.55.11)
 * ☐ ``getComponentInstantiationLanguageID`` (F.7.55.12)
 * ☐ ``getComponentInstantiationLibraryName`` (F.7.55.13)
 * ☐ ``getComponentInstantiationModuleName`` (F.7.55.14)
@@ -1982,7 +1982,7 @@ Instantiation (BASE)
 * ☐ ``getDesignConfigurationInstantiationDesignConfigurationRefByID`` (F.7.55.16)
 * ☐ ``getDesignConfigurationInstantiationDesignConfigurationRefByVLNV`` (F.7.55.17)
 * ☐ ``getDesignConfigurationInstantiationDesignConfigurationRefID`` (F.7.55.18)
-* ☐ ``getDesignConfigurationInstantiationLanguage`` (F.7.55.19)
+* ☑ ``getDesignConfigurationInstantiationLanguage`` (F.7.55.19)
 * ☐ ``getDesignConfigurationInstantiationLanguageID`` (F.7.55.20)
 * ☐ ``getDesignInstantiationDesignRefByID`` (F.7.55.21)
 * ☐ ``getDesignInstantiationDesignRefByVLNV`` (F.7.55.22)
@@ -2013,12 +2013,12 @@ Instantiation (EXTENDED)
 * ☐ ``setComponentInstantiationArchitectureName`` (F.7.56.17)
 * ☐ ``setComponentInstantiationConfigurationName`` (F.7.56.18)
 * ☐ ``setComponentInstantiationIsVirtual`` (F.7.56.19)
-* ☐ ``setComponentInstantiationLanguage`` (F.7.56.20)
+* ☑ ``setComponentInstantiationLanguage`` (F.7.56.20)
 * ☐ ``setComponentInstantiationLibraryName`` (F.7.56.21)
 * ☐ ``setComponentInstantiationModuleName`` (F.7.56.22)
 * ☐ ``setComponentInstantiationPackageName`` (F.7.56.23)
-* ☐ ``setDesignConfigurationInstantiationDesignConfigurationRef`` (F.7.56.24)
-* ☐ ``setDesignConfigurationInstantiationLanguage`` (F.7.56.25)
+* ☑ ``setDesignConfigurationInstantiationDesignConfigurationRef`` (F.7.56.24)
+* ☑ ``setDesignConfigurationInstantiationLanguage`` (F.7.56.25)
 * ☐ ``setDesignInstantiationDesignRef`` (F.7.56.26)
 
 Memory map (BASE)
@@ -3299,3 +3299,17 @@ Generated component instantiation creation
 - ☑ addComponentDesignConfigurationInstantiation: generated creation and immediate lifecycle verified.
 - Component-instance placement for design configuration remains explicitly pending.
 - Six scoped cases passed in 1.09s; generated XML and input atomicity verified.
+
+Instantiation language and reference metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setComponentInstantiationLanguage preserves generated source values and identity.
+- ☑ getComponentInstantiationLanguage preserves generated source values and identity.
+- ☑ setDesignConfigurationInstantiationLanguage preserves generated source values and identity.
+- ☑ getDesignConfigurationInstantiationLanguage preserves generated source values and identity.
+- ☑ setDesignConfigurationInstantiationDesignConfigurationRef preserves generated source values and identity.
+- ☐ Resolve targets and complete configured language/reference semantics.
+
+Language setters accept nonempty source strings, preserve existing strict
+metadata and child identity, and reject invalid input before mutation. Reference
+updates validate four nonempty VLNV parts and preserve configuration metadata.
