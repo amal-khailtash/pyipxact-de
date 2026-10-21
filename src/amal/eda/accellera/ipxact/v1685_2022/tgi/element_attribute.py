@@ -56,7 +56,7 @@ _BASE_ATTRIBUTE_VALUE_FUNCS: list[tuple[str, str, str, str]] = [
     ("getComponentRefAttribute", "componentRef", "str", "str"),
     ("getComponentRefAttributeByID", "componentRef", "ref", "ref"),
     ("getConfigGroupsAttribute", "configGroups", "str", "str"),
-    ("getConstrainedAttributeValues", "constrained", "str", "str"),
+    ("getConstrainedAttributeValues", "constrained", "strings", "strings"),
     ("getConstraintSetIdAttribute", "constraintSetId", "str", "str"),
     ("getCustomAttribute", "custom", "str", "str"),
     ("getDataTypeAttribute", "dataType", "str", "str"),
@@ -418,15 +418,25 @@ def _define_base_functions() -> None:
                 raw = _attribute_value(obj, a)
                 if k == "ref":
                     return None if raw is None else get_handle(raw)
+                if _fn == "getConfigGroupsAttribute" and isinstance(raw, (list, tuple)):
+                    return " ".join(raw)
+                if k == "strings":
+                    return None if raw is None else list(raw)
                 value = _unwrap(raw)
                 return _coerce(value, r) if r in {"bool", "int", "float", "str"} else value
 
             _getter.__name__ = _fn
+            result_note = (
+                "Return a copied string list for constrained values.\n" if k == "strings" else
+                "Return space-separated XML list text for configuration groups.\n"
+                if _fn == "getConfigGroupsAttribute" else ""
+            )
             _getter.__doc__ = (
                 f"Return the XML attribute {a!r}.\n\n"
                 f"Section: F.7.43.{subsection}.\n"
                 "Generated binding field metadata maps XML names to Python attributes.\n"
                 "Unset attributes return None; invalid handles raise TgiError.\n"
+                + result_note
             )
             return _getter
 

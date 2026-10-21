@@ -16,8 +16,10 @@ from org.accellera.ipxact.v1685_2022 import (
     Parameter,
     ParameterTypeResolve,
     SignType,
-    TestableTestConstraint as ConstraintKind,
     UnsignedBitVectorExpression,
+)
+from org.accellera.ipxact.v1685_2022 import (
+    TestableTestConstraint as ConstraintKind,
 )
 
 
