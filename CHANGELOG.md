@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Verify BASE help, prompt, prefix, user and hierarchical path attributes with XML reloads.
 - Verify BASE force, mandatory, misalignmentAllowed, replicate and unique boolean flags.
 - Return BASE configuration groups as XML list text and constrained values as copied string lists; verify index, order and constraint-set ID attributes.
 - Verify BASE resolve, scope, sign, test constraint and usage configuration attributes.
