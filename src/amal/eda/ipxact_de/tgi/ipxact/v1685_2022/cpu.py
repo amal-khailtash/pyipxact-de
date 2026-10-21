@@ -166,12 +166,18 @@ def getCpuRange(cpuID: str) -> int | None:
 
 
 def getCpuRangeExpression(cpuID: str) -> str | None:
+    """Return stored range source text without evaluation (F.7.21.8)."""
     return _text(_resolve_cpu(cpuID), "range")
 
 
 def getCpuRangeID(cpuID: str) -> str | None:
-    expr = getattr(_resolve_cpu(cpuID), "range", None)
-    return get_handle(expr) if expr is not None else None
+    """Return a stable range handle with parsed ownership (F.7.21.9)."""
+    cpu = _resolve_cpu(cpuID)
+    expr = cpu.range
+    if expr is None:
+        return None
+    register_parent(expr, cpu, ("range",), "single")
+    return get_handle(expr)
 
 
 def getCpuWidth(cpuID: str) -> int | None:
@@ -179,12 +185,18 @@ def getCpuWidth(cpuID: str) -> int | None:
 
 
 def getCpuWidthExpression(cpuID: str) -> str | None:
+    """Return stored width source text without evaluation (F.7.21.12)."""
     return _text(_resolve_cpu(cpuID), "width")
 
 
 def getCpuWidthID(cpuID: str) -> str | None:
-    expr = getattr(_resolve_cpu(cpuID), "width", None)
-    return get_handle(expr) if expr is not None else None
+    """Return a stable width handle with parsed ownership (F.7.21.13)."""
+    cpu = _resolve_cpu(cpuID)
+    expr = cpu.width
+    if expr is None:
+        return None
+    register_parent(expr, cpu, ("width",), "single")
+    return get_handle(expr)
 
 
 def getCpuAddressUnitBits(cpuID: str) -> int | None:
@@ -192,12 +204,18 @@ def getCpuAddressUnitBits(cpuID: str) -> int | None:
 
 
 def getCpuAddressUnitBitsExpression(cpuID: str) -> str | None:
+    """Return stored address_unit_bits source text without evaluation (F.7.21.2)."""
     return _text(_resolve_cpu(cpuID), "address_unit_bits")
 
 
 def getCpuAddressUnitBitsID(cpuID: str) -> str | None:
-    expr = getattr(_resolve_cpu(cpuID), "address_unit_bits", None)
-    return get_handle(expr) if expr is not None else None
+    """Return a stable address_unit_bits handle with parsed ownership (F.7.21.3)."""
+    cpu = _resolve_cpu(cpuID)
+    expr = cpu.address_unit_bits
+    if expr is None:
+        return None
+    register_parent(expr, cpu, ("address_unit_bits",), "single")
+    return get_handle(expr)
 
 
 def getCpuRegionIDs(cpuID: str) -> list[str]:

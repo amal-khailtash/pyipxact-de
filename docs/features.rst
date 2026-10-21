@@ -828,18 +828,18 @@ CPU (BASE)
 ~~~~~~~~~~
 
 - ☐ ``getCpuAddressUnitBits`` (F.7.21.1)
-- ☐ ``getCpuAddressUnitBitsExpression`` (F.7.21.2)
-- ☐ ``getCpuAddressUnitBitsID`` (F.7.21.3)
+- ☑ ``getCpuAddressUnitBitsExpression`` (F.7.21.2) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
+- ☑ ``getCpuAddressUnitBitsID`` (F.7.21.3) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
 - ☐ ``getCpuExecutableImageIDs`` (F.7.21.4)
 - ☐ ``getCpuMemoryMapRefByID`` (F.7.21.5)
 - ☐ ``getCpuMemoryMapRefByName`` (F.7.21.6)
 - ☐ ``getCpuRange`` (F.7.21.7)
-- ☐ ``getCpuRangeExpression`` (F.7.21.8)
-- ☐ ``getCpuRangeID`` (F.7.21.9)
+- ☑ ``getCpuRangeExpression`` (F.7.21.8) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
+- ☑ ``getCpuRangeID`` (F.7.21.9) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
 - ☐ ``getCpuRegionIDs`` (F.7.21.10)
 - ☐ ``getCpuWidth`` (F.7.21.11)
-- ☐ ``getCpuWidthExpression`` (F.7.21.12)
-- ☐ ``getCpuWidthID`` (F.7.21.13)
+- ☑ ``getCpuWidthExpression`` (F.7.21.12) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
+- ☑ ``getCpuWidthID`` (F.7.21.13) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
 
 CPU (EXTENDED)
 ~~~~~~~~~~~~~~

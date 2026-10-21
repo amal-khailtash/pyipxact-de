@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read CPU source expressions with stable parsed child handles through BASE getters.
 - Read catalog file URI and four-part VLNV metadata through BASE handles.
 - Traverse catalog file categories using standard BASE handles and parsed ownership.
 - Read generated generator-chain group selectors through BASE getters.
