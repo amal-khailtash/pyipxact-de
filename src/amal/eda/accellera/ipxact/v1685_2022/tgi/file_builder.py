@@ -317,6 +317,9 @@ def getExecutableImageFileBuilderIDs(executableImageID: str) -> list[str]:  # F.
         raise TgiError("Handle is not an ExecutableImage", TgiFaultCode.INVALID_ID)
     if img.language_tools is None:
         return []
+    register_parent(img.language_tools, img, ("language_tools",), "single")
+    for fb in img.language_tools.file_builder:
+        register_parent(fb, img.language_tools, ("file_builder",), "list")
     return [get_handle(fb) for fb in img.language_tools.file_builder]
 
 
@@ -330,6 +333,9 @@ def getExecutableImageFileSetRefIDs(executableImageID: str) -> list[str]:  # F.7
         raise TgiError("Handle is not an ExecutableImage", TgiFaultCode.INVALID_ID)
     if img.file_set_ref_group is None:
         return []
+    register_parent(img.file_set_ref_group, img, ("file_set_ref_group",), "single")
+    for ref in img.file_set_ref_group.file_set_ref:
+        register_parent(ref, img.file_set_ref_group, ("file_set_ref",), "list")
     return [get_handle(r) for r in img.file_set_ref_group.file_set_ref]
 
 
@@ -341,7 +347,10 @@ def getExecutableImageLanguageToolsID(executableImageID: str) -> str | None:  # 
     img = _resolve(executableImageID)
     if not isinstance(img, ExecutableImage):
         raise TgiError("Handle is not an ExecutableImage", TgiFaultCode.INVALID_ID)
-    return None if img.language_tools is None else get_handle(img.language_tools)
+    if img.language_tools is None:
+        return None
+    register_parent(img.language_tools, img, ("language_tools",), "single")
+    return get_handle(img.language_tools)
 
 
 def getExecutableImageLinker(executableImageID: str) -> str | None:  # F.7.45.14
@@ -368,8 +377,11 @@ def getExecutableImageLinkerCommandFileID(executableImageID: str) -> str | None:
     if img.language_tools is None:
         return None
     # Spec returns first? F.7.45.15 singular; choose first if present
-    for lcf in img.language_tools.linker_command_file:
-        return get_handle(lcf)
+    register_parent(img.language_tools, img, ("language_tools",), "single")
+    for lcf in img.language_tools.linker_flags_or_linker_command_file:
+        if isinstance(lcf, LinkerCommandFile):
+            register_parent(lcf, img.language_tools, ("linker_flags_or_linker_command_file",), "list")
+            return get_handle(lcf)
     return None
 
 
@@ -394,9 +406,14 @@ def getExecutableImageLinkerFlags(executableImageID: str) -> str | None:  # F.7.
     img = _resolve(executableImageID)
     if not isinstance(img, ExecutableImage):
         raise TgiError("Handle is not an ExecutableImage", TgiFaultCode.INVALID_ID)
-    if img.language_tools is None or img.language_tools.linker_flags is None:
+    from org.accellera.ipxact.v1685_2022 import StringExpression
+
+    if img.language_tools is None:
         return None
-    return _get_value(img.language_tools.linker_flags)
+    for child in img.language_tools.linker_flags_or_linker_command_file:
+        if isinstance(child, StringExpression):
+            return child.value
+    return None
 
 
 def getExecutableImageLinkerFlagsExpression(executableImageID: str) -> str | None:  # F.7.45.18
@@ -407,9 +424,14 @@ def getExecutableImageLinkerFlagsExpression(executableImageID: str) -> str | Non
     img = _resolve(executableImageID)
     if not isinstance(img, ExecutableImage):
         raise TgiError("Handle is not an ExecutableImage", TgiFaultCode.INVALID_ID)
-    if img.language_tools is None or img.language_tools.linker_flags is None:
+    from org.accellera.ipxact.v1685_2022 import StringExpression
+
+    if img.language_tools is None:
         return None
-    return getattr(img.language_tools.linker_flags, "value", None)
+    for child in img.language_tools.linker_flags_or_linker_command_file:
+        if isinstance(child, StringExpression):
+            return child.value
+    return None
 
 
 def getFileBuildCommandID(fileID: str) -> str | None:  # F.7.45.19

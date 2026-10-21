@@ -2,8 +2,8 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import top_element
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, TgiFaultCode, registry, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import top_element
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, TgiFaultCode, registry, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import Catalog, Component, Design, DesignConfiguration, TypeDefinitions
 
@@ -71,7 +71,7 @@ def test_bus_creation_rejects_nonboolean(value):
 
 
 def test_generator_chain_initial_generator_round_trip():
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import get_handle, get_parent_info
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import get_handle, get_parent_info
     from org.accellera.ipxact.v1685_2022 import GeneratorChain
     vlnv = ("v", "l", "chain", "1")
     handle = top_element.createGeneratorChain(vlnv, "generate", "scripts/generate.py")
@@ -94,7 +94,7 @@ def test_generator_chain_invalid_arguments(name, exe):
 
 @pytest.mark.parametrize("member", ["DirectConnection", "Broadcast", "IsAddressable"])
 def test_bus_boolean_setters_preserve_false_and_reject_coercion(member):
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import bus_definition
+    from amal.eda.accellera.ipxact.v1685_2022.tgi import bus_definition
     handle = top_element.createBusDefinition(("v", "l", "bus", "1"), True, True)
     setter = getattr(bus_definition, "setBusDefinition" + member)
     getter = getattr(bus_definition, "getBusDefinition" + member)

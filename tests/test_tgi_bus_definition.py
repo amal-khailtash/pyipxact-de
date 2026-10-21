@@ -5,8 +5,8 @@ from lxml import etree
 from xsdata.formats.dataclass.parsers import XmlParser
 from xsdata.formats.dataclass.serializers import XmlSerializer
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import bus_definition as api
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, get_handle, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import bus_definition as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle, resolve_handle
 from org.accellera.ipxact.v1685_2022 import BusDefinition
 
 

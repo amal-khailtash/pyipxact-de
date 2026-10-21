@@ -31,6 +31,26 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read BASE array ID, bank alignment, cell strength and clock attributes using generated XML metadata.
+- Read BASE boolean XML attributes through generated binding metadata, preserving false values.
+- Read register/field array dimensions and strides through BASE getters with typed parent checks and parsed ownership.
+- Traverse bounded arrays and retrieve ordered left/right values, source expressions and owned handles through BASE getters.
+- Read CPU region offset/range through BASE getters using region handles and owned parsed children.
+- Read segment offset/range literals, source expressions and owned child handles through six BASE getters.
+- Move TGI to ``amal.eda.accellera.ipxact.v1685_2022.tgi`` and update application and test imports.
+- Traverse CPU and generator transport children through standard BASE handles.
+- Read CPU source expressions with stable parsed child handles through BASE getters.
+- Read catalog file URI and four-part VLNV metadata through BASE handles.
+- Traverse catalog file categories using standard BASE handles and parsed ownership.
+- Read generated generator-chain group selectors through BASE getters.
+- Traverse generated mixed generator-chain collections through BASE getters.
+- Read generated generator API/executable metadata with parsed child ownership through BASE getters.
+- Read instance-generator groups and scope with stable typed handles through BASE getters.
+- Return generated function return/source types and source reference names through BASE getters.
+- Traverse executable-image linker choices and restore parsed child ownership through BASE getters.
+- Consolidate repeated TGI checklist entries into their canonical category entries.
+- BASE function source metadata returns generated strings/enum literals and stable child handles with parsed ownership; effective expression evaluation and file target resolution remain pending.
+- BASE file-set collections preserve source order and stable handles, restore parsed ownership and preserve serialized content during traversal.
 - BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.
 - BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.
 - Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.

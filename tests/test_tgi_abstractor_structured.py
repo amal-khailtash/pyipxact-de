@@ -2,9 +2,9 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import abstractor as api
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import top_element
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import (
+from amal.eda.accellera.ipxact.v1685_2022.tgi import abstractor as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi import top_element
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import (
     TgiError,
     TgiFaultCode,
     get_handle,

@@ -2,8 +2,8 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import component, view
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, get_handle, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import component, view
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import Component
 
@@ -58,7 +58,7 @@ def test_owner_isolation_and_reference_removal_preserves_target():
 
 @pytest.mark.parametrize("kind", ["Component", "Design", "DesignConfiguration"])
 def test_registered_parsed_view_restores_ownership(kind):
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import registry
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
 
     root = document()
     original_id = get_handle(root)

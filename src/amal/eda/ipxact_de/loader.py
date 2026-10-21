@@ -36,7 +36,7 @@ from urllib.parse import unquote, urlsplit
 from lxml import etree
 
 from amal.utilities import ARROW, logger
-from .tgi.ipxact.v1685_2022.core import VLNV, registry
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import VLNV, registry
 from .xml_document import XmlDocument
 
 

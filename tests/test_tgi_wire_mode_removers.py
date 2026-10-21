@@ -2,9 +2,9 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import abstraction_definition as api
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import top_element
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import get_handle, registry, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import abstraction_definition as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi import top_element
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import get_handle, registry, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import AbstractionDefinition
 from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (

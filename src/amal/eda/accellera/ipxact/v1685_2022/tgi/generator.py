@@ -12,7 +12,6 @@ Error semantics follow the common TGI model:
 """
 # ruff: noqa: I001
 from org.accellera.ipxact.v1685_2022 import (
-    Generator,
     AbstractorGenerator,
     ComponentGenerator,
 )
@@ -69,9 +68,9 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
-def _resolve_generator(handle: str) -> Generator | None:
+def _resolve_generator(handle: str) -> GeneratorType | None:
     obj = resolve_handle(handle)
-    return obj if isinstance(obj, Generator) else None
+    return obj if isinstance(obj, GeneratorType) else None
 
 
 def _resolve_instance_generator(handle: str) -> InstanceGeneratorType | None:
@@ -110,7 +109,9 @@ def getAbstractorGeneratorGroupIDs(abstractorGeneratorID: str) -> list[str]:
     ig = _resolve_instance_generator(abstractorGeneratorID)
     if ig is None or not isinstance(resolve_handle(abstractorGeneratorID), AbstractorGenerator):
         raise TgiError("Invalid abstractorGenerator handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in getattr(ig, "group", [])]
+    for group in ig.group:
+        register_parent(group, ig, ("group",), "list")
+    return [get_handle(group) for group in ig.group]
 
 
 def getComponentGeneratorGroupIDs(componentGeneratorID: str) -> list[str]:
@@ -121,7 +122,9 @@ def getComponentGeneratorGroupIDs(componentGeneratorID: str) -> list[str]:
     ig = _resolve_instance_generator(componentGeneratorID)
     if ig is None or not isinstance(resolve_handle(componentGeneratorID), ComponentGenerator):
         raise TgiError("Invalid componentGenerator handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in getattr(ig, "group", [])]
+    for group in ig.group:
+        register_parent(group, ig, ("group",), "list")
+    return [get_handle(group) for group in ig.group]
 
 
 def getGeneratorApiService(generatorID: str) -> str | None:
@@ -145,7 +148,10 @@ def getGeneratorApiTypeID(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     api = g.api_type
-    return None if api is None else get_handle(api)
+    if api is None:
+        return None
+    register_parent(api, g, ("api_type",), "single")
+    return get_handle(api)
 
 
 def getGeneratorExecutable(generatorID: str) -> str | None:
@@ -169,7 +175,10 @@ def getGeneratorGeneratorExe(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     exe = g.generator_exe
-    return None if exe is None else get_handle(exe)
+    if exe is None:
+        return None
+    register_parent(exe, g, ("generator_exe",), "single")
+    return get_handle(exe)
 
 
 def getGeneratorGroups(generatorID: str) -> list[str]:
@@ -179,7 +188,8 @@ def getGeneratorGroups(generatorID: str) -> list[str]:
     """
     ig = _resolve_instance_generator(generatorID)
     if ig is None:
-        # Plain generator: no groups
+        if _resolve_generator(generatorID) is None:
+            raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
         return []
     return [str(getattr(g, "value", "")) for g in getattr(ig, "group", []) if getattr(g, "value", None) is not None]
 
@@ -213,7 +223,10 @@ def getGeneratorPhaseID(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     ph = g.phase
-    return None if ph is None else get_handle(ph)
+    if ph is None:
+        return None
+    register_parent(ph, g, ("phase",), "single")
+    return get_handle(ph)
 
 
 def getGeneratorScope(generatorID: str) -> str | None:
@@ -223,6 +236,8 @@ def getGeneratorScope(generatorID: str) -> str | None:
     """
     ig = _resolve_instance_generator(generatorID)
     if ig is None:
+        if _resolve_generator(generatorID) is None:
+            raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
         return None
     scope = getattr(ig, "scope", None)
     if scope is None:
@@ -243,7 +258,10 @@ def getGeneratorTransportMethodsID(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     tm = g.transport_methods
-    return None if tm is None else get_handle(tm)
+    if tm is None:
+        return None
+    register_parent(tm, g, ("transport_methods",), "single")
+    return get_handle(tm)
 
 
 def getTransportMethodsTransportMethodID(transportMethodsID: str) -> str | None:
@@ -255,7 +273,10 @@ def getTransportMethodsTransportMethodID(transportMethodsID: str) -> str | None:
     if tm is None:
         raise TgiError("Invalid transportMethods handle", TgiFaultCode.INVALID_ID)
     method = tm.transport_method
-    return None if method is None else get_handle(method)
+    if method is None:
+        return None
+    register_parent(method, tm, ("transport_method",), "single")
+    return get_handle(method)
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """Tests for module parameter category TGI functions."""
 from org.accellera.ipxact.v1685_2022 import ComponentInstantiationType, ModuleParameterType, Value
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import (
+from amal.eda.accellera.ipxact.v1685_2022.tgi import (
     getModuleParameterIDs,
     getModuleParameterValue,
     getModuleParameterValueExpression,

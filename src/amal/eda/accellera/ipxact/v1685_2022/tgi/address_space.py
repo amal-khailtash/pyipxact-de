@@ -15,7 +15,7 @@ Creation / mutation helpers create missing optional container elements where
 allowed by the schema.
 """
 
-from org.accellera.ipxact.v1685_2022 import AddressSpaces
+from org.accellera.ipxact.v1685_2022 import AddressSpaces, ComponentType
 from org.accellera.ipxact.v1685_2022.address_spaces import AddressSpaces as AddressSpacesClass  # noqa: F401  (retained for potential future use)
 from org.accellera.ipxact.v1685_2022.local_memory_map_type import LocalMemoryMapType
 from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import (
@@ -60,6 +60,12 @@ __all__ = [  # BASE + EXTENDED exports
     "getRegionRange",
     "getRegionRangeExpression",
     "getRegionRangeID",
+    "getSegmentAddressOffset",
+    "getSegmentAddressOffsetExpression",
+    "getSegmentAddressOffsetID",
+    "getSegmentRange",
+    "getSegmentRangeExpression",
+    "getSegmentRangeID",
     # EXTENDED (F.7.12)
     "addAddressSpaceSegment",
     "addExecutableImageFileSetRef",
@@ -118,6 +124,12 @@ def _resolve_segment(segmentID: str) -> AddressSpaces.AddressSpace.Segments.Segm
     if isinstance(obj, AddressSpaces.AddressSpace.Segments.Segment):  # type: ignore[attr-defined]
         return obj
     return None
+
+
+def _resolve_region(regionID: str) -> ComponentType.Cpus.Cpu.Regions.Region | None:
+    """Resolve a CPU region handle without accepting address-space segments."""
+    obj = resolve_handle(regionID)
+    return obj if isinstance(obj, ComponentType.Cpus.Cpu.Regions.Region) else None
 
 
 def _resolve_local_memory_map(localMemoryMapID: str) -> LocalMemoryMapType | None:
@@ -473,39 +485,39 @@ def getLocalMemoryMapBankIDs(localMemoryMapID: str) -> list[str]:
     return [get_handle(b) for b in getattr(lmm, "bank", [])]
 
 
-def getRegionAddressOffset(segmentID: str) -> int | None:
-    """Get numeric value of a region (segment) ``addressOffset``.
+def getRegionAddressOffset(regionID: str) -> int | None:
+    """Get numeric value of a CPU region ``addressOffset``.
 
     Section: F.7.11.16.
 
     Args:
-        segmentID: Handle referencing a ``segment``.
+        regionID: Handle referencing a ``region``.
 
     Returns:
         int | None: Evaluated offset or ``None`` if absent or not evaluable.
 
     Raises:
-        TgiError: If segment handle invalid.
+        TgiError: If region handle invalid.
     """
-    seg = _resolve_segment(segmentID)
+    seg = _resolve_region(regionID)
     if seg is None:
-        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
     ao = getattr(seg, "address_offset", None)
     if ao is None:
         return None
     try:
-        return int(getattr(ao, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
+        return int(ao.value, 0) if ao.value.lower().startswith(("0x", "0o", "0b")) else int(ao.value)
+    except (ValueError, TypeError, AttributeError):
         return None
 
 
-def getRegionAddressOffsetExpression(segmentID: str) -> str | None:
-    """Get expression string of a segment ``addressOffset``.
+def getRegionAddressOffsetExpression(regionID: str) -> str | None:
+    """Get expression string of a region ``addressOffset``.
 
     Section: F.7.11.17.
 
     Args:
-        segmentID: Segment handle.
+        regionID: Region handle.
 
     Returns:
         str | None: Expression string or ``None`` if missing.
@@ -513,20 +525,20 @@ def getRegionAddressOffsetExpression(segmentID: str) -> str | None:
     Raises:
         TgiError: If handle invalid.
     """
-    seg = _resolve_segment(segmentID)
+    seg = _resolve_region(regionID)
     if seg is None:
-        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
     ao = getattr(seg, "address_offset", None)
     return getattr(ao, "value", None) if ao is not None else None
 
 
-def getRegionAddressOffsetID(segmentID: str) -> str | None:
-    """Get handle of the segment ``addressOffset`` element.
+def getRegionAddressOffsetID(regionID: str) -> str | None:
+    """Get handle of the region ``addressOffset`` element.
 
     Section: F.7.11.18.
 
     Args:
-        segmentID: Segment handle.
+        regionID: Region handle.
 
     Returns:
         str | None: Child handle or ``None`` when element absent.
@@ -534,20 +546,23 @@ def getRegionAddressOffsetID(segmentID: str) -> str | None:
     Raises:
         TgiError: If handle invalid.
     """
-    seg = _resolve_segment(segmentID)
+    seg = _resolve_region(regionID)
     if seg is None:
-        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
     ao = getattr(seg, "address_offset", None)
-    return get_handle(ao) if ao is not None else None
+    if ao is None:
+        return None
+    register_parent(ao, seg, ("address_offset",), "single")
+    return get_handle(ao)
 
 
-def getRegionRange(segmentID: str) -> int | None:
-    """Get numeric value of a segment ``range``.
+def getRegionRange(regionID: str) -> int | None:
+    """Get numeric value of a region ``range``.
 
     Section: F.7.11.19.
 
     Args:
-        segmentID: Segment handle.
+        regionID: Region handle.
 
     Returns:
         int | None: Numeric range value or ``None`` if absent/not evaluable.
@@ -555,25 +570,25 @@ def getRegionRange(segmentID: str) -> int | None:
     Raises:
         TgiError: If handle invalid.
     """
-    seg = _resolve_segment(segmentID)
+    seg = _resolve_region(regionID)
     if seg is None:
-        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
     r = getattr(seg, "range", None)
     if r is None:
         return None
     try:
-        return int(getattr(r, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
+        return int(r.value, 0) if r.value.lower().startswith(("0x", "0o", "0b")) else int(r.value)
+    except (ValueError, TypeError, AttributeError):
         return None
 
 
-def getRegionRangeExpression(segmentID: str) -> str | None:
-    """Get expression string for a segment ``range``.
+def getRegionRangeExpression(regionID: str) -> str | None:
+    """Get expression string for a region ``range``.
 
     Section: F.7.11.20.
 
     Args:
-        segmentID: Segment handle.
+        regionID: Region handle.
 
     Returns:
         str | None: Expression or ``None`` if element absent.
@@ -581,20 +596,20 @@ def getRegionRangeExpression(segmentID: str) -> str | None:
     Raises:
         TgiError: If handle invalid.
     """
-    seg = _resolve_segment(segmentID)
+    seg = _resolve_region(regionID)
     if seg is None:
-        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
     r = getattr(seg, "range", None)
     return getattr(r, "value", None) if r is not None else None
 
 
-def getRegionRangeID(segmentID: str) -> str | None:
-    """Get handle of the segment ``range`` element.
+def getRegionRangeID(regionID: str) -> str | None:
+    """Get handle of the region ``range`` element.
 
     Section: F.7.11.21.
 
     Args:
-        segmentID: Segment handle.
+        regionID: Region handle.
 
     Returns:
         str | None: Child handle or ``None`` when element absent.
@@ -602,11 +617,118 @@ def getRegionRangeID(segmentID: str) -> str | None:
     Raises:
         TgiError: If handle invalid.
     """
-    seg = _resolve_segment(segmentID)
+    seg = _resolve_region(regionID)
     if seg is None:
-        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
     r = getattr(seg, "range", None)
-    return get_handle(r) if r is not None else None
+    if r is None:
+        return None
+    register_parent(r, seg, ("range",), "single")
+    return get_handle(r)
+
+
+def getSegmentAddressOffset(segmentID: str) -> int | None:
+    """Return the segment address_offset integer literal value.
+
+    Section: F.7.11.22.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "address_offset", None)
+    if child is None:
+        return None
+    try:
+        return int(child.value, 0) if child.value.lower().startswith(("0x", "0o", "0b")) else int(child.value)
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def getSegmentAddressOffsetExpression(segmentID: str) -> str | None:
+    """Return the segment address_offset source expression.
+
+    Section: F.7.11.23.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "address_offset", None)
+    if child is None:
+        return None
+    return getattr(child, "value", None)
+
+
+def getSegmentAddressOffsetID(segmentID: str) -> str | None:
+    """Return the segment address_offset child handle.
+
+    Section: F.7.11.24.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Child handles preserve ownership for parsed documents.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "address_offset", None)
+    if child is None:
+        return None
+    register_parent(child, segment, ("address_offset",), "single")
+    return get_handle(child)
+
+
+def getSegmentRange(segmentID: str) -> int | None:
+    """Return the segment range integer literal value.
+
+    Section: F.7.11.25.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "range", None)
+    if child is None:
+        return None
+    try:
+        return int(child.value, 0) if child.value.lower().startswith(("0x", "0o", "0b")) else int(child.value)
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def getSegmentRangeExpression(segmentID: str) -> str | None:
+    """Return the segment range source expression.
+
+    Section: F.7.11.26.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "range", None)
+    if child is None:
+        return None
+    return getattr(child, "value", None)
+
+
+def getSegmentRangeID(segmentID: str) -> str | None:
+    """Return the segment range child handle.
+
+    Section: F.7.11.27.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Child handles preserve ownership for parsed documents.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "range", None)
+    if child is None:
+        return None
+    register_parent(child, segment, ("range",), "single")
+    return get_handle(child)
 
 
 # ----------------------------------------------------------------------------

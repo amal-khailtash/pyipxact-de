@@ -333,18 +333,27 @@ def getFileSetDefaultFileBuilderIDs(fileSetID: str) -> list[str]:  # F.7.47.17
 
 
 def getFileSetDependencyIDs(fileSetID: str) -> list[str]:  # F.7.47.18
-    """Return fileSet dependency handles (Section: F.7.47.18)."""
-    return _ids(_resolve_fileset(fileSetID).dependency)  # type: ignore[arg-type]
+    """Return stable fileSet dependency handles with parsed ownership (Section: F.7.47.18)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.dependency:
+        register_parent(child, fs, ("dependency",), "list")
+    return _ids(fs.dependency)
 
 
 def getFileSetFileIDs(fileSetID: str) -> list[str]:  # F.7.47.19
-    """Return file handles (Section: F.7.47.19)."""
-    return _ids(_resolve_fileset(fileSetID).file)  # type: ignore[arg-type]
+    """Return stable file handles with parsed ownership (Section: F.7.47.19)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.file:
+        register_parent(child, fs, ("file",), "list")
+    return _ids(fs.file)
 
 
 def getFileSetFunctionIDs(fileSetID: str) -> list[str]:  # F.7.47.20
-    """Return function handles (Section: F.7.47.20)."""
-    return _ids(_resolve_fileset(fileSetID).function)  # type: ignore[arg-type]
+    """Return stable function handles with parsed ownership (Section: F.7.47.20)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.function:
+        register_parent(child, fs, ("function",), "list")
+    return _ids(fs.function)
 
 
 def getFileSetGroupFileSetRefIDs(fileSetGroupID: str) -> list[str]:  # F.7.47.21
@@ -360,8 +369,11 @@ def getFileSetGroupFileSetRefIDs(fileSetGroupID: str) -> list[str]:  # F.7.47.21
 
 
 def getFileSetGroupIDs(fileSetID: str) -> list[str]:  # F.7.47.22
-    """Return group handles (Section: F.7.47.22)."""
-    return _ids(_resolve_fileset(fileSetID).group)  # type: ignore[arg-type]
+    """Return stable group handles with parsed ownership (Section: F.7.47.22)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.group:
+        register_parent(child, fs, ("group",), "list")
+    return _ids(fs.group)
 
 
 def getFileSetGroups(fileSetID: str) -> list[str]:  # F.7.47.23
@@ -400,12 +412,15 @@ def getFileSetRefLocalNameRefByID(fileSetRefID: str) -> str | None:  # F.7.47.26
 def getFunctionArgumentDataType(argumentID: str) -> str | None:  # F.7.47.27
     """Return argument dataType (Section: F.7.47.27)."""
     arg = _resolve_argument(argumentID)
-    return getattr(arg, "data_type", None)
+    return arg.data_type.value
 
 
 def getFunctionArgumentIDs(functionID: str) -> list[str]:  # F.7.47.28
     """Return function argument handles (Section: F.7.47.28)."""
-    return _ids(_resolve_function(functionID).argument)  # type: ignore[arg-type]
+    fn = _resolve_function(functionID)
+    for child in fn.argument:
+        register_parent(child, fn, ("argument",), "list")
+    return _ids(fn.argument)
 
 
 def getFunctionDisabled(functionID: str) -> bool:  # F.7.47.29
@@ -430,12 +445,15 @@ def getFunctionDisabledExpression(functionID: str) -> str | None:  # F.7.47.30
 def getFunctionDisabledID(functionID: str) -> str | None:  # F.7.47.31
     """Return disabled element handle (Section: F.7.47.31)."""
     fn = _resolve_function(functionID)
-    return get_handle(fn.disabled) if fn.disabled is not None else None
+    if fn.disabled is None:
+        return None
+    register_parent(fn.disabled, fn, ("disabled",), "single")
+    return get_handle(fn.disabled)
 
 
 def getFunctionEntryPoint(functionID: str) -> str | None:  # F.7.47.32
     """Return entryPoint (Section: F.7.47.32)."""
-    return getattr(_resolve_function(functionID).entry_point, "value", None)
+    return _resolve_function(functionID).entry_point
 
 
 def getFunctionFileID(functionID: str) -> str | None:  # F.7.47.33
@@ -451,12 +469,8 @@ def getFunctionFileRefByID(functionID: str) -> str | None:  # F.7.47.34
 
 
 def getFunctionFileRefByName(functionID: str) -> str | None:  # F.7.47.35
-    """Return fileRef name (Section: F.7.47.35).
-
-    The schema encodes fileRef as string (the referenced fileId); no separate
-    local name – we return the same value.
-    """
-    return getFunctionFileID(functionID)
+    """Return the stored fileRef name without resolving its target (F.7.47.35)."""
+    return _resolve_function(functionID).file_ref
 
 
 def getFunctionReplicate(functionID: str) -> bool:  # F.7.47.36
@@ -469,13 +483,15 @@ def getFunctionReturnType(functionID: str) -> str | None:  # F.7.47.37
     rt = _resolve_function(functionID).return_type
     if rt is None:
         return None
-    val = getattr(rt, "value", None)
-    return getattr(val, "value", None) if val is not None else None
+    return rt.value
 
 
 def getFunctionSourceFileIDs(functionID: str) -> list[str]:  # F.7.47.38
     """Return sourceFile handles (Section: F.7.47.38)."""
-    return _ids(_resolve_function(functionID).source_file)  # type: ignore[arg-type]
+    fn = _resolve_function(functionID)
+    for child in fn.source_file:
+        register_parent(child, fn, ("source_file",), "list")
+    return _ids(fn.source_file)
 
 
 def getFunctionSourceFileName(functionSourceFileID: str) -> str | None:  # F.7.47.39

@@ -8,17 +8,21 @@ represents arrayable constructs (e.g. register arrays, field arrays, generic
   optional ``indexVar`` attribute in EXTENDED mode)
 * Optional left/right bound elements (``left``, ``right``) for some array
   forms
-* Optional ``range`` element (unsigned expression)
+* Range getters return the ordered left/right pair for bounded arrays
 * Optional stride element named either ``stride`` (generic), ``bit_stride`` or
   ``bitStride`` depending on the generated dataclass; we normalise access via
   *stride* accessors.
 
 Not all array forms carry every sub-element; getters return ``None`` when a
 sub-element is absent. Numeric getters attempt integer conversion of the
-underlying ``value`` field, otherwise return ``None``.
+underlying ``value`` field, otherwise return ``None``. Parameterized expressions
+are retained as source text; this module does not evaluate parameters.
 """
 
+from collections.abc import Sequence
 from typing import Any
+
+from org.accellera.ipxact.v1685_2022 import AddressBlockType, Dim, FieldType, RegisterFile
 
 from .core import (
     TgiError,
@@ -64,8 +68,8 @@ __all__ = [
 def _resolve_array(arrayID: str) -> Any:
     """Resolve an array-like container by handle.
 
-    Helper (non-spec). An object is considered array-like if it has a ``dim``
-    attribute (list). This function validates the handle and type.
+    Helper (non-spec). Accept dimension arrays and bounded arrays with left/right
+    children. This function validates the handle and shape.
 
     Args:
         arrayID: Handle referencing a potential array container.
@@ -74,10 +78,10 @@ def _resolve_array(arrayID: str) -> Any:
         Any: The resolved object.
 
     Raises:
-        TgiError: If the handle is invalid or object lacks a ``dim`` attribute.
+        TgiError: If the handle is invalid or references a different element.
     """
     obj = resolve_handle(arrayID)
-    if obj is None or not hasattr(obj, "dim"):
+    if obj is None or not (hasattr(obj, "dim") or (hasattr(obj, "left") and hasattr(obj, "right"))):
         raise TgiError("Invalid array handle", TgiFaultCode.INVALID_ID)
     return obj
 
@@ -92,10 +96,10 @@ def _resolve_dim(dimID: str) -> Any:
         Any: Dimension object.
 
     Raises:
-        TgiError: If the handle is invalid or the object lacks ``value``.
+        TgiError: If the handle is invalid or references a non-dimension element.
     """
     obj = resolve_handle(dimID)
-    if obj is None or not hasattr(obj, "value"):
+    if not isinstance(obj, Dim):
         raise TgiError("Invalid dim handle", TgiFaultCode.INVALID_ID)
     return obj
 
@@ -113,8 +117,9 @@ def _int_value(expr_obj: Any) -> int | None:
     if expr_obj is None:
         return None
     try:
-        return int(getattr(expr_obj, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
+        value = expr_obj.value
+        return int(value, 0) if value.lower().startswith(("0x", "0o", "0b")) else int(value)
+    except (ValueError, TypeError, AttributeError):
         return None
 
 
@@ -134,7 +139,11 @@ def getArrayDimIDs(arrayID: str) -> list[str]:
         list[str]: Handles (possibly empty) of ``dim`` elements.
     """
     arr = _resolve_array(arrayID)
-    return [get_handle(d) for d in getattr(arr, "dim", [])]
+    result = []
+    for dim in getattr(arr, "dim", []):
+        register_parent(dim, arr, ("dim",), "list")
+        result.append(get_handle(dim))
+    return result
 
 
 def getArrayIDs(parentID: str) -> list[str]:  # F.7.13.2
@@ -143,8 +152,8 @@ def getArrayIDs(parentID: str) -> list[str]:  # F.7.13.2
     Section: F.7.13.2.
 
     The spec enumerates retrieval of arrays contained in a parent object. We
-    treat any attributes named ``array`` or ``arrays`` (list) as array
-    containers. Missing attributes produce an empty list.
+    Traverse generated ``arrays.array`` wrappers or a single memory-map array.
+    Preserve source order and parsed ownership. Missing arrays return an empty list.
 
     Args:
         parentID: Parent handle (any object).
@@ -155,12 +164,20 @@ def getArrayIDs(parentID: str) -> list[str]:  # F.7.13.2
     parent = resolve_handle(parentID)
     if parent is None:
         raise TgiError("Invalid parent handle", TgiFaultCode.INVALID_ID)
-    arrays: list[Any] = []
     cand = _get_attr(parent, "array", "arrays")
     if cand is None:
         return []
-    arrays = cand if isinstance(cand, list) else [cand]
-    return [get_handle(a) for a in arrays if hasattr(a, "dim")]
+    if hasattr(cand, "array"):
+        owner, path, items = parent, ("arrays", "array"), cand.array
+    else:
+        owner, path = parent, ("array",)
+        items = cand if isinstance(cand, Sequence) else [cand]
+    result = []
+    for item in items:
+        if hasattr(item, "dim") or (hasattr(item, "left") and hasattr(item, "right")):
+            register_parent(item, owner, path, "list" if isinstance(cand, Sequence) or len(path) > 1 else "single")
+            result.append(get_handle(item))
+    return result
 
 
 def getArrayLeftID(arrayID: str) -> str | None:  # F.7.13.3
@@ -170,26 +187,28 @@ def getArrayLeftID(arrayID: str) -> str | None:  # F.7.13.3
     """
     arr = _resolve_array(arrayID)
     left = _get_attr(arr, "left")
-    return get_handle(left) if left is not None else None
+    if left is None:
+        return None
+    register_parent(left, arr, ("left",), "single")
+    return get_handle(left)
 
 
-def getArrayRange(arrayID: str) -> int | None:  # F.7.13.4
-    """Return numeric ``range`` value.
+def getArrayRange(arrayID: str) -> list[int | None]:  # F.7.13.4
+    """Return left and right integer literal values, in that order.
 
     Section: F.7.13.4.
     """
     arr = _resolve_array(arrayID)
-    return _int_value(_get_attr(arr, "range"))
+    return [_int_value(_get_attr(arr, bound)) for bound in ("left", "right")]
 
 
-def getArrayRangeExpression(arrayID: str) -> str | None:  # F.7.13.5
-    """Return ``range`` expression string.
+def getArrayRangeExpression(arrayID: str) -> list[str | None]:  # F.7.13.5
+    """Return original left and right expressions, in that order.
 
     Section: F.7.13.5.
     """
     arr = _resolve_array(arrayID)
-    r = _get_attr(arr, "range")
-    return getattr(r, "value", None) if r is not None else None
+    return [getattr(_get_attr(arr, bound), "value", None) for bound in ("left", "right")]
 
 
 def getArrayRightID(arrayID: str) -> str | None:  # F.7.13.6
@@ -199,7 +218,10 @@ def getArrayRightID(arrayID: str) -> str | None:  # F.7.13.6
     """
     arr = _resolve_array(arrayID)
     right = _get_attr(arr, "right")
-    return get_handle(right) if right is not None else None
+    if right is None:
+        return None
+    register_parent(right, arr, ("right",), "single")
+    return get_handle(right)
 
 
 def getArrayStride(arrayID: str) -> int | None:  # F.7.13.7
@@ -223,13 +245,17 @@ def getArrayStrideExpression(arrayID: str) -> str | None:  # F.7.13.8
 
 
 def getArrayStrideID(arrayID: str) -> str | None:  # F.7.13.9
-    """Return handle of stride element.
+    """Return a stable stride or bitStride handle with parsed ownership.
 
     Section: F.7.13.9.
     """
     arr = _resolve_array(arrayID)
     stride = _get_attr(arr, "stride", "bit_stride", "bitStride")
-    return get_handle(stride) if stride is not None else None
+    if stride is None:
+        return None
+    field = "stride" if hasattr(arr, "stride") else "bit_stride"
+    register_parent(stride, arr, (field,), "single")
+    return get_handle(stride)
 
 
 def getDimExpression(dimID: str) -> str | None:  # F.7.13.10
@@ -247,43 +273,46 @@ def getDimIndexVar(dimID: str) -> str | None:  # F.7.13.11
     Section: F.7.13.11.
     """
     dim = _resolve_dim(dimID)
-    return getattr(dim, "index_var", None) or getattr(dim, "indexVar", None)
+    return dim.index_var
 
 
 def getDimValue(dimID: str) -> int | None:  # F.7.13.12
-    """Return evaluated integer value of a dimension expression.
+    """Return an integer literal dimension value, or ``None`` for expressions.
 
     Section: F.7.13.12.
     """
     dim = _resolve_dim(dimID)
-    try:
-        return int(getattr(dim, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    return _int_value(dim)
 
 
 def getRegisterArrayID(registerID: str) -> str | None:  # F.7.13.13
-    """Return array handle for a register element if it has one.
+    """Return an owned array handle for a register, or ``None`` if absent.
 
     Section: F.7.13.13.
     """
     reg = resolve_handle(registerID)
-    if reg is None:
+    if not isinstance(reg, (AddressBlockType.Register, RegisterFile.Register)):
         raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
     arr = _get_attr(reg, "array")
-    return get_handle(arr) if (arr is not None and hasattr(arr, "dim")) else None
+    if arr is None:
+        return None
+    register_parent(arr, reg, ("array",), "single")
+    return get_handle(arr)
 
 
 def getRegisterFieldArrayID(fieldID: str) -> str | None:  # F.7.13.14
-    """Return array handle for a register field element if present.
+    """Return an owned array handle for a field, or ``None`` if absent.
 
     Section: F.7.13.14.
     """
     fld = resolve_handle(fieldID)
-    if fld is None:
+    if not isinstance(fld, FieldType):
         raise TgiError("Invalid field handle", TgiFaultCode.INVALID_ID)
     arr = _get_attr(fld, "array")
-    return get_handle(arr) if (arr is not None and hasattr(arr, "dim")) else None
+    if arr is None:
+        return None
+    register_parent(arr, fld, ("array",), "single")
+    return get_handle(arr)
 
 
 # ---------------------------------------------------------------------------

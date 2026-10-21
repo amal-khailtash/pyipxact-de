@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from amal.eda.ipxact_de import loader
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import registry
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
 
 NS = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
@@ -162,7 +162,7 @@ def test_cache_only_duplicate_keeps_first(tmp_path):
     loader._save_cache(tmp_path / loader.CACHE_BASENAME, records)
     with patch.object(loader.logger, "warning") as warning:
         assert loader.load_registry_from_cache(cache_dir=tmp_path)
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import resolve_handle
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import resolve_handle
     assert resolve_handle(registry.get_id(("v", "l", "one", "1"))).xml_path == str(first)
     assert any("Duplicate cached VLNV" in str(call) for call in warning.call_args_list)
 
@@ -184,7 +184,7 @@ def test_explicit_path_precedes_environment(tmp_path, monkeypatch):
     write_component(second)
     monkeypatch.setenv("IPXACT_XML_PATHS", os.pathsep.join([str(second), str(first)]))
     loader.load_registry_from_paths([str(first)], cache_dir=tmp_path)
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import resolve_handle
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import resolve_handle
     assert resolve_handle(registry.get_id(("v", "l", "one", "1"))).xml_path == str(first)
 
 

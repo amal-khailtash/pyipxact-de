@@ -2,8 +2,8 @@
 import pytest
 from lxml import etree
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import component
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, get_handle, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import component
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import Component
 
