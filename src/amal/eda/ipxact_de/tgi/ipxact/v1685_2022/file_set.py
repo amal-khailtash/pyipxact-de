@@ -469,12 +469,8 @@ def getFunctionFileRefByID(functionID: str) -> str | None:  # F.7.47.34
 
 
 def getFunctionFileRefByName(functionID: str) -> str | None:  # F.7.47.35
-    """Return fileRef name (Section: F.7.47.35).
-
-    The schema encodes fileRef as string (the referenced fileId); no separate
-    local name – we return the same value.
-    """
-    return getFunctionFileID(functionID)
+    """Return the stored fileRef name without resolving its target (F.7.47.35)."""
+    return _resolve_function(functionID).file_ref
 
 
 def getFunctionReplicate(functionID: str) -> bool:  # F.7.47.36
@@ -487,8 +483,7 @@ def getFunctionReturnType(functionID: str) -> str | None:  # F.7.47.37
     rt = _resolve_function(functionID).return_type
     if rt is None:
         return None
-    val = getattr(rt, "value", None)
-    return getattr(val, "value", None) if val is not None else None
+    return rt.value
 
 
 def getFunctionSourceFileIDs(functionID: str) -> list[str]:  # F.7.47.38

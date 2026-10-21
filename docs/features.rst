@@ -1723,13 +1723,13 @@ File set (BASE)
 - ☑ ``getFunctionEntryPoint`` (F.7.47.32) - Generated source value or stable handle with parsed ownership.
 - ☐ ``getFunctionFileID`` (F.7.47.33)
 - ☐ ``getFunctionFileRefByID`` (F.7.47.34)
-- ☐ ``getFunctionFileRefByName`` (F.7.47.35)
-- ☐ ``getFunctionReplicate`` (F.7.47.36)
-- ☐ ``getFunctionReturnType`` (F.7.47.37)
+- ☑ ``getFunctionFileRefByName`` (F.7.47.35) - Generated source type/value; configured resolution remains separate.
+- ☑ ``getFunctionReplicate`` (F.7.47.36) - Generated source type/value; configured resolution remains separate.
+- ☑ ``getFunctionReturnType`` (F.7.47.37) - Generated source type/value; configured resolution remains separate.
 - ☑ ``getFunctionSourceFileIDs`` (F.7.47.38) - Generated source value or stable handle with parsed ownership.
 - ☑ ``getFunctionSourceFileName`` (F.7.47.39) - Generated source value or stable handle with parsed ownership.
-- ☐ ``getFunctionSourceFileType`` (F.7.47.40)
-- ☐ ``getSourceFileFileType`` (F.7.47.41)
+- ☑ ``getFunctionSourceFileType`` (F.7.47.40) - Generated source type/value; configured resolution remains separate.
+- ☑ ``getSourceFileFileType`` (F.7.47.41) - Generated source type/value; configured resolution remains separate.
 - ☐ ``getSourceFileFileTypeID`` (F.7.47.42)
 - ☐ ``getSourceFileSourceName`` (F.7.47.43)
 

@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Return generated function return/source types and source reference names through BASE getters.
 - Traverse executable-image linker choices and restore parsed child ownership through BASE getters.
 - Consolidate repeated TGI checklist entries into their canonical category entries.
 - BASE function source metadata returns generated strings/enum literals and stable child handles with parsed ownership; effective expression evaluation and file target resolution remain pending.
