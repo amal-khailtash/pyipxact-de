@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read BASE array ID, bank alignment, cell strength and clock attributes using generated XML metadata.
 - Read BASE boolean XML attributes through generated binding metadata, preserving false values.
 - Read register/field array dimensions and strides through BASE getters with typed parent checks and parsed ownership.
 - Traverse bounded arrays and retrieve ordered left/right values, source expressions and owned handles through BASE getters.

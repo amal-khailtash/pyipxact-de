@@ -398,7 +398,7 @@ def _define_base_functions() -> None:
         if func_name in g:  # pragma: no cover - defensive
             continue  # pragma: no cover - should not happen
 
-        def _make(a: str, r: str, k: str, _fn: str) -> Callable[[str], Any]:
+        def _make(a: str, r: str, k: str, _fn: str, subsection: int) -> Callable[[str], Any]:
             def _getter(elementID: str) -> Any:
                 """Return the value (or handle) of the specified attribute.
 
@@ -421,13 +421,13 @@ def _define_base_functions() -> None:
             _getter.__name__ = _fn
             _getter.__doc__ = (
                 f"Return the XML attribute {a!r}.\n\n"
-                f"Section: F.7.43.{section}.\n"
+                f"Section: F.7.43.{subsection}.\n"
                 "Generated binding field metadata maps XML names to Python attributes.\n"
                 "Unset attributes return None; invalid handles raise TgiError.\n"
             )
             return _getter
 
-        g[func_name] = _make(attr_name, rtype, kind, func_name)
+        g[func_name] = _make(attr_name, rtype, kind, func_name, section)
 
 
 _define_base_functions()
