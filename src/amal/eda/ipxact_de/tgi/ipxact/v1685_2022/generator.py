@@ -258,7 +258,10 @@ def getGeneratorTransportMethodsID(generatorID: str) -> str | None:
     if g is None:
         raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
     tm = g.transport_methods
-    return None if tm is None else get_handle(tm)
+    if tm is None:
+        return None
+    register_parent(tm, g, ("transport_methods",), "single")
+    return get_handle(tm)
 
 
 def getTransportMethodsTransportMethodID(transportMethodsID: str) -> str | None:
@@ -270,7 +273,10 @@ def getTransportMethodsTransportMethodID(transportMethodsID: str) -> str | None:
     if tm is None:
         raise TgiError("Invalid transportMethods handle", TgiFaultCode.INVALID_ID)
     method = tm.transport_method
-    return None if method is None else get_handle(method)
+    if method is None:
+        return None
+    register_parent(method, tm, ("transport_method",), "single")
+    return get_handle(method)
 
 
 # ---------------------------------------------------------------------------

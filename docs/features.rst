@@ -830,13 +830,13 @@ CPU (BASE)
 - ☐ ``getCpuAddressUnitBits`` (F.7.21.1)
 - ☑ ``getCpuAddressUnitBitsExpression`` (F.7.21.2) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
 - ☑ ``getCpuAddressUnitBitsID`` (F.7.21.3) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
-- ☐ ``getCpuExecutableImageIDs`` (F.7.21.4)
+- ☑ ``getCpuExecutableImageIDs`` (F.7.21.4) - Generated source/child traversal with typed handles and parsed ownership; target resolution separate.
 - ☐ ``getCpuMemoryMapRefByID`` (F.7.21.5)
-- ☐ ``getCpuMemoryMapRefByName`` (F.7.21.6)
+- ☑ ``getCpuMemoryMapRefByName`` (F.7.21.6) - Generated source/child traversal with typed handles and parsed ownership; target resolution separate.
 - ☐ ``getCpuRange`` (F.7.21.7)
 - ☑ ``getCpuRangeExpression`` (F.7.21.8) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
 - ☑ ``getCpuRangeID`` (F.7.21.9) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
-- ☐ ``getCpuRegionIDs`` (F.7.21.10)
+- ☑ ``getCpuRegionIDs`` (F.7.21.10) - Generated source/child traversal with typed handles and parsed ownership; target resolution separate.
 - ☐ ``getCpuWidth`` (F.7.21.11)
 - ☑ ``getCpuWidthExpression`` (F.7.21.12) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
 - ☑ ``getCpuWidthID`` (F.7.21.13) - Stored expression text and stable child handles with parsed ownership; evaluation separate.
@@ -1797,8 +1797,8 @@ Generator (BASE)
 - ☐ ``getGeneratorPhaseExpression`` (F.7.49.10)
 - ☑ ``getGeneratorPhaseID`` (F.7.49.11) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
 - ☑ ``getGeneratorScope`` (F.7.49.12) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
-- ☐ ``getGeneratorTransportMethodsID`` (F.7.49.13)
-- ☐ ``getTransportMethodsTransportMethodID`` (F.7.49.14)
+- ☑ ``getGeneratorTransportMethodsID`` (F.7.49.13) - Generated source/child traversal with typed handles and parsed ownership; target resolution separate.
+- ☑ ``getTransportMethodsTransportMethodID`` (F.7.49.14) - Generated source/child traversal with typed handles and parsed ownership; target resolution separate.
 
 Generator (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~

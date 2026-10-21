@@ -46,6 +46,8 @@ __all__: list[str] = [
     "getCpuShortDescription",
     "getCpuDescription",
     "getCpuMemoryMapRef",
+    "getCpuExecutableImageIDs",
+    "getCpuMemoryMapRefByName",
     "getCpuRange",
     "getCpuRangeExpression",
     "getCpuRangeID",
@@ -161,6 +163,19 @@ def getCpuMemoryMapRef(cpuID: str) -> str | None:
     return getattr(_resolve_cpu(cpuID), "memory_map_ref", None)
 
 
+def getCpuExecutableImageIDs(cpuID: str) -> list[str]:
+    """Return ordered executable-image handles with parsed ownership (F.7.21.4)."""
+    cpu = _resolve_cpu(cpuID)
+    for image in cpu.executable_image:
+        register_parent(image, cpu, ("executable_image",), "list")
+    return [get_handle(image) for image in cpu.executable_image]
+
+
+def getCpuMemoryMapRefByName(cpuID: str) -> str | None:
+    """Return stored memory-map reference name without target lookup (F.7.21.6)."""
+    return _resolve_cpu(cpuID).memory_map_ref
+
+
 def getCpuRange(cpuID: str) -> int | None:
     return _int_expr(getattr(_resolve_cpu(cpuID), "range", None))
 
@@ -219,11 +234,14 @@ def getCpuAddressUnitBitsID(cpuID: str) -> str | None:
 
 
 def getCpuRegionIDs(cpuID: str) -> list[str]:
+    """Return ordered region handles with parsed ownership (F.7.21.10)."""
     cpu = _resolve_cpu(cpuID)
     regions = getattr(cpu, "regions", None)
     if regions is None:
         return []
-    return [get_handle(r) for r in getattr(regions, "region", [])]
+    for region in regions.region:
+        register_parent(region, cpu, ("regions", "region"), "list")
+    return [get_handle(region) for region in regions.region]
 
 
 def getCpuRegionName(regionID: str) -> str | None:
