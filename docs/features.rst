@@ -3413,3 +3413,18 @@ Build command source editing
 - ☑ removeBuildCommandFlags: tests/test_tgi_build_command_sources.py.
 
 Build command/flags source editing preserves generated identity and append/extensions, supports standard buildCommand handles and legacy file handles, and invalidates removed expressions.
+
+
+Build command target and replacement metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setFileBuildCommand: tests/test_tgi_build_command_targets.py.
+- ☑ getFileBuildCommandID: tests/test_tgi_build_command_targets.py.
+- ☑ setBuildCommandTargetName: tests/test_tgi_build_command_targets.py.
+- ☑ getBuildCommandTargetNameExpression: tests/test_tgi_build_command_targets.py.
+- ☑ removeBuildCommandTargetName: tests/test_tgi_build_command_targets.py.
+- ☑ setBuildCommandReplaceDefaultFlags: tests/test_tgi_build_command_targets.py.
+- ☑ getBuildCommandReplaceDefaultFlagsID: tests/test_tgi_build_command_targets.py.
+- ☑ removeBuildCommandReplaceDefaultFlags: tests/test_tgi_build_command_targets.py.
+
+Generated build-command target and replacement source editing with typed ownership, identity and removal lifetime; effective expression evaluation remains pending.
