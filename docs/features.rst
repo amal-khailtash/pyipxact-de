@@ -3428,3 +3428,15 @@ Build command target and replacement metadata
 - ☑ removeBuildCommandReplaceDefaultFlags: tests/test_tgi_build_command_targets.py.
 
 Generated build-command target and replacement source editing with typed ownership, identity and removal lifetime; effective expression evaluation remains pending.
+
+
+Clearbox type and driveable metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getClearboxElementClearboxType: tests/test_tgi_clearbox_metadata.py.
+- ☑ setClearboxElementClearboxType: tests/test_tgi_clearbox_metadata.py.
+- ☑ getClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
+- ☑ setClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
+- ☑ removeClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
+
+Generated clearbox type enums and optional Boolean driveable edits validate inputs atomically and survive schema validation/XML reload.

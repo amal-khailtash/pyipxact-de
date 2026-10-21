@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Generated clearbox type enums and optional Boolean driveable edits validate inputs atomically and survive schema validation/XML reload.
 - Generated build-command target and replacement source editing with typed ownership, identity and removal lifetime; effective expression evaluation remains pending.
 - Build command/flags source editing preserves generated identity and append/extensions, supports standard buildCommand handles and legacy file handles, and invalidates removed expressions.
 - Generated file-builder source edits preserve child identity and metadata; removals invalidate child handles. Expression evaluation remains pending.

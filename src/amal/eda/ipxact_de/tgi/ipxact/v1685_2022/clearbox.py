@@ -216,18 +216,15 @@ def removeClearboxElementDriveable(clearboxElementID: str) -> bool:
     Args:
         clearboxElementID: Handle to a clearboxElement element.
     Returns:
-        True if removed, False if not present or invalid.
+        True if cleared, False if absent; invalid handles raise INVALID_ID.
     """
     el = _resolve_clearbox_element(clearboxElementID)
     if el is None:
+        raise TgiError("Invalid clearboxElement handle", TgiFaultCode.INVALID_ID)
+    if el.driveable is None:
         return False
-    if hasattr(el, "driveable") and el.driveable is not None:  # type: ignore[attr-defined]
-        try:
-            delattr(el, "driveable")
-        except Exception:  # pragma: no cover - defensive
-            return False
-        return True
-    return False
+    el.driveable = None
+    return True
 
 
 def removeClearboxElementRefLocation(clearboxElementRefLocationID: str) -> bool:
@@ -244,7 +241,7 @@ def removeClearboxElementRefLocation(clearboxElementRefLocationID: str) -> bool:
 
 
 def setClearboxElementClearboxType(clearboxID: str, clearboxType: str) -> bool:
-    """Set the clearbox type of a clearbox element.
+    """Set the generated signal/pin/interface enum atomically.
 
     Section: F.7.28.5
 
@@ -259,13 +256,20 @@ def setClearboxElementClearboxType(clearboxID: str, clearboxType: str) -> bool:
     el = _resolve_clearbox_element(clearboxID)
     if el is None:
         raise TgiError("Invalid clearboxElement handle", TgiFaultCode.INVALID_ID)
-    # Underlying attribute is clearbox_type (enum). We assign raw string; actual enum mapping left to DE.
-    el.clearbox_type = clearboxType  # type: ignore[attr-defined]
+    from org.accellera.ipxact.v1685_2022 import SimpleClearboxType
+
+    if not isinstance(clearboxType, str):
+        raise TgiError("Expected a clearbox type string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        value = SimpleClearboxType(clearboxType)
+    except ValueError as exc:
+        raise TgiError("Invalid clearbox type", TgiFaultCode.INVALID_ARGUMENT) from exc
+    el.clearbox_type = value
     return True
 
 
 def setClearboxElementDriveable(clearboxElementID: str, value: bool) -> bool:
-    """Set the driveable value for a clearboxElement.
+    """Set Boolean driveable state atomically, preserving other fields.
 
     Section: F.7.28.6
 
@@ -280,5 +284,7 @@ def setClearboxElementDriveable(clearboxElementID: str, value: bool) -> bool:
     el = _resolve_clearbox_element(clearboxElementID)
     if el is None:
         raise TgiError("Invalid clearboxElement handle", TgiFaultCode.INVALID_ID)
-    el.driveable = value  # type: ignore[attr-defined]
+    if not isinstance(value, bool):
+        raise TgiError("Expected Boolean driveable state", TgiFaultCode.INVALID_ARGUMENT)
+    el.driveable = value
     return True
