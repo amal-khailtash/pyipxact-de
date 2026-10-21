@@ -3073,12 +3073,12 @@ View (BASE)
 ~~~~~~~~~~~
 
 * ☐ ``getAbstractorInstanceViewNameRefByID`` (F.7.87.1)
-* ☐ ``getViewComponentInstantiationRefByID`` (F.7.87.2)
+* ☑ ``getViewComponentInstantiationRefByID`` (F.7.87.2)
 * ☑ ``getViewComponentInstantiationRefByName`` (F.7.87.3)
-* ☐ ``getViewDesignConfigurationInstantiationID`` (F.7.87.4)
-* ☐ ``getViewDesignConfigurationInstantiationRefByID`` (F.7.87.5)
+* ☑ ``getViewDesignConfigurationInstantiationID`` (F.7.87.4)
+* ☑ ``getViewDesignConfigurationInstantiationRefByID`` (F.7.87.5)
 * ☑ ``getViewDesignConfigurationInstantiationRefByName`` (F.7.87.6)
-* ☐ ``getViewDesignInstantiationRefByID`` (F.7.87.7)
+* ☑ ``getViewDesignInstantiationRefByID`` (F.7.87.7)
 * ☑ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
 * ☑ ``getViewEnvIdentifierIDs`` (F.7.87.9)
 * ☑ ``getViewEnvIdentifiers`` (F.7.87.10)
@@ -3251,3 +3251,19 @@ View target resolution
 - ☑ getViewDesignConfigurationInstantiationID: typed local target lookup verified.
 - Owner isolation and source-removal target preservation: 32 focused tests passed in 1.60s.
 - Full configured reference semantics remain planned.
+
+Parsed view ownership and target lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewComponentInstantiationRefByID verified with registered parsed roots or typed local target lifecycle.
+- ☑ getViewDesignInstantiationRefByID verified with registered parsed roots or typed local target lifecycle.
+- ☑ getViewDesignConfigurationInstantiationRefByID verified with registered parsed roots or typed local target lifecycle.
+- ☑ getViewDesignConfigurationInstantiationID verified with registered parsed roots or typed local target lifecycle.
+- ☑ removeComponentView verified with registered parsed roots or typed local target lifecycle.
+- ☐ Complete configured/external reference semantics and unrestricted view discovery.
+
+Registered component roots restore parsed view ownership by object identity.
+Referenced targets are resolved within that component, separated by instantiation
+type. Missing or ambiguous targets raise ``NOT_FOUND``; an unowned referenced
+view raises ``INVALID_ID``. Absent references return ``None``. Removing the view
+or its source reference preserves instantiation objects.

@@ -103,173 +103,23 @@ def _ensure_list(parent: Any, attr: str) -> list[Any]:
     return lst
 
 
-# ---------------------------------------------------------------------------
-# BASE (F.7.87) – tolerant getters
-# ---------------------------------------------------------------------------
-
-def getViewBusInterfaceRefIDs(viewID: str) -> list[str]:  # F.7.87.1
-    v = _resolve(viewID)
-    if v is None:
-        return []
-    refs = getattr(getattr(v, "bus_interface_refs", None), "bus_interface_ref", [])
-    return [get_handle(r) for r in refs]
-
-
-def getViewEnvIdentifierIDs(viewID: str) -> list[str]:
-    """Return ordered environment identifiers with ownership (F.7.87.9)."""
-    view = _ensure(viewID)
-    items = getattr(view, "env_identifier", None)
-    if items is None:
-        items = getattr(getattr(view, "env_identifiers", None), "env_identifier", [])
-        path = ("env_identifiers", "env_identifier")
-    else:
-        path = ("env_identifier",)
-    for item in items:
-        register_parent(item, view, path, "list")
-    return [get_handle(item) for item in items]
-
-
-def getViewEnvIdentifiers(viewID: str) -> list[str]:
-    """Return source environment identifier values in order (F.7.87.10)."""
-    return [resolve_handle(handle).value for handle in getViewEnvIdentifierIDs(viewID)]
-
-
-def getViewFileSetRefIDs(viewID: str) -> list[str]:  # F.7.87.6
-    v = _resolve(viewID)
-    if v is None:
-        return []
-    fs_refs = getattr(getattr(v, "file_set_refs", None), "file_set_ref", [])
-    return [get_handle(r) for r in fs_refs]
-
-
-def getViewModelName(viewID: str) -> str | None:  # F.7.87.7
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    return getattr(v, "model_name", None)
-
-
-def getViewModelParametersID(viewID: str) -> str | None:  # F.7.87.8
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    mp = getattr(v, "model_parameters", None)
-    return get_handle(mp) if mp is not None else None
-
-
-def getViewName(viewID: str) -> str:
-    """Return a generated component or abstractor view name (legacy helper)."""
-    return _ensure(viewID).name
-
-
-def getViewOtherClockDriverRefIDs(viewID: str) -> list[str]:  # F.7.87.10
-    v = _resolve(viewID)
-    if v is None:
-        return []
-    ocs = getattr(getattr(v, "other_clock_driver_refs", None), "other_clock_driver_ref", [])
-    return [get_handle(o) for o in ocs]
-
-
-def getViewParametersID(viewID: str) -> str | None:  # F.7.87.11
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    params = getattr(v, "parameters", None)
-    return get_handle(params) if params is not None else None
-
-
-def getViewPortWireRefIDs(viewID: str) -> list[str]:  # F.7.87.12
-    v = _resolve(viewID)
-    if v is None:
-        return []
-    pw_refs = getattr(getattr(v, "port_wire_refs", None), "port_wire_ref", [])
-    return [get_handle(r) for r in pw_refs]
-
-
-def getViewVendorExtensionsID(viewID: str) -> str | None:  # F.7.87.13
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    ve = getattr(v, "vendor_extensions", None)
-    return get_handle(ve) if ve is not None else None
-
-
-# ---------------------------------------------------------------------------
-# EXTENDED (F.7.88)
-# ---------------------------------------------------------------------------
-
-def addViewEnvIdentifier(viewID: str, value: str) -> str:
-    """Add a generated environment identifier, validating lexical syntax (F.7.88.1)."""
-    view = _ensure(viewID)
-    if not isinstance(value, str) or re.fullmatch(r"[a-zA-Z0-9_+*.]*:[a-zA-Z0-9_+*.]*:[a-zA-Z0-9_+*.]*", value) is None:
-        raise TgiError("Environment identifier must have language:tool:extension syntax", TgiFaultCode.INVALID_ARGUMENT)
-    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-    from org.accellera.ipxact.v1685_2022.model_type import ModelType
-
-    if isinstance(view, ModelType.Views.View):
-        child = ModelType.Views.View.EnvIdentifier(value=value)
-    elif isinstance(view, AbstractorModelType.Views.View):
-        child = AbstractorModelType.Views.View.EnvIdentifier(value=value)
-    else:
-        raise TgiError("Expected a generated view", TgiFaultCode.INVALID_ID)
-    view.env_identifier.append(child)
-    register_parent(child, view, ("env_identifier",), "list")
-    return get_handle(child)
-
-
-def removeViewBusInterfaceRef(refID: str) -> bool:  # F.7.88.2
-    return detach_child_by_handle(refID)
-
-
-def removeViewEnvIdentifier(envIdentifierID: str) -> bool:
-    """Remove an owned generated environment identifier (F.7.88.5)."""
-    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
-    from org.accellera.ipxact.v1685_2022.model_type import ModelType
-
-    from .core import get_parent_info
-
-    child = resolve_handle(envIdentifierID)
-    if child is None:
-        return False
-    if not isinstance(child, (ModelType.Views.View.EnvIdentifier, AbstractorModelType.Views.View.EnvIdentifier)):
-        raise TgiError("Expected an environment identifier handle", TgiFaultCode.INVALID_ID)
-    info = get_parent_info(envIdentifierID)
-    if info is None or info.path != ("env_identifier",) or info.container != "list":
-        raise TgiError("Environment identifier has no view ownership", TgiFaultCode.INVALID_ID)
-    _ensure(info.parent_handle)
-    return detach_child_by_handle(envIdentifierID)
-
-
-def removeViewFileSetRef(refID: str) -> bool:  # F.7.88.5
-    return detach_child_by_handle(refID)
-
-
-def removeViewOtherClockDriverRef(refID: str) -> bool:  # F.7.88.6
-    return detach_child_by_handle(refID)
-
-
-def removeViewPortWireRef(refID: str) -> bool:  # F.7.88.7
-    return detach_child_by_handle(refID)
-
-
-def setViewModelName(viewID: str, modelName: str) -> bool:  # F.7.88.9
-    v = _ensure(viewID)
-    v.model_name = modelName  # type: ignore[attr-defined]
-    return True
-
-
-def setViewName(viewID: str, name: str) -> bool:  # F.7.88.10
-    v = _ensure(viewID)
-    v.name = name  # type: ignore[attr-defined]
-    return True
-
-
 def _reference_view(viewID: str):
     from org.accellera.ipxact.v1685_2022.model_type import ModelType
 
     view = resolve_handle(viewID)
     if not isinstance(view, ModelType.Views.View):
         raise TgiError("Expected a component view handle", TgiFaultCode.INVALID_ID)
+    from org.accellera.ipxact.v1685_2022 import ComponentType
+
+    from .core import get_parent_info, registry
+
+    if get_parent_info(viewID) is None:
+        for root_id in registry.iter_by_predicate(lambda root: isinstance(root, ComponentType)):
+            root = resolve_handle(root_id)
+            if (root.model is not None and root.model.views is not None
+                    and any(candidate is view for candidate in root.model.views.view)):
+                register_parent(view, root, ("model", "views", "view"), "list")
+                break
     return view
 
 
@@ -287,108 +137,6 @@ def _remove_reference(viewID: str, attr: str) -> bool:
         return False
     setattr(view, attr, None)
     return True
-
-
-def getViewComponentInstantiationRefByName(viewID: str) -> str | None:
-    """Return the optional source instantiation name from a component view.
-
-    Section: F.7.87.3.
-
-    The result is the stored string, or None when absent. This does not
-    resolve the target. Invalid or non-component view handles raise INVALID_ID.
-    """
-    return _reference_view(viewID).component_instantiation_ref
-
-
-def setViewComponentInstantiationRef(viewID: str, componentInstantiationRef: str) -> bool:
-    """Set a component view's source reference to the supplied instantiation name.
-
-    Section: F.7.88.6.
-
-    Accept a nonempty string and preserve other view fields. Invalid handles
-    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
-    Target existence and configuration semantics are checked separately.
-    """
-    return _set_reference(viewID, componentInstantiationRef, "component_instantiation_ref")
-
-
-def removeViewComponentInstantiationRef(viewID: str) -> bool:
-    """Remove the optional source reference from the supplied component view.
-
-    Section: F.7.88.2.
-
-    Return True when removed, False when absent. Preserve other view fields
-    and referenced instantiation objects. Invalid handles raise INVALID_ID.
-    """
-    return _remove_reference(viewID, "component_instantiation_ref")
-
-
-def getViewDesignConfigurationInstantiationRefByName(viewID: str) -> str | None:
-    """Return the optional source instantiation name from a component view.
-
-    Section: F.7.87.6.
-
-    The result is the stored string, or None when absent. This does not
-    resolve the target. Invalid or non-component view handles raise INVALID_ID.
-    """
-    return _reference_view(viewID).design_configuration_instantiation_ref
-
-
-def setViewDesignConfigurationInstantiationRef(viewID: str, designInstantiationRef: str) -> bool:
-    """Set a component view's source reference to the supplied instantiation name.
-
-    Section: F.7.88.7.
-
-    Accept a nonempty string and preserve other view fields. Invalid handles
-    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
-    Target existence and configuration semantics are checked separately.
-    """
-    return _set_reference(viewID, designInstantiationRef, "design_configuration_instantiation_ref")
-
-
-def removeViewDesignConfigurationInstantiationRef(viewID: str) -> bool:
-    """Remove the optional source reference from the supplied component view.
-
-    Section: F.7.88.3.
-
-    Return True when removed, False when absent. Preserve other view fields
-    and referenced instantiation objects. Invalid handles raise INVALID_ID.
-    """
-    return _remove_reference(viewID, "design_configuration_instantiation_ref")
-
-
-def getViewDesignInstantiationRefByName(viewID: str) -> str | None:
-    """Return the optional source instantiation name from a component view.
-
-    Section: F.7.87.8.
-
-    The result is the stored string, or None when absent. This does not
-    resolve the target. Invalid or non-component view handles raise INVALID_ID.
-    """
-    return _reference_view(viewID).design_instantiation_ref
-
-
-def setViewDesignInstantiationRef(viewID: str, designInstantiationRef: str) -> bool:
-    """Set a component view's source reference to the supplied instantiation name.
-
-    Section: F.7.88.8.
-
-    Accept a nonempty string and preserve other view fields. Invalid handles
-    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
-    Target existence and configuration semantics are checked separately.
-    """
-    return _set_reference(viewID, designInstantiationRef, "design_instantiation_ref")
-
-
-def removeViewDesignInstantiationRef(viewID: str) -> bool:
-    """Remove the optional source reference from the supplied component view.
-
-    Section: F.7.88.4.
-
-    Return True when removed, False when absent. Preserve other view fields
-    and referenced instantiation objects. Invalid handles raise INVALID_ID.
-    """
-    return _remove_reference(viewID, "design_instantiation_ref")
 
 
 def _reference_target(viewID: str, attr: str, target_type: type) -> str | None:
@@ -417,6 +165,11 @@ def _reference_target(viewID: str, attr: str, target_type: type) -> str | None:
     return get_handle(matches[0])
 
 
+
+# ---------------------------------------------------------------------------
+# BASE (F.7.87) – tolerant getters
+# ---------------------------------------------------------------------------
+
 def getViewComponentInstantiationRefByID(viewID: str) -> str | None:
     """Resolve the local component instantiation (F.7.87.2).
 
@@ -427,10 +180,23 @@ def getViewComponentInstantiationRefByID(viewID: str) -> str | None:
     return _reference_target(viewID, "component_instantiation_ref", ComponentInstantiationType)
 
 
-def getViewDesignInstantiationRefByID(viewID: str) -> str | None:
-    """Resolve the local design instantiation with the same fault contract (F.7.87.7)."""
-    from org.accellera.ipxact.v1685_2022.design_instantiation_type import DesignInstantiationType
-    return _reference_target(viewID, "design_instantiation_ref", DesignInstantiationType)
+
+def getViewComponentInstantiationRefByName(viewID: str) -> str | None:
+    """Return the optional source instantiation name from a component view.
+
+    Section: F.7.87.3.
+
+    The result is the stored string, or None when absent. This does not
+    resolve the target. Invalid or non-component view handles raise INVALID_ID.
+    """
+    return _reference_view(viewID).component_instantiation_ref
+
+
+
+def getViewDesignConfigurationInstantiationID(viewID: str) -> str | None:
+    """Return the design configuration instantiation referenced by this view (F.7.87.4)."""
+    return getViewDesignConfigurationInstantiationRefByID(viewID)
+
 
 
 def getViewDesignConfigurationInstantiationRefByID(viewID: str) -> str | None:
@@ -441,10 +207,293 @@ def getViewDesignConfigurationInstantiationRefByID(viewID: str) -> str | None:
     return _reference_target(viewID, "design_configuration_instantiation_ref", DesignConfigurationInstantiationType)
 
 
-def getViewDesignConfigurationInstantiationID(viewID: str) -> str | None:
-    """Return the design configuration instantiation referenced by this view (F.7.87.4)."""
-    return getViewDesignConfigurationInstantiationRefByID(viewID)
+
+def getViewDesignConfigurationInstantiationRefByName(viewID: str) -> str | None:
+    """Return the optional source instantiation name from a component view.
+
+    Section: F.7.87.6.
+
+    The result is the stored string, or None when absent. This does not
+    resolve the target. Invalid or non-component view handles raise INVALID_ID.
+    """
+    return _reference_view(viewID).design_configuration_instantiation_ref
 
 
-__all__ += ["getViewDesignInstantiationRefByID", "getViewDesignConfigurationInstantiationRefByID",
-            "getViewDesignConfigurationInstantiationID"]
+
+def getViewDesignInstantiationRefByID(viewID: str) -> str | None:
+    """Resolve the local design instantiation with the same fault contract (F.7.87.7)."""
+    from org.accellera.ipxact.v1685_2022.design_instantiation_type import DesignInstantiationType
+    return _reference_target(viewID, "design_instantiation_ref", DesignInstantiationType)
+
+
+
+def getViewDesignInstantiationRefByName(viewID: str) -> str | None:
+    """Return the optional source instantiation name from a component view.
+
+    Section: F.7.87.8.
+
+    The result is the stored string, or None when absent. This does not
+    resolve the target. Invalid or non-component view handles raise INVALID_ID.
+    """
+    return _reference_view(viewID).design_instantiation_ref
+
+
+
+def getViewEnvIdentifierIDs(viewID: str) -> list[str]:
+    """Return ordered environment identifiers with ownership (F.7.87.9)."""
+    view = _ensure(viewID)
+    items = getattr(view, "env_identifier", None)
+    if items is None:
+        items = getattr(getattr(view, "env_identifiers", None), "env_identifier", [])
+        path = ("env_identifiers", "env_identifier")
+    else:
+        path = ("env_identifier",)
+    for item in items:
+        register_parent(item, view, path, "list")
+    return [get_handle(item) for item in items]
+
+
+
+def getViewEnvIdentifiers(viewID: str) -> list[str]:
+    """Return source environment identifier values in order (F.7.87.10)."""
+    return [resolve_handle(handle).value for handle in getViewEnvIdentifierIDs(viewID)]
+
+
+
+# ---------------------------------------------------------------------------
+# EXTENDED (F.7.88)
+# ---------------------------------------------------------------------------
+
+
+def addViewEnvIdentifier(viewID: str, value: str) -> str:
+    """Add a generated environment identifier, validating lexical syntax (F.7.88.1)."""
+    view = _ensure(viewID)
+    if not isinstance(value, str) or re.fullmatch(r"[a-zA-Z0-9_+*.]*:[a-zA-Z0-9_+*.]*:[a-zA-Z0-9_+*.]*", value) is None:
+        raise TgiError("Environment identifier must have language:tool:extension syntax", TgiFaultCode.INVALID_ARGUMENT)
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    if isinstance(view, ModelType.Views.View):
+        child = ModelType.Views.View.EnvIdentifier(value=value)
+    elif isinstance(view, AbstractorModelType.Views.View):
+        child = AbstractorModelType.Views.View.EnvIdentifier(value=value)
+    else:
+        raise TgiError("Expected a generated view", TgiFaultCode.INVALID_ID)
+    view.env_identifier.append(child)
+    register_parent(child, view, ("env_identifier",), "list")
+    return get_handle(child)
+
+
+
+def removeViewComponentInstantiationRef(viewID: str) -> bool:
+    """Remove the optional source reference from the supplied component view.
+
+    Section: F.7.88.2.
+
+    Return True when removed, False when absent. Preserve other view fields
+    and referenced instantiation objects. Invalid handles raise INVALID_ID.
+    """
+    return _remove_reference(viewID, "component_instantiation_ref")
+
+
+
+def removeViewDesignConfigurationInstantiationRef(viewID: str) -> bool:
+    """Remove the optional source reference from the supplied component view.
+
+    Section: F.7.88.3.
+
+    Return True when removed, False when absent. Preserve other view fields
+    and referenced instantiation objects. Invalid handles raise INVALID_ID.
+    """
+    return _remove_reference(viewID, "design_configuration_instantiation_ref")
+
+
+
+def removeViewDesignInstantiationRef(viewID: str) -> bool:
+    """Remove the optional source reference from the supplied component view.
+
+    Section: F.7.88.4.
+
+    Return True when removed, False when absent. Preserve other view fields
+    and referenced instantiation objects. Invalid handles raise INVALID_ID.
+    """
+    return _remove_reference(viewID, "design_instantiation_ref")
+
+
+
+def removeViewEnvIdentifier(envIdentifierID: str) -> bool:
+    """Remove an owned generated environment identifier (F.7.88.5)."""
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    from .core import get_parent_info
+
+    child = resolve_handle(envIdentifierID)
+    if child is None:
+        return False
+    if not isinstance(child, (ModelType.Views.View.EnvIdentifier, AbstractorModelType.Views.View.EnvIdentifier)):
+        raise TgiError("Expected an environment identifier handle", TgiFaultCode.INVALID_ID)
+    info = get_parent_info(envIdentifierID)
+    if info is None or info.path != ("env_identifier",) or info.container != "list":
+        raise TgiError("Environment identifier has no view ownership", TgiFaultCode.INVALID_ID)
+    _ensure(info.parent_handle)
+    return detach_child_by_handle(envIdentifierID)
+
+
+
+def setViewComponentInstantiationRef(viewID: str, componentInstantiationRef: str) -> bool:
+    """Set a component view's source reference to the supplied instantiation name.
+
+    Section: F.7.88.6.
+
+    Accept a nonempty string and preserve other view fields. Invalid handles
+    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
+    Target existence and configuration semantics are checked separately.
+    """
+    return _set_reference(viewID, componentInstantiationRef, "component_instantiation_ref")
+
+
+
+def setViewDesignConfigurationInstantiationRef(viewID: str, designInstantiationRef: str) -> bool:
+    """Set a component view's source reference to the supplied instantiation name.
+
+    Section: F.7.88.7.
+
+    Accept a nonempty string and preserve other view fields. Invalid handles
+    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
+    Target existence and configuration semantics are checked separately.
+    """
+    return _set_reference(viewID, designInstantiationRef, "design_configuration_instantiation_ref")
+
+
+
+def setViewDesignInstantiationRef(viewID: str, designInstantiationRef: str) -> bool:
+    """Set a component view's source reference to the supplied instantiation name.
+
+    Section: F.7.88.8.
+
+    Accept a nonempty string and preserve other view fields. Invalid handles
+    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
+    Target existence and configuration semantics are checked separately.
+    """
+    return _set_reference(viewID, designInstantiationRef, "design_instantiation_ref")
+
+
+
+# Legacy compatibility helpers.
+
+def getViewBusInterfaceRefIDs(viewID: str) -> list[str]:  # F.7.87.1
+    v = _resolve(viewID)
+    if v is None:
+        return []
+    refs = getattr(getattr(v, "bus_interface_refs", None), "bus_interface_ref", [])
+    return [get_handle(r) for r in refs]
+
+
+
+def getViewFileSetRefIDs(viewID: str) -> list[str]:  # F.7.87.6
+    v = _resolve(viewID)
+    if v is None:
+        return []
+    fs_refs = getattr(getattr(v, "file_set_refs", None), "file_set_ref", [])
+    return [get_handle(r) for r in fs_refs]
+
+
+
+def getViewModelName(viewID: str) -> str | None:  # F.7.87.7
+    v = _resolve(viewID)
+    if v is None:
+        return None
+    return getattr(v, "model_name", None)
+
+
+
+def getViewModelParametersID(viewID: str) -> str | None:  # F.7.87.8
+    v = _resolve(viewID)
+    if v is None:
+        return None
+    mp = getattr(v, "model_parameters", None)
+    return get_handle(mp) if mp is not None else None
+
+
+
+def getViewName(viewID: str) -> str:
+    """Return a generated component or abstractor view name (legacy helper)."""
+    return _ensure(viewID).name
+
+
+
+def getViewOtherClockDriverRefIDs(viewID: str) -> list[str]:  # F.7.87.10
+    v = _resolve(viewID)
+    if v is None:
+        return []
+    ocs = getattr(getattr(v, "other_clock_driver_refs", None), "other_clock_driver_ref", [])
+    return [get_handle(o) for o in ocs]
+
+
+
+def getViewParametersID(viewID: str) -> str | None:  # F.7.87.11
+    v = _resolve(viewID)
+    if v is None:
+        return None
+    params = getattr(v, "parameters", None)
+    return get_handle(params) if params is not None else None
+
+
+
+def getViewPortWireRefIDs(viewID: str) -> list[str]:  # F.7.87.12
+    v = _resolve(viewID)
+    if v is None:
+        return []
+    pw_refs = getattr(getattr(v, "port_wire_refs", None), "port_wire_ref", [])
+    return [get_handle(r) for r in pw_refs]
+
+
+
+def getViewVendorExtensionsID(viewID: str) -> str | None:  # F.7.87.13
+    v = _resolve(viewID)
+    if v is None:
+        return None
+    ve = getattr(v, "vendor_extensions", None)
+    return get_handle(ve) if ve is not None else None
+
+
+
+def removeViewBusInterfaceRef(refID: str) -> bool:  # F.7.88.2
+    return detach_child_by_handle(refID)
+
+
+
+def removeViewFileSetRef(refID: str) -> bool:  # F.7.88.5
+    return detach_child_by_handle(refID)
+
+
+
+def removeViewOtherClockDriverRef(refID: str) -> bool:  # F.7.88.6
+    return detach_child_by_handle(refID)
+
+
+
+def removeViewPortWireRef(refID: str) -> bool:  # F.7.88.7
+    return detach_child_by_handle(refID)
+
+
+
+def setViewModelName(viewID: str, modelName: str) -> bool:  # F.7.88.9
+    v = _ensure(viewID)
+    v.model_name = modelName  # type: ignore[attr-defined]
+    return True
+
+
+
+def setViewName(viewID: str, name: str) -> bool:  # F.7.88.10
+    v = _ensure(viewID)
+    v.name = name  # type: ignore[attr-defined]
+    return True
+
+
+__all__ += [
+    "getViewDesignConfigurationInstantiationID",
+    "getViewDesignConfigurationInstantiationRefByID",
+    "getViewDesignInstantiationRefByID",
+]

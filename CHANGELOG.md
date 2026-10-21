@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Restore registered parsed view ownership for typed local reference resolution and selective lifecycle operations.
 - Resolve view instantiation targets by type and name within the owning component.
 - Support component view instantiation source-reference getters, setters and removers for all three reference types.
 - Support generated view environment metadata, syntax validation, parsed ownership and selective removal.

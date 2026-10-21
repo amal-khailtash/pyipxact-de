@@ -54,3 +54,41 @@ def test_owner_isolation_and_reference_removal_preserves_target():
     assert targets[0] != targets[1]
     assert view.removeViewComponentInstantiationRef(views[0])
     assert resolve_handle(targets[0]) is not None
+
+
+@pytest.mark.parametrize("kind", ["Component", "Design", "DesignConfiguration"])
+def test_registered_parsed_view_restores_ownership(kind):
+    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import registry
+
+    root = document()
+    original_id = get_handle(root)
+    handle = component.addComponentView(original_id, "rtl")
+    getattr(view, f"setView{kind}InstantiationRef")(handle, "target")
+    loaded = XmlDocument.parser().from_string(XmlDocument.serializer().render(root), Component)
+    registry.clear()
+    registry.register(loaded, ("v", "l", "c", "1"))
+    parsed_view = get_handle(loaded.model.views.view[0])
+    target = getattr(view, f"getView{kind}InstantiationRefByID")(parsed_view)
+    assert resolve_handle(target).name == "target"
+    assert component.removeComponentView(parsed_view)
+    assert resolve_handle(target) is not None
+    registry.clear()
+
+
+def test_ambiguous_target_is_rejected():
+    root = document()
+    instantiations = root.model.instantiations
+    items = instantiations.component_instantiation_or_design_instantiation_or_design_configuration_instantiation
+    items.append(type(items[0])(name="target"))
+    handle = component.addComponentView(get_handle(root), "rtl")
+    view.setViewComponentInstantiationRef(handle, "target")
+    with pytest.raises(TgiError):
+        view.getViewComponentInstantiationRefByID(handle)
+
+
+def test_unowned_referenced_view_is_rejected():
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    handle = get_handle(ModelType.Views.View(name="rtl", component_instantiation_ref="target"))
+    with pytest.raises(TgiError):
+        view.getViewComponentInstantiationRefByID(handle)
