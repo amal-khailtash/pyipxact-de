@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Verify BASE data type, delay, direction and driver attributes with generated XML bindings.
 - Read BASE array ID, bank alignment, cell strength and clock attributes using generated XML metadata.
 - Read BASE boolean XML attributes through generated binding metadata, preserving false values.
 - Read register/field array dimensions and strides through BASE getters with typed parent checks and parsed ownership.
