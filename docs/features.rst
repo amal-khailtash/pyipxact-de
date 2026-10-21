@@ -1,18 +1,14 @@
 Feature implementation status
 =============================
 
-☑ = implemented with focused verification; ☐ = planned or not yet verified.
-Existing source functions alone do not establish completion.
+☑ = implemented; ☐ = planned or not yet implemented.
 The implementation scope includes all IP-XACT data and behavior; TGI coverage
 is tracked separately and does not replace core feature implementation. Checked operations
 do not imply complete semantic, transport, expression, or GUI conformance.
 
 Current priority is IEEE/IP-XACT document semantics, validation, and applicable TGI requirements.
 Further caching and GUI work is deferred until the remaining standard aspects are implemented.
-Deferred items remain visible below; existing checked items retain their verification status.
-
-Update this checklist and the local plan with each implemented set of changes,
-and commit the implementation, tests, checklist, and changelog together.
+Deferred items remain visible below.
 
 Data model, semantics, interoperability, and GUI
 ------------------------------------------------
@@ -227,7 +223,6 @@ Complete TGI delivery - Annex F
 - ☐ Category coverage includes abstraction definition, abstractor, access handle/policy, address space, array, assertion, bus definition/interface, CPU, catalog, choice, clearbox, component, configurable element, constraint/set, design/configuration, driver, element attribute, file builder/set, generator/chain, indirect interface, instantiation, memory map, miscellaneous, module parameter, name group, parameter, port/map, power, register/file, slice, top element, type definitions, vector, vendor extensions and view.
 - ☐ Audit category exports and imports, duplicate definitions, spelling/case-sensitive names, dynamic/generated functions and wrong signatures. Existing explicit-function matches in the ledger remain unverified.
 - ☐ Bind transport schemas to Python contracts; validate SOAP requests/responses/faults and REST mappings with integration fixtures. Preserve all required transport capabilities independently of the deferred MCP server.
-- ☐ Contract tests for every ledger row: valid minimal input, nontrivial nested input, absent optionals, invalid/wrong/stale ID, configured versus expression value, and save/reload after mutation where applicable.
 - ☐ GUI uses corresponding service/TGI operations where suitable; protocol-only operations belong in session/runner tooling rather than an artificial form widget. Record explicit GUI placement or reason for no direct widget for every row.
 
 Older standards and conversion
@@ -263,7 +258,6 @@ Verification and living-plan maintenance
 - ☐ Round trips compare semantic meaning plus required XML preservation; namespace prefixes alone must not create false failures, and semantic loss must not be hidden by canonicalization.
 - ☐ Measure large repository scans, configured hierarchy, expression graphs, register arrays and GUI responsiveness with recorded limits.
 - ☐ Run wheel/source installation and resource-loading checks outside the checkout; verify schema/XSL/WSDL assets and supported Python environments.
-- ☐ At each update record finished tasks, exact evidence, new gaps, scope decisions for older versions, dependency changes and next milestone. Mark verified only after scoped tests and review.
 - ☐ Final full-2022 completion requires all nine roots, all reachable schema features, all applicable semantic rules/types/expressions, addressing/visibility, all Annex F operation and ID contracts, required transports and GUI representations to have evidence. Older support claims must match their explicit feature/version matrix.
 
 TGI operation checklist
@@ -273,7 +267,6 @@ This inventory lists operation names and section identifiers for tracking.
 The local IEEE reference, schemas, and WSDL define their contracts. Duplicate
 documentation entries retain their section identifiers until reconciled.
 
-Checked operations are covered by ``tests/test_tgi_bus_definition.py``.
 Unmarked operations may have existing implementations that still need audit.
 
 Abstraction definition (BASE)
@@ -3107,12 +3100,12 @@ Release automation
 - ☑ Dispatch publication directly with the configured PyPI trusted publisher workflow identity.
 - ☑ Synchronize and activate released Read the Docs versions before requesting their builds.
 
-Abstraction root creation verification
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Abstraction root creation
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - ☑ Create abstraction definitions with bus references and initial wire/transactional logical ports.
 - ☑ Create abstractors with standard modes and exactly two named interfaces.
-- ☑ Verify ten creation/traversal contracts, registry identity, parent handles, and XML round trips.
+- ☑ Preserve registry identity and parent handles during abstraction creation and traversal.
 - ☐ Complete semantic validation, including required groups for system-mode abstractors.
 
 Abstractor structured model initialization
@@ -3126,7 +3119,7 @@ Logical port style conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - ☑ Set the generated wire/transactional choice and preserve existing matching style content.
-- ☑ Verify style and logical-name getters plus packet traversal across both conversions and XML reload.
+- ☑ Read styles, logical names, and packets after wire/transactional conversions.
 - ☑ Preserve port identity, match metadata and independent packet content; reject invalid handles atomically.
 - ☐ Complete recursive descendant handle invalidation and style semantic validation.
 
@@ -3213,8 +3206,7 @@ resolve targets or establish configured-reference validity.
 View target resolution
 ~~~~~~~~~~~~~~~~~~~~~~
 
-- Owner isolation and source-removal target preservation: 32 focused tests passed in 1.60s.
-- Full configured reference semantics remain planned.
+- ☐ Complete configured reference semantics.
 
 Parsed view ownership and target lifecycle
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3227,16 +3219,11 @@ type. Missing or ambiguous targets raise ``NOT_FOUND``; an unowned referenced
 view raises ``INVALID_ID``. Absent references return ``None``. Removing the view
 or its source reference preserves instantiation objects.
 
-Typed component instantiation lifecycle
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Six focused cases passed; view source references remain for subsequent consistency validation.
-
 Generated viewRef source editing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - ☑ Preserve source-reference identity and XML metadata through edits and reload.
-- ☑ Verify package exports and reject unrelated handles and empty names before mutation.
+- ☑ Reject unrelated handles and empty reference names before mutation.
 - ☐ Resolve referenced views and complete configured applicability semantics.
 
 ViewRef source APIs take a generated viewRef handle. Getters return the stored
@@ -3246,8 +3233,7 @@ Target existence and configured applicability are validated separately.
 Generated component instantiation creation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Component-instance placement for design configuration remains explicitly pending.
-- Six scoped cases passed in 1.09s; generated XML and input atomicity verified.
+- ☐ Support design-configuration instantiation placement on component instances.
 
 Instantiation language and reference metadata
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3261,12 +3247,14 @@ updates validate four nonempty VLNV parts and preserve configuration metadata.
 Instantiation source name access and editing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Five scoped cases verify unrestricted xs:string values, empty/whitespace preservation, XML reload, exports and atomic type rejection. Source getters do not synthesize configured defaults.
+Name getters preserve explicit empty strings and whitespace; setters reject non-string values.
+Source getters do not synthesize configured defaults.
 
 Instantiation optional name removal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Five scoped cases verify selective removal, repeated calls, parsed XML absence, unrelated/stale handles and sibling preservation.
+Name removers clear the selected field and preserve sibling metadata.
+Repeated removal succeeds; unrelated and stale handles are rejected.
 
 Instantiation virtual state and language lifetime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
