@@ -16,7 +16,7 @@ remove comments / commented code) – see version control for prior content.
 """
 
 from collections.abc import Callable
-from dataclasses import is_dataclass
+from dataclasses import fields, is_dataclass
 from typing import Any
 
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
@@ -382,15 +382,24 @@ def _coerce(value: Any, target: str) -> Any:
         raise TgiError(f"Cannot coerce attribute to {target}: {exc}", TgiFaultCode.INVALID_ARGUMENT) from exc
 
 
+def _attribute_value(obj: Any, xml_name: str) -> Any:
+    """Read an XML attribute using generated field metadata, preserving false values."""
+    if is_dataclass(obj):
+        for field in fields(obj):
+            if field.metadata.get("type") == "Attribute" and field.metadata.get("name", field.name) == xml_name:
+                return getattr(obj, field.name)
+    return getattr(obj, xml_name, None)
+
+
 def _define_base_functions() -> None:
     """Create BASE getter functions dynamically to avoid boilerplate."""
     g = globals()
-    for func_name, attr_name, rtype, kind in _BASE_ATTRIBUTE_VALUE_FUNCS:
+    for section, (func_name, attr_name, rtype, kind) in enumerate(_BASE_ATTRIBUTE_VALUE_FUNCS, 1):
         if func_name in g:  # pragma: no cover - defensive
             continue  # pragma: no cover - should not happen
 
         def _make(a: str, r: str, k: str, _fn: str) -> Callable[[str], Any]:
-            def _getter(elementID: str, *, _attr=a, _rtype=r, _kind=k) -> Any:  # bind loop vars
+            def _getter(elementID: str) -> Any:
                 """Return the value (or handle) of the specified attribute.
 
                 Section: F.7.43.* (exact subsection per function name).
@@ -403,13 +412,19 @@ def _define_base_functions() -> None:
                     handle (for *ByID functions) or None if unset.
                 """
                 obj = _resolve(elementID)
-                raw = getattr(obj, _attr, None)
-                if _kind == "ref":
+                raw = _attribute_value(obj, a)
+                if k == "ref":
                     return None if raw is None else get_handle(raw)
                 value = _unwrap(raw)
-                return _coerce(value, _rtype) if _rtype in {"bool", "int", "float", "str"} else value
+                return _coerce(value, r) if r in {"bool", "int", "float", "str"} else value
 
             _getter.__name__ = _fn
+            _getter.__doc__ = (
+                f"Return the XML attribute {a!r}.\n\n"
+                f"Section: F.7.43.{section}.\n"
+                "Generated binding field metadata maps XML names to Python attributes.\n"
+                "Unset attributes return None; invalid handles raise TgiError.\n"
+            )
             return _getter
 
         g[func_name] = _make(attr_name, rtype, kind, func_name)
