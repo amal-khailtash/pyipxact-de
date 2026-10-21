@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Add pyslang-backed SystemVerilog expression parsing and a highlighted REPL under amal.eda.systemverilog, with a Makefile target.
 - Verify BASE port, sub-port, field, memory-map and power-domain reference source attributes.
 - Verify BASE interface mode, isIO, group selection operator, packed and phantom attributes.
 - Implement BASE wildcard attribute lookup/names and verify libext, level and imageType source attributes.

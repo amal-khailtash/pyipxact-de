@@ -36,6 +36,9 @@ dependencies = [
     "mcp[cli]>=1.28.0,<2",
     "xmlschema>=4.2.0",
     "objbrowser>=1.3.1",
+    "pyslang>=12.0.0",
+    "prompt-toolkit>=3.0.53",
+    "pygments>=2.21.0",
 ]
 
 [dependency-groups]
@@ -67,6 +70,7 @@ all = ["pyipxact-de[gui, web]"]
 
 [project.scripts]
 ipxact-de = "amal.eda.ipxact_de.cli.__main__:main"
+sv-expr-repl = "amal.eda.systemverilog.repl:main"
 # ipxact-de = "amal.eda.ipxact_de.cli.click_app:main"
 # ipxact-wb = "amal.eda.ipxact_de.cli.click_app:main"
 # ipxact-wb = "amal.eda.ipxact_de.web.__init__:app"
