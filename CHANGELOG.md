@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Verify BASE resolve, scope, sign, test constraint and usage configuration attributes.
 - Verify BASE XML identity attributes and share the vector ID getter across category and package exports.
 - Verify BASE exact, externalDeclarations, implicit, strict and hidden boolean attributes.
 - Read BASE minimum/maximum source, integer and double attributes; reject fractional or non-finite integer conversions.
