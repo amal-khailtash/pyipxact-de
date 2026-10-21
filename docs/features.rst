@@ -1824,11 +1824,11 @@ Generator chain (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~
 
 - ☐ ``getComponentGeneratorSelectorGroupSelectorID`` (F.7.51.1)
-- ☐ ``getGeneratorChainChainGroupIDs`` (F.7.51.2)
-- ☐ ``getGeneratorChainChoiceIDs`` (F.7.51.3)
-- ☐ ``getGeneratorChainComponentGeneratorSelectorIDs`` (F.7.51.4)
-- ☐ ``getGeneratorChainGeneratorChainSelectorIDs`` (F.7.51.5)
-- ☐ ``getGeneratorChainGeneratorIDs`` (F.7.51.6)
+- ☑ ``getGeneratorChainChainGroupIDs`` (F.7.51.2) - Ordered typed traversal of generated chain collections with parsed ownership.
+- ☑ ``getGeneratorChainChoiceIDs`` (F.7.51.3) - Ordered typed traversal of generated chain collections with parsed ownership.
+- ☑ ``getGeneratorChainComponentGeneratorSelectorIDs`` (F.7.51.4) - Ordered typed traversal of generated chain collections with parsed ownership.
+- ☑ ``getGeneratorChainGeneratorChainSelectorIDs`` (F.7.51.5) - Ordered typed traversal of generated chain collections with parsed ownership.
+- ☑ ``getGeneratorChainGeneratorIDs`` (F.7.51.6) - Ordered typed traversal of generated chain collections with parsed ownership.
 - ☐ ``getGeneratorChainSelectorGeneratorChainRefByID`` (F.7.51.7)
 - ☐ ``getGeneratorChainSelectorGeneratorChainRefByVLNV`` (F.7.51.8)
 - ☐ ``getGeneratorChainSelectorGroupSelectorID`` (F.7.51.9)

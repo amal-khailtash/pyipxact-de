@@ -66,6 +66,15 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+def _chain_children(chain: SchemaGeneratorChain, kind: type) -> list[str]:
+    """Traverse generated mixed choices in source order with typed ownership."""
+    field = "generator_chain_selector_or_component_generator_selector_or_generator"
+    children = [child for child in getattr(chain, field) if isinstance(child, kind)]
+    for child in children:
+        register_parent(child, chain, (field,), "list")
+    return [get_handle(child) for child in children]
+
+
 def _resolve_chain(chainID: str) -> SchemaGeneratorChain | None:
     obj = resolve_handle(chainID)
     return obj if isinstance(obj, SchemaGeneratorChain) else None
@@ -120,7 +129,9 @@ def getGeneratorChainChainGroupIDs(generatorChainID: str) -> list[str]:
     chain = _resolve_chain(generatorChainID)
     if chain is None:
         raise TgiError("Invalid generatorChain handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in getattr(chain, "chain_group", [])]
+    for child in chain.chain_group:
+        register_parent(child, chain, ("chain_group",), "list")
+    return [get_handle(child) for child in chain.chain_group]
 
 
 def getGeneratorChainChoiceIDs(generatorChainID: str) -> list[str]:
@@ -133,7 +144,9 @@ def getGeneratorChainChoiceIDs(generatorChainID: str) -> list[str]:
         raise TgiError("Invalid generatorChain handle", TgiFaultCode.INVALID_ID)
     if chain.choices is None:
         return []
-    return [get_handle(c) for c in getattr(chain.choices, "choice", [])]
+    for child in chain.choices.choice:
+        register_parent(child, chain, ("choices", "choice"), "list")
+    return [get_handle(child) for child in chain.choices.choice]
 
 
 def getGeneratorChainComponentGeneratorSelectorIDs(generatorChainID: str) -> list[str]:
@@ -144,7 +157,7 @@ def getGeneratorChainComponentGeneratorSelectorIDs(generatorChainID: str) -> lis
     chain = _resolve_chain(generatorChainID)
     if chain is None:
         raise TgiError("Invalid generatorChain handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(c) for c in getattr(chain, "component_generator_selector", [])]
+    return _chain_children(chain, GeneratorSelectorType)
 
 
 def getGeneratorChainGeneratorChainSelectorIDs(generatorChainID: str) -> list[str]:
@@ -155,7 +168,7 @@ def getGeneratorChainGeneratorChainSelectorIDs(generatorChainID: str) -> list[st
     chain = _resolve_chain(generatorChainID)
     if chain is None:
         raise TgiError("Invalid generatorChain handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(c) for c in getattr(chain, "generator_chain_selector", [])]
+    return _chain_children(chain, SchemaGeneratorChain.GeneratorChainSelector)
 
 
 def getGeneratorChainGeneratorIDs(generatorChainID: str) -> list[str]:
@@ -166,7 +179,9 @@ def getGeneratorChainGeneratorIDs(generatorChainID: str) -> list[str]:
     chain = _resolve_chain(generatorChainID)
     if chain is None:
         raise TgiError("Invalid generatorChain handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in getattr(chain, "generator", [])]
+    from org.accellera.ipxact.v1685_2022 import Generator
+
+    return _chain_children(chain, Generator)
 
 
 def getGeneratorChainSelectorGeneratorChainRefByID(generatorChainSelectorID: str) -> str | None:
