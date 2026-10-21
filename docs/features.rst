@@ -1600,14 +1600,14 @@ File builder (BASE)
 - ☑ ``getBuildCommandReplaceDefaultFlagsID`` (F.7.45.8)
 - ☐ ``getBuildCommandTargetName`` (F.7.45.9)
 - ☑ ``getBuildCommandTargetNameExpression`` (F.7.45.10)
-- ☐ ``getExecutableImageFileBuilderIDs`` (F.7.45.11)
-- ☐ ``getExecutableImageFileSetRefIDs`` (F.7.45.12)
-- ☐ ``getExecutableImageLanguageToolsID`` (F.7.45.13)
-- ☐ ``getExecutableImageLinker`` (F.7.45.14)
-- ☐ ``getExecutableImageLinkerCommandFileID`` (F.7.45.15)
-- ☐ ``getExecutableImageLinkerExpression`` (F.7.45.16)
-- ☐ ``getExecutableImageLinkerFlags`` (F.7.45.17)
-- ☐ ``getExecutableImageLinkerFlagsExpression`` (F.7.45.18)
+- ☑ ``getExecutableImageFileBuilderIDs`` (F.7.45.11) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageFileSetRefIDs`` (F.7.45.12) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageLanguageToolsID`` (F.7.45.13) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageLinker`` (F.7.45.14) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageLinkerCommandFileID`` (F.7.45.15) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageLinkerExpression`` (F.7.45.16) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageLinkerFlags`` (F.7.45.17) - Generated linker/source traversal with parsed ownership for child handles.
+- ☑ ``getExecutableImageLinkerFlagsExpression`` (F.7.45.18) - Generated linker/source traversal with parsed ownership for child handles.
 - ☑ ``getFileBuildCommandID`` (F.7.45.19)
 - ☑ ``getFileBuilderCommand`` (F.7.45.20)
 - ☐ ``getFileBuilderCommandExpression`` (F.7.45.21)

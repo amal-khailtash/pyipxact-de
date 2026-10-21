@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Traverse executable-image linker choices and restore parsed child ownership through BASE getters.
 - Consolidate repeated TGI checklist entries into their canonical category entries.
 - BASE function source metadata returns generated strings/enum literals and stable child handles with parsed ownership; effective expression evaluation and file target resolution remain pending.
 - BASE file-set collections preserve source order and stable handles, restore parsed ownership and preserve serialized content during traversal.
