@@ -3440,3 +3440,16 @@ Clearbox type and driveable metadata
 - ☑ removeClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
 
 Generated clearbox type enums and optional Boolean driveable edits validate inputs atomically and survive schema validation/XML reload.
+
+
+Default file builder lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentInstantiationDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ getComponentInstantiationDefaultFileBuilderIDs: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ removeComponentInstantiationDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ addFileSetDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ getFileSetDefaultFileBuilderIDs: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ removeFileSetDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+
+Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.

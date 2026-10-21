@@ -243,12 +243,14 @@ def getComponentInstantiationConstraintSetRefIDs(componentInstantiationID: str) 
 
 
 def getComponentInstantiationDefaultFileBuilderIDs(componentInstantiationID: str) -> list[str]:
-    """Return handles of ``defaultFileBuilder`` elements.
+    """Return stable defaultFileBuilder handles and restore parsed ownership.
 
     Section: F.7.55.8.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    return [get_handle(fb) for fb in getattr(inst, "default_file_builder", [])]
+    for fb in inst.default_file_builder:
+        register_parent(fb, inst, ("default_file_builder",), "list")
+    return [get_handle(fb) for fb in inst.default_file_builder]
 
 
 def getComponentInstantiationFileSetRefIDs(componentInstantiationID: str) -> list[str]:
@@ -432,22 +434,16 @@ def addComponentInstantiationConstraintSetRef(componentInstantiationID: str, loc
 def addComponentInstantiationDefaultFileBuilder(componentInstantiationID: str, fileType: str) -> str:
     """Add a ``defaultFileBuilder`` element.
 
+    Accept standard fileType values (including user); reject invalid values
+    before mutation and register immediate ownership.
+
     Section: F.7.56.3.
     """
-    inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    # FileBuilderType requires FileType instance; minimal create
-    from org.accellera.ipxact.v1685_2022.file_type import FileType
-    from org.accellera.ipxact.v1685_2022.simple_file_type import SimpleFileType
+    from .file_set import _enum_file_type
 
-    enum_val = None
-    try:
-        enum_val = SimpleFileType(fileType)
-    except Exception:
-        # Allow arbitrary user types via USER attribute if not matching enum
-        if fileType:
-            enum_val = SimpleFileType.USER
-    fb = FileBuilderType(file_type=FileType(value=enum_val))
-    inst.default_file_builder.append(fb)  # type: ignore[attr-defined]
+    inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    fb = FileBuilderType(file_type=_enum_file_type(fileType))
+    inst.default_file_builder.append(fb)
     register_parent(fb, inst, ("default_file_builder",), "list")
     return get_handle(fb)
 
@@ -520,15 +516,14 @@ def removeComponentInstantiationConstraintSetRef(constraintSetRefID: str) -> boo
 
 
 def removeComponentInstantiationDefaultFileBuilder(fileBuilderID: str) -> bool:
-    """Remove a ``defaultFileBuilder`` by handle.
+    """Remove an instantiation-owned builder and invalidate its descendants.
 
     Section: F.7.56.9.
     """
     fb = resolve_handle(fileBuilderID)
     if not isinstance(fb, FileBuilderType):
         raise TgiError("Invalid fileBuilder handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(fileBuilderID)
-    return True
+    return _detach_instantiation_reference(fileBuilderID, "default_file_builder")
 
 
 def removeComponentInstantiationFileSetRef(fileSetRefID: str) -> bool:

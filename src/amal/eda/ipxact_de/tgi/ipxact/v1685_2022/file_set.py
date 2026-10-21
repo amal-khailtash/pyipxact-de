@@ -199,6 +199,8 @@ def _ids(items: Iterable[Any]) -> list[str]:
 
 
 def _enum_file_type(value: str) -> FileType:
+    if not isinstance(value, str):
+        raise TgiError("Expected a fileType string", TgiFaultCode.INVALID_ARGUMENT)
     try:
         simple = SimpleFileType(value)
     except ValueError as exc:  # invalid enum literal
@@ -308,8 +310,11 @@ def getFileName(fileID: str) -> str | None:  # F.7.47.16
 
 
 def getFileSetDefaultFileBuilderIDs(fileSetID: str) -> list[str]:  # F.7.47.17
-    """Return handles of defaultFileBuilder elements (Section: F.7.47.17)."""
-    return _ids(_resolve_fileset(fileSetID).default_file_builder)  # type: ignore[arg-type]
+    """Return stable builder handles and restore parsed ownership (Section: F.7.47.17)."""
+    fs = _resolve_fileset(fileSetID)
+    for builder in fs.default_file_builder:
+        register_parent(builder, fs, ("default_file_builder",), "list")
+    return _ids(fs.default_file_builder)
 
 
 def getFileSetDependencyIDs(fileSetID: str) -> list[str]:  # F.7.47.18
@@ -690,7 +695,17 @@ def removeFileLogicalName(fileID: str) -> bool:  # F.7.48.22
 
 
 def removeFileSetDefaultFileBuilder(fileBuilderID: str) -> bool:  # F.7.48.23
-    """Remove defaultFileBuilder (Section: F.7.48.23)."""
+    """Remove a file-set-owned builder and invalidate descendants (Section: F.7.48.23)."""
+    from .core import get_parent_info
+
+    builder = resolve_handle(fileBuilderID)
+    if not isinstance(builder, FileBuilderType):
+        raise TgiError("Invalid defaultFileBuilder handle", TgiFaultCode.INVALID_ID)
+    info = get_parent_info(fileBuilderID)
+    if info is None:
+        return False
+    if info.path != ("default_file_builder",) or not isinstance(resolve_handle(info.parent_handle), FileSet):
+        raise TgiError("Builder is not owned by a fileSet", TgiFaultCode.INVALID_ID)
     return detach_child_by_handle(fileBuilderID)
 
 
