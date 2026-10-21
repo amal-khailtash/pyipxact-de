@@ -60,6 +60,12 @@ __all__ = [  # BASE + EXTENDED exports
     "getRegionRange",
     "getRegionRangeExpression",
     "getRegionRangeID",
+    "getSegmentAddressOffset",
+    "getSegmentAddressOffsetExpression",
+    "getSegmentAddressOffsetID",
+    "getSegmentRange",
+    "getSegmentRangeExpression",
+    "getSegmentRangeID",
     # EXTENDED (F.7.12)
     "addAddressSpaceSegment",
     "addExecutableImageFileSetRef",
@@ -607,6 +613,110 @@ def getRegionRangeID(segmentID: str) -> str | None:
         raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
     r = getattr(seg, "range", None)
     return get_handle(r) if r is not None else None
+
+
+def getSegmentAddressOffset(segmentID: str) -> int | None:
+    """Return the segment address_offset integer literal value.
+
+    Section: F.7.11.22.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "address_offset", None)
+    if child is None:
+        return None
+    try:
+        return int(child.value, 0) if child.value.lower().startswith(("0x", "0o", "0b")) else int(child.value)
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def getSegmentAddressOffsetExpression(segmentID: str) -> str | None:
+    """Return the segment address_offset source expression.
+
+    Section: F.7.11.23.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "address_offset", None)
+    if child is None:
+        return None
+    return getattr(child, "value", None)
+
+
+def getSegmentAddressOffsetID(segmentID: str) -> str | None:
+    """Return the segment address_offset child handle.
+
+    Section: F.7.11.24.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Child handles preserve ownership for parsed documents.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "address_offset", None)
+    if child is None:
+        return None
+    register_parent(child, segment, ("address_offset",), "single")
+    return get_handle(child)
+
+
+def getSegmentRange(segmentID: str) -> int | None:
+    """Return the segment range integer literal value.
+
+    Section: F.7.11.25.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "range", None)
+    if child is None:
+        return None
+    try:
+        return int(child.value, 0) if child.value.lower().startswith(("0x", "0o", "0b")) else int(child.value)
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def getSegmentRangeExpression(segmentID: str) -> str | None:
+    """Return the segment range source expression.
+
+    Section: F.7.11.26.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Parameterized expressions are retained without evaluation.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "range", None)
+    if child is None:
+        return None
+    return getattr(child, "value", None)
+
+
+def getSegmentRangeID(segmentID: str) -> str | None:
+    """Return the segment range child handle.
+
+    Section: F.7.11.27.
+    Absent children return ``None``; invalid or wrong-type handles raise
+    ``TgiError``. Child handles preserve ownership for parsed documents.
+    """
+    segment = _resolve_segment(segmentID)
+    if segment is None:
+        raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
+    child = getattr(segment, "range", None)
+    if child is None:
+        return None
+    register_parent(child, segment, ("range",), "single")
+    return get_handle(child)
 
 
 # ----------------------------------------------------------------------------

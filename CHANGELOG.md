@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read segment offset/range literals, source expressions and owned child handles through six BASE getters.
 - Move TGI to ``amal.eda.accellera.ipxact.v1685_2022.tgi`` and update application and test imports.
 - Traverse CPU and generator transport children through standard BASE handles.
 - Read CPU source expressions with stable parsed child handles through BASE getters.
