@@ -3080,18 +3080,18 @@ View (BASE)
 * ☐ ``getViewDesignConfigurationInstantiationRefByName`` (F.7.87.6)
 * ☐ ``getViewDesignInstantiationRefByID`` (F.7.87.7)
 * ☐ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
-* ☐ ``getViewEnvIdentifierIDs`` (F.7.87.9)
-* ☐ ``getViewEnvIdentifiers`` (F.7.87.10)
+* ☑ ``getViewEnvIdentifierIDs`` (F.7.87.9)
+* ☑ ``getViewEnvIdentifiers`` (F.7.87.10)
 * ☐ ``getViewRefByName`` (F.7.87.11)
 
 View (EXTENDED)
 ~~~~~~~~~~~~~~~
 
-* ☐ ``addViewEnvIdentifier`` (F.7.88.1)
+* ☑ ``addViewEnvIdentifier`` (F.7.88.1)
 * ☐ ``removeViewComponentInstantiationRef`` (F.7.88.2)
 * ☐ ``removeViewDesignConfigurationInstantiationRef`` (F.7.88.3)
 * ☐ ``removeViewDesignInstantiationRef`` (F.7.88.4)
-* ☐ ``removeViewEnvIdentifier`` (F.7.88.5)
+* ☑ ``removeViewEnvIdentifier`` (F.7.88.5)
 * ☐ ``setViewComponentInstantiationRef`` (F.7.88.6)
 * ☐ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
 * ☐ ``setViewDesignInstantiationRef`` (F.7.88.8)
@@ -3205,3 +3205,13 @@ Structured component port contracts
 - ☑ getComponentPortIDs verified with generated structured choices and parsed lifecycle ownership.
 - ☑ removeComponentPort verified with generated structured choices and parsed lifecycle ownership.
 - ☐ Resolve external structured types and complete sub-port semantic constraints.
+
+View environment metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addViewEnvIdentifier supports generated component/abstractor views, source values and ownership.
+- ☑ getViewEnvIdentifierIDs supports generated component/abstractor views, source values and ownership.
+- ☑ getViewEnvIdentifiers supports generated component/abstractor views, source values and ownership.
+- ☑ removeViewEnvIdentifier supports generated component/abstractor views, source values and ownership.
+- ☑ Legacy getViewName helper supports generated views; not counted as a standard operation.
+- ☐ Complete view reference resolution and parsed view parent ownership.

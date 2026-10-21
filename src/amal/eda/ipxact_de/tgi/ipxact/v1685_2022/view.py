@@ -19,6 +19,7 @@ Notes / assumptions:
   ``TgiFaultCode.INVALID_ID`` (unknown handle) or
   ``TgiFaultCode.INVALID_ARGUMENT`` (semantic issues).
 """
+import re
 from types import SimpleNamespace
 from typing import Any
 
@@ -66,6 +67,11 @@ __all__: list[str] = [
 
 def _resolve(viewID: str) -> Any | None:
     obj = resolve_handle(viewID)
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    if isinstance(obj, (ModelType.Views.View, AbstractorModelType.Views.View)):
+        return obj
     # Accept any object that has typical view markers.
     if obj is None:
         return None
@@ -120,20 +126,23 @@ def getViewComponentInstantiationRefByName(viewID: str) -> str | None:  # F.7.87
     return getattr(ci_ref, "name", None)
 
 
-def getViewEnvIdentifierIDs(viewID: str) -> list[str]:  # F.7.87.4
-    v = _resolve(viewID)
-    if v is None:
-        return []
-    env_ids = getattr(getattr(v, "env_identifiers", None), "env_identifier", [])
-    return [get_handle(e) for e in env_ids]
+def getViewEnvIdentifierIDs(viewID: str) -> list[str]:
+    """Return ordered environment identifiers with ownership (F.7.87.9)."""
+    view = _ensure(viewID)
+    items = getattr(view, "env_identifier", None)
+    if items is None:
+        items = getattr(getattr(view, "env_identifiers", None), "env_identifier", [])
+        path = ("env_identifiers", "env_identifier")
+    else:
+        path = ("env_identifier",)
+    for item in items:
+        register_parent(item, view, path, "list")
+    return [get_handle(item) for item in items]
 
 
-def getViewEnvIdentifiers(viewID: str) -> list[str | None]:  # F.7.87.5
-    v = _resolve(viewID)
-    if v is None:
-        return []
-    env_ids = getattr(getattr(v, "env_identifiers", None), "env_identifier", [])
-    return [getattr(e, "value", None) for e in env_ids]
+def getViewEnvIdentifiers(viewID: str) -> list[str]:
+    """Return source environment identifier values in order (F.7.87.10)."""
+    return [resolve_handle(handle).value for handle in getViewEnvIdentifierIDs(viewID)]
 
 
 def getViewFileSetRefIDs(viewID: str) -> list[str]:  # F.7.87.6
@@ -159,11 +168,9 @@ def getViewModelParametersID(viewID: str) -> str | None:  # F.7.87.8
     return get_handle(mp) if mp is not None else None
 
 
-def getViewName(viewID: str) -> str | None:  # F.7.87.9
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    return getattr(v, "name", None)
+def getViewName(viewID: str) -> str:
+    """Return a generated component or abstractor view name (legacy helper)."""
+    return _ensure(viewID).name
 
 
 def getViewOtherClockDriverRefIDs(viewID: str) -> list[str]:  # F.7.87.10
@@ -202,17 +209,23 @@ def getViewVendorExtensionsID(viewID: str) -> str | None:  # F.7.87.13
 # EXTENDED (F.7.88)
 # ---------------------------------------------------------------------------
 
-def addViewEnvIdentifier(viewID: str, value: str) -> str:  # F.7.88.1
-    v = _ensure(viewID)
-    env_ids_container = getattr(v, "env_identifiers", None)
-    if env_ids_container is None:
-        env_ids_container = SimpleNamespace(env_identifier=[])
-        v.env_identifiers = env_ids_container  # type: ignore[attr-defined]
-    lst = env_ids_container.env_identifier  # type: ignore[attr-defined]
-    ei = SimpleNamespace(value=value)
-    lst.append(ei)
-    register_parent(ei, v, ("env_identifiers",), "list")
-    return get_handle(ei)
+def addViewEnvIdentifier(viewID: str, value: str) -> str:
+    """Add a generated environment identifier, validating lexical syntax (F.7.88.1)."""
+    view = _ensure(viewID)
+    if not isinstance(value, str) or re.fullmatch(r"[a-zA-Z0-9_+*.]*:[a-zA-Z0-9_+*.]*:[a-zA-Z0-9_+*.]*", value) is None:
+        raise TgiError("Environment identifier must have language:tool:extension syntax", TgiFaultCode.INVALID_ARGUMENT)
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    if isinstance(view, ModelType.Views.View):
+        child = ModelType.Views.View.EnvIdentifier(value=value)
+    elif isinstance(view, AbstractorModelType.Views.View):
+        child = AbstractorModelType.Views.View.EnvIdentifier(value=value)
+    else:
+        raise TgiError("Expected a generated view", TgiFaultCode.INVALID_ID)
+    view.env_identifier.append(child)
+    register_parent(child, view, ("env_identifier",), "list")
+    return get_handle(child)
 
 
 def removeViewBusInterfaceRef(refID: str) -> bool:  # F.7.88.2
@@ -223,7 +236,22 @@ def removeViewComponentInstantiationRef(refID: str) -> bool:  # F.7.88.3
     return detach_child_by_handle(refID)
 
 
-def removeViewEnvIdentifier(envIdentifierID: str) -> bool:  # F.7.88.4
+def removeViewEnvIdentifier(envIdentifierID: str) -> bool:
+    """Remove an owned generated environment identifier (F.7.88.5)."""
+    from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    from .core import get_parent_info
+
+    child = resolve_handle(envIdentifierID)
+    if child is None:
+        return False
+    if not isinstance(child, (ModelType.Views.View.EnvIdentifier, AbstractorModelType.Views.View.EnvIdentifier)):
+        raise TgiError("Expected an environment identifier handle", TgiFaultCode.INVALID_ID)
+    info = get_parent_info(envIdentifierID)
+    if info is None or info.path != ("env_identifier",) or info.container != "list":
+        raise TgiError("Environment identifier has no view ownership", TgiFaultCode.INVALID_ID)
+    _ensure(info.parent_handle)
     return detach_child_by_handle(envIdentifierID)
 
 
