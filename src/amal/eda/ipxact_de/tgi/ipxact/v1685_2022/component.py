@@ -16,7 +16,7 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import ComponentType
 
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
+from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent, detach_child_by_handle
 
 __all__ = [
     # BASE (F.7.29)
@@ -278,7 +278,7 @@ def getComponentFileSetIDs(componentID: str) -> list[str]:
     Section: F.7.29.12.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.file_sets, "file_set"))
+    return _owned_component_ids(comp, "file_sets", "file_set")
 
 
 def getComponentIndirectInterfaceIDs(componentID: str) -> list[str]:
@@ -296,7 +296,7 @@ def getComponentMemoryMapIDs(componentID: str) -> list[str]:
     Section: F.7.29.14.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.memory_maps, "memory_map"))
+    return _owned_component_ids(comp, "memory_maps", "memory_map")
 
 
 def getComponentModeIDs(componentID: str) -> list[str]:
@@ -314,7 +314,7 @@ def getComponentOtherClockDriverIDs(componentID: str) -> list[str]:
     Section: F.7.29.16.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.other_clock_drivers, "other_clock"))
+    return _owned_component_ids(comp, "other_clock_drivers", "other_clock_driver")
 
 
 def getComponentPortIDs(componentID: str) -> list[str]:
@@ -326,7 +326,7 @@ def getComponentPortIDs(componentID: str) -> list[str]:
     model = comp.model
     if model is None or model.ports is None:
         return []
-    return _ids(_list(model.ports, "port"))
+    return _owned_component_ids(comp, "model.ports", "port")
 
 
 def getComponentPowerDomainIDs(componentID: str) -> list[str]:
@@ -344,7 +344,7 @@ def getComponentResetTypeIDs(componentID: str) -> list[str]:
     Section: F.7.29.19.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.reset_types, "reset_type"))
+    return _owned_component_ids(comp, "reset_types", "reset_type")
 
 
 def getComponentSelectedViewIDs(componentID: str) -> list[str]:
@@ -541,6 +541,7 @@ def addComponentFileSet(componentID: str, name: str) -> str:
         comp.file_sets = FileSets(file_set=[])  # type: ignore[arg-type]
     fs = FileSet(name=name)
     comp.file_sets.file_set.append(fs)  # type: ignore[attr-defined]
+    register_parent(fs, comp, ("file_sets", "file_set"), "list")
     return get_handle(fs)
 
 
@@ -594,6 +595,7 @@ def addComponentMemoryMap(componentID: str, name: str) -> str:
         comp.memory_maps = MemoryMaps(memory_map=[])  # type: ignore[arg-type]
     mm = MemoryMap(name=name)
     comp.memory_maps.memory_map.append(mm)  # type: ignore[attr-defined]
+    register_parent(mm, comp, ("memory_maps", "memory_map"), "list")
     return get_handle(mm)
 
 
@@ -676,6 +678,7 @@ def addComponentResetType(componentID: str, name: str) -> str:
         comp.reset_types = CT.ResetTypes(reset_type=[])  # type: ignore[arg-type]
     rt = CT.ResetTypes.ResetType(name=name)  # type: ignore[call-arg]
     comp.reset_types.reset_type.append(rt)  # type: ignore[attr-defined]
+    register_parent(rt, comp, ("reset_types", "reset_type"), "list")
     return get_handle(rt)
 
 
@@ -937,15 +940,9 @@ def removeComponentDesignInstantiation(componentID: str, designInstantiationID: 
     return _remove(model.instantiations, "design_instantiation", designInstantiationID)
 
 
-def removeComponentFileSet(componentID: str, fileSetID: str) -> bool:
-    """Remove a ``fileSet``.
-
-    Section: F.7.30.39.
-    """
-    comp = _resolve_component(componentID)
-    if comp.file_sets is None:
-        return False
-    return _remove(comp.file_sets, "file_set", fileSetID)
+def removeComponentFileSet(fileSetID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.39)."""
+    return _remove_owned_component_child(fileSetID, "file_sets", "file_set")
 
 
 def removeComponentIndirectInterface(componentID: str, indirectInterfaceID: str) -> bool:
@@ -959,15 +956,9 @@ def removeComponentIndirectInterface(componentID: str, indirectInterfaceID: str)
     return _remove(comp.indirect_interfaces, "indirect_interface", indirectInterfaceID)
 
 
-def removeComponentMemoryMap(componentID: str, memoryMapID: str) -> bool:
-    """Remove a ``memoryMap``.
-
-    Section: F.7.30.41.
-    """
-    comp = _resolve_component(componentID)
-    if comp.memory_maps is None:
-        return False
-    return _remove(comp.memory_maps, "memory_map", memoryMapID)
+def removeComponentMemoryMap(memoryMapID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.41)."""
+    return _remove_owned_component_child(memoryMapID, "memory_maps", "memory_map")
 
 
 def removeComponentMode(componentID: str, modeID: str) -> bool:
@@ -981,38 +972,19 @@ def removeComponentMode(componentID: str, modeID: str) -> bool:
     return _remove(comp.modes, "mode", modeID)
 
 
-def removeComponentOtherClockDriver(componentID: str, otherClockDriverID: str) -> bool:
-    """Remove an ``otherClockDriver``.
-
-    Section: F.7.30.43.
-    """
-    comp = _resolve_component(componentID)
-    if comp.other_clock_drivers is None:
-        return False
-    return _remove(comp.other_clock_drivers, "other_clock", otherClockDriverID)
+def removeComponentOtherClockDriver(otherClockDriverID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.43)."""
+    return _remove_owned_component_child(otherClockDriverID, "other_clock_drivers", "other_clock_driver")
 
 
-def removeComponentPort(componentID: str, portID: str) -> bool:
-    """Remove a ``port`` (any style) from model.ports.
-
-    Section: F.7.30.44.
-    """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.ports is None:
-        return False
-    return _remove(model.ports, "port", portID)
+def removeComponentPort(portID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.44)."""
+    return _remove_owned_component_child(portID, "model.ports", "port")
 
 
-def removeComponentResetType(componentID: str, resetTypeID: str) -> bool:
-    """Remove a ``resetType`` element.
-
-    Section: F.7.30.45.
-    """
-    comp = _resolve_component(componentID)
-    if comp.reset_types is None:
-        return False
-    return _remove(comp.reset_types, "reset_type", resetTypeID)
+def removeComponentResetType(resetTypeID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.45)."""
+    return _remove_owned_component_child(resetTypeID, "reset_types", "reset_type")
 
 
 def removeComponentView(componentID: str, viewID: str) -> bool:
@@ -1027,3 +999,29 @@ def removeComponentView(componentID: str, viewID: str) -> bool:
     return _remove(model.views, "view", viewID)
 
 
+
+
+def _owned_component_ids(component: ComponentType, path: str, attr: str) -> list[str]:
+    owner = component
+    for segment in path.split("."):
+        owner = getattr(owner, segment, None)
+        if owner is None:
+            return []
+    children = getattr(owner, attr)
+    for child in children:
+        register_parent(child, component, (*path.split("."), attr), "list")
+    return [get_handle(child) for child in children]
+
+
+def _remove_owned_component_child(handle: str, path: str, attr: str) -> bool:
+    from .core import get_parent_info
+
+    child = resolve_handle(handle)
+    if child is None:
+        return False
+    info = get_parent_info(handle)
+    expected = (*path.split("."), attr)
+    if info is None or info.path != expected or info.container != "list":
+        raise TgiError("Handle is not an owned component child of the required type", TgiFaultCode.INVALID_ID)
+    _resolve_component(info.parent_handle)
+    return detach_child_by_handle(handle)

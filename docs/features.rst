@@ -1007,13 +1007,13 @@ Component (EXTENDED)
 * ☐ ``removeComponentCpu`` (F.7.30.36)
 * ☐ ``removeComponentDesignConfigurationInstantiation`` (F.7.30.37)
 * ☐ ``removeComponentDesignInstantiation`` (F.7.30.38)
-* ☐ ``removeComponentFileSet`` (F.7.30.39)
+* ☑ ``removeComponentFileSet`` (F.7.30.39)
 * ☐ ``removeComponentIndirectInterface`` (F.7.30.40)
-* ☐ ``removeComponentMemoryMap`` (F.7.30.41)
+* ☑ ``removeComponentMemoryMap`` (F.7.30.41)
 * ☐ ``removeComponentMode`` (F.7.30.42)
-* ☐ ``removeComponentOtherClockDriver`` (F.7.30.43)
-* ☐ ``removeComponentPort`` (F.7.30.44)
-* ☐ ``removeComponentResetType`` (F.7.30.45)
+* ☑ ``removeComponentOtherClockDriver`` (F.7.30.43)
+* ☑ ``removeComponentPort`` (F.7.30.44)
+* ☑ ``removeComponentResetType`` (F.7.30.45)
 * ☐ ``removeComponentView`` (F.7.30.46)
 * ☐ ``removeMemoryMapAddressUnitBits`` (F.7.30.47)
 * ☐ ``removeModeCondition`` (F.7.30.48)
@@ -3175,3 +3175,13 @@ TGI descendant handle invalidation
 - ☑ Invalidate choice enumerations when removing their owning choice.
 - ☑ Traverse generated model children without requiring prior ownership getters; preserve unaffected siblings.
 - ☐ Audit every TGI remover and reference alias for complete session lifetime conformance.
+
+Component child removal contracts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ removeComponentFileSet uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentMemoryMap uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentOtherClockDriver uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentPort uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentResetType uses its standard child handle with parsed ownership and descendant invalidation.
+- ☐ Complete component creation contracts, view ownership and remaining remover audits.
