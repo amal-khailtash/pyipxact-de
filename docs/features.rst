@@ -987,16 +987,16 @@ Component (EXTENDED)
 * ☐ ``addComponentMirroredTargetBusInterface`` (F.7.30.16)
 * ☐ ``addComponentMode`` (F.7.30.17)
 * ☐ ``addComponentMonitorBusInterface`` (F.7.30.18)
-* ☐ ``addComponentOtherClockDriver`` (F.7.30.19)
+* ☑ ``addComponentOtherClockDriver`` (F.7.30.19)
 * ☐ ``addComponentResetType`` (F.7.30.20)
 * ☐ ``addComponentStructuredInterfacePort`` (F.7.30.21)
 * ☐ ``addComponentStructuredStructPort`` (F.7.30.22)
 * ☐ ``addComponentStructuredUnionPort`` (F.7.30.23)
 * ☐ ``addComponentSystemBusInterface`` (F.7.30.24)
 * ☐ ``addComponentTargetBusInterface`` (F.7.30.25)
-* ☐ ``addComponentTransactionalPort`` (F.7.30.26)
-* ☐ ``addComponentView`` (F.7.30.27)
-* ☐ ``addComponentWirePort`` (F.7.30.28)
+* ☑ ``addComponentTransactionalPort`` (F.7.30.26)
+* ☑ ``addComponentView`` (F.7.30.27)
+* ☑ ``addComponentWirePort`` (F.7.30.28)
 * ☐ ``removeComponentAddressSpace`` (F.7.30.29)
 * ☐ ``removeComponentBusInterface`` (F.7.30.30)
 * ☐ ``removeComponentChannel`` (F.7.30.31)
@@ -1014,7 +1014,7 @@ Component (EXTENDED)
 * ☑ ``removeComponentOtherClockDriver`` (F.7.30.43)
 * ☑ ``removeComponentPort`` (F.7.30.44)
 * ☑ ``removeComponentResetType`` (F.7.30.45)
-* ☐ ``removeComponentView`` (F.7.30.46)
+* ☑ ``removeComponentView`` (F.7.30.46)
 * ☐ ``removeMemoryMapAddressUnitBits`` (F.7.30.47)
 * ☐ ``removeModeCondition`` (F.7.30.48)
 * ☐ ``removePowerDomainAlwaysOn`` (F.7.30.49)
@@ -3185,3 +3185,13 @@ Component child removal contracts
 - ☑ removeComponentPort uses its standard child handle with parsed ownership and descendant invalidation.
 - ☑ removeComponentResetType uses its standard child handle with parsed ownership and descendant invalidation.
 - ☐ Complete component creation contracts, view ownership and remaining remover audits.
+
+Component port view and clock creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentWirePort uses generated models, standard arguments and immediate ownership.
+- ☑ addComponentTransactionalPort uses generated models, standard arguments and immediate ownership.
+- ☑ addComponentOtherClockDriver uses generated models, standard arguments and immediate ownership.
+- ☑ addComponentView uses generated models, standard arguments and immediate ownership.
+- ☑ removeComponentView uses generated models, standard arguments and immediate ownership.
+- ☐ Complete configured view references, expressions, name constraints and structured component ports.

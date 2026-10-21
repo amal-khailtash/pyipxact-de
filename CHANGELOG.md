@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Create generated component wire/transactional ports, views and named clock drivers with standard arguments and ownership.
 - Support standard single-child component removers with parsed ownership and descendant handle invalidation.
 - Invalidate descendant TGI model handles when their owning subtree is removed or replaced.
 - Add component direction and timing-clock semantic validation with named/default clock-driver resolution.

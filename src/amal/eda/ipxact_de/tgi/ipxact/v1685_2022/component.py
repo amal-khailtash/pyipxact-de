@@ -647,23 +647,30 @@ def addComponentMonitorBusInterface(componentID: str, name: str) -> str:
     return _add_bus_interface(_resolve_component(componentID), name, "monitor")
 
 
-def addComponentOtherClockDriver(componentID: str, name: str) -> str:
-    """Add an ``otherClockDriver`` element.
-
-    Section: F.7.30.19.
-    """
+def addComponentOtherClockDriver(
+    componentID: str, name: str, periodExpression: str, offsetExpression: str,
+    valueExpression: str, durationExpression: str,
+) -> str:
+    """Create the named clock with source waveform expressions (F.7.30.19)."""
     comp = _resolve_component(componentID)
+    for value in (name, periodExpression, offsetExpression, valueExpression, durationExpression):
+        _require_component_text(value)
+    from org.accellera.ipxact.v1685_2022.clock_driver_type import ClockDriverType
+    from org.accellera.ipxact.v1685_2022.other_clock_driver import OtherClockDriver
     from org.accellera.ipxact.v1685_2022.other_clocks import OtherClocks
-    from org.accellera.ipxact.v1685_2022.other_clock_driver import (
-        OtherClockDriver as OtherClock,
-    )
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
 
+    clock = OtherClockDriver(
+        clock_name=name, clock_period=ClockDriverType.ClockPeriod(value=periodExpression),
+        clock_pulse_offset=ClockDriverType.ClockPulseOffset(value=offsetExpression),
+        clock_pulse_value=UnsignedBitExpression(value=valueExpression),
+        clock_pulse_duration=ClockDriverType.ClockPulseDuration(value=durationExpression),
+    )
     if comp.other_clock_drivers is None:
-        comp.other_clock_drivers = OtherClocks(other_clock=[])  # type: ignore[arg-type]
-    # Schema uses attribute clock_name instead of name
-    oc = OtherClock(clock_name=name)
-    comp.other_clock_drivers.other_clock.append(oc)  # type: ignore[attr-defined]
-    return get_handle(oc)
+        comp.other_clock_drivers = OtherClocks()
+    comp.other_clock_drivers.other_clock_driver.append(clock)
+    register_parent(clock, comp, ("other_clock_drivers", "other_clock_driver"), "list")
+    return get_handle(clock)
 
 
 def addComponentResetType(componentID: str, name: str) -> str:
@@ -781,42 +788,49 @@ def addComponentTargetBusInterface(componentID: str, name: str) -> str:
     return _add_bus_interface(_resolve_component(componentID), name, "target")
 
 
-def addComponentTransactionalPort(componentID: str, name: str) -> str:
-    """Add a transactional port.
+def addComponentTransactionalPort(componentID: str, name: str, initiative: str) -> str:
+    """Create a generated transactional port (F.7.30.26)."""
+    comp = _resolve_component(componentID)
+    _require_component_text(name)
+    from org.accellera.ipxact.v1685_2022.initiative import Initiative
+    from org.accellera.ipxact.v1685_2022.initiative_type import InitiativeType
+    from org.accellera.ipxact.v1685_2022.port_transactional_type import PortTransactionalType
 
-    Section: F.7.30.26.
-    """
-    return _add_structured_port(_resolve_component(componentID), name, "transactional")
+    try:
+        value = InitiativeType(initiative)
+    except (ValueError, TypeError) as error:
+        raise TgiError("Invalid port initiative", TgiFaultCode.INVALID_ARGUMENT) from error
+    return _append_component_port(comp, name, PortTransactionalType(initiative=Initiative(value=value)))
 
 
 def addComponentView(componentID: str, name: str) -> str:
-    """Add a ``view`` element.
-
-    Section: F.7.30.27.
-    """
+    """Create a generated view with immediate ownership (F.7.30.27)."""
     comp = _resolve_component(componentID)
+    _require_component_text(name)
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    view = ModelType.Views.View(name=name)
     model = _ensure_model(comp)
-    from .view import View  # type: ignore
-    from org.accellera.ipxact.v1685_2022.model import Views  # type: ignore
-
     if model.views is None:
-        model.views = Views(view=[], selected_view=[])  # type: ignore[arg-type]
-    vw = View(name=name)
-    model.views.view.append(vw)  # type: ignore[attr-defined]
-    return get_handle(vw)
+        model.views = ModelType.Views()
+    model.views.view.append(view)
+    register_parent(view, comp, ("model", "views", "view"), "list")
+    return get_handle(view)
 
 
-def addComponentWirePort(componentID: str, name: str, direction: str | None = None) -> str:
-    """Add a wire port.
+def addComponentWirePort(componentID: str, name: str, direction: str) -> str:
+    """Create a generated wire port with the supplied direction (F.7.30.28)."""
+    comp = _resolve_component(componentID)
+    _require_component_text(name)
+    from org.accellera.ipxact.v1685_2022.component_port_direction_type import ComponentPortDirectionType
+    from org.accellera.ipxact.v1685_2022.port_wire_type import PortWireType
 
-    Section: F.7.30.28.
-    """
-    return _add_structured_port(_resolve_component(componentID), name, "wire", direction=direction)
+    try:
+        value = ComponentPortDirectionType(direction)
+    except (ValueError, TypeError) as error:
+        raise TgiError("Invalid port direction", TgiFaultCode.INVALID_ARGUMENT) from error
+    return _append_component_port(comp, name, PortWireType(direction=value))
 
-
-# ---------------------------------------------------------------------------
-# EXTENDED removal (F.7.30.xx)
-# ---------------------------------------------------------------------------
 
 def _remove(container, list_attr: str, handle: str) -> bool:
     from .core import resolve_handle as _res
@@ -987,18 +1001,9 @@ def removeComponentResetType(resetTypeID: str) -> bool:
     return _remove_owned_component_child(resetTypeID, "reset_types", "reset_type")
 
 
-def removeComponentView(componentID: str, viewID: str) -> bool:
-    """Remove a ``view`` element.
-
-    Section: F.7.30.46.
-    """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.views is None:
-        return False
-    return _remove(model.views, "view", viewID)
-
-
+def removeComponentView(viewID: str) -> bool:
+    """Remove an owned component view and invalidate descendants (F.7.30.46)."""
+    return _remove_owned_component_child(viewID, "model.views", "view")
 
 
 def _owned_component_ids(component: ComponentType, path: str, attr: str) -> list[str]:
@@ -1025,3 +1030,21 @@ def _remove_owned_component_child(handle: str, path: str, attr: str) -> bool:
         raise TgiError("Handle is not an owned component child of the required type", TgiFaultCode.INVALID_ID)
     _resolve_component(info.parent_handle)
     return detach_child_by_handle(handle)
+
+
+def _require_component_text(value: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError("Expected a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _append_component_port(component: ComponentType, name: str, style: Any) -> str:
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+    from org.accellera.ipxact.v1685_2022.port import Port
+
+    port = Port(name=name, wire_or_transactional_or_structured=style)
+    model = _ensure_model(component)
+    if model.ports is None:
+        model.ports = ModelType.Ports()
+    model.ports.port.append(port)
+    register_parent(port, component, ("model", "ports", "port"), "list")
+    return get_handle(port)
