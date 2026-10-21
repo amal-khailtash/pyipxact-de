@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Create generated component, design and design-configuration instantiations with required references and ownership.
 - Add typed generated viewRef source-name access and editing with stable identity and package exports.
 - Traverse and remove typed component instantiations with ownership and descendant invalidation.
 - Restore registered parsed view ownership for typed local reference resolution and selective lifecycle operations.

@@ -11,7 +11,7 @@ further refine created sub-elements through other category APIs.
 """
 # ruff: noqa: I001  # Allow local inline import ordering within factory helpers
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import ComponentType
@@ -450,24 +450,15 @@ def addComponentComponentGenerator(componentID: str, name: str) -> str:
 
 
 def addComponentComponentInstantiation(componentID: str, name: str) -> str:
-    """Add a ``componentInstantiation`` (model.instantiations).
+    """Create the generated instantiation with immediate ownership (F.7.30.6).
 
-    Section: F.7.30.6.
+    Validate names and reference VLNV before mutation. Component-instance
+    placement is not yet supported; an unsupported root raises INVALID_ID.
     """
     comp = _resolve_component(componentID)
-    model = _ensure_model(comp)
-    from org.accellera.ipxact.v1685_2022.model import Instantiations  # type: ignore
-    from org.accellera.ipxact.v1685_2022.component_instantiation_type import ComponentInstantiationType
-
-    if model.instantiations is None:
-        model.instantiations = Instantiations(
-            component_instantiation=[],
-            design_instantiation=[],
-            design_configuration_instantiation=[],
-        )  # type: ignore[arg-type]
-    ci = ComponentInstantiationType(name=name)
-    model.instantiations.component_instantiation.append(ci)  # type: ignore[attr-defined]
-    return get_handle(ci)
+    _require_component_text(name)
+    instance = _instantiation_type("Component")(name=name)
+    return _append_component_instantiation(comp, instance)
 
 
 def addComponentCpu(componentID: str, name: str) -> str:
@@ -486,46 +477,44 @@ def addComponentCpu(componentID: str, name: str) -> str:
     return get_handle(cpu)
 
 
-def addComponentDesignConfigurationInstantiation(componentID: str, name: str) -> str:
-    """Add a ``designConfigurationInstantiation``.
+def addComponentDesignConfigurationInstantiation(
+    componentOrComponentInstanceID: str, name: str, designConfigurationVLNV: Sequence[str] | str,
+) -> str:
+    """Create the generated instantiation with immediate ownership (F.7.30.8).
 
-    Section: F.7.30.8.
+    Validate names and reference VLNV before mutation. Component-instance
+    placement is not yet supported; an unsupported root raises INVALID_ID.
+    """
+    comp = _resolve_component(componentOrComponentInstanceID)
+    _require_component_text(name)
+    from .core import vlnv_to_tuple
+    from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
+
+    parts = vlnv_to_tuple(designConfigurationVLNV)
+    if any(not isinstance(part, str) or not part.strip() for part in parts):
+        raise TgiError("Expected four nonempty VLNV strings", TgiFaultCode.INVALID_ARGUMENT)
+    reference = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+    instance = _instantiation_type("DesignConfiguration")(name=name, design_configuration_ref=reference)
+    return _append_component_instantiation(comp, instance)
+
+
+def addComponentDesignInstantiation(componentID: str, name: str, designVLNV: Sequence[str] | str) -> str:
+    """Create the generated instantiation with immediate ownership (F.7.30.9).
+
+    Validate names and reference VLNV before mutation. Component-instance
+    placement is not yet supported; an unsupported root raises INVALID_ID.
     """
     comp = _resolve_component(componentID)
-    model = _ensure_model(comp)
-    from org.accellera.ipxact.v1685_2022.model import Instantiations  # type: ignore
-    from .design_configuration_instantiation import DesignConfigurationInstantiation  # type: ignore
+    _require_component_text(name)
+    from .core import vlnv_to_tuple
+    from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
 
-    if model.instantiations is None:
-        model.instantiations = Instantiations(
-            component_instantiation=[],
-            design_instantiation=[],
-            design_configuration_instantiation=[],
-        )  # type: ignore[arg-type]
-    dci = DesignConfigurationInstantiation(name=name)
-    model.instantiations.design_configuration_instantiation.append(dci)  # type: ignore[attr-defined]
-    return get_handle(dci)
-
-
-def addComponentDesignInstantiation(componentID: str, name: str) -> str:
-    """Add a ``designInstantiation``.
-
-    Section: F.7.30.9.
-    """
-    comp = _resolve_component(componentID)
-    model = _ensure_model(comp)
-    from org.accellera.ipxact.v1685_2022.model import Instantiations  # type: ignore
-    from .design_instantiation import DesignInstantiation  # type: ignore
-
-    if model.instantiations is None:
-        model.instantiations = Instantiations(
-            component_instantiation=[],
-            design_instantiation=[],
-            design_configuration_instantiation=[],
-        )  # type: ignore[arg-type]
-    di = DesignInstantiation(name=name)
-    model.instantiations.design_instantiation.append(di)  # type: ignore[attr-defined]
-    return get_handle(di)
+    parts = vlnv_to_tuple(designVLNV)
+    if any(not isinstance(part, str) or not part.strip() for part in parts):
+        raise TgiError("Expected four nonempty VLNV strings", TgiFaultCode.INVALID_ARGUMENT)
+    reference = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+    instance = _instantiation_type("Design")(name=name, design_ref=reference)
+    return _append_component_instantiation(comp, instance)
 
 
 def addComponentFileSet(componentID: str, name: str) -> str:
@@ -1048,3 +1037,15 @@ def _remove_component_instantiation(handle: str, kind: str) -> bool:
         handle, "model.instantiations",
         "component_instantiation_or_design_instantiation_or_design_configuration_instantiation",
     )
+
+
+def _append_component_instantiation(comp: ComponentType, instance: Any) -> str:
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    model = _ensure_model(comp)
+    if model.instantiations is None:
+        model.instantiations = ModelType.Instantiations()
+    model.instantiations.component_instantiation_or_design_instantiation_or_design_configuration_instantiation.append(instance)
+    register_parent(instance, comp, ("model", "instantiations",
+                    "component_instantiation_or_design_instantiation_or_design_configuration_instantiation"), "list")
+    return get_handle(instance)

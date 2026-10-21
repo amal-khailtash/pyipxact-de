@@ -3290,3 +3290,12 @@ Generated viewRef source editing
 ViewRef source APIs take a generated viewRef handle. Getters return the stored
 name; setters accept a nonempty string and preserve the same element and xml:id.
 Target existence and configured applicability are validated separately.
+
+Generated component instantiation creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentComponentInstantiation: generated creation and immediate lifecycle verified.
+- ☑ addComponentDesignInstantiation: generated creation and immediate lifecycle verified.
+- ☑ addComponentDesignConfigurationInstantiation: generated creation and immediate lifecycle verified.
+- Component-instance placement for design configuration remains explicitly pending.
+- Six scoped cases passed in 1.09s; generated XML and input atomicity verified.
