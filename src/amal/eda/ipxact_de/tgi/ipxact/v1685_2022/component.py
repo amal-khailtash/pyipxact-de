@@ -224,7 +224,7 @@ def getComponentComponentInstantiationIDs(componentID: str) -> list[str]:
     model = comp.model
     if model is None or model.instantiations is None:
         return []
-    return _ids(_list(model.instantiations, "component_instantiation"))
+    return _component_instantiation_ids(comp, "Component")
 
 
 def getComponentCpuIDs(componentID: str) -> list[str]:
@@ -245,7 +245,7 @@ def getComponentDesignConfigurationInstantiationIDs(componentID: str) -> list[st
     model = comp.model
     if model is None or model.instantiations is None:
         return []
-    return _ids(_list(model.instantiations, "design_configuration_instantiation"))
+    return _component_instantiation_ids(comp, "DesignConfiguration")
 
 
 def getComponentDesignInstantiationIDs(componentID: str) -> list[str]:
@@ -257,7 +257,7 @@ def getComponentDesignInstantiationIDs(componentID: str) -> list[str]:
     model = comp.model
     if model is None or model.instantiations is None:
         return []
-    return _ids(_list(model.instantiations, "design_instantiation"))
+    return _component_instantiation_ids(comp, "Design")
 
 
 def getComponentExternalTypeDefinitionsIDs(componentID: str) -> list[str]:
@@ -887,16 +887,13 @@ def removeComponentComponentGenerator(componentID: str, componentGeneratorID: st
     return _remove(comp.component_generators, "component_generator", componentGeneratorID)
 
 
-def removeComponentComponentInstantiation(componentID: str, componentInstantiationID: str) -> bool:
-    """Remove a ``componentInstantiation``.
+def removeComponentComponentInstantiation(componentInstantiationID: str) -> bool:
+    """Remove the owned typed instantiation and descendants (F.7.30.35).
 
-    Section: F.7.30.35.
+    Return False for stale handles; unrelated child types raise INVALID_ID.
+    Source view reference strings remain unchanged and may require validation.
     """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.instantiations is None:
-        return False
-    return _remove(model.instantiations, "component_instantiation", componentInstantiationID)
+    return _remove_component_instantiation(componentInstantiationID, "Component")
 
 
 def removeComponentCpu(componentID: str, cpuID: str) -> bool:
@@ -910,28 +907,22 @@ def removeComponentCpu(componentID: str, cpuID: str) -> bool:
     return _remove(comp.cpus, "cpu", cpuID)
 
 
-def removeComponentDesignConfigurationInstantiation(componentID: str, designConfigurationInstantiationID: str) -> bool:
-    """Remove a ``designConfigurationInstantiation``.
+def removeComponentDesignConfigurationInstantiation(designConfigurationInstantiationID: str) -> bool:
+    """Remove the owned typed instantiation and descendants (F.7.30.37).
 
-    Section: F.7.30.37.
+    Return False for stale handles; unrelated child types raise INVALID_ID.
+    Source view reference strings remain unchanged and may require validation.
     """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.instantiations is None:
-        return False
-    return _remove(model.instantiations, "design_configuration_instantiation", designConfigurationInstantiationID)
+    return _remove_component_instantiation(designConfigurationInstantiationID, "DesignConfiguration")
 
 
-def removeComponentDesignInstantiation(componentID: str, designInstantiationID: str) -> bool:
-    """Remove a ``designInstantiation``.
+def removeComponentDesignInstantiation(designInstantiationID: str) -> bool:
+    """Remove the owned typed instantiation and descendants (F.7.30.38).
 
-    Section: F.7.30.38.
+    Return False for stale handles; unrelated child types raise INVALID_ID.
+    Source view reference strings remain unchanged and may require validation.
     """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.instantiations is None:
-        return False
-    return _remove(model.instantiations, "design_instantiation", designInstantiationID)
+    return _remove_component_instantiation(designInstantiationID, "Design")
 
 
 def removeComponentFileSet(fileSetID: str) -> bool:
@@ -1028,3 +1019,32 @@ def _append_component_port(component: ComponentType, name: str, style: Any) -> s
     model.ports.port.append(port)
     register_parent(port, component, ("model", "ports", "port"), "list")
     return get_handle(port)
+
+
+def _instantiation_type(kind: str) -> type:
+    from org.accellera.ipxact.v1685_2022.component_instantiation_type import ComponentInstantiationType
+    from org.accellera.ipxact.v1685_2022.design_instantiation_type import DesignInstantiationType
+    from org.accellera.ipxact.v1685_2022.design_configuration_instantiation_type import (
+        DesignConfigurationInstantiationType,
+    )
+    return {"Component": ComponentInstantiationType, "Design": DesignInstantiationType,
+            "DesignConfiguration": DesignConfigurationInstantiationType}[kind]
+
+
+def _component_instantiation_ids(comp: ComponentType, kind: str) -> list[str]:
+    path = "model.instantiations"
+    attr = "component_instantiation_or_design_instantiation_or_design_configuration_instantiation"
+    handles = _owned_component_ids(comp, path, attr)
+    return [handle for handle in handles if isinstance(resolve_handle(handle), _instantiation_type(kind))]
+
+
+def _remove_component_instantiation(handle: str, kind: str) -> bool:
+    child = resolve_handle(handle)
+    if child is None:
+        return False
+    if not isinstance(child, _instantiation_type(kind)):
+        raise TgiError("Expected the specified instantiation type", TgiFaultCode.INVALID_ID)
+    return _remove_owned_component_child(
+        handle, "model.instantiations",
+        "component_instantiation_or_design_instantiation_or_design_configuration_instantiation",
+    )

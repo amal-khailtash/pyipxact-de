@@ -3267,3 +3267,14 @@ Referenced targets are resolved within that component, separated by instantiatio
 type. Missing or ambiguous targets raise ``NOT_FOUND``; an unowned referenced
 view raises ``INVALID_ID``. Absent references return ``None``. Removing the view
 or its source reference preserves instantiation objects.
+
+Typed component instantiation lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getComponentComponentInstantiationIDs verified with mixed generated choices.
+- ☑ removeComponentComponentInstantiation verified with mixed generated choices.
+- ☑ getComponentDesignInstantiationIDs verified with mixed generated choices.
+- ☑ removeComponentDesignInstantiation verified with mixed generated choices.
+- ☑ getComponentDesignConfigurationInstantiationIDs verified with mixed generated choices.
+- ☑ removeComponentDesignConfigurationInstantiation verified with mixed generated choices.
+- Six focused cases passed; view source references remain for subsequent consistency validation.
