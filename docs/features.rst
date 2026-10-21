@@ -254,9 +254,6 @@ Future GUI delivery
 - ☐ Accessibility: keyboard navigation, readable colors/labels, stable focus and diagnostics beyond color alone. GUI state/layout stays separate from standard documents.
 - ☐ GUI tests exercise each top-level editor and critical nested flows, unsupported older features, conversion, dirty/save behavior, undo/redo and large-workspace responsiveness.
 
-Milestones and dependency order
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 Verification and living-plan maintenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
