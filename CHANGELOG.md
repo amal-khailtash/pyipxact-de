@@ -22,6 +22,36 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Added
+
+- BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.
+- BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.
+- Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.
+- Generated clearbox type enums and optional Boolean driveable edits validate inputs atomically and survive schema validation/XML reload.
+- Generated build-command target and replacement source editing with typed ownership, identity and removal lifetime; effective expression evaluation remains pending.
+- Build command/flags source editing preserves generated identity and append/extensions, supports standard buildCommand handles and legacy file handles, and invalidates removed expressions.
+- Generated file-builder source edits preserve child identity and metadata; removals invalidate child handles. Expression evaluation remains pending.
+- Generated required location/slice/pathSegments preserve HDL source, parsed ownership and descendant invalidation. Clearbox target resolution remains pending.
+- Restore parsed reference ownership, validate schema lexical names, preserve siblings and invalidate removed handles. Target existence/configured resolution remain pending.
+- Preserve absent/false/true virtual source states, reject non-Boolean edits, restore parsed language ownership and invalidate removed language handles.
+- Support selective optional instantiation name removal with parsed XML and lifecycle verification.
+- Validate instantiation source name edits while preserving unrestricted XML strings and absent values.
+- Preserve generated instantiation language and reference metadata during validated updates.
+- Create generated component, design and design-configuration instantiations with required references and ownership.
+- Add typed generated viewRef source-name access and editing with stable identity and package exports.
+- Traverse and remove typed component instantiations with ownership and descendant invalidation.
+- Restore registered parsed view ownership for typed local reference resolution and selective lifecycle operations.
+- Resolve view instantiation targets by type and name within the owning component.
+- Support component view instantiation source-reference getters, setters and removers for all three reference types.
+- Support generated view environment metadata, syntax validation, parsed ownership and selective removal.
+- Create generated structured component interface, struct and union ports with standard signatures and type metadata.
+- Create generated component wire/transactional ports, views and named clock drivers with standard arguments and ownership.
+- Support standard single-child component removers with parsed ownership and descendant handle invalidation.
+- Invalidate descendant TGI model handles when their owning subtree is removed or replaced.
+- Add component direction and timing-clock semantic validation with named/default clock-driver resolution.
+- Expose scoped XML semantic validation in Python and CLI with offline schemas, source diagnostics and failure exit status.
+- Add IEEE abstraction constraint semantic checks with rule IDs and XPath diagnostics for direction and clock references.
+
 ### Fixed
 
 - Correct logical port style setters to use the generated exclusive choice while preserving port and packet content.

@@ -947,17 +947,17 @@ Component (BASE)
 * ☐ ``getComponentChoiceIDs`` (F.7.29.4)
 * ☐ ``getComponentClearboxElementIDs`` (F.7.29.5)
 * ☐ ``getComponentComponentGeneratorIDs`` (F.7.29.6)
-* ☐ ``getComponentComponentInstantiationIDs`` (F.7.29.7)
+* ☑ ``getComponentComponentInstantiationIDs`` (F.7.29.7)
 * ☐ ``getComponentCpuIDs`` (F.7.29.8)
-* ☐ ``getComponentDesignConfigurationInstantiationIDs`` (F.7.29.9)
-* ☐ ``getComponentDesignInstantiationIDs`` (F.7.29.10)
+* ☑ ``getComponentDesignConfigurationInstantiationIDs`` (F.7.29.9)
+* ☑ ``getComponentDesignInstantiationIDs`` (F.7.29.10)
 * ☐ ``getComponentExternalTypeDefinitionsIDs`` (F.7.29.11)
 * ☐ ``getComponentFileSetIDs`` (F.7.29.12)
 * ☐ ``getComponentIndirectInterfaceIDs`` (F.7.29.13)
 * ☐ ``getComponentMemoryMapIDs`` (F.7.29.14)
 * ☐ ``getComponentModeIDs`` (F.7.29.15)
 * ☐ ``getComponentOtherClockDriverIDs`` (F.7.29.16)
-* ☐ ``getComponentPortIDs`` (F.7.29.17)
+* ☑ ``getComponentPortIDs`` (F.7.29.17)
 * ☐ ``getComponentPowerDomainIDs`` (F.7.29.18)
 * ☐ ``getComponentResetTypeIDs`` (F.7.29.19)
 * ☐ ``getComponentSelectedViewIDs`` (F.7.29.20)
@@ -974,10 +974,10 @@ Component (EXTENDED)
 * ☐ ``addComponentChoice`` (F.7.30.3)
 * ☐ ``addComponentClearboxElement`` (F.7.30.4)
 * ☐ ``addComponentComponentGenerator`` (F.7.30.5)
-* ☐ ``addComponentComponentInstantiation`` (F.7.30.6)
+* ☑ ``addComponentComponentInstantiation`` (F.7.30.6)
 * ☐ ``addComponentCpu`` (F.7.30.7)
-* ☐ ``addComponentDesignConfigurationInstantiation`` (F.7.30.8)
-* ☐ ``addComponentDesignInstantiation`` (F.7.30.9)
+* ☑ ``addComponentDesignConfigurationInstantiation`` (F.7.30.8)
+* ☑ ``addComponentDesignInstantiation`` (F.7.30.9)
 * ☐ ``addComponentFileSet`` (F.7.30.10)
 * ☐ ``addComponentIndirectInterface`` (F.7.30.11)
 * ☐ ``addComponentInitiatorBusInterface`` (F.7.30.12)
@@ -987,34 +987,34 @@ Component (EXTENDED)
 * ☐ ``addComponentMirroredTargetBusInterface`` (F.7.30.16)
 * ☐ ``addComponentMode`` (F.7.30.17)
 * ☐ ``addComponentMonitorBusInterface`` (F.7.30.18)
-* ☐ ``addComponentOtherClockDriver`` (F.7.30.19)
+* ☑ ``addComponentOtherClockDriver`` (F.7.30.19)
 * ☐ ``addComponentResetType`` (F.7.30.20)
-* ☐ ``addComponentStructuredInterfacePort`` (F.7.30.21)
-* ☐ ``addComponentStructuredStructPort`` (F.7.30.22)
-* ☐ ``addComponentStructuredUnionPort`` (F.7.30.23)
+* ☑ ``addComponentStructuredInterfacePort`` (F.7.30.21)
+* ☑ ``addComponentStructuredStructPort`` (F.7.30.22)
+* ☑ ``addComponentStructuredUnionPort`` (F.7.30.23)
 * ☐ ``addComponentSystemBusInterface`` (F.7.30.24)
 * ☐ ``addComponentTargetBusInterface`` (F.7.30.25)
-* ☐ ``addComponentTransactionalPort`` (F.7.30.26)
-* ☐ ``addComponentView`` (F.7.30.27)
-* ☐ ``addComponentWirePort`` (F.7.30.28)
+* ☑ ``addComponentTransactionalPort`` (F.7.30.26)
+* ☑ ``addComponentView`` (F.7.30.27)
+* ☑ ``addComponentWirePort`` (F.7.30.28)
 * ☐ ``removeComponentAddressSpace`` (F.7.30.29)
 * ☐ ``removeComponentBusInterface`` (F.7.30.30)
 * ☐ ``removeComponentChannel`` (F.7.30.31)
 * ☐ ``removeComponentChoice`` (F.7.30.32)
 * ☐ ``removeComponentClearboxElement`` (F.7.30.33)
 * ☐ ``removeComponentComponentGenerator`` (F.7.30.34)
-* ☐ ``removeComponentComponentInstantiation`` (F.7.30.35)
+* ☑ ``removeComponentComponentInstantiation`` (F.7.30.35)
 * ☐ ``removeComponentCpu`` (F.7.30.36)
-* ☐ ``removeComponentDesignConfigurationInstantiation`` (F.7.30.37)
-* ☐ ``removeComponentDesignInstantiation`` (F.7.30.38)
-* ☐ ``removeComponentFileSet`` (F.7.30.39)
+* ☑ ``removeComponentDesignConfigurationInstantiation`` (F.7.30.37)
+* ☑ ``removeComponentDesignInstantiation`` (F.7.30.38)
+* ☑ ``removeComponentFileSet`` (F.7.30.39)
 * ☐ ``removeComponentIndirectInterface`` (F.7.30.40)
-* ☐ ``removeComponentMemoryMap`` (F.7.30.41)
+* ☑ ``removeComponentMemoryMap`` (F.7.30.41)
 * ☐ ``removeComponentMode`` (F.7.30.42)
-* ☐ ``removeComponentOtherClockDriver`` (F.7.30.43)
-* ☐ ``removeComponentPort`` (F.7.30.44)
-* ☐ ``removeComponentResetType`` (F.7.30.45)
-* ☐ ``removeComponentView`` (F.7.30.46)
+* ☑ ``removeComponentOtherClockDriver`` (F.7.30.43)
+* ☑ ``removeComponentPort`` (F.7.30.44)
+* ☑ ``removeComponentResetType`` (F.7.30.45)
+* ☑ ``removeComponentView`` (F.7.30.46)
 * ☐ ``removeMemoryMapAddressUnitBits`` (F.7.30.47)
 * ☐ ``removeModeCondition`` (F.7.30.48)
 * ☐ ``removePowerDomainAlwaysOn`` (F.7.30.49)
@@ -1974,7 +1974,7 @@ Instantiation (BASE)
 * ☐ ``getComponentInstantiationDefaultFileBuilderIDs`` (F.7.55.8)
 * ☐ ``getComponentInstantiationFileSetRefIDs`` (F.7.55.9)
 * ☐ ``getComponentInstantiationIsVirtual`` (F.7.55.10)
-* ☐ ``getComponentInstantiationLanguage`` (F.7.55.11)
+* ☑ ``getComponentInstantiationLanguage`` (F.7.55.11)
 * ☐ ``getComponentInstantiationLanguageID`` (F.7.55.12)
 * ☐ ``getComponentInstantiationLibraryName`` (F.7.55.13)
 * ☐ ``getComponentInstantiationModuleName`` (F.7.55.14)
@@ -1982,7 +1982,7 @@ Instantiation (BASE)
 * ☐ ``getDesignConfigurationInstantiationDesignConfigurationRefByID`` (F.7.55.16)
 * ☐ ``getDesignConfigurationInstantiationDesignConfigurationRefByVLNV`` (F.7.55.17)
 * ☐ ``getDesignConfigurationInstantiationDesignConfigurationRefID`` (F.7.55.18)
-* ☐ ``getDesignConfigurationInstantiationLanguage`` (F.7.55.19)
+* ☑ ``getDesignConfigurationInstantiationLanguage`` (F.7.55.19)
 * ☐ ``getDesignConfigurationInstantiationLanguageID`` (F.7.55.20)
 * ☐ ``getDesignInstantiationDesignRefByID`` (F.7.55.21)
 * ☐ ``getDesignInstantiationDesignRefByVLNV`` (F.7.55.22)
@@ -2013,12 +2013,12 @@ Instantiation (EXTENDED)
 * ☐ ``setComponentInstantiationArchitectureName`` (F.7.56.17)
 * ☐ ``setComponentInstantiationConfigurationName`` (F.7.56.18)
 * ☐ ``setComponentInstantiationIsVirtual`` (F.7.56.19)
-* ☐ ``setComponentInstantiationLanguage`` (F.7.56.20)
+* ☑ ``setComponentInstantiationLanguage`` (F.7.56.20)
 * ☐ ``setComponentInstantiationLibraryName`` (F.7.56.21)
 * ☐ ``setComponentInstantiationModuleName`` (F.7.56.22)
 * ☐ ``setComponentInstantiationPackageName`` (F.7.56.23)
-* ☐ ``setDesignConfigurationInstantiationDesignConfigurationRef`` (F.7.56.24)
-* ☐ ``setDesignConfigurationInstantiationLanguage`` (F.7.56.25)
+* ☑ ``setDesignConfigurationInstantiationDesignConfigurationRef`` (F.7.56.24)
+* ☑ ``setDesignConfigurationInstantiationLanguage`` (F.7.56.25)
 * ☐ ``setDesignInstantiationDesignRef`` (F.7.56.26)
 
 Memory map (BASE)
@@ -3073,29 +3073,29 @@ View (BASE)
 ~~~~~~~~~~~
 
 * ☐ ``getAbstractorInstanceViewNameRefByID`` (F.7.87.1)
-* ☐ ``getViewComponentInstantiationRefByID`` (F.7.87.2)
-* ☐ ``getViewComponentInstantiationRefByName`` (F.7.87.3)
-* ☐ ``getViewDesignConfigurationInstantiationID`` (F.7.87.4)
-* ☐ ``getViewDesignConfigurationInstantiationRefByID`` (F.7.87.5)
-* ☐ ``getViewDesignConfigurationInstantiationRefByName`` (F.7.87.6)
-* ☐ ``getViewDesignInstantiationRefByID`` (F.7.87.7)
-* ☐ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
-* ☐ ``getViewEnvIdentifierIDs`` (F.7.87.9)
-* ☐ ``getViewEnvIdentifiers`` (F.7.87.10)
-* ☐ ``getViewRefByName`` (F.7.87.11)
+* ☑ ``getViewComponentInstantiationRefByID`` (F.7.87.2)
+* ☑ ``getViewComponentInstantiationRefByName`` (F.7.87.3)
+* ☑ ``getViewDesignConfigurationInstantiationID`` (F.7.87.4)
+* ☑ ``getViewDesignConfigurationInstantiationRefByID`` (F.7.87.5)
+* ☑ ``getViewDesignConfigurationInstantiationRefByName`` (F.7.87.6)
+* ☑ ``getViewDesignInstantiationRefByID`` (F.7.87.7)
+* ☑ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
+* ☑ ``getViewEnvIdentifierIDs`` (F.7.87.9)
+* ☑ ``getViewEnvIdentifiers`` (F.7.87.10)
+* ☑ ``getViewRefByName`` (F.7.87.11)
 
 View (EXTENDED)
 ~~~~~~~~~~~~~~~
 
-* ☐ ``addViewEnvIdentifier`` (F.7.88.1)
-* ☐ ``removeViewComponentInstantiationRef`` (F.7.88.2)
-* ☐ ``removeViewDesignConfigurationInstantiationRef`` (F.7.88.3)
-* ☐ ``removeViewDesignInstantiationRef`` (F.7.88.4)
-* ☐ ``removeViewEnvIdentifier`` (F.7.88.5)
-* ☐ ``setViewComponentInstantiationRef`` (F.7.88.6)
-* ☐ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
-* ☐ ``setViewDesignInstantiationRef`` (F.7.88.8)
-* ☐ ``setViewRefValue`` (F.7.88.9)
+* ☑ ``addViewEnvIdentifier`` (F.7.88.1)
+* ☑ ``removeViewComponentInstantiationRef`` (F.7.88.2)
+* ☑ ``removeViewDesignConfigurationInstantiationRef`` (F.7.88.3)
+* ☑ ``removeViewDesignInstantiationRef`` (F.7.88.4)
+* ☑ ``removeViewEnvIdentifier`` (F.7.88.5)
+* ☑ ``setViewComponentInstantiationRef`` (F.7.88.6)
+* ☑ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
+* ☑ ``setViewDesignInstantiationRef`` (F.7.88.8)
+* ☑ ``setViewRefValue`` (F.7.88.9)
 
 Development and release automation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3133,3 +3133,352 @@ Logical port style conversion
 - ☑ Verify style and logical-name getters plus packet traversal across both conversions and XML reload.
 - ☑ Preserve port identity, match metadata and independent packet content; reject invalid handles atomically.
 - ☐ Complete recursive descendant handle invalidation and style semantic validation.
+
+Abstraction constraint semantic validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ SCR 12.3 NoOutputDriveModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.4 NoInputLoadModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.5 NoOutputLoadMirroredModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.6 NoInputDriveMirroredModeConstraint for local IEEE 1685-2022 abstraction wire modes.
+- ☑ SCR 12.8 ConstraintClockLogicalPortExists for local IEEE 1685-2022 abstraction wire modes.
+- ☑ Return scoped rule coverage and XPath diagnostics without document mutation.
+- ☐ Resolve inherited/configured definitions and complete the remaining Annex B semantic rules.
+
+XML and CLI semantic validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Select offline schema validation with CLI --schema-root.
+- ☑ Request scoped abstraction semantic checks with Python semantic=True or CLI --semantic.
+- ☑ Run semantic checks after successful XSD validation and report unsupported roots explicitly.
+- ☑ Return semantic rule IDs, XPath locations, source lines and checked-rule coverage.
+- ☑ Validate all CLI inputs and return exit status 1 when any document fails.
+- ☐ Extend semantic coverage to other roots, versions and inherited/configured documents.
+
+Component constraint semantic validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Check SCR 12.1 output drive and SCR 12.2 input load constraints.
+- ☑ Check SCR 12.7 timing references against component clockDriver and otherClockDriver names.
+- ☑ Use the containing port name for unnamed clock drivers and another-port fallback when no drivers exist.
+- ☑ Expose scoped component rules through Python XML validation and CLI --semantic.
+- ☑ Preserve document content and return rule coverage with XPath and source diagnostics.
+- ☐ Resolve configured views, driver ranges and expressions for SCR 12.9 single-bit validation.
+
+TGI descendant handle invalidation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Invalidate packet-field width and value handles when removing a field.
+- ☑ Invalidate fields and expression descendants when removing a packet or logical port.
+- ☑ Invalidate mode widths, constraint containers and timing handles when removing a mode.
+- ☑ Invalidate replaced style descendants during wire/transactional conversion while preserving packets.
+- ☑ Invalidate choice enumerations when removing their owning choice.
+- ☑ Traverse generated model children without requiring prior ownership getters; preserve unaffected siblings.
+- ☐ Audit every TGI remover and reference alias for complete session lifetime conformance.
+
+Component child removal contracts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ removeComponentFileSet uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentMemoryMap uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentOtherClockDriver uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentPort uses its standard child handle with parsed ownership and descendant invalidation.
+- ☑ removeComponentResetType uses its standard child handle with parsed ownership and descendant invalidation.
+- ☐ Complete component creation contracts, view ownership and remaining remover audits.
+
+Component port view and clock creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentWirePort uses generated models, standard arguments and immediate ownership.
+- ☑ addComponentTransactionalPort uses generated models, standard arguments and immediate ownership.
+- ☑ addComponentOtherClockDriver uses generated models, standard arguments and immediate ownership.
+- ☑ addComponentView uses generated models, standard arguments and immediate ownership.
+- ☑ removeComponentView uses generated models, standard arguments and immediate ownership.
+- ☐ Complete configured view references, expressions, name constraints and structured component ports.
+
+Structured component port contracts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentStructuredInterfacePort verified with generated structured choices and parsed lifecycle ownership.
+- ☑ addComponentStructuredStructPort verified with generated structured choices and parsed lifecycle ownership.
+- ☑ addComponentStructuredUnionPort verified with generated structured choices and parsed lifecycle ownership.
+- ☑ getComponentPortIDs verified with generated structured choices and parsed lifecycle ownership.
+- ☑ removeComponentPort verified with generated structured choices and parsed lifecycle ownership.
+- ☐ Resolve external structured types and complete sub-port semantic constraints.
+
+View environment metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addViewEnvIdentifier supports generated component/abstractor views, source values and ownership.
+- ☑ getViewEnvIdentifierIDs supports generated component/abstractor views, source values and ownership.
+- ☑ getViewEnvIdentifiers supports generated component/abstractor views, source values and ownership.
+- ☑ removeViewEnvIdentifier supports generated component/abstractor views, source values and ownership.
+- ☑ Legacy getViewName helper supports generated views; not counted as a standard operation.
+- ☐ Complete view reference resolution and parsed view parent ownership.
+
+View source instantiation references
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewComponentInstantiationRefByName uses generated source strings and the standard view handle.
+- ☑ setViewComponentInstantiationRef uses generated source strings and the standard view handle.
+- ☑ removeViewComponentInstantiationRef uses generated source strings and the standard view handle.
+- ☑ getViewDesignConfigurationInstantiationRefByName uses generated source strings and the standard view handle.
+- ☑ setViewDesignConfigurationInstantiationRef uses generated source strings and the standard view handle.
+- ☑ removeViewDesignConfigurationInstantiationRef uses generated source strings and the standard view handle.
+- ☑ getViewDesignInstantiationRefByName uses generated source strings and the standard view handle.
+- ☑ setViewDesignInstantiationRef uses generated source strings and the standard view handle.
+- ☑ removeViewDesignInstantiationRef uses generated source strings and the standard view handle.
+- ☐ Resolve reference targets, validate configuration semantics and restore parsed view root ownership.
+
+View reference API behavior
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The component, design and design-configuration instantiation reference APIs
+operate on a component view handle. Setters accept a nonempty source name;
+name getters return that string or ``None`` when absent. Removers return
+``True`` when a reference was present and ``False`` when already absent.
+Changing or removing a reference preserves the referenced object and other
+view fields. Invalid view handles raise ``INVALID_ID``; invalid setter values
+raise ``INVALID_ARGUMENT`` before mutation. These source operations do not
+resolve targets or establish configured-reference validity.
+
+View target resolution
+~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewComponentInstantiationRefByID: typed local target lookup verified.
+- ☑ getViewDesignInstantiationRefByID: typed local target lookup verified.
+- ☑ getViewDesignConfigurationInstantiationRefByID: typed local target lookup verified.
+- ☑ getViewDesignConfigurationInstantiationID: typed local target lookup verified.
+- Owner isolation and source-removal target preservation: 32 focused tests passed in 1.60s.
+- Full configured reference semantics remain planned.
+
+Parsed view ownership and target lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewComponentInstantiationRefByID verified with registered parsed roots or typed local target lifecycle.
+- ☑ getViewDesignInstantiationRefByID verified with registered parsed roots or typed local target lifecycle.
+- ☑ getViewDesignConfigurationInstantiationRefByID verified with registered parsed roots or typed local target lifecycle.
+- ☑ getViewDesignConfigurationInstantiationID verified with registered parsed roots or typed local target lifecycle.
+- ☑ removeComponentView verified with registered parsed roots or typed local target lifecycle.
+- ☐ Complete configured/external reference semantics and unrestricted view discovery.
+
+Registered component roots restore parsed view ownership by object identity.
+Referenced targets are resolved within that component, separated by instantiation
+type. Missing or ambiguous targets raise ``NOT_FOUND``; an unowned referenced
+view raises ``INVALID_ID``. Absent references return ``None``. Removing the view
+or its source reference preserves instantiation objects.
+
+Typed component instantiation lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getComponentComponentInstantiationIDs verified with mixed generated choices.
+- ☑ removeComponentComponentInstantiation verified with mixed generated choices.
+- ☑ getComponentDesignInstantiationIDs verified with mixed generated choices.
+- ☑ removeComponentDesignInstantiation verified with mixed generated choices.
+- ☑ getComponentDesignConfigurationInstantiationIDs verified with mixed generated choices.
+- ☑ removeComponentDesignConfigurationInstantiation verified with mixed generated choices.
+- Six focused cases passed; view source references remain for subsequent consistency validation.
+
+Generated viewRef source editing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewRefByName and setViewRefValue across driver, wire, structured, domain, transactional and signal definitions.
+- ☑ Preserve source-reference identity and XML metadata through edits and reload.
+- ☑ Verify package exports and reject unrelated handles and empty names before mutation.
+- ☐ Resolve referenced views and complete configured applicability semantics.
+
+ViewRef source APIs take a generated viewRef handle. Getters return the stored
+name; setters accept a nonempty string and preserve the same element and xml:id.
+Target existence and configured applicability are validated separately.
+
+Generated component instantiation creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentComponentInstantiation: generated creation and immediate lifecycle verified.
+- ☑ addComponentDesignInstantiation: generated creation and immediate lifecycle verified.
+- ☑ addComponentDesignConfigurationInstantiation: generated creation and immediate lifecycle verified.
+- Component-instance placement for design configuration remains explicitly pending.
+- Six scoped cases passed in 1.09s; generated XML and input atomicity verified.
+
+Instantiation language and reference metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setComponentInstantiationLanguage preserves generated source values and identity.
+- ☑ getComponentInstantiationLanguage preserves generated source values and identity.
+- ☑ setDesignConfigurationInstantiationLanguage preserves generated source values and identity.
+- ☑ getDesignConfigurationInstantiationLanguage preserves generated source values and identity.
+- ☑ setDesignConfigurationInstantiationDesignConfigurationRef preserves generated source values and identity.
+- ☐ Resolve targets and complete configured language/reference semantics.
+
+Language setters accept nonempty source strings, preserve existing strict
+metadata and child identity, and reject invalid input before mutation. Reference
+updates validate four nonempty VLNV parts and preserve configuration metadata.
+
+
+Instantiation source name access and editing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getComponentInstantiationArchitectureName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationArchitectureName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationConfigurationName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationConfigurationName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationLibraryName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationLibraryName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationModuleName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationModuleName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationPackageName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationPackageName: tests/test_tgi_instantiation_names.py.
+
+Five scoped cases verify unrestricted xs:string values, empty/whitespace preservation, XML reload, exports and atomic type rejection. Source getters do not synthesize configured defaults.
+
+
+Instantiation optional name removal
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ removeComponentInstantiationArchitectureName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationConfigurationName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationLibraryName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationModuleName: tests/test_tgi_instantiation_name_removal.py.
+- ☑ removeComponentInstantiationPackageName: tests/test_tgi_instantiation_name_removal.py.
+
+Five scoped cases verify selective removal, repeated calls, parsed XML absence, unrelated/stale handles and sibling preservation.
+
+
+Instantiation virtual state and language lifetime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getComponentInstantiationIsVirtual: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ setComponentInstantiationIsVirtual: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ removeComponentInstantiationIsVirtual: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ getComponentInstantiationLanguageID: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ removeComponentInstantiationLanguage: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ getDesignConfigurationInstantiationLanguageID: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ removeDesignConfigurationInstantiationLanguage: tests/test_tgi_instantiation_optional_metadata.py.
+
+Preserve absent/false/true virtual source states, reject non-Boolean edits, restore parsed language ownership and invalidate removed language handles.
+
+
+Instantiation local reference lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentInstantiationConstraintSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ removeComponentInstantiationConstraintSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ addComponentInstantiationFileSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ removeComponentInstantiationFileSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ getComponentInstantiationConstraintSetRefIDs: tests/test_tgi_instantiation_local_refs.py.
+- ☑ getComponentInstantiationFileSetRefIDs: tests/test_tgi_instantiation_local_refs.py.
+
+Restore parsed reference ownership, validate schema lexical names, preserve siblings and invalidate removed handles. Target existence/configured resolution remain pending.
+
+
+Generated clearbox reference paths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentInstantiationClearboxElementRef: tests/test_tgi_clearbox_paths.py.
+- ☑ getComponentInstantiationClearboxElementRefIDs: tests/test_tgi_clearbox_paths.py.
+- ☑ removeComponentInstantiationClearboxElementRef: tests/test_tgi_clearbox_paths.py.
+- ☑ getClearboxElementRefLocationIDs: tests/test_tgi_clearbox_paths.py.
+- ☑ addClearboxElementRefLocation: tests/test_tgi_clearbox_paths.py.
+- ☑ addLocationSlice: tests/test_tgi_clearbox_paths.py.
+- ☑ removeClearboxElementRefLocation: tests/test_tgi_clearbox_paths.py.
+
+Generated required location/slice/pathSegments preserve HDL source, parsed ownership and descendant invalidation. Clearbox target resolution remains pending.
+
+
+Generated file builder metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
+- ☑ setFileBuilderFileType: tests/test_tgi_file_builder_metadata.py.
+- ☑ setFileBuilderFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ setFileBuilderReplaceDefaultFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ removeFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
+- ☑ removeFileBuilderFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ removeFileBuilderReplaceDefaultFlags: tests/test_tgi_file_builder_metadata.py.
+- ☑ getFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
+
+Generated file-builder source edits preserve child identity and metadata; removals invalidate child handles. Expression evaluation remains pending.
+
+
+Build command source editing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setBuildCommandCommand: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandCommandExpression: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandCommandID: tests/test_tgi_build_command_sources.py.
+- ☑ removeBuildCommandCommand: tests/test_tgi_build_command_sources.py.
+- ☑ setBuildCommandFlags: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandFlagsExpression: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandFlagsID: tests/test_tgi_build_command_sources.py.
+- ☑ removeBuildCommandFlags: tests/test_tgi_build_command_sources.py.
+
+Build command/flags source editing preserves generated identity and append/extensions, supports standard buildCommand handles and legacy file handles, and invalidates removed expressions.
+
+
+Build command target and replacement metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setFileBuildCommand: tests/test_tgi_build_command_targets.py.
+- ☑ getFileBuildCommandID: tests/test_tgi_build_command_targets.py.
+- ☑ setBuildCommandTargetName: tests/test_tgi_build_command_targets.py.
+- ☑ getBuildCommandTargetNameExpression: tests/test_tgi_build_command_targets.py.
+- ☑ removeBuildCommandTargetName: tests/test_tgi_build_command_targets.py.
+- ☑ setBuildCommandReplaceDefaultFlags: tests/test_tgi_build_command_targets.py.
+- ☑ getBuildCommandReplaceDefaultFlagsID: tests/test_tgi_build_command_targets.py.
+- ☑ removeBuildCommandReplaceDefaultFlags: tests/test_tgi_build_command_targets.py.
+
+Generated build-command target and replacement source editing with typed ownership, identity and removal lifetime; effective expression evaluation remains pending.
+
+
+Clearbox type and driveable metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getClearboxElementClearboxType: tests/test_tgi_clearbox_metadata.py.
+- ☑ setClearboxElementClearboxType: tests/test_tgi_clearbox_metadata.py.
+- ☑ getClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
+- ☑ setClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
+- ☑ removeClearboxElementDriveable: tests/test_tgi_clearbox_metadata.py.
+
+Generated clearbox type enums and optional Boolean driveable edits validate inputs atomically and survive schema validation/XML reload.
+
+
+Default file builder lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentInstantiationDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ getComponentInstantiationDefaultFileBuilderIDs: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ removeComponentInstantiationDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ addFileSetDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ getFileSetDefaultFileBuilderIDs: tests/test_tgi_default_builder_lifecycle.py.
+- ☑ removeFileSetDefaultFileBuilder: tests/test_tgi_default_builder_lifecycle.py.
+
+Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.
+
+
+File BASE source collections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getFileDefineIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileDefineSymbolValue: tests/test_tgi_file_base_sources.py.
+- ☑ getFileDependencyIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileExportedNameIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileExportedNames: tests/test_tgi_file_base_sources.py.
+- ☑ getFileFileTypeIDs: tests/test_tgi_file_base_sources.py.
+- ☑ getFileFileTypes: tests/test_tgi_file_base_sources.py.
+
+BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.
+
+
+File BASE identity metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getFileImageTypeIDs: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileImageTypes: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileIsIncludeFile: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileIsIncludeFileID: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileIsStructural: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileLogicalName: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileLogicalNameID: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileName: tests/test_tgi_file_base_metadata.py.
+
+BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.

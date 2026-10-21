@@ -5,7 +5,7 @@ minimal fault/exception scaffolding.  This intentionally avoids dependencies
 outside the standard library.
 """
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from threading import RLock
 from typing import Any
 
@@ -77,12 +77,36 @@ class HandleManager:
         return self._handle_to_obj.get(handle)
 
     def forget(self, handle: str) -> bool:
+        """Invalidate the object and descendants, including unregistered model children."""
         with self._lock:
-            obj = self._handle_to_obj.pop(handle, None)
-            if obj is None:
+            root = self._handle_to_obj.get(handle)
+            if root is None:
                 return False
-            self._obj_to_handle.pop(id(obj), None)
-            self._parent.pop(id(obj), None)
+            pending = [root]
+            visited: set[int] = set()
+            while pending:
+                obj = pending.pop()
+                oid = id(obj)
+                if oid in visited:
+                    continue
+                visited.add(oid)
+                child_handle = self._obj_to_handle.get(oid)
+                if child_handle is not None:
+                    pending.extend(
+                        self._handle_to_obj[registered]
+                        for child_id, info in self._parent.items()
+                        if info.parent_handle == child_handle
+                        and (registered := self._obj_to_handle.get(child_id)) is not None
+                    )
+                if is_dataclass(obj) and not isinstance(obj, type):
+                    pending.extend(getattr(obj, field.name) for field in fields(obj))
+                elif isinstance(obj, (list, tuple)):
+                    pending.extend(obj)
+                # Scalars can be shared/interned and are not owned model children.
+                if child_handle is not None and (obj is root or is_dataclass(obj)):
+                    self._handle_to_obj.pop(child_handle, None)
+                    self._obj_to_handle.pop(oid, None)
+                    self._parent.pop(oid, None)
             return True
 
     def register_parent(self, child: Any, parent: Any, path: tuple[str, ...], container: str) -> None:
@@ -93,7 +117,7 @@ class HandleManager:
                 container=container,
             )
 
-    def get_parent_info(self, child_handle: str) -> "_ParentInfo | None":
+    def get_parent_info(self, child_handle: str) -> _ParentInfo | None:
         obj = self._handle_to_obj.get(child_handle)
         return None if obj is None else self._parent.get(id(obj))
 

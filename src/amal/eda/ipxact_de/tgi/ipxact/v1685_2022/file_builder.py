@@ -87,6 +87,44 @@ __all__ = [
 ]
 
 
+def _require_file_builder(handle: str):
+    """Require the generated file-builder type for scoped metadata operations."""
+    from org.accellera.ipxact.v1685_2022 import FileBuilderType
+
+    obj = _resolve(handle)
+    if not isinstance(obj, FileBuilderType):
+        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
+    return obj
+
+
+def _set_builder_expression(handle: str, field: str, value: str) -> bool:
+    """Update generated expression source without replacing metadata or identity."""
+    from org.accellera.ipxact.v1685_2022 import StringExpression, UnsignedBitExpression
+
+    fb = _require_file_builder(handle)
+    if not isinstance(value, str):
+        raise TgiError("Expected expression source text", TgiFaultCode.INVALID_ARGUMENT)
+    child = getattr(fb, field)
+    if child is None:
+        cls = UnsignedBitExpression if field == "replace_default_flags" else StringExpression
+        child = cls(value=value)
+        setattr(fb, field, child)
+    else:
+        child.value = value
+    register_parent(child, fb, (field,), "single")
+    return True
+
+
+def _remove_builder_expression(handle: str, field: str) -> bool:
+    """Detach an optional generated expression and invalidate its descendants."""
+    fb = _require_file_builder(handle)
+    child = getattr(fb, field)
+    if child is None:
+        return False
+    register_parent(child, fb, (field,), "single")
+    return detach_child_by_handle(get_handle(child))
+
+
 def _resolve(handle: str) -> Any:
     obj = resolve_handle(handle)
     if obj is None:
@@ -105,11 +143,52 @@ def _get_value(node: Any) -> Any:
 # BASE (F.7.45)
 # ---------------------------------------------------------------------------
 
-def _resolve_build_command(fileHandle: str) -> Any:
-    f = _resolve(fileHandle)
-    # buildCommand is an optional child of a File element
-    bc = getattr(f, "build_command", None)
-    return bc
+def _resolve_build_command(handle: str) -> Any:
+    """Resolve a standard buildCommand handle or a legacy containing-file handle."""
+    from org.accellera.ipxact.v1685_2022 import File
+
+    obj = _resolve(handle)
+    if isinstance(obj, File.BuildCommand):
+        return obj
+    if not isinstance(obj, File):
+        raise TgiError("Expected a file or buildCommand handle", TgiFaultCode.INVALID_ID)
+    if obj.build_command is not None:
+        register_parent(obj.build_command, obj, ("build_command",), "single")
+    return obj.build_command
+
+
+def _set_build_expression(handle: str, field: str, value: str) -> bool:
+    """Set generated source text with atomic validation and stable child identity."""
+    from org.accellera.ipxact.v1685_2022 import File, IpxactUri, StringExpression, UnsignedBitExpression
+
+    bc = _resolve_build_command(handle)
+    if not isinstance(value, str):
+        raise TgiError("Expected expression source string", TgiFaultCode.INVALID_ARGUMENT)
+    if bc is None:
+        owner = _resolve(handle)
+        bc = File.BuildCommand()
+        owner.build_command = bc
+        register_parent(bc, owner, ("build_command",), "single")
+    child = getattr(bc, field)
+    if child is None:
+        cls = {"flags": File.BuildCommand.Flags, "target_name": IpxactUri,
+               "replace_default_flags": UnsignedBitExpression}.get(field, StringExpression)
+        child = cls(value=value)
+        setattr(bc, field, child)
+    else:
+        child.value = value
+    register_parent(child, bc, (field,), "single")
+    return True
+
+
+def _remove_build_expression(handle: str, field: str) -> bool:
+    """Remove a generated source field and invalidate the child handle."""
+    bc = _resolve_build_command(handle)
+    child = None if bc is None else getattr(bc, field)
+    if child is None:
+        return False
+    register_parent(child, bc, (field,), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
 def getBuildCommandCommand(fileID: str) -> str | None:  # F.7.45.1
@@ -123,24 +202,27 @@ def getBuildCommandCommand(fileID: str) -> str | None:  # F.7.45.1
     return _get_value(bc.command)
 
 
-def getBuildCommandCommandExpression(fileID: str) -> str | None:  # F.7.45.2
+def getBuildCommandCommandExpression(buildCommandID: str) -> str | None:  # F.7.45.2
     """Return expression (if any) for build command.
 
     Section: F.7.45.2.
     """
-    bc = _resolve_build_command(fileID)
+    bc = _resolve_build_command(buildCommandID)
     if bc is None or bc.command is None:
         return None
     return getattr(bc.command, "value", None)
 
 
-def getBuildCommandCommandID(fileID: str) -> str | None:  # F.7.45.3
+def getBuildCommandCommandID(buildCommandID: str) -> str | None:  # F.7.45.3
     """Return handle of build command value element.
 
     Section: F.7.45.3.
     """
-    bc = _resolve_build_command(fileID)
-    return None if bc is None or bc.command is None else get_handle(bc.command)
+    bc = _resolve_build_command(buildCommandID)
+    if bc is None or bc.command is None:
+        return None
+    register_parent(bc.command, bc, ("command",), "single")
+    return get_handle(bc.command)
 
 
 def getBuildCommandFlags(fileID: str) -> str | None:  # F.7.45.4
@@ -154,24 +236,27 @@ def getBuildCommandFlags(fileID: str) -> str | None:  # F.7.45.4
     return _get_value(bc.flags)
 
 
-def getBuildCommandFlagsExpression(fileID: str) -> str | None:  # F.7.45.5
+def getBuildCommandFlagsExpression(buildCommandID: str) -> str | None:  # F.7.45.5
     """Return expression (if any) for flags.
 
     Section: F.7.45.5.
     """
-    bc = _resolve_build_command(fileID)
+    bc = _resolve_build_command(buildCommandID)
     if bc is None or bc.flags is None:
         return None
     return getattr(bc.flags, "value", None)
 
 
-def getBuildCommandFlagsID(fileID: str) -> str | None:  # F.7.45.6
+def getBuildCommandFlagsID(buildCommandID: str) -> str | None:  # F.7.45.6
     """Return handle of flags element.
 
     Section: F.7.45.6.
     """
-    bc = _resolve_build_command(fileID)
-    return None if bc is None or bc.flags is None else get_handle(bc.flags)
+    bc = _resolve_build_command(buildCommandID)
+    if bc is None or bc.flags is None:
+        return None
+    register_parent(bc.flags, bc, ("flags",), "single")
+    return get_handle(bc.flags)
 
 
 def getBuildCommandReplaceDefaultFlags(fileID: str) -> bool | None:  # F.7.45.7
@@ -188,13 +273,16 @@ def getBuildCommandReplaceDefaultFlags(fileID: str) -> bool | None:  # F.7.45.7
     return str(val).lower() in {"1", "true", "yes", "on"}
 
 
-def getBuildCommandReplaceDefaultFlagsID(fileID: str) -> str | None:  # F.7.45.8
+def getBuildCommandReplaceDefaultFlagsID(buildCommandID: str) -> str | None:  # F.7.45.8
     """Return handle of replaceDefaultFlags element.
 
     Section: F.7.45.8.
     """
-    bc = _resolve_build_command(fileID)
-    return None if bc is None or bc.replace_default_flags is None else get_handle(bc.replace_default_flags)
+    bc = _resolve_build_command(buildCommandID)
+    if bc is None or bc.replace_default_flags is None:
+        return None
+    register_parent(bc.replace_default_flags, bc, ("replace_default_flags",), "single")
+    return get_handle(bc.replace_default_flags)
 
 
 def getBuildCommandTargetName(fileID: str) -> str | None:  # F.7.45.9
@@ -208,12 +296,12 @@ def getBuildCommandTargetName(fileID: str) -> str | None:  # F.7.45.9
     return _get_value(bc.target_name)
 
 
-def getBuildCommandTargetNameExpression(fileID: str) -> str | None:  # F.7.45.10
+def getBuildCommandTargetNameExpression(buildCommandID: str) -> str | None:  # F.7.45.10
     """Return expression for targetName.
 
     Section: F.7.45.10.
     """
-    bc = _resolve_build_command(fileID)
+    bc = _resolve_build_command(buildCommandID)
     if bc is None or bc.target_name is None:
         return None
     return getattr(bc.target_name, "value", None)
@@ -329,6 +417,11 @@ def getFileBuildCommandID(fileID: str) -> str | None:  # F.7.45.19
 
     Section: F.7.45.19.
     """
+    from org.accellera.ipxact.v1685_2022 import File
+
+    owner = _resolve(fileID)
+    if not isinstance(owner, File):
+        raise TgiError("Expected a file handle", TgiFaultCode.INVALID_ID)
     bc = _resolve_build_command(fileID)
     return None if bc is None else get_handle(bc)
 
@@ -338,12 +431,11 @@ def getFileBuilderCommand(fileBuilderID: str) -> str | None:  # F.7.45.20
 
     Section: F.7.45.20.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not a FileBuilder", TgiFaultCode.INVALID_ID)
+    fb = _require_file_builder(fileBuilderID)
     if fb.command is None:
         return None
-    return _get_value(fb.command)
+    register_parent(fb.command, fb, ("command",), "single")
+    return fb.command.value
 
 
 # ---------------------------------------------------------------------------
@@ -418,52 +510,48 @@ def addLinkerCommandFileGeneratorRef(linkerCommandFileID: str, generatorRef: str
     return True
 
 
-def removeBuildCommandCommand(fileID: str) -> bool:  # F.7.46.5
+def removeBuildCommandCommand(buildCommandID: str) -> bool:  # F.7.46.5
     """Remove buildCommand.command element.
+
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
 
     Section: F.7.46.5.
     """
-    bc = _resolve_build_command(fileID)
-    if bc is None or bc.command is None:
-        return False
-    bc.command = None
-    return True
+    return _remove_build_expression(buildCommandID, "command")
 
 
 def removeBuildCommandFlags(fileID: str) -> bool:  # F.7.46.6
     """Remove buildCommand.flags element.
 
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
+
     Section: F.7.46.6.
     """
-    bc = _resolve_build_command(fileID)
-    if bc is None or bc.flags is None:
-        return False
-    bc.flags = None
-    return True
+    return _remove_build_expression(fileID, "flags")
 
 
 def removeBuildCommandReplaceDefaultFlags(fileID: str) -> bool:  # F.7.46.7
     """Remove replaceDefaultFlags element.
 
+    Preserve generated source identity on edits; invalidate handles on removal.
+    Expression evaluation is separate from this source operation.
+
     Section: F.7.46.7.
     """
-    bc = _resolve_build_command(fileID)
-    if bc is None or bc.replace_default_flags is None:
-        return False
-    bc.replace_default_flags = None
-    return True
+    return _remove_build_expression(fileID, "replace_default_flags")
 
 
 def removeBuildCommandTargetName(fileID: str) -> bool:  # F.7.46.8
     """Remove targetName element.
 
+    Preserve generated source identity on edits; invalidate handles on removal.
+    Expression evaluation is separate from this source operation.
+
     Section: F.7.46.8.
     """
-    bc = _resolve_build_command(fileID)
-    if bc is None or bc.target_name is None:
-        return False
-    bc.target_name = None
-    return True
+    return _remove_build_expression(fileID, "target_name")
 
 
 def removeDefaultFileBuilderCommand(fileBuilderID: str) -> bool:  # F.7.46.9
@@ -526,43 +614,31 @@ def removeExecutableImageLinkerCommandFile(executableImageID: str) -> bool:  # F
 def removeFileBuilderCommand(fileBuilderID: str) -> bool:  # F.7.46.13
     """Remove command element of fileBuilder.
 
+    Invalidate the removed expression handle; return False when absent.
+
     Section: F.7.46.13.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    if fb.command is None:
-        return False
-    fb.command = None
-    return True
+    return _remove_builder_expression(fileBuilderID, "command")
 
 
 def removeFileBuilderFlags(fileBuilderID: str) -> bool:  # F.7.46.14
     """Remove flags element of fileBuilder.
 
+    Invalidate the removed expression handle; return False when absent.
+
     Section: F.7.46.14.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    if fb.flags is None:
-        return False
-    fb.flags = None
-    return True
+    return _remove_builder_expression(fileBuilderID, "flags")
 
 
 def removeFileBuilderReplaceDefaultFlags(fileBuilderID: str) -> bool:  # F.7.46.15
     """Remove replaceDefaultFlags element of fileBuilder.
 
+    Invalidate the removed expression handle; return False when absent.
+
     Section: F.7.46.15.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    if fb.replace_default_flags is None:
-        return False
-    fb.replace_default_flags = None
-    return True
+    return _remove_builder_expression(fileBuilderID, "replace_default_flags")
 
 
 def removeLanguageToolsFileBuilder(fileBuilderID: str) -> bool:  # F.7.46.16
@@ -622,64 +698,48 @@ def removeLinkerCommandFileGeneratorRef(linkerCommandFileID: str) -> bool:  # F.
     return True
 
 
-def setBuildCommandCommand(fileID: str, command: str) -> bool:  # F.7.46.20
+def setBuildCommandCommand(buildCommandID: str, command: str) -> bool:  # F.7.46.20
     """Set buildCommand.command value (creates buildCommand if absent).
+
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
 
     Section: F.7.46.20.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-    bc.command = command  # type: ignore[attr-defined]
-    return True
+    return _set_build_expression(buildCommandID, "command", command)
 
 
-def setBuildCommandFlags(fileID: str, flags: str) -> bool:  # F.7.46.21
+def setBuildCommandFlags(buildCommandID: str, flags: str) -> bool:  # F.7.46.21
     """Set buildCommand.flags value.
+
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
 
     Section: F.7.46.21.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-    bc.flags = flags  # type: ignore[attr-defined]
-    return True
+    return _set_build_expression(buildCommandID, "flags", flags)
 
 
-def setBuildCommandReplaceDefaultFlags(fileID: str, replace: bool) -> bool:  # F.7.46.22
+def setBuildCommandReplaceDefaultFlags(buildCommandID: str, valueExpression: str) -> bool:  # F.7.46.22
     """Set replaceDefaultFlags boolean.
+
+    Preserve generated source identity on edits; invalidate handles on removal.
+    Expression evaluation is separate from this source operation.
 
     Section: F.7.46.22.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-    bc.replace_default_flags = bool(replace)  # type: ignore[attr-defined]
-    return True
+    return _set_build_expression(buildCommandID, "replace_default_flags", valueExpression)
 
 
-def setBuildCommandTargetName(fileID: str, targetName: str) -> bool:  # F.7.46.23
+def setBuildCommandTargetName(buildCommandID: str, targetName: str) -> bool:  # F.7.46.23
     """Set targetName value.
+
+    Preserve generated source identity on edits; invalidate handles on removal.
+    Expression evaluation is separate from this source operation.
 
     Section: F.7.46.23.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-    bc.target_name = targetName  # type: ignore[attr-defined]
-    return True
+    return _set_build_expression(buildCommandID, "target_name", targetName)
 
 
 def setExecutableImageLanguageTools(executableImageID: str) -> str:  # F.7.46.24
@@ -731,63 +791,58 @@ def setFileBuildCommand(fileID: str) -> str:  # F.7.46.27
 
     Section: F.7.46.27.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        # create new build command
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-        register_parent(bc, f, (), "single")
-    return get_handle(bc)
+    from org.accellera.ipxact.v1685_2022 import File
+
+    owner = _resolve(fileID)
+    if not isinstance(owner, File):
+        raise TgiError("Expected a file handle", TgiFaultCode.INVALID_ID)
+    if owner.build_command is None:
+        owner.build_command = File.BuildCommand()
+    register_parent(owner.build_command, owner, ("build_command",), "single")
+    return get_handle(owner.build_command)
 
 
 def setFileBuilderCommand(fileBuilderID: str, command: str) -> bool:  # F.7.46.28
-    """Set fileBuilder.command.
+    """Set generated command source text, preserving child identity and metadata.
 
     Section: F.7.46.28.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.command = command  # type: ignore[attr-defined]
-    return True
+    return _set_builder_expression(fileBuilderID, "command", command)
 
 
-def setFileBuilderFileType(fileBuilderID: str, fileType: str) -> bool:  # F.7.46.29
+def setFileBuilderFileType(fileBuilderID: str, fileTypeValue: str) -> bool:  # F.7.46.29
     """Set fileBuilder.fileType.
 
     Section: F.7.46.29.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.file_type = fileType  # type: ignore[attr-defined]
+    from org.accellera.ipxact.v1685_2022 import SimpleFileType
+
+    fb = _require_file_builder(fileBuilderID)
+    if not isinstance(fileTypeValue, str):
+        raise TgiError("Expected file type source string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        value = SimpleFileType(fileTypeValue)
+    except ValueError as exc:
+        raise TgiError("Expected a standard file type value", TgiFaultCode.INVALID_ARGUMENT) from exc
+    fb.file_type.value = value
+    register_parent(fb.file_type, fb, ("file_type",), "single")
     return True
 
 
 def setFileBuilderFlags(fileBuilderID: str, flags: str) -> bool:  # F.7.46.30
-    """Set fileBuilder.flags.
+    """Set generated flags source text, preserving child identity and metadata.
 
     Section: F.7.46.30.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.flags = flags  # type: ignore[attr-defined]
-    return True
+    return _set_builder_expression(fileBuilderID, "flags", flags)
 
 
-def setFileBuilderReplaceDefaultFlags(fileBuilderID: str, replace: bool) -> bool:  # F.7.46.31
+def setFileBuilderReplaceDefaultFlags(fileBuilderID: str, valueExpression: str) -> bool:  # F.7.46.31
     """Set fileBuilder.replaceDefaultFlags.
 
     Section: F.7.46.31.
     """
-    fb = _resolve(fileBuilderID)
-    if not hasattr(fb, "file_type") or not hasattr(fb, "command"):
-        raise TgiError("Handle is not FileBuilder", TgiFaultCode.INVALID_ID)
-    fb.replace_default_flags = bool(replace)  # type: ignore[attr-defined]
-    return True
+    return _set_builder_expression(fileBuilderID, "replace_default_flags", valueExpression)
 
 
 def setLanguageToolsLinker(languageToolsID: str, linker: str) -> bool:  # F.7.46.32

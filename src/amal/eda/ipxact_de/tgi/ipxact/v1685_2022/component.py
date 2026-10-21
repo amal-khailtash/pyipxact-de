@@ -11,12 +11,12 @@ further refine created sub-elements through other category APIs.
 """
 # ruff: noqa: I001  # Allow local inline import ordering within factory helpers
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import ComponentType
 
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
+from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent, detach_child_by_handle
 
 __all__ = [
     # BASE (F.7.29)
@@ -224,7 +224,7 @@ def getComponentComponentInstantiationIDs(componentID: str) -> list[str]:
     model = comp.model
     if model is None or model.instantiations is None:
         return []
-    return _ids(_list(model.instantiations, "component_instantiation"))
+    return _component_instantiation_ids(comp, "Component")
 
 
 def getComponentCpuIDs(componentID: str) -> list[str]:
@@ -245,7 +245,7 @@ def getComponentDesignConfigurationInstantiationIDs(componentID: str) -> list[st
     model = comp.model
     if model is None or model.instantiations is None:
         return []
-    return _ids(_list(model.instantiations, "design_configuration_instantiation"))
+    return _component_instantiation_ids(comp, "DesignConfiguration")
 
 
 def getComponentDesignInstantiationIDs(componentID: str) -> list[str]:
@@ -257,7 +257,7 @@ def getComponentDesignInstantiationIDs(componentID: str) -> list[str]:
     model = comp.model
     if model is None or model.instantiations is None:
         return []
-    return _ids(_list(model.instantiations, "design_instantiation"))
+    return _component_instantiation_ids(comp, "Design")
 
 
 def getComponentExternalTypeDefinitionsIDs(componentID: str) -> list[str]:
@@ -278,7 +278,7 @@ def getComponentFileSetIDs(componentID: str) -> list[str]:
     Section: F.7.29.12.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.file_sets, "file_set"))
+    return _owned_component_ids(comp, "file_sets", "file_set")
 
 
 def getComponentIndirectInterfaceIDs(componentID: str) -> list[str]:
@@ -296,7 +296,7 @@ def getComponentMemoryMapIDs(componentID: str) -> list[str]:
     Section: F.7.29.14.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.memory_maps, "memory_map"))
+    return _owned_component_ids(comp, "memory_maps", "memory_map")
 
 
 def getComponentModeIDs(componentID: str) -> list[str]:
@@ -314,7 +314,7 @@ def getComponentOtherClockDriverIDs(componentID: str) -> list[str]:
     Section: F.7.29.16.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.other_clock_drivers, "other_clock"))
+    return _owned_component_ids(comp, "other_clock_drivers", "other_clock_driver")
 
 
 def getComponentPortIDs(componentID: str) -> list[str]:
@@ -326,7 +326,7 @@ def getComponentPortIDs(componentID: str) -> list[str]:
     model = comp.model
     if model is None or model.ports is None:
         return []
-    return _ids(_list(model.ports, "port"))
+    return _owned_component_ids(comp, "model.ports", "port")
 
 
 def getComponentPowerDomainIDs(componentID: str) -> list[str]:
@@ -344,7 +344,7 @@ def getComponentResetTypeIDs(componentID: str) -> list[str]:
     Section: F.7.29.19.
     """
     comp = _resolve_component(componentID)
-    return _ids(_list(comp.reset_types, "reset_type"))
+    return _owned_component_ids(comp, "reset_types", "reset_type")
 
 
 def getComponentSelectedViewIDs(componentID: str) -> list[str]:
@@ -450,24 +450,15 @@ def addComponentComponentGenerator(componentID: str, name: str) -> str:
 
 
 def addComponentComponentInstantiation(componentID: str, name: str) -> str:
-    """Add a ``componentInstantiation`` (model.instantiations).
+    """Create the generated instantiation with immediate ownership (F.7.30.6).
 
-    Section: F.7.30.6.
+    Validate names and reference VLNV before mutation. Component-instance
+    placement is not yet supported; an unsupported root raises INVALID_ID.
     """
     comp = _resolve_component(componentID)
-    model = _ensure_model(comp)
-    from org.accellera.ipxact.v1685_2022.model import Instantiations  # type: ignore
-    from org.accellera.ipxact.v1685_2022.component_instantiation_type import ComponentInstantiationType
-
-    if model.instantiations is None:
-        model.instantiations = Instantiations(
-            component_instantiation=[],
-            design_instantiation=[],
-            design_configuration_instantiation=[],
-        )  # type: ignore[arg-type]
-    ci = ComponentInstantiationType(name=name)
-    model.instantiations.component_instantiation.append(ci)  # type: ignore[attr-defined]
-    return get_handle(ci)
+    _require_component_text(name)
+    instance = _instantiation_type("Component")(name=name)
+    return _append_component_instantiation(comp, instance)
 
 
 def addComponentCpu(componentID: str, name: str) -> str:
@@ -486,46 +477,44 @@ def addComponentCpu(componentID: str, name: str) -> str:
     return get_handle(cpu)
 
 
-def addComponentDesignConfigurationInstantiation(componentID: str, name: str) -> str:
-    """Add a ``designConfigurationInstantiation``.
+def addComponentDesignConfigurationInstantiation(
+    componentOrComponentInstanceID: str, name: str, designConfigurationVLNV: Sequence[str] | str,
+) -> str:
+    """Create the generated instantiation with immediate ownership (F.7.30.8).
 
-    Section: F.7.30.8.
+    Validate names and reference VLNV before mutation. Component-instance
+    placement is not yet supported; an unsupported root raises INVALID_ID.
+    """
+    comp = _resolve_component(componentOrComponentInstanceID)
+    _require_component_text(name)
+    from .core import vlnv_to_tuple
+    from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
+
+    parts = vlnv_to_tuple(designConfigurationVLNV)
+    if any(not isinstance(part, str) or not part.strip() for part in parts):
+        raise TgiError("Expected four nonempty VLNV strings", TgiFaultCode.INVALID_ARGUMENT)
+    reference = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+    instance = _instantiation_type("DesignConfiguration")(name=name, design_configuration_ref=reference)
+    return _append_component_instantiation(comp, instance)
+
+
+def addComponentDesignInstantiation(componentID: str, name: str, designVLNV: Sequence[str] | str) -> str:
+    """Create the generated instantiation with immediate ownership (F.7.30.9).
+
+    Validate names and reference VLNV before mutation. Component-instance
+    placement is not yet supported; an unsupported root raises INVALID_ID.
     """
     comp = _resolve_component(componentID)
-    model = _ensure_model(comp)
-    from org.accellera.ipxact.v1685_2022.model import Instantiations  # type: ignore
-    from .design_configuration_instantiation import DesignConfigurationInstantiation  # type: ignore
+    _require_component_text(name)
+    from .core import vlnv_to_tuple
+    from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
 
-    if model.instantiations is None:
-        model.instantiations = Instantiations(
-            component_instantiation=[],
-            design_instantiation=[],
-            design_configuration_instantiation=[],
-        )  # type: ignore[arg-type]
-    dci = DesignConfigurationInstantiation(name=name)
-    model.instantiations.design_configuration_instantiation.append(dci)  # type: ignore[attr-defined]
-    return get_handle(dci)
-
-
-def addComponentDesignInstantiation(componentID: str, name: str) -> str:
-    """Add a ``designInstantiation``.
-
-    Section: F.7.30.9.
-    """
-    comp = _resolve_component(componentID)
-    model = _ensure_model(comp)
-    from org.accellera.ipxact.v1685_2022.model import Instantiations  # type: ignore
-    from .design_instantiation import DesignInstantiation  # type: ignore
-
-    if model.instantiations is None:
-        model.instantiations = Instantiations(
-            component_instantiation=[],
-            design_instantiation=[],
-            design_configuration_instantiation=[],
-        )  # type: ignore[arg-type]
-    di = DesignInstantiation(name=name)
-    model.instantiations.design_instantiation.append(di)  # type: ignore[attr-defined]
-    return get_handle(di)
+    parts = vlnv_to_tuple(designVLNV)
+    if any(not isinstance(part, str) or not part.strip() for part in parts):
+        raise TgiError("Expected four nonempty VLNV strings", TgiFaultCode.INVALID_ARGUMENT)
+    reference = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+    instance = _instantiation_type("Design")(name=name, design_ref=reference)
+    return _append_component_instantiation(comp, instance)
 
 
 def addComponentFileSet(componentID: str, name: str) -> str:
@@ -541,6 +530,7 @@ def addComponentFileSet(componentID: str, name: str) -> str:
         comp.file_sets = FileSets(file_set=[])  # type: ignore[arg-type]
     fs = FileSet(name=name)
     comp.file_sets.file_set.append(fs)  # type: ignore[attr-defined]
+    register_parent(fs, comp, ("file_sets", "file_set"), "list")
     return get_handle(fs)
 
 
@@ -594,6 +584,7 @@ def addComponentMemoryMap(componentID: str, name: str) -> str:
         comp.memory_maps = MemoryMaps(memory_map=[])  # type: ignore[arg-type]
     mm = MemoryMap(name=name)
     comp.memory_maps.memory_map.append(mm)  # type: ignore[attr-defined]
+    register_parent(mm, comp, ("memory_maps", "memory_map"), "list")
     return get_handle(mm)
 
 
@@ -645,23 +636,30 @@ def addComponentMonitorBusInterface(componentID: str, name: str) -> str:
     return _add_bus_interface(_resolve_component(componentID), name, "monitor")
 
 
-def addComponentOtherClockDriver(componentID: str, name: str) -> str:
-    """Add an ``otherClockDriver`` element.
-
-    Section: F.7.30.19.
-    """
+def addComponentOtherClockDriver(
+    componentID: str, name: str, periodExpression: str, offsetExpression: str,
+    valueExpression: str, durationExpression: str,
+) -> str:
+    """Create the named clock with source waveform expressions (F.7.30.19)."""
     comp = _resolve_component(componentID)
+    for value in (name, periodExpression, offsetExpression, valueExpression, durationExpression):
+        _require_component_text(value)
+    from org.accellera.ipxact.v1685_2022.clock_driver_type import ClockDriverType
+    from org.accellera.ipxact.v1685_2022.other_clock_driver import OtherClockDriver
     from org.accellera.ipxact.v1685_2022.other_clocks import OtherClocks
-    from org.accellera.ipxact.v1685_2022.other_clock_driver import (
-        OtherClockDriver as OtherClock,
-    )
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
 
+    clock = OtherClockDriver(
+        clock_name=name, clock_period=ClockDriverType.ClockPeriod(value=periodExpression),
+        clock_pulse_offset=ClockDriverType.ClockPulseOffset(value=offsetExpression),
+        clock_pulse_value=UnsignedBitExpression(value=valueExpression),
+        clock_pulse_duration=ClockDriverType.ClockPulseDuration(value=durationExpression),
+    )
     if comp.other_clock_drivers is None:
-        comp.other_clock_drivers = OtherClocks(other_clock=[])  # type: ignore[arg-type]
-    # Schema uses attribute clock_name instead of name
-    oc = OtherClock(clock_name=name)
-    comp.other_clock_drivers.other_clock.append(oc)  # type: ignore[attr-defined]
-    return get_handle(oc)
+        comp.other_clock_drivers = OtherClocks()
+    comp.other_clock_drivers.other_clock_driver.append(clock)
+    register_parent(clock, comp, ("other_clock_drivers", "other_clock_driver"), "list")
+    return get_handle(clock)
 
 
 def addComponentResetType(componentID: str, name: str) -> str:
@@ -676,89 +674,70 @@ def addComponentResetType(componentID: str, name: str) -> str:
         comp.reset_types = CT.ResetTypes(reset_type=[])  # type: ignore[arg-type]
     rt = CT.ResetTypes.ResetType(name=name)  # type: ignore[call-arg]
     comp.reset_types.reset_type.append(rt)  # type: ignore[attr-defined]
+    register_parent(rt, comp, ("reset_types", "reset_type"), "list")
     return get_handle(rt)
 
 
 def _add_structured_port(
-    component: ComponentType,
-    name: str,
-    kind: str,
-    subPortName: str | None = None,
-    typeName: str | None = None,
-    direction: str | None = None,
+    component: ComponentType, name: str, type_name: str, kind: str,
+    direction: str | None = None, sub_port_name: str | None = None,
 ) -> str:
-    model = _ensure_model(component)
-    from org.accellera.ipxact.v1685_2022.port_type import PortType
-    from org.accellera.ipxact.v1685_2022.model import Ports  # type: ignore
+    """Create the generated structured choice and required type definition."""
+    from org.accellera.ipxact.v1685_2022 import ComponentPortDirectionType, StructPortTypeDefs
+    from org.accellera.ipxact.v1685_2022.sub_port_type import PortStructuredType, SubPortType
+    from org.accellera.ipxact.v1685_2022.port_wire_type import PortWireType
 
-    if model.ports is None:
-        model.ports = Ports(port=[])  # type: ignore[arg-type]
-    pt = PortType(name=name)
-    pt._tgi_portKind = kind  # type: ignore[attr-defined]
-    if subPortName is not None:
-        pt._tgi_subPort = subPortName  # type: ignore[attr-defined]
-    if typeName is not None:
-        pt._tgi_typeDef = typeName  # type: ignore[attr-defined]
-    if direction is not None:
-        pt._tgi_direction = direction  # type: ignore[attr-defined]
-    model.ports.port.append(pt)  # type: ignore[attr-defined]
-    return get_handle(pt)
-
-
-def addComponentStructuredInterfacePort(
-    componentID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
-) -> str:
-    """Add a structured interface port.
-
-    Section: F.7.30.21.
-    """
-    return _add_structured_port(
-        _resolve_component(componentID),
-        name,
-        "structuredInterface",
-        subPortName,
-        structPortTypeDefTypeName,
+    _require_component_text(name)
+    _require_component_text(type_name)
+    if sub_port_name is not None:
+        _require_component_text(sub_port_name)
+    if kind == "interface":
+        choice = PortStructuredType.Interface()
+    else:
+        try:
+            value = ComponentPortDirectionType(direction)
+        except (ValueError, TypeError) as error:
+            raise TgiError("Invalid structured port direction", TgiFaultCode.INVALID_ARGUMENT) from error
+        cls = PortStructuredType.Struct if kind == "struct" else PortStructuredType.UnionType
+        choice = cls(direction=value)
+    definition = StructPortTypeDefs.StructPortTypeDef(
+        type_name=StructPortTypeDefs.StructPortTypeDef.TypeName(value=type_name),
     )
+    structured = PortStructuredType(
+        struct_or_union_or_interface=choice,
+        struct_port_type_defs=StructPortTypeDefs(struct_port_type_def=[definition]),
+    )
+    if sub_port_name is not None:
+        structured.sub_ports = PortStructuredType.SubPorts(sub_port=[
+            SubPortType(name=sub_port_name, wire_or_structured=PortWireType(direction=value)),
+        ])
+    handle = _append_component_port(component, name, structured)
+    port = resolve_handle(handle)
+    register_parent(structured, port, ("wire_or_transactional_or_structured",), "single")
+    register_parent(definition, structured, ("struct_port_type_defs", "struct_port_type_def"), "list")
+    if structured.sub_ports is not None:
+        register_parent(structured.sub_ports.sub_port[0], structured, ("sub_ports", "sub_port"), "list")
+    return handle
+
+
+def addComponentStructuredInterfacePort(componentID: str, name: str, structPortTypeDefTypeName: str) -> str:
+    """Create a structured interface port (F.7.30.21)."""
+    return _add_structured_port(_resolve_component(componentID), name, structPortTypeDefTypeName, "interface")
 
 
 def addComponentStructuredStructPort(
-    componentID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
+    componentID: str, name: str, structPortTypeDefTypeName: str, direction: str,
 ) -> str:
-    """Add a structured struct port.
-
-    Section: F.7.30.22.
-    """
-    return _add_structured_port(
-        _resolve_component(componentID),
-        name,
-        "structuredStruct",
-        subPortName,
-        structPortTypeDefTypeName,
-    )
+    """Create a structured struct port (F.7.30.22)."""
+    return _add_structured_port(_resolve_component(componentID), name, structPortTypeDefTypeName, "struct", direction)
 
 
 def addComponentStructuredUnionPort(
-    componentID: str,
-    name: str,
-    structPortTypeDefTypeName: str,
-    subPortName: str,
+    componentID: str, name: str, structPortTypeDefTypeName: str, subPortName: str, direction: str,
 ) -> str:
-    """Add a structured union port.
-
-    Section: F.7.30.23.
-    """
+    """Create a structured union port and named sub-port (F.7.30.23)."""
     return _add_structured_port(
-        _resolve_component(componentID),
-        name,
-        "structuredUnion",
-        subPortName,
-        structPortTypeDefTypeName,
+        _resolve_component(componentID), name, structPortTypeDefTypeName, "union", direction, subPortName,
     )
 
 
@@ -778,42 +757,49 @@ def addComponentTargetBusInterface(componentID: str, name: str) -> str:
     return _add_bus_interface(_resolve_component(componentID), name, "target")
 
 
-def addComponentTransactionalPort(componentID: str, name: str) -> str:
-    """Add a transactional port.
+def addComponentTransactionalPort(componentID: str, name: str, initiative: str) -> str:
+    """Create a generated transactional port (F.7.30.26)."""
+    comp = _resolve_component(componentID)
+    _require_component_text(name)
+    from org.accellera.ipxact.v1685_2022.initiative import Initiative
+    from org.accellera.ipxact.v1685_2022.initiative_type import InitiativeType
+    from org.accellera.ipxact.v1685_2022.port_transactional_type import PortTransactionalType
 
-    Section: F.7.30.26.
-    """
-    return _add_structured_port(_resolve_component(componentID), name, "transactional")
+    try:
+        value = InitiativeType(initiative)
+    except (ValueError, TypeError) as error:
+        raise TgiError("Invalid port initiative", TgiFaultCode.INVALID_ARGUMENT) from error
+    return _append_component_port(comp, name, PortTransactionalType(initiative=Initiative(value=value)))
 
 
 def addComponentView(componentID: str, name: str) -> str:
-    """Add a ``view`` element.
-
-    Section: F.7.30.27.
-    """
+    """Create a generated view with immediate ownership (F.7.30.27)."""
     comp = _resolve_component(componentID)
+    _require_component_text(name)
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    view = ModelType.Views.View(name=name)
     model = _ensure_model(comp)
-    from .view import View  # type: ignore
-    from org.accellera.ipxact.v1685_2022.model import Views  # type: ignore
-
     if model.views is None:
-        model.views = Views(view=[], selected_view=[])  # type: ignore[arg-type]
-    vw = View(name=name)
-    model.views.view.append(vw)  # type: ignore[attr-defined]
-    return get_handle(vw)
+        model.views = ModelType.Views()
+    model.views.view.append(view)
+    register_parent(view, comp, ("model", "views", "view"), "list")
+    return get_handle(view)
 
 
-def addComponentWirePort(componentID: str, name: str, direction: str | None = None) -> str:
-    """Add a wire port.
+def addComponentWirePort(componentID: str, name: str, direction: str) -> str:
+    """Create a generated wire port with the supplied direction (F.7.30.28)."""
+    comp = _resolve_component(componentID)
+    _require_component_text(name)
+    from org.accellera.ipxact.v1685_2022.component_port_direction_type import ComponentPortDirectionType
+    from org.accellera.ipxact.v1685_2022.port_wire_type import PortWireType
 
-    Section: F.7.30.28.
-    """
-    return _add_structured_port(_resolve_component(componentID), name, "wire", direction=direction)
+    try:
+        value = ComponentPortDirectionType(direction)
+    except (ValueError, TypeError) as error:
+        raise TgiError("Invalid port direction", TgiFaultCode.INVALID_ARGUMENT) from error
+    return _append_component_port(comp, name, PortWireType(direction=value))
 
-
-# ---------------------------------------------------------------------------
-# EXTENDED removal (F.7.30.xx)
-# ---------------------------------------------------------------------------
 
 def _remove(container, list_attr: str, handle: str) -> bool:
     from .core import resolve_handle as _res
@@ -890,16 +876,13 @@ def removeComponentComponentGenerator(componentID: str, componentGeneratorID: st
     return _remove(comp.component_generators, "component_generator", componentGeneratorID)
 
 
-def removeComponentComponentInstantiation(componentID: str, componentInstantiationID: str) -> bool:
-    """Remove a ``componentInstantiation``.
+def removeComponentComponentInstantiation(componentInstantiationID: str) -> bool:
+    """Remove the owned typed instantiation and descendants (F.7.30.35).
 
-    Section: F.7.30.35.
+    Return False for stale handles; unrelated child types raise INVALID_ID.
+    Source view reference strings remain unchanged and may require validation.
     """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.instantiations is None:
-        return False
-    return _remove(model.instantiations, "component_instantiation", componentInstantiationID)
+    return _remove_component_instantiation(componentInstantiationID, "Component")
 
 
 def removeComponentCpu(componentID: str, cpuID: str) -> bool:
@@ -913,39 +896,27 @@ def removeComponentCpu(componentID: str, cpuID: str) -> bool:
     return _remove(comp.cpus, "cpu", cpuID)
 
 
-def removeComponentDesignConfigurationInstantiation(componentID: str, designConfigurationInstantiationID: str) -> bool:
-    """Remove a ``designConfigurationInstantiation``.
+def removeComponentDesignConfigurationInstantiation(designConfigurationInstantiationID: str) -> bool:
+    """Remove the owned typed instantiation and descendants (F.7.30.37).
 
-    Section: F.7.30.37.
+    Return False for stale handles; unrelated child types raise INVALID_ID.
+    Source view reference strings remain unchanged and may require validation.
     """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.instantiations is None:
-        return False
-    return _remove(model.instantiations, "design_configuration_instantiation", designConfigurationInstantiationID)
+    return _remove_component_instantiation(designConfigurationInstantiationID, "DesignConfiguration")
 
 
-def removeComponentDesignInstantiation(componentID: str, designInstantiationID: str) -> bool:
-    """Remove a ``designInstantiation``.
+def removeComponentDesignInstantiation(designInstantiationID: str) -> bool:
+    """Remove the owned typed instantiation and descendants (F.7.30.38).
 
-    Section: F.7.30.38.
+    Return False for stale handles; unrelated child types raise INVALID_ID.
+    Source view reference strings remain unchanged and may require validation.
     """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.instantiations is None:
-        return False
-    return _remove(model.instantiations, "design_instantiation", designInstantiationID)
+    return _remove_component_instantiation(designInstantiationID, "Design")
 
 
-def removeComponentFileSet(componentID: str, fileSetID: str) -> bool:
-    """Remove a ``fileSet``.
-
-    Section: F.7.30.39.
-    """
-    comp = _resolve_component(componentID)
-    if comp.file_sets is None:
-        return False
-    return _remove(comp.file_sets, "file_set", fileSetID)
+def removeComponentFileSet(fileSetID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.39)."""
+    return _remove_owned_component_child(fileSetID, "file_sets", "file_set")
 
 
 def removeComponentIndirectInterface(componentID: str, indirectInterfaceID: str) -> bool:
@@ -959,15 +930,9 @@ def removeComponentIndirectInterface(componentID: str, indirectInterfaceID: str)
     return _remove(comp.indirect_interfaces, "indirect_interface", indirectInterfaceID)
 
 
-def removeComponentMemoryMap(componentID: str, memoryMapID: str) -> bool:
-    """Remove a ``memoryMap``.
-
-    Section: F.7.30.41.
-    """
-    comp = _resolve_component(componentID)
-    if comp.memory_maps is None:
-        return False
-    return _remove(comp.memory_maps, "memory_map", memoryMapID)
+def removeComponentMemoryMap(memoryMapID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.41)."""
+    return _remove_owned_component_child(memoryMapID, "memory_maps", "memory_map")
 
 
 def removeComponentMode(componentID: str, modeID: str) -> bool:
@@ -981,49 +946,106 @@ def removeComponentMode(componentID: str, modeID: str) -> bool:
     return _remove(comp.modes, "mode", modeID)
 
 
-def removeComponentOtherClockDriver(componentID: str, otherClockDriverID: str) -> bool:
-    """Remove an ``otherClockDriver``.
+def removeComponentOtherClockDriver(otherClockDriverID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.43)."""
+    return _remove_owned_component_child(otherClockDriverID, "other_clock_drivers", "other_clock_driver")
 
-    Section: F.7.30.43.
-    """
-    comp = _resolve_component(componentID)
-    if comp.other_clock_drivers is None:
+
+def removeComponentPort(portID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.44)."""
+    return _remove_owned_component_child(portID, "model.ports", "port")
+
+
+def removeComponentResetType(resetTypeID: str) -> bool:
+    """Remove the owned component child and invalidate descendants (F.7.30.45)."""
+    return _remove_owned_component_child(resetTypeID, "reset_types", "reset_type")
+
+
+def removeComponentView(viewID: str) -> bool:
+    """Remove an owned component view and invalidate descendants (F.7.30.46)."""
+    return _remove_owned_component_child(viewID, "model.views", "view")
+
+
+def _owned_component_ids(component: ComponentType, path: str, attr: str) -> list[str]:
+    owner = component
+    for segment in path.split("."):
+        owner = getattr(owner, segment, None)
+        if owner is None:
+            return []
+    children = getattr(owner, attr)
+    for child in children:
+        register_parent(child, component, (*path.split("."), attr), "list")
+    return [get_handle(child) for child in children]
+
+
+def _remove_owned_component_child(handle: str, path: str, attr: str) -> bool:
+    from .core import get_parent_info
+
+    child = resolve_handle(handle)
+    if child is None:
         return False
-    return _remove(comp.other_clock_drivers, "other_clock", otherClockDriverID)
+    info = get_parent_info(handle)
+    expected = (*path.split("."), attr)
+    if info is None or info.path != expected or info.container != "list":
+        raise TgiError("Handle is not an owned component child of the required type", TgiFaultCode.INVALID_ID)
+    _resolve_component(info.parent_handle)
+    return detach_child_by_handle(handle)
 
 
-def removeComponentPort(componentID: str, portID: str) -> bool:
-    """Remove a ``port`` (any style) from model.ports.
+def _require_component_text(value: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError("Expected a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
 
-    Section: F.7.30.44.
-    """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.ports is None:
+
+def _append_component_port(component: ComponentType, name: str, style: Any) -> str:
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+    from org.accellera.ipxact.v1685_2022.port import Port
+
+    port = Port(name=name, wire_or_transactional_or_structured=style)
+    model = _ensure_model(component)
+    if model.ports is None:
+        model.ports = ModelType.Ports()
+    model.ports.port.append(port)
+    register_parent(port, component, ("model", "ports", "port"), "list")
+    return get_handle(port)
+
+
+def _instantiation_type(kind: str) -> type:
+    from org.accellera.ipxact.v1685_2022.component_instantiation_type import ComponentInstantiationType
+    from org.accellera.ipxact.v1685_2022.design_instantiation_type import DesignInstantiationType
+    from org.accellera.ipxact.v1685_2022.design_configuration_instantiation_type import (
+        DesignConfigurationInstantiationType,
+    )
+    return {"Component": ComponentInstantiationType, "Design": DesignInstantiationType,
+            "DesignConfiguration": DesignConfigurationInstantiationType}[kind]
+
+
+def _component_instantiation_ids(comp: ComponentType, kind: str) -> list[str]:
+    path = "model.instantiations"
+    attr = "component_instantiation_or_design_instantiation_or_design_configuration_instantiation"
+    handles = _owned_component_ids(comp, path, attr)
+    return [handle for handle in handles if isinstance(resolve_handle(handle), _instantiation_type(kind))]
+
+
+def _remove_component_instantiation(handle: str, kind: str) -> bool:
+    child = resolve_handle(handle)
+    if child is None:
         return False
-    return _remove(model.ports, "port", portID)
+    if not isinstance(child, _instantiation_type(kind)):
+        raise TgiError("Expected the specified instantiation type", TgiFaultCode.INVALID_ID)
+    return _remove_owned_component_child(
+        handle, "model.instantiations",
+        "component_instantiation_or_design_instantiation_or_design_configuration_instantiation",
+    )
 
 
-def removeComponentResetType(componentID: str, resetTypeID: str) -> bool:
-    """Remove a ``resetType`` element.
+def _append_component_instantiation(comp: ComponentType, instance: Any) -> str:
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
 
-    Section: F.7.30.45.
-    """
-    comp = _resolve_component(componentID)
-    if comp.reset_types is None:
-        return False
-    return _remove(comp.reset_types, "reset_type", resetTypeID)
-
-
-def removeComponentView(componentID: str, viewID: str) -> bool:
-    """Remove a ``view`` element.
-
-    Section: F.7.30.46.
-    """
-    comp = _resolve_component(componentID)
-    model = comp.model
-    if model is None or model.views is None:
-        return False
-    return _remove(model.views, "view", viewID)
-
-
+    model = _ensure_model(comp)
+    if model.instantiations is None:
+        model.instantiations = ModelType.Instantiations()
+    model.instantiations.component_instantiation_or_design_instantiation_or_design_configuration_instantiation.append(instance)
+    register_parent(instance, comp, ("model", "instantiations",
+                    "component_instantiation_or_design_instantiation_or_design_configuration_instantiation"), "list")
+    return get_handle(instance)

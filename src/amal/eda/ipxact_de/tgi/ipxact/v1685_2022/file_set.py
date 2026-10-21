@@ -194,11 +194,22 @@ def _resolve_dependency(dependencyID: str) -> Dependency:
     return dep
 
 
+def _owned_file_ids(fileID: str, field: str) -> list[str]:
+    """Return stable generated file-child handles and restore parsed ownership."""
+    owner = _resolve_file(fileID)
+    children = getattr(owner, field)
+    for child in children:
+        register_parent(child, owner, (field,), "list")
+    return [get_handle(child) for child in children]
+
+
 def _ids(items: Iterable[Any]) -> list[str]:
     return [get_handle(x) for x in items]
 
 
 def _enum_file_type(value: str) -> FileType:
+    if not isinstance(value, str):
+        raise TgiError("Expected a fileType string", TgiFaultCode.INVALID_ARGUMENT)
     try:
         simple = SimpleFileType(value)
     except ValueError as exc:  # invalid enum literal
@@ -220,24 +231,24 @@ def getBuildCommandReplaceDefaultFlagsExpression(fileID: str) -> str | None:  # 
 
 
 def getFileDefineIDs(fileID: str) -> list[str]:  # F.7.47.2
-    """Return handles of define symbols (Section: F.7.47.2)."""
-    return _ids(_resolve_file(fileID).define)  # type: ignore[arg-type]
+    """Restore parsed ownership and return handles of define symbols (Section: F.7.47.2)."""
+    return _owned_file_ids(fileID, "define")
 
 
 def getFileDefineSymbolValue(fileDefineID: str) -> str | None:  # F.7.47.3
-    """Return value of a fileDefine (Section: F.7.47.3)."""
+    """Return the generated define value source string (Section: F.7.47.3)."""
     d = _resolve_define(fileDefineID)
-    return getattr(d, "value", None)
+    return d.value.value
 
 
 def getFileDependencyIDs(fileID: str) -> list[str]:  # F.7.47.4
-    """Return dependency handles for a file (Section: F.7.47.4)."""
-    return _ids(_resolve_file(fileID).dependency)  # type: ignore[arg-type]
+    """Restore parsed ownership and return dependency handles for a file (Section: F.7.47.4)."""
+    return _owned_file_ids(fileID, "dependency")
 
 
 def getFileExportedNameIDs(fileID: str) -> list[str]:  # F.7.47.5
-    """Return exportedName handles (Section: F.7.47.5)."""
-    return _ids(_resolve_file(fileID).exported_name)  # type: ignore[arg-type]
+    """Restore parsed ownership and return exportedName handles (Section: F.7.47.5)."""
+    return _owned_file_ids(fileID, "exported_name")
 
 
 def getFileExportedNames(fileID: str) -> list[str]:  # F.7.47.6
@@ -246,8 +257,8 @@ def getFileExportedNames(fileID: str) -> list[str]:  # F.7.47.6
 
 
 def getFileFileTypeIDs(fileID: str) -> list[str]:  # F.7.47.7
-    """Return fileType handles (Section: F.7.47.7)."""
-    return _ids(_resolve_file(fileID).file_type)  # type: ignore[arg-type]
+    """Restore parsed ownership and return fileType handles (Section: F.7.47.7)."""
+    return _owned_file_ids(fileID, "file_type")
 
 
 def getFileFileTypes(fileID: str) -> list[str]:  # F.7.47.8
@@ -263,8 +274,8 @@ def getFileFileTypes(fileID: str) -> list[str]:  # F.7.47.8
 
 
 def getFileImageTypeIDs(fileID: str) -> list[str]:  # F.7.47.9
-    """Return imageType handles (Section: F.7.47.9)."""
-    return _ids(_resolve_file(fileID).image_type)  # type: ignore[arg-type]
+    """Return stable imageType handles and restore parsed ownership (Section: F.7.47.9)."""
+    return _owned_file_ids(fileID, "image_type")
 
 
 def getFileImageTypes(fileID: str) -> list[str]:  # F.7.47.10
@@ -273,19 +284,22 @@ def getFileImageTypes(fileID: str) -> list[str]:  # F.7.47.10
 
 
 def getFileIsIncludeFile(fileID: str) -> bool:  # F.7.47.11
-    """Return isIncludeFile boolean (Section: F.7.47.11)."""
+    """Return explicit include state; default to False when absent (Section: F.7.47.11)."""
     inc = _resolve_file(fileID).is_include_file
     return bool(getattr(inc, "value", False)) if inc is not None else False
 
 
 def getFileIsIncludeFileID(fileID: str) -> str | None:  # F.7.47.12
-    """Return handle to isIncludeFile element (Section: F.7.47.12)."""
+    """Return the include child handle with parsed ownership (Section: F.7.47.12)."""
     f = _resolve_file(fileID)
-    return get_handle(f.is_include_file) if f.is_include_file is not None else None
+    if f.is_include_file is None:
+        return None
+    register_parent(f.is_include_file, f, ("is_include_file",), "single")
+    return get_handle(f.is_include_file)
 
 
 def getFileIsStructural(fileID: str) -> bool:  # F.7.47.13
-    """Return isStructural value (Section: F.7.47.13)."""
+    """Return explicit structural state; default to False when absent (Section: F.7.47.13)."""
     return bool(_resolve_file(fileID).is_structural)
 
 
@@ -296,9 +310,12 @@ def getFileLogicalName(fileID: str) -> str | None:  # F.7.47.14
 
 
 def getFileLogicalNameID(fileID: str) -> str | None:  # F.7.47.15
-    """Return handle to logicalName element (Section: F.7.47.15)."""
+    """Return the logical-name handle with parsed ownership (Section: F.7.47.15)."""
     f = _resolve_file(fileID)
-    return get_handle(f.logical_name) if f.logical_name is not None else None
+    if f.logical_name is None:
+        return None
+    register_parent(f.logical_name, f, ("logical_name",), "single")
+    return get_handle(f.logical_name)
 
 
 def getFileName(fileID: str) -> str | None:  # F.7.47.16
@@ -308,8 +325,11 @@ def getFileName(fileID: str) -> str | None:  # F.7.47.16
 
 
 def getFileSetDefaultFileBuilderIDs(fileSetID: str) -> list[str]:  # F.7.47.17
-    """Return handles of defaultFileBuilder elements (Section: F.7.47.17)."""
-    return _ids(_resolve_fileset(fileSetID).default_file_builder)  # type: ignore[arg-type]
+    """Return stable builder handles and restore parsed ownership (Section: F.7.47.17)."""
+    fs = _resolve_fileset(fileSetID)
+    for builder in fs.default_file_builder:
+        register_parent(builder, fs, ("default_file_builder",), "list")
+    return _ids(fs.default_file_builder)
 
 
 def getFileSetDependencyIDs(fileSetID: str) -> list[str]:  # F.7.47.18
@@ -690,7 +710,17 @@ def removeFileLogicalName(fileID: str) -> bool:  # F.7.48.22
 
 
 def removeFileSetDefaultFileBuilder(fileBuilderID: str) -> bool:  # F.7.48.23
-    """Remove defaultFileBuilder (Section: F.7.48.23)."""
+    """Remove a file-set-owned builder and invalidate descendants (Section: F.7.48.23)."""
+    from .core import get_parent_info
+
+    builder = resolve_handle(fileBuilderID)
+    if not isinstance(builder, FileBuilderType):
+        raise TgiError("Invalid defaultFileBuilder handle", TgiFaultCode.INVALID_ID)
+    info = get_parent_info(fileBuilderID)
+    if info is None:
+        return False
+    if info.path != ("default_file_builder",) or not isinstance(resolve_handle(info.parent_handle), FileSet):
+        raise TgiError("Builder is not owned by a fileSet", TgiFaultCode.INVALID_ID)
     return detach_child_by_handle(fileBuilderID)
 
 

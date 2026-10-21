@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """XML validation helpers for IP-XACT documents.
 
 This module provides a small, typed wrapper around the lower-level
 `XmlValidator` utility so it can be reused from different front-ends
 (CLI, web APIs, and MCP servers) without duplicating logic.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +28,8 @@ class ValidationIssue:
     message: str
     line: int | None = None
     column: int | None = None
+    rule_id: str | None = None
+    path: str | None = None
 
 
 @dataclass(slots=True)
@@ -51,6 +53,7 @@ class ValidationResult:
     version: str | None
     standard: str | None
     root_element: str | None
+    checked_semantic_rules: tuple[str, ...] = ()
 
 
 def _resolve_schema_for_xml(xml_path: Path) -> tuple[str | None, str | None, str | None, str | None]:
@@ -83,7 +86,7 @@ def _resolve_schema_for_xml(xml_path: Path) -> tuple[str | None, str | None, str
     return schema_path, version, standard, root_element
 
 
-def validate_ipxact_xml(xml: str | Path, *, schema_root: str | Path | None = None) -> ValidationResult:
+def _validate_schema(xml: str | Path, *, schema_root: str | Path | None = None) -> ValidationResult:
     """Validate an IP-XACT XML document using strict XSD rules.
 
     With ``schema_root``, resolve schemas as FAMILY/version/index.xsd under
@@ -140,14 +143,7 @@ def validate_ipxact_xml(xml: str | Path, *, schema_root: str | Path | None = Non
     validator = XmlValidator(schema_path, use_lxml=False)
     ok = validator.validate(str(xml_path))
 
-    issues: list[ValidationIssue]
-    if ok:
-        issues = []
-    else:
-        # The current backend prints diagnostics directly to the console and
-        # only returns a boolean. For now we surface a single generic issue
-        # while retaining strict XSD behaviour.
-        issues = [ValidationIssue("XML document failed XSD validation. See xmllint output for details.")]
+    issues = [] if ok else [ValidationIssue("XML document failed XSD validation. See xmllint output for details.")]
 
     return ValidationResult(
         ok=ok,
@@ -157,3 +153,52 @@ def validate_ipxact_xml(xml: str | Path, *, schema_root: str | Path | None = Non
         standard=standard,
         root_element=root_element,
     )
+
+
+def validate_ipxact_xml(
+    xml: str | Path, *, schema_root: str | Path | None = None, semantic: bool = False,
+) -> ValidationResult:
+    """Validate XSD and optionally the implemented local IEEE semantic rules.
+
+    Semantic checks run only after successful XSD validation. Currently supported
+    scope is IEEE 1685-2022 abstractionDefinition and component constraints. An unsupported root
+    or version returns a diagnostic when semantic checks are requested, rather than
+    implying that unimplemented rules passed. checked_semantic_rules identifies
+    the exact coverage; success does not establish complete semantic conformance.
+    """
+    result = _validate_schema(xml, schema_root=schema_root)
+    if not semantic or not result.ok:
+        return result
+    if result.standard != "IPXACT" or result.version != "1685-2022" or result.root_element not in {
+        "abstractionDefinition", "component",
+    }:
+        result.ok = False
+        result.issues.append(ValidationIssue("Semantic checks are available only for IEEE 1685-2022 "
+                                             "abstractionDefinition and component constraints."))
+        return result
+    from amal.eda.ipxact_de.semantic_validation import (
+        validate_abstraction_constraints,
+        validate_component_constraints,
+    )
+    from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, Component
+
+    model_type = AbstractionDefinition if result.root_element == "abstractionDefinition" else Component
+    validate_model = (validate_abstraction_constraints if model_type is AbstractionDefinition
+                      else validate_component_constraints)
+    parser = etree.XMLParser(no_network=True, resolve_entities=False)
+    try:
+        tree = etree.parse(str(xml), parser)
+        document = XmlDocument.parser().from_string(etree.tostring(tree, encoding="unicode"), model_type)
+    except (OSError, etree.XMLSyntaxError, ValueError) as error:
+        result.ok = False
+        result.issues.append(ValidationIssue(f"Semantic model could not be loaded: {error}"))
+        return result
+    semantic_result = validate_model(document)
+    result.checked_semantic_rules = semantic_result.checked_rules
+    for issue in semantic_result.issues:
+        element_path = issue.path.rsplit("/@", 1)[0]
+        elements = tree.xpath(element_path, namespaces={"ipxact": "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"})
+        line = elements[0].sourceline if elements else None
+        result.issues.append(ValidationIssue(issue.message, line=line, rule_id=issue.rule_id, path=issue.path))
+    result.ok = semantic_result.ok
+    return result

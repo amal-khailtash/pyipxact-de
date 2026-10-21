@@ -11,6 +11,9 @@ schema object.
 from org.accellera.ipxact.v1685_2022 import (
     ClearboxElementRefType,
     ClearboxElementType,
+    PathSegmentType,
+    SlicesType,
+    SliceType,
 )
 
 from .core import (
@@ -41,6 +44,20 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
+
+def _new_location(value: str) -> SlicesType:
+    """Build a required location/slice/pathSegments chain from source text."""
+    if not isinstance(value, str):
+        raise TgiError("Expected path segment source text", TgiFaultCode.INVALID_ARGUMENT)
+    return SlicesType(slice=[_new_slice(value)])
+
+
+def _new_slice(value: str) -> SliceType:
+    """Build a generated slice without evaluating its path expression."""
+    if not isinstance(value, str):
+        raise TgiError("Expected path segment source text", TgiFaultCode.INVALID_ARGUMENT)
+    return SliceType(path_segments=SliceType.PathSegments(path_segment=[PathSegmentType(value=value)]))
+
 
 def _resolve_clearbox_element(elementID: str) -> ClearboxElementType | None:
     obj = resolve_handle(elementID)
@@ -142,15 +159,10 @@ def getClearboxElementRefLocationIDs(clearboxElementRefID: str) -> list[str]:
     ref = _resolve_clearbox_element_ref(clearboxElementRefID)
     if ref is None:
         raise TgiError("Invalid clearboxElementRef handle", TgiFaultCode.INVALID_ID)
-    locs = getattr(ref, "clearbox_element_ref_locations", None)
-    if locs is None:
-        return []
-    return [get_handle(loc) for loc in getattr(locs, "clearbox_element_ref_location", [])]
+    for loc in ref.location:
+        register_parent(loc, ref, ("location",), "list")
+    return [get_handle(loc) for loc in ref.location]
 
-
-# ---------------------------------------------------------------------------
-# EXTENDED (F.7.28)
-# ---------------------------------------------------------------------------
 
 def addClearboxElementRefLocation(clearboxElementRefID: str, value: str) -> str:
     """Add a ``clearboxElementRefLocation`` to a clearboxElementRef.
@@ -168,20 +180,9 @@ def addClearboxElementRefLocation(clearboxElementRefID: str, value: str) -> str:
     ref = _resolve_clearbox_element_ref(clearboxElementRefID)
     if ref is None:
         raise TgiError("Invalid clearboxElementRef handle", TgiFaultCode.INVALID_ID)
-    if getattr(ref, "clearbox_element_ref_locations", None) is None:
-        # Create container instance (schema inner class may exist; fallback simple object)
-        class _Locs:  # lightweight container
-            clearbox_element_ref_location = []  # type: ignore[var-annotated]
-        ref.clearbox_element_ref_locations = _Locs()  # type: ignore[attr-defined]
-    # Location object creation (schema-specific). We synthesize a generic object with 'value'.
-    class _Location:  # minimal stand-in if real class not present
-        __slots__ = ("value", "slices")
-        def __init__(self, value: str):
-            self.value = value
-            self.slices = []
-    loc = _Location(value)
-    ref.clearbox_element_ref_locations.clearbox_element_ref_location.append(loc)  # type: ignore[attr-defined]
-    register_parent(loc, ref, ("clearbox_element_ref_locations",), "list")
+    loc = _new_location(value)
+    ref.location.append(loc)
+    register_parent(loc, ref, ("location",), "list")
     return get_handle(loc)
 
 
@@ -198,18 +199,12 @@ def addLocationSlice(locationID: str, value: str) -> str:
     Raises:
         TgiError: If the location handle is invalid.
     """
-    loc = _resolve_location(locationID)
-    if loc is None:
+    loc = resolve_handle(locationID)
+    if not isinstance(loc, SlicesType):
         raise TgiError("Invalid location handle", TgiFaultCode.INVALID_ID)
-    if not hasattr(loc, "slices"):
-        loc.slices = []  # type: ignore[attr-defined]
-    class _Slice:
-        __slots__ = ("value",)
-        def __init__(self, value: str):
-            self.value = value
-    sl = _Slice(value)
-    loc.slices.append(sl)  # type: ignore[attr-defined]
-    register_parent(sl, loc, ("slices",), "list")
+    sl = _new_slice(value)
+    loc.slice.append(sl)
+    register_parent(sl, loc, ("slice",), "list")
     return get_handle(sl)
 
 
@@ -221,18 +216,15 @@ def removeClearboxElementDriveable(clearboxElementID: str) -> bool:
     Args:
         clearboxElementID: Handle to a clearboxElement element.
     Returns:
-        True if removed, False if not present or invalid.
+        True if cleared, False if absent; invalid handles raise INVALID_ID.
     """
     el = _resolve_clearbox_element(clearboxElementID)
     if el is None:
+        raise TgiError("Invalid clearboxElement handle", TgiFaultCode.INVALID_ID)
+    if el.driveable is None:
         return False
-    if hasattr(el, "driveable") and el.driveable is not None:  # type: ignore[attr-defined]
-        try:
-            delattr(el, "driveable")
-        except Exception:  # pragma: no cover - defensive
-            return False
-        return True
-    return False
+    el.driveable = None
+    return True
 
 
 def removeClearboxElementRefLocation(clearboxElementRefLocationID: str) -> bool:
@@ -249,7 +241,7 @@ def removeClearboxElementRefLocation(clearboxElementRefLocationID: str) -> bool:
 
 
 def setClearboxElementClearboxType(clearboxID: str, clearboxType: str) -> bool:
-    """Set the clearbox type of a clearbox element.
+    """Set the generated signal/pin/interface enum atomically.
 
     Section: F.7.28.5
 
@@ -264,13 +256,20 @@ def setClearboxElementClearboxType(clearboxID: str, clearboxType: str) -> bool:
     el = _resolve_clearbox_element(clearboxID)
     if el is None:
         raise TgiError("Invalid clearboxElement handle", TgiFaultCode.INVALID_ID)
-    # Underlying attribute is clearbox_type (enum). We assign raw string; actual enum mapping left to DE.
-    el.clearbox_type = clearboxType  # type: ignore[attr-defined]
+    from org.accellera.ipxact.v1685_2022 import SimpleClearboxType
+
+    if not isinstance(clearboxType, str):
+        raise TgiError("Expected a clearbox type string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        value = SimpleClearboxType(clearboxType)
+    except ValueError as exc:
+        raise TgiError("Invalid clearbox type", TgiFaultCode.INVALID_ARGUMENT) from exc
+    el.clearbox_type = value
     return True
 
 
 def setClearboxElementDriveable(clearboxElementID: str, value: bool) -> bool:
-    """Set the driveable value for a clearboxElement.
+    """Set Boolean driveable state atomically, preserving other fields.
 
     Section: F.7.28.6
 
@@ -285,5 +284,7 @@ def setClearboxElementDriveable(clearboxElementID: str, value: bool) -> bool:
     el = _resolve_clearbox_element(clearboxElementID)
     if el is None:
         raise TgiError("Invalid clearboxElement handle", TgiFaultCode.INVALID_ID)
-    el.driveable = value  # type: ignore[attr-defined]
+    if not isinstance(value, bool):
+        raise TgiError("Expected Boolean driveable state", TgiFaultCode.INVALID_ARGUMENT)
+    el.driveable = value
     return True

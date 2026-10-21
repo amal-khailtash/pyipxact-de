@@ -28,7 +28,6 @@ from org.accellera.ipxact.v1685_2022.constraint_set_ref import ConstraintSetRef
 from org.accellera.ipxact.v1685_2022.file_builder_type import FileBuilderType
 from org.accellera.ipxact.v1685_2022.file_set_ref import FileSetRef
 from org.accellera.ipxact.v1685_2022.language_type import LanguageType
-from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
 
 from .core import (
     TgiError,
@@ -93,6 +92,37 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
+
+def _validate_local_reference_name(value: str, schema_type: str) -> None:
+    """Validate XML lexical names without imposing ASCII-only restrictions."""
+    from lxml import etree
+
+    if not isinstance(value, str):
+        raise TgiError("Expected a local-name string", TgiFaultCode.INVALID_ARGUMENT)
+    schema = etree.XMLSchema(etree.fromstring(
+        f'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">'
+        f'<xs:element name="name" type="xs:{schema_type}"/></xs:schema>'.encode()
+    ))
+    element = etree.Element("name")
+    try:
+        element.text = value
+    except ValueError as exc:
+        raise TgiError("Invalid XML name", TgiFaultCode.INVALID_ARGUMENT) from exc
+    if not schema.validate(element):
+        raise TgiError(f"Expected an XML {schema_type}", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _detach_instantiation_reference(handle: str, field: str) -> bool:
+    """Detach only references owned by the named component-instantiation list."""
+    from .core import get_parent_info
+
+    info = get_parent_info(handle)
+    if info is None:
+        return False
+    if info.path != (field,) or not isinstance(resolve_handle(info.parent_handle), ComponentInstantiationType):
+        raise TgiError("Reference is not owned by a component instantiation", TgiFaultCode.INVALID_ID)
+    return detach_child_by_handle(handle)
+
 
 def _resolve_component_instantiation(handle: str) -> ComponentInstantiationType | None:
     obj = resolve_handle(handle)
@@ -163,6 +193,9 @@ def getComponentInstanceComponentRefID(componentInstanceID: str) -> str | None:
 def getComponentInstantiationArchitectureName(componentInstantiationID: str) -> str | None:
     """Return ``architectureName`` value.
 
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
+
     Section: F.7.55.4.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -178,11 +211,16 @@ def getComponentInstantiationClearboxElementRefIDs(componentInstantiationID: str
     refs_container = getattr(inst, "clearbox_element_refs", None)
     if refs_container is None:
         return []
-    return [get_handle(r) for r in getattr(refs_container, "clearbox_element_ref", [])]
+    for ref in refs_container.clearbox_element_ref:
+        register_parent(ref, inst, ("clearbox_element_refs", "clearbox_element_ref"), "list")
+    return [get_handle(ref) for ref in refs_container.clearbox_element_ref]
 
 
 def getComponentInstantiationConfigurationName(componentInstantiationID: str) -> str | None:
     """Return ``configurationName`` value.
+
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
 
     Section: F.7.55.6.
     """
@@ -193,28 +231,40 @@ def getComponentInstantiationConfigurationName(componentInstantiationID: str) ->
 def getComponentInstantiationConstraintSetRefIDs(componentInstantiationID: str) -> list[str]:
     """Return handles of ``constraintSetRef`` elements.
 
+    Restore ownership for parsed references before returning stable handles.
+
     Section: F.7.55.7.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    return [get_handle(r) for r in getattr(inst, "constraint_set_ref", [])]
+    refs = inst.constraint_set_ref
+    for ref in refs:
+        register_parent(ref, inst, ("constraint_set_ref",), "list")
+    return [get_handle(ref) for ref in refs]
 
 
 def getComponentInstantiationDefaultFileBuilderIDs(componentInstantiationID: str) -> list[str]:
-    """Return handles of ``defaultFileBuilder`` elements.
+    """Return stable defaultFileBuilder handles and restore parsed ownership.
 
     Section: F.7.55.8.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    return [get_handle(fb) for fb in getattr(inst, "default_file_builder", [])]
+    for fb in inst.default_file_builder:
+        register_parent(fb, inst, ("default_file_builder",), "list")
+    return [get_handle(fb) for fb in inst.default_file_builder]
 
 
 def getComponentInstantiationFileSetRefIDs(componentInstantiationID: str) -> list[str]:
     """Return handles of ``fileSetRef`` elements.
 
+    Restore ownership for parsed references before returning stable handles.
+
     Section: F.7.55.9.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    return [get_handle(r) for r in getattr(inst, "file_set_ref", [])]
+    refs = inst.file_set_ref
+    for ref in refs:
+        register_parent(ref, inst, ("file_set_ref",), "list")
+    return [get_handle(ref) for ref in refs]
 
 
 def getComponentInstantiationIsVirtual(componentInstantiationID: str) -> bool | None:
@@ -235,7 +285,7 @@ def getComponentInstantiationLanguage(componentInstantiationID: str) -> str | No
     lang = getattr(inst, "language", None)
     if lang is None:
         return None
-    return getattr(getattr(lang, "value", None), "value", None)  # LanguageType holds a ValueType
+    return lang.value
 
 
 def getComponentInstantiationLanguageID(componentInstantiationID: str) -> str | None:
@@ -245,11 +295,17 @@ def getComponentInstantiationLanguageID(componentInstantiationID: str) -> str | 
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
     lang = getattr(inst, "language", None)
-    return None if lang is None else get_handle(lang)
+    if lang is None:
+        return None
+    register_parent(lang, inst, ("language",), "single")
+    return get_handle(lang)
 
 
 def getComponentInstantiationLibraryName(componentInstantiationID: str) -> str | None:
     """Return libraryName value.
+
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
 
     Section: F.7.55.13.
     """
@@ -260,6 +316,9 @@ def getComponentInstantiationLibraryName(componentInstantiationID: str) -> str |
 def getComponentInstantiationModuleName(componentInstantiationID: str) -> str | None:
     """Return moduleName value.
 
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
+
     Section: F.7.55.14.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -268,6 +327,9 @@ def getComponentInstantiationModuleName(componentInstantiationID: str) -> str | 
 
 def getComponentInstantiationPackageName(componentInstantiationID: str) -> str | None:
     """Return packageName value.
+
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
 
     Section: F.7.55.15.
     """
@@ -315,7 +377,7 @@ def getDesignConfigurationInstantiationLanguage(designConfigurationInstantiation
     lang = getattr(dci, "language", None)
     if lang is None:
         return None
-    return getattr(getattr(lang, "value", None), "value", None)
+    return lang.value
 
 
 def getDesignConfigurationInstantiationLanguageID(designConfigurationInstantiationID: str) -> str | None:
@@ -325,7 +387,10 @@ def getDesignConfigurationInstantiationLanguageID(designConfigurationInstantiati
     """
     dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
     lang = getattr(dci, "language", None)
-    return None if lang is None else get_handle(lang)
+    if lang is None:
+        return None
+    register_parent(lang, dci, ("language",), "single")
+    return get_handle(lang)
 
 
 # ---------------------------------------------------------------------------
@@ -337,22 +402,29 @@ def addComponentInstantiationClearboxElementRef(componentInstantiationID: str, n
 
     Section: F.7.56.1.
     """
+    from .clearbox import _new_location
+
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    _validate_local_reference_name(name, "Name")
+    loc = _new_location(pathSegmentValue)
+    ref = ClearboxElementRefType(name=name, location=[loc])
     if inst.clearbox_element_refs is None:
-        inst.clearbox_element_refs = ComponentInstantiationType.ClearboxElementRefs()  # type: ignore[attr-defined]
-    # clearboxElementRefType has no path segment attribute in schema; ignore
-    ref = ClearboxElementRefType(name=name)
-    inst.clearbox_element_refs.clearbox_element_ref.append(ref)  # type: ignore[attr-defined]
-    register_parent(ref, inst, ("clearbox_element_refs",), "list")
+        inst.clearbox_element_refs = ComponentInstantiationType.ClearboxElementRefs()
+    inst.clearbox_element_refs.clearbox_element_ref.append(ref)
+    register_parent(ref, inst, ("clearbox_element_refs", "clearbox_element_ref"), "list")
     return get_handle(ref)
 
 
 def addComponentInstantiationConstraintSetRef(componentInstantiationID: str, localName: str) -> str:
     """Add a ``constraintSetRef``.
 
+    Validate localName as xs:NMTOKEN before mutation. Register immediate ownership;
+    target existence and configured resolution are separate checks.
+
     Section: F.7.56.2.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    _validate_local_reference_name(localName, "NMTOKEN")
     csr = ConstraintSetRef(local_name=localName)
     inst.constraint_set_ref.append(csr)  # type: ignore[attr-defined]
     register_parent(csr, inst, ("constraint_set_ref",), "list")
@@ -362,22 +434,16 @@ def addComponentInstantiationConstraintSetRef(componentInstantiationID: str, loc
 def addComponentInstantiationDefaultFileBuilder(componentInstantiationID: str, fileType: str) -> str:
     """Add a ``defaultFileBuilder`` element.
 
+    Accept standard fileType values (including user); reject invalid values
+    before mutation and register immediate ownership.
+
     Section: F.7.56.3.
     """
-    inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    # FileBuilderType requires FileType instance; minimal create
-    from org.accellera.ipxact.v1685_2022.file_type import FileType
-    from org.accellera.ipxact.v1685_2022.simple_file_type import SimpleFileType
+    from .file_set import _enum_file_type
 
-    enum_val = None
-    try:
-        enum_val = SimpleFileType(fileType)
-    except Exception:
-        # Allow arbitrary user types via USER attribute if not matching enum
-        if fileType:
-            enum_val = SimpleFileType.USER
-    fb = FileBuilderType(file_type=FileType(value=enum_val))
-    inst.default_file_builder.append(fb)  # type: ignore[attr-defined]
+    inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    fb = FileBuilderType(file_type=_enum_file_type(fileType))
+    inst.default_file_builder.append(fb)
     register_parent(fb, inst, ("default_file_builder",), "list")
     return get_handle(fb)
 
@@ -385,9 +451,13 @@ def addComponentInstantiationDefaultFileBuilder(componentInstantiationID: str, f
 def addComponentInstantiationFileSetRef(componentInstantiationID: str, localName: str) -> str:
     """Add a ``fileSetRef`` element.
 
+    Validate localName as xs:Name before mutation. Register immediate ownership;
+    target existence and configured resolution are separate checks.
+
     Section: F.7.56.4.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    _validate_local_reference_name(localName, "Name")
     fsr = FileSetRef(local_name=localName)
     inst.file_set_ref.append(fsr)  # type: ignore[attr-defined]
     register_parent(fsr, inst, ("file_set_ref",), "list")
@@ -396,6 +466,9 @@ def addComponentInstantiationFileSetRef(componentInstantiationID: str, localName
 
 def removeComponentInstantiationArchitectureName(componentInstantiationID: str) -> bool:
     """Remove (clear) ``architectureName``.
+
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
 
     Section: F.7.56.5.
     """
@@ -412,12 +485,14 @@ def removeComponentInstantiationClearboxElementRef(clearboxElementRefID: str) ->
     ref = resolve_handle(clearboxElementRefID)
     if not isinstance(ref, ClearboxElementRefType):
         raise TgiError("Invalid clearboxElementRef handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(clearboxElementRefID)
-    return True
+    return detach_child_by_handle(clearboxElementRefID)
 
 
 def removeComponentInstantiationConfigurationName(componentInstantiationID: str) -> bool:
     """Clear ``configurationName``.
+
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
 
     Section: F.7.56.7.
     """
@@ -429,37 +504,40 @@ def removeComponentInstantiationConfigurationName(componentInstantiationID: str)
 def removeComponentInstantiationConstraintSetRef(constraintSetRefID: str) -> bool:
     """Remove a ``constraintSetRef`` by handle.
 
+    Invalidate the removed subtree. Return False for an unowned reference;
+    restore parsed ownership through the corresponding instantiation getter.
+
     Section: F.7.56.8.
     """
     csr = resolve_handle(constraintSetRefID)
     if not isinstance(csr, ConstraintSetRef):
         raise TgiError("Invalid constraintSetRef handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(constraintSetRefID)
-    return True
+    return _detach_instantiation_reference(constraintSetRefID, "constraint_set_ref")
 
 
 def removeComponentInstantiationDefaultFileBuilder(fileBuilderID: str) -> bool:
-    """Remove a ``defaultFileBuilder`` by handle.
+    """Remove an instantiation-owned builder and invalidate its descendants.
 
     Section: F.7.56.9.
     """
     fb = resolve_handle(fileBuilderID)
     if not isinstance(fb, FileBuilderType):
         raise TgiError("Invalid fileBuilder handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(fileBuilderID)
-    return True
+    return _detach_instantiation_reference(fileBuilderID, "default_file_builder")
 
 
 def removeComponentInstantiationFileSetRef(fileSetRefID: str) -> bool:
     """Remove a ``fileSetRef``.
+
+    Invalidate the removed subtree. Return False for an unowned reference;
+    restore parsed ownership through the corresponding instantiation getter.
 
     Section: F.7.56.10.
     """
     fsr = resolve_handle(fileSetRefID)
     if not isinstance(fsr, FileSetRef):
         raise TgiError("Invalid fileSetRef handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(fileSetRefID)
-    return True
+    return _detach_instantiation_reference(fileSetRefID, "file_set_ref")
 
 
 def removeComponentInstantiationIsVirtual(componentInstantiationID: str) -> bool:
@@ -475,15 +553,23 @@ def removeComponentInstantiationIsVirtual(componentInstantiationID: str) -> bool
 def removeComponentInstantiationLanguage(componentInstantiationID: str) -> bool:
     """Remove ``language`` element.
 
+    Removal invalidates the language handle and descendants; repeated removal
+    of an absent language succeeds. Parsed ownership is restored before removal.
+
     Section: F.7.56.12.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    inst.language = None
+    if inst.language is not None:
+        register_parent(inst.language, inst, ("language",), "single")
+        return detach_child_by_handle(get_handle(inst.language))
     return True
 
 
 def removeComponentInstantiationLibraryName(componentInstantiationID: str) -> bool:
     """Clear ``libraryName``.
+
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
 
     Section: F.7.56.13.
     """
@@ -495,6 +581,9 @@ def removeComponentInstantiationLibraryName(componentInstantiationID: str) -> bo
 def removeComponentInstantiationModuleName(componentInstantiationID: str) -> bool:
     """Clear ``moduleName``.
 
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
+
     Section: F.7.56.14.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -504,6 +593,9 @@ def removeComponentInstantiationModuleName(componentInstantiationID: str) -> boo
 
 def removeComponentInstantiationPackageName(componentInstantiationID: str) -> bool:
     """Clear ``packageName``.
+
+    Repeated removal succeeds when already absent. Sibling fields and the
+    instantiation handle remain intact; invalid handles raise INVALID_ID.
 
     Section: F.7.56.15.
     """
@@ -515,137 +607,147 @@ def removeComponentInstantiationPackageName(componentInstantiationID: str) -> bo
 def removeDesignConfigurationInstantiationLanguage(designConfigurationInstantiationID: str) -> bool:
     """Remove language element from designConfigurationInstantiation.
 
+    Removal invalidates the language handle and descendants; repeated removal
+    of an absent language succeeds. Parsed ownership is restored before removal.
+
     Section: F.7.56.16.
     """
     dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
-    dci.language = None
+    if dci.language is not None:
+        register_parent(dci.language, dci, ("language",), "single")
+        return detach_child_by_handle(get_handle(dci.language))
     return True
 
 
 def setComponentInstantiationArchitectureName(componentInstantiationID: str, architectureName: str) -> bool:
-    """Set ``architectureName``.
+    """Set ``architectureName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.17.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(architectureName, str):
+        raise TgiError("Expected a string for architectureName", TgiFaultCode.INVALID_ARGUMENT)
     inst.architecture_name = architectureName
     return True
 
 
 def setComponentInstantiationConfigurationName(componentInstantiationID: str, configurationName: str) -> bool:
-    """Set ``configurationName``.
+    """Set ``configurationName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.18.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(configurationName, str):
+        raise TgiError("Expected a string for configurationName", TgiFaultCode.INVALID_ARGUMENT)
     inst.configuration_name = configurationName
     return True
 
 
 def setComponentInstantiationIsVirtual(componentInstantiationID: str, value: bool) -> bool:
-    """Set ``isVirtual`` element value.
+    """Set ``isVirtual`` to a Boolean; reject other types before mutation.
 
     Section: F.7.56.19.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(value, bool):
+        raise TgiError("Expected a Boolean virtual state", TgiFaultCode.INVALID_ARGUMENT)
     inst.is_virtual = value
     return True
 
 
 def setComponentInstantiationLanguage(componentInstantiationID: str, language: str) -> bool:
-    """Set language element (creates if absent).
+    """Set generated language source text, preserving existing strict metadata.
 
-    Section: F.7.56.20.
+    Section: F.7.56.20. Invalid text raises INVALID_ARGUMENT before mutation.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    lang = getattr(inst, "language", None)
-    if lang is None:
-        lang = LanguageType()
-        inst.language = lang
-        register_parent(lang, inst, tuple(), "single")
-    if getattr(lang, "value", None) is None:
-        # LanguageType.value is a nested simpleContent wrapper; emulate pattern used elsewhere
-        class _V:  # minimal wrapper
-            def __init__(self, value):
-                self.value = value
-
-        lang.value = _V(language)  # type: ignore[attr-defined]
+    if not isinstance(language, str) or not language.strip():
+        raise TgiError("Expected a nonempty language string", TgiFaultCode.INVALID_ARGUMENT)
+    if inst.language is None:
+        inst.language = LanguageType(value=language)
     else:
-        lang.value.value = language  # type: ignore[attr-defined]
+        inst.language.value = language
+    register_parent(inst.language, inst, ("language",), "single")
     return True
 
 
 def setComponentInstantiationLibraryName(componentInstantiationID: str, libraryName: str) -> bool:
-    """Set ``libraryName``.
+    """Set ``libraryName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.21.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(libraryName, str):
+        raise TgiError("Expected a string for libraryName", TgiFaultCode.INVALID_ARGUMENT)
     inst.library_name = libraryName
     return True
 
 
 def setComponentInstantiationModuleName(componentInstantiationID: str, moduleName: str) -> bool:
-    """Set ``moduleName``.
+    """Set ``moduleName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.22.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(moduleName, str):
+        raise TgiError("Expected a string for moduleName", TgiFaultCode.INVALID_ARGUMENT)
     inst.module_name = moduleName
     return True
 
 
 def setComponentInstantiationPackageName(componentInstantiationID: str, packageName: str) -> bool:
-    """Set ``packageName``.
+    """Set ``packageName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.23.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(packageName, str):
+        raise TgiError("Expected a string for packageName", TgiFaultCode.INVALID_ARGUMENT)
     inst.package_name = packageName
     return True
 
 
 def setDesignConfigurationInstantiationDesignConfigurationRef(
-    designConfigurationInstantiationID: str, designConfigurationVLNV: tuple[str, str, str, str]
+    designConfigurationInstantiationID: str, designConfigurationVLNV: tuple[str, str, str, str],
 ) -> bool:
-    """Set the ``designConfigurationRef`` (creates if absent).
+    """Update the generated reference in place after validating VLNV (F.7.56.24).
 
-    Section: F.7.56.24.
+    Preserve existing configuration values and reference identity. Invalid input
+    raises INVALID_ARGUMENT before mutation; target lookup remains separate.
     """
+    from .core import vlnv_to_tuple
+
     dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
-    ref = getattr(dci, "design_configuration_ref", None)
-    if ref is None:
-        ref = ConfigurableLibraryRefType(
-            vendor=designConfigurationVLNV[0],
-            library=designConfigurationVLNV[1],
-            name=designConfigurationVLNV[2],
-            version=designConfigurationVLNV[3],
-        )
-        dci.design_configuration_ref = ref
-        register_parent(ref, dci, tuple(), "single")
-    else:
-        ref.vendor, ref.library, ref.name, ref.version = designConfigurationVLNV
+    parts = vlnv_to_tuple(designConfigurationVLNV)
+    if any(not isinstance(part, str) or not part.strip() for part in parts):
+        raise TgiError("Expected four nonempty VLNV strings", TgiFaultCode.INVALID_ARGUMENT)
+    ref = dci.design_configuration_ref
+    ref.vendor, ref.library, ref.name, ref.version = parts
+    register_parent(ref, dci, ("design_configuration_ref",), "single")
     return True
 
 
 def setDesignConfigurationInstantiationLanguage(designConfigurationInstantiationID: str, language: str) -> bool:
-    """Set language element for designConfigurationInstantiation.
+    """Set generated language source text, preserving existing strict metadata.
 
-    Section: F.7.56.25.
+    Section: F.7.56.25. Invalid text raises INVALID_ARGUMENT before mutation.
     """
-    dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
-    lang = getattr(dci, "language", None)
-    if lang is None:
-        lang = LanguageType()
-        dci.language = lang
-        register_parent(lang, dci, tuple(), "single")
-    if getattr(lang, "value", None) is None:
-        class _V:  # simple wrapper as above
-            def __init__(self, value):
-                self.value = value
-
-        lang.value = _V(language)  # type: ignore[attr-defined]
+    inst = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
+    if not isinstance(language, str) or not language.strip():
+        raise TgiError("Expected a nonempty language string", TgiFaultCode.INVALID_ARGUMENT)
+    if inst.language is None:
+        inst.language = LanguageType(value=language)
     else:
-        lang.value.value = language  # type: ignore[attr-defined]
+        inst.language.value = language
+    register_parent(inst.language, inst, ("language",), "single")
     return True
-
