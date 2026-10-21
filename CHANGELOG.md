@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read BASE minimum/maximum source, integer and double attributes; reject fractional or non-finite integer conversions.
 - Verify BASE data type, delay, direction and driver attributes with generated XML bindings.
 - Read BASE array ID, bank alignment, cell strength and clock attributes using generated XML metadata.
 - Read BASE boolean XML attributes through generated binding metadata, preserving false values.

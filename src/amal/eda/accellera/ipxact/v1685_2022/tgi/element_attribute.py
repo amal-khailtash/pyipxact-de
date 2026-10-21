@@ -17,6 +17,7 @@ remove comments / commented code) – see version control for prior content.
 
 from collections.abc import Callable
 from dataclasses import fields, is_dataclass
+from math import isfinite
 from typing import Any
 
 from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
@@ -374,6 +375,8 @@ def _coerce(value: Any, target: str) -> Any:
                 return bool(value)
             return str(value).lower() in {"1", "true", "yes", "on"}
         if target == "int":
+            if isinstance(value, float) and (not isfinite(value) or not value.is_integer()):
+                raise ValueError("fractional or non-finite value is not an integer")
             return int(value)
         if target == "float":
             return float(value)
