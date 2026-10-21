@@ -3356,3 +3356,16 @@ Instantiation virtual state and language lifetime
 - ☑ removeDesignConfigurationInstantiationLanguage: tests/test_tgi_instantiation_optional_metadata.py.
 
 Preserve absent/false/true virtual source states, reject non-Boolean edits, restore parsed language ownership and invalidate removed language handles.
+
+
+Instantiation local reference lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentInstantiationConstraintSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ removeComponentInstantiationConstraintSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ addComponentInstantiationFileSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ removeComponentInstantiationFileSetRef: tests/test_tgi_instantiation_local_refs.py.
+- ☑ getComponentInstantiationConstraintSetRefIDs: tests/test_tgi_instantiation_local_refs.py.
+- ☑ getComponentInstantiationFileSetRefIDs: tests/test_tgi_instantiation_local_refs.py.
+
+Restore parsed reference ownership, validate schema lexical names, preserve siblings and invalidate removed handles. Target existence/configured resolution remain pending.

@@ -93,6 +93,37 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+def _validate_local_reference_name(value: str, schema_type: str) -> None:
+    """Validate XML lexical names without imposing ASCII-only restrictions."""
+    from lxml import etree
+
+    if not isinstance(value, str):
+        raise TgiError("Expected a local-name string", TgiFaultCode.INVALID_ARGUMENT)
+    schema = etree.XMLSchema(etree.fromstring(
+        f'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">'
+        f'<xs:element name="name" type="xs:{schema_type}"/></xs:schema>'.encode()
+    ))
+    element = etree.Element("name")
+    try:
+        element.text = value
+    except ValueError as exc:
+        raise TgiError("Invalid XML name", TgiFaultCode.INVALID_ARGUMENT) from exc
+    if not schema.validate(element):
+        raise TgiError(f"Expected an XML {schema_type}", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _detach_instantiation_reference(handle: str, field: str) -> bool:
+    """Detach only references owned by the named component-instantiation list."""
+    from .core import get_parent_info
+
+    info = get_parent_info(handle)
+    if info is None:
+        return False
+    if info.path != (field,) or not isinstance(resolve_handle(info.parent_handle), ComponentInstantiationType):
+        raise TgiError("Reference is not owned by a component instantiation", TgiFaultCode.INVALID_ID)
+    return detach_child_by_handle(handle)
+
+
 def _resolve_component_instantiation(handle: str) -> ComponentInstantiationType | None:
     obj = resolve_handle(handle)
     return obj if isinstance(obj, ComponentInstantiationType) else None
@@ -198,10 +229,15 @@ def getComponentInstantiationConfigurationName(componentInstantiationID: str) ->
 def getComponentInstantiationConstraintSetRefIDs(componentInstantiationID: str) -> list[str]:
     """Return handles of ``constraintSetRef`` elements.
 
+    Restore ownership for parsed references before returning stable handles.
+
     Section: F.7.55.7.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    return [get_handle(r) for r in getattr(inst, "constraint_set_ref", [])]
+    refs = inst.constraint_set_ref
+    for ref in refs:
+        register_parent(ref, inst, ("constraint_set_ref",), "list")
+    return [get_handle(ref) for ref in refs]
 
 
 def getComponentInstantiationDefaultFileBuilderIDs(componentInstantiationID: str) -> list[str]:
@@ -216,10 +252,15 @@ def getComponentInstantiationDefaultFileBuilderIDs(componentInstantiationID: str
 def getComponentInstantiationFileSetRefIDs(componentInstantiationID: str) -> list[str]:
     """Return handles of ``fileSetRef`` elements.
 
+    Restore ownership for parsed references before returning stable handles.
+
     Section: F.7.55.9.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    return [get_handle(r) for r in getattr(inst, "file_set_ref", [])]
+    refs = inst.file_set_ref
+    for ref in refs:
+        register_parent(ref, inst, ("file_set_ref",), "list")
+    return [get_handle(ref) for ref in refs]
 
 
 def getComponentInstantiationIsVirtual(componentInstantiationID: str) -> bool | None:
@@ -370,9 +411,13 @@ def addComponentInstantiationClearboxElementRef(componentInstantiationID: str, n
 def addComponentInstantiationConstraintSetRef(componentInstantiationID: str, localName: str) -> str:
     """Add a ``constraintSetRef``.
 
+    Validate localName as xs:NMTOKEN before mutation. Register immediate ownership;
+    target existence and configured resolution are separate checks.
+
     Section: F.7.56.2.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    _validate_local_reference_name(localName, "NMTOKEN")
     csr = ConstraintSetRef(local_name=localName)
     inst.constraint_set_ref.append(csr)  # type: ignore[attr-defined]
     register_parent(csr, inst, ("constraint_set_ref",), "list")
@@ -405,9 +450,13 @@ def addComponentInstantiationDefaultFileBuilder(componentInstantiationID: str, f
 def addComponentInstantiationFileSetRef(componentInstantiationID: str, localName: str) -> str:
     """Add a ``fileSetRef`` element.
 
+    Validate localName as xs:Name before mutation. Register immediate ownership;
+    target existence and configured resolution are separate checks.
+
     Section: F.7.56.4.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    _validate_local_reference_name(localName, "Name")
     fsr = FileSetRef(local_name=localName)
     inst.file_set_ref.append(fsr)  # type: ignore[attr-defined]
     register_parent(fsr, inst, ("file_set_ref",), "list")
@@ -455,13 +504,15 @@ def removeComponentInstantiationConfigurationName(componentInstantiationID: str)
 def removeComponentInstantiationConstraintSetRef(constraintSetRefID: str) -> bool:
     """Remove a ``constraintSetRef`` by handle.
 
+    Invalidate the removed subtree. Return False for an unowned reference;
+    restore parsed ownership through the corresponding instantiation getter.
+
     Section: F.7.56.8.
     """
     csr = resolve_handle(constraintSetRefID)
     if not isinstance(csr, ConstraintSetRef):
         raise TgiError("Invalid constraintSetRef handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(constraintSetRefID)
-    return True
+    return _detach_instantiation_reference(constraintSetRefID, "constraint_set_ref")
 
 
 def removeComponentInstantiationDefaultFileBuilder(fileBuilderID: str) -> bool:
@@ -479,13 +530,15 @@ def removeComponentInstantiationDefaultFileBuilder(fileBuilderID: str) -> bool:
 def removeComponentInstantiationFileSetRef(fileSetRefID: str) -> bool:
     """Remove a ``fileSetRef``.
 
+    Invalidate the removed subtree. Return False for an unowned reference;
+    restore parsed ownership through the corresponding instantiation getter.
+
     Section: F.7.56.10.
     """
     fsr = resolve_handle(fileSetRefID)
     if not isinstance(fsr, FileSetRef):
         raise TgiError("Invalid fileSetRef handle", TgiFaultCode.INVALID_ID)
-    detach_child_by_handle(fileSetRefID)
-    return True
+    return _detach_instantiation_reference(fileSetRefID, "file_set_ref")
 
 
 def removeComponentInstantiationIsVirtual(componentInstantiationID: str) -> bool:
