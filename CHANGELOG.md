@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.5.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.4.2...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* expand standard validation and generated TGI contracts ([#21](https://github.com/amal-khailtash/pyipxact-de/issues/21)) ([7e35647](https://github.com/amal-khailtash/pyipxact-de/commit/7e35647bced07206e2a69bee62765b334a272f48))
+
 ## [0.4.2](https://github.com/amal-khailtash/pyipxact-de/compare/v0.4.1...v0.4.2) (2026-10-20)
 
 
