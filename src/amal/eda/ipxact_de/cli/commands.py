@@ -6,7 +6,7 @@ from pathlib import Path
 from rich import print
 
 from amal.eda.ipxact_de.xml_document import XmlDocument
-from amal.utilities import ARROW, XmlTranslator, XmlValidator
+from amal.utilities import ARROW, XmlTranslator
 from org.accellera import TRANSFORMATIONS
 
 
@@ -23,49 +23,29 @@ def identify_xml(args: argparse.Namespace) -> None:
 
 
 def validate_xml(args: argparse.Namespace) -> None:
-    print("=" * 120)
+    """Validate every input and exit unsuccessfully if any document fails."""
+    from rich.console import Console
 
-    xml_files = getattr(args, "xml-files")
-    for xml_file in xml_files:
-        print(f"{ARROW} Validating XML file: {xml_file.name} ...")
-        doc = XmlDocument(Path(xml_file.name))
-        schema = doc.schema or ""
-        # print("  " + "-" * 80)
-        xmld_validator = XmlValidator(schema, use_lxml=False)
-        # valid =
-        xmld_validator.validate(xml_file.name)
-        # if valid:
-        #     print('  {ARROW} Valid! {CHECK}')
-        # else:
-        #     print('  {ARROW} Not valid! {CROSS}')
+    from amal.eda.ipxact_de.xml_validation import validate_ipxact_xml
 
-        # # Run xmllint with the detected schema (if available) for detailed validation diagnostics.
-        # # Falls back gracefully if xmllint is not installed or schema unavailable.
-        # if schema:
-        #     cmd = [
-        #         "xmllint",
-        #         "--schema",
-        #         schema,
-        #         "--noout",
-        #         xml_file.name,
-        #     ]
-        #     print(f"  {ARROW} Running: {' '.join(cmd)}")
-        #     try:
-        #         result = subprocess.run(cmd, capture_output=True, text=True)
-        #         if result.returncode == 0:
-        #             print("  {ARROW} xmllint: valid")
-        #         else:
-        #             print("  {ARROW} xmllint: invalid")
-        #             if result.stderr:
-        #                 print(result.stderr.strip())
-        #     except FileNotFoundError:
-        #         print("  {ARROW} xmllint not found (install libxml2-utils).")
-        # else:
-        #     print("  {ARROW} No schema path available for xmllint validation.")
-
-        print("  " + "-" * 80)
-
-    print("=" * 120)
+    console = Console()
+    failed = False
+    for xml_file in getattr(args, "xml-files"):
+        result = validate_ipxact_xml(
+            Path(xml_file.name), schema_root=getattr(args, "schema_root", None),
+            semantic=getattr(args, "semantic", False),
+        )
+        console.print(f"{xml_file.name}: {'valid' if result.ok else 'invalid'}", markup=False)
+        if result.checked_semantic_rules:
+            console.print("Checked semantic rules: " + ", ".join(result.checked_semantic_rules), markup=False)
+        for issue in result.issues:
+            location = f"line {issue.line}: " if issue.line is not None else ""
+            rule = f"{issue.rule_id}: " if issue.rule_id else ""
+            path = f" ({issue.path})" if issue.path else ""
+            console.print(f"  {location}{rule}{issue.message}{path}", markup=False)
+        failed |= not result.ok
+    if failed:
+        raise SystemExit(1)
 
 
 def get_transformations_paths(from_version: str, to_version: str):

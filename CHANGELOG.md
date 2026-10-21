@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Expose scoped XML semantic validation in Python and CLI with offline schemas, source diagnostics and failure exit status.
 - Add IEEE abstraction constraint semantic checks with rule IDs and XPath diagnostics for direction and clock references.
 
 ### Fixed

@@ -3144,3 +3144,13 @@ Abstraction constraint semantic validation
 - ☑ SCR 12.8 ConstraintClockLogicalPortExists for local IEEE 1685-2022 abstraction wire modes.
 - ☑ Return scoped rule coverage and XPath diagnostics without document mutation.
 - ☐ Resolve inherited/configured definitions and complete the remaining Annex B semantic rules.
+
+XML and CLI semantic validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Select offline schema validation with CLI --schema-root.
+- ☑ Request scoped abstraction semantic checks with Python semantic=True or CLI --semantic.
+- ☑ Run semantic checks after successful XSD validation and report unsupported roots explicitly.
+- ☑ Return semantic rule IDs, XPath locations, source lines and checked-rule coverage.
+- ☑ Validate all CLI inputs and return exit status 1 when any document fails.
+- ☐ Extend semantic coverage to other roots, versions and inherited/configured documents.

@@ -3,6 +3,7 @@ import re
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -11,10 +12,10 @@ from rich.theme import Theme
 
 from amal.utilities import ARROW, logger
 from org.accellera.standard import STANDARDS
-from ..loader import load_registry_from_cache, load_registry_from_paths
-from ..tgi.ipxact.v1685_2022.core import registry
 
 from .. import __description__, __version__
+from ..loader import load_registry_from_cache, load_registry_from_paths
+from ..tgi.ipxact.v1685_2022.core import registry
 from .commands import convert_xml, identify_xml, validate_xml
 
 # Global Rich console (single theme) reused for all help rendering.
@@ -417,6 +418,14 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
             action=_RichSubHelpAction,
             nargs=0,
             help="Show this message and exit",
+        )
+        parser_validate.add_argument(
+            "--schema-root", type=Path,
+            help="Local Accellera schema tree containing IPXACT and SPIRIT directories",
+        )
+        parser_validate.add_argument(
+            "--semantic", action="store_true",
+            help="Also check implemented IEEE 1685-2022 abstraction constraint rules",
         )
         # Use a wrapper to show subcommand help if no files are provided.
         parser_validate.set_defaults(func=_run_validate, __validate_parser=parser_validate)
