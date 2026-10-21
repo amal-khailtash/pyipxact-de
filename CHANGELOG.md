@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.6.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.5.0...v0.6.0) (2026-10-21)
+
+
+### Features
+
+* expand TGI BASE access and organize Accellera APIs ([#23](https://github.com/amal-khailtash/pyipxact-de/issues/23)) ([3f2d0ac](https://github.com/amal-khailtash/pyipxact-de/commit/3f2d0ac035d9007420618b1b124bfff380ef0919))
+
 ## [0.5.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.4.2...v0.5.0) (2026-10-21)
 
 
