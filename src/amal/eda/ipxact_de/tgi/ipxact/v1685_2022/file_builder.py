@@ -143,11 +143,51 @@ def _get_value(node: Any) -> Any:
 # BASE (F.7.45)
 # ---------------------------------------------------------------------------
 
-def _resolve_build_command(fileHandle: str) -> Any:
-    f = _resolve(fileHandle)
-    # buildCommand is an optional child of a File element
-    bc = getattr(f, "build_command", None)
-    return bc
+def _resolve_build_command(handle: str) -> Any:
+    """Resolve a standard buildCommand handle or a legacy containing-file handle."""
+    from org.accellera.ipxact.v1685_2022 import File
+
+    obj = _resolve(handle)
+    if isinstance(obj, File.BuildCommand):
+        return obj
+    if not isinstance(obj, File):
+        raise TgiError("Expected a file or buildCommand handle", TgiFaultCode.INVALID_ID)
+    if obj.build_command is not None:
+        register_parent(obj.build_command, obj, ("build_command",), "single")
+    return obj.build_command
+
+
+def _set_build_expression(handle: str, field: str, value: str) -> bool:
+    """Set generated source text with atomic validation and stable child identity."""
+    from org.accellera.ipxact.v1685_2022 import File, StringExpression
+
+    bc = _resolve_build_command(handle)
+    if not isinstance(value, str):
+        raise TgiError("Expected expression source string", TgiFaultCode.INVALID_ARGUMENT)
+    if bc is None:
+        owner = _resolve(handle)
+        bc = File.BuildCommand()
+        owner.build_command = bc
+        register_parent(bc, owner, ("build_command",), "single")
+    child = getattr(bc, field)
+    if child is None:
+        cls = File.BuildCommand.Flags if field == "flags" else StringExpression
+        child = cls(value=value)
+        setattr(bc, field, child)
+    else:
+        child.value = value
+    register_parent(child, bc, (field,), "single")
+    return True
+
+
+def _remove_build_expression(handle: str, field: str) -> bool:
+    """Remove a generated source field and invalidate the child handle."""
+    bc = _resolve_build_command(handle)
+    child = None if bc is None else getattr(bc, field)
+    if child is None:
+        return False
+    register_parent(child, bc, (field,), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
 def getBuildCommandCommand(fileID: str) -> str | None:  # F.7.45.1
@@ -161,24 +201,27 @@ def getBuildCommandCommand(fileID: str) -> str | None:  # F.7.45.1
     return _get_value(bc.command)
 
 
-def getBuildCommandCommandExpression(fileID: str) -> str | None:  # F.7.45.2
+def getBuildCommandCommandExpression(buildCommandID: str) -> str | None:  # F.7.45.2
     """Return expression (if any) for build command.
 
     Section: F.7.45.2.
     """
-    bc = _resolve_build_command(fileID)
+    bc = _resolve_build_command(buildCommandID)
     if bc is None or bc.command is None:
         return None
     return getattr(bc.command, "value", None)
 
 
-def getBuildCommandCommandID(fileID: str) -> str | None:  # F.7.45.3
+def getBuildCommandCommandID(buildCommandID: str) -> str | None:  # F.7.45.3
     """Return handle of build command value element.
 
     Section: F.7.45.3.
     """
-    bc = _resolve_build_command(fileID)
-    return None if bc is None or bc.command is None else get_handle(bc.command)
+    bc = _resolve_build_command(buildCommandID)
+    if bc is None or bc.command is None:
+        return None
+    register_parent(bc.command, bc, ("command",), "single")
+    return get_handle(bc.command)
 
 
 def getBuildCommandFlags(fileID: str) -> str | None:  # F.7.45.4
@@ -192,24 +235,27 @@ def getBuildCommandFlags(fileID: str) -> str | None:  # F.7.45.4
     return _get_value(bc.flags)
 
 
-def getBuildCommandFlagsExpression(fileID: str) -> str | None:  # F.7.45.5
+def getBuildCommandFlagsExpression(buildCommandID: str) -> str | None:  # F.7.45.5
     """Return expression (if any) for flags.
 
     Section: F.7.45.5.
     """
-    bc = _resolve_build_command(fileID)
+    bc = _resolve_build_command(buildCommandID)
     if bc is None or bc.flags is None:
         return None
     return getattr(bc.flags, "value", None)
 
 
-def getBuildCommandFlagsID(fileID: str) -> str | None:  # F.7.45.6
+def getBuildCommandFlagsID(buildCommandID: str) -> str | None:  # F.7.45.6
     """Return handle of flags element.
 
     Section: F.7.45.6.
     """
-    bc = _resolve_build_command(fileID)
-    return None if bc is None or bc.flags is None else get_handle(bc.flags)
+    bc = _resolve_build_command(buildCommandID)
+    if bc is None or bc.flags is None:
+        return None
+    register_parent(bc.flags, bc, ("flags",), "single")
+    return get_handle(bc.flags)
 
 
 def getBuildCommandReplaceDefaultFlags(fileID: str) -> bool | None:  # F.7.45.7
@@ -455,28 +501,26 @@ def addLinkerCommandFileGeneratorRef(linkerCommandFileID: str, generatorRef: str
     return True
 
 
-def removeBuildCommandCommand(fileID: str) -> bool:  # F.7.46.5
+def removeBuildCommandCommand(buildCommandID: str) -> bool:  # F.7.46.5
     """Remove buildCommand.command element.
+
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
 
     Section: F.7.46.5.
     """
-    bc = _resolve_build_command(fileID)
-    if bc is None or bc.command is None:
-        return False
-    bc.command = None
-    return True
+    return _remove_build_expression(buildCommandID, "command")
 
 
 def removeBuildCommandFlags(fileID: str) -> bool:  # F.7.46.6
     """Remove buildCommand.flags element.
 
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
+
     Section: F.7.46.6.
     """
-    bc = _resolve_build_command(fileID)
-    if bc is None or bc.flags is None:
-        return False
-    bc.flags = None
-    return True
+    return _remove_build_expression(fileID, "flags")
 
 
 def removeBuildCommandReplaceDefaultFlags(fileID: str) -> bool:  # F.7.46.7
@@ -647,34 +691,26 @@ def removeLinkerCommandFileGeneratorRef(linkerCommandFileID: str) -> bool:  # F.
     return True
 
 
-def setBuildCommandCommand(fileID: str, command: str) -> bool:  # F.7.46.20
+def setBuildCommandCommand(buildCommandID: str, command: str) -> bool:  # F.7.46.20
     """Set buildCommand.command value (creates buildCommand if absent).
+
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
 
     Section: F.7.46.20.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-    bc.command = command  # type: ignore[attr-defined]
-    return True
+    return _set_build_expression(buildCommandID, "command", command)
 
 
-def setBuildCommandFlags(fileID: str, flags: str) -> bool:  # F.7.46.21
+def setBuildCommandFlags(buildCommandID: str, flags: str) -> bool:  # F.7.46.21
     """Set buildCommand.flags value.
+
+    Accept a standard buildCommand handle or a legacy file handle. Preserve
+    generated metadata on edits; removal invalidates the expression handle.
 
     Section: F.7.46.21.
     """
-    f = _resolve(fileID)
-    bc = getattr(f, "build_command", None)
-    if bc is None:
-        from org.accellera.ipxact.v1685_2022.file import File as _File
-        bc = _File.BuildCommand()
-        f.build_command = bc
-    bc.flags = flags  # type: ignore[attr-defined]
-    return True
+    return _set_build_expression(buildCommandID, "flags", flags)
 
 
 def setBuildCommandReplaceDefaultFlags(fileID: str, replace: bool) -> bool:  # F.7.46.22

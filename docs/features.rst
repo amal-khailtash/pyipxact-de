@@ -3398,3 +3398,18 @@ Generated file builder metadata
 - ☑ getFileBuilderCommand: tests/test_tgi_file_builder_metadata.py.
 
 Generated file-builder source edits preserve child identity and metadata; removals invalidate child handles. Expression evaluation remains pending.
+
+
+Build command source editing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ setBuildCommandCommand: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandCommandExpression: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandCommandID: tests/test_tgi_build_command_sources.py.
+- ☑ removeBuildCommandCommand: tests/test_tgi_build_command_sources.py.
+- ☑ setBuildCommandFlags: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandFlagsExpression: tests/test_tgi_build_command_sources.py.
+- ☑ getBuildCommandFlagsID: tests/test_tgi_build_command_sources.py.
+- ☑ removeBuildCommandFlags: tests/test_tgi_build_command_sources.py.
+
+Build command/flags source editing preserves generated identity and append/extensions, supports standard buildCommand handles and legacy file handles, and invalidates removed expressions.
