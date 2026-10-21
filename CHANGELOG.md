@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Read generated generator-chain group selectors through BASE getters.
 - Traverse generated mixed generator-chain collections through BASE getters.
 - Read generated generator API/executable metadata with parsed child ownership through BASE getters.
 - Read instance-generator groups and scope with stable typed handles through BASE getters.

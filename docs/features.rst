@@ -1823,7 +1823,7 @@ Generator (EXTENDED)
 Generator chain (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``getComponentGeneratorSelectorGroupSelectorID`` (F.7.51.1)
+- ☑ ``getComponentGeneratorSelectorGroupSelectorID`` (F.7.51.1) - Generated group-selector source traversal with stable handles and parsed ownership.
 - ☑ ``getGeneratorChainChainGroupIDs`` (F.7.51.2) - Ordered typed traversal of generated chain collections with parsed ownership.
 - ☑ ``getGeneratorChainChoiceIDs`` (F.7.51.3) - Ordered typed traversal of generated chain collections with parsed ownership.
 - ☑ ``getGeneratorChainComponentGeneratorSelectorIDs`` (F.7.51.4) - Ordered typed traversal of generated chain collections with parsed ownership.
@@ -1831,10 +1831,10 @@ Generator chain (BASE)
 - ☑ ``getGeneratorChainGeneratorIDs`` (F.7.51.6) - Ordered typed traversal of generated chain collections with parsed ownership.
 - ☐ ``getGeneratorChainSelectorGeneratorChainRefByID`` (F.7.51.7)
 - ☐ ``getGeneratorChainSelectorGeneratorChainRefByVLNV`` (F.7.51.8)
-- ☐ ``getGeneratorChainSelectorGroupSelectorID`` (F.7.51.9)
-- ☐ ``getGroupSelectorNameIDs`` (F.7.51.10)
-- ☐ ``getGroupSelectorSelectionNames`` (F.7.51.11)
-- ☐ ``getGroupSelectorSelectionOperator`` (F.7.51.12)
+- ☑ ``getGeneratorChainSelectorGroupSelectorID`` (F.7.51.9) - Generated group-selector source traversal with stable handles and parsed ownership.
+- ☑ ``getGroupSelectorNameIDs`` (F.7.51.10) - Generated group-selector source traversal with stable handles and parsed ownership.
+- ☑ ``getGroupSelectorSelectionNames`` (F.7.51.11) - Generated group-selector source traversal with stable handles and parsed ownership.
+- ☑ ``getGroupSelectorSelectionOperator`` (F.7.51.12) - Generated group-selector source traversal with stable handles and parsed ownership.
 
 Generator chain (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

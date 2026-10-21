@@ -118,7 +118,10 @@ def getComponentGeneratorSelectorGroupSelectorID(componentGeneratorSelectorID: s
     if sel is None:
         raise TgiError("Invalid componentGeneratorSelector handle", TgiFaultCode.INVALID_ID)
     gs = sel.group_selector
-    return None if gs is None else get_handle(gs)
+    if gs is None:
+        return None
+    register_parent(gs, sel, ("group_selector",), "single")
+    return get_handle(gs)
 
 
 def getGeneratorChainChainGroupIDs(generatorChainID: str) -> list[str]:
@@ -220,8 +223,11 @@ def getGeneratorChainSelectorGroupSelectorID(generatorChainSelectorID: str) -> s
     sel = _resolve_chain_selector(generatorChainSelectorID)
     if sel is None:
         raise TgiError("Invalid generatorChainSelector handle", TgiFaultCode.INVALID_ID)
-    gs = sel.group_selector
-    return None if gs is None else get_handle(gs)
+    gs = sel.group_selector_or_generator_chain_ref
+    if not isinstance(gs, GroupSelector):
+        return None
+    register_parent(gs, sel, ("group_selector_or_generator_chain_ref",), "single")
+    return get_handle(gs)
 
 
 def getGroupSelectorNameIDs(groupSelectorID: str) -> list[str]:
@@ -232,7 +238,9 @@ def getGroupSelectorNameIDs(groupSelectorID: str) -> list[str]:
     gs = _resolve_group_selector(groupSelectorID)
     if gs is None:
         raise TgiError("Invalid groupSelector handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(n) for n in getattr(gs, "name", [])]
+    for child in gs.name:
+        register_parent(child, gs, ("name",), "list")
+    return [get_handle(child) for child in gs.name]
 
 
 def getGroupSelectorSelectionNames(groupSelectorID: str) -> list[str]:
