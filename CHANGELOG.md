@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- BASE file-set collections preserve source order and stable handles, restore parsed ownership and preserve serialized content during traversal.
 - BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.
 - BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.
 - Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.

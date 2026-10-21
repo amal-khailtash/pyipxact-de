@@ -333,18 +333,27 @@ def getFileSetDefaultFileBuilderIDs(fileSetID: str) -> list[str]:  # F.7.47.17
 
 
 def getFileSetDependencyIDs(fileSetID: str) -> list[str]:  # F.7.47.18
-    """Return fileSet dependency handles (Section: F.7.47.18)."""
-    return _ids(_resolve_fileset(fileSetID).dependency)  # type: ignore[arg-type]
+    """Return stable fileSet dependency handles with parsed ownership (Section: F.7.47.18)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.dependency:
+        register_parent(child, fs, ("dependency",), "list")
+    return _ids(fs.dependency)
 
 
 def getFileSetFileIDs(fileSetID: str) -> list[str]:  # F.7.47.19
-    """Return file handles (Section: F.7.47.19)."""
-    return _ids(_resolve_fileset(fileSetID).file)  # type: ignore[arg-type]
+    """Return stable file handles with parsed ownership (Section: F.7.47.19)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.file:
+        register_parent(child, fs, ("file",), "list")
+    return _ids(fs.file)
 
 
 def getFileSetFunctionIDs(fileSetID: str) -> list[str]:  # F.7.47.20
-    """Return function handles (Section: F.7.47.20)."""
-    return _ids(_resolve_fileset(fileSetID).function)  # type: ignore[arg-type]
+    """Return stable function handles with parsed ownership (Section: F.7.47.20)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.function:
+        register_parent(child, fs, ("function",), "list")
+    return _ids(fs.function)
 
 
 def getFileSetGroupFileSetRefIDs(fileSetGroupID: str) -> list[str]:  # F.7.47.21
@@ -360,8 +369,11 @@ def getFileSetGroupFileSetRefIDs(fileSetGroupID: str) -> list[str]:  # F.7.47.21
 
 
 def getFileSetGroupIDs(fileSetID: str) -> list[str]:  # F.7.47.22
-    """Return group handles (Section: F.7.47.22)."""
-    return _ids(_resolve_fileset(fileSetID).group)  # type: ignore[arg-type]
+    """Return stable group handles with parsed ownership (Section: F.7.47.22)."""
+    fs = _resolve_fileset(fileSetID)
+    for child in fs.group:
+        register_parent(child, fs, ("group",), "list")
+    return _ids(fs.group)
 
 
 def getFileSetGroups(fileSetID: str) -> list[str]:  # F.7.47.23

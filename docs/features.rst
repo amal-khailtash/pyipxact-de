@@ -3482,3 +3482,15 @@ File BASE identity metadata
 - ☑ getFileName: tests/test_tgi_file_base_metadata.py.
 
 BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.
+
+
+File-set BASE collections
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getFileSetDependencyIDs: tests/test_tgi_fileset_base_collections.py.
+- ☑ getFileSetFileIDs: tests/test_tgi_fileset_base_collections.py.
+- ☑ getFileSetFunctionIDs: tests/test_tgi_fileset_base_collections.py.
+- ☑ getFileSetGroupIDs: tests/test_tgi_fileset_base_collections.py.
+- ☑ getFileSetGroups: tests/test_tgi_fileset_base_collections.py.
+
+BASE file-set collections preserve source order and stable handles, restore parsed ownership and preserve serialized content during traversal.
