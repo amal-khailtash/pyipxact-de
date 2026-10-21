@@ -3164,3 +3164,14 @@ Component constraint semantic validation
 - ☑ Expose scoped component rules through Python XML validation and CLI --semantic.
 - ☑ Preserve document content and return rule coverage with XPath and source diagnostics.
 - ☐ Resolve configured views, driver ranges and expressions for SCR 12.9 single-bit validation.
+
+TGI descendant handle invalidation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ Invalidate packet-field width and value handles when removing a field.
+- ☑ Invalidate fields and expression descendants when removing a packet or logical port.
+- ☑ Invalidate mode widths, constraint containers and timing handles when removing a mode.
+- ☑ Invalidate replaced style descendants during wire/transactional conversion while preserving packets.
+- ☑ Invalidate choice enumerations when removing their owning choice.
+- ☑ Traverse generated model children without requiring prior ownership getters; preserve unaffected siblings.
+- ☐ Audit every TGI remover and reference alias for complete session lifetime conformance.
