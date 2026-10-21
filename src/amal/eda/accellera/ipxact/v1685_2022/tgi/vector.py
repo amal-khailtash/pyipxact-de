@@ -110,11 +110,8 @@ def getVectorIDs(vectorContainerID: str) -> list[str]:  # F.7.83.1
     return ids
 
 
-def getVectorIdAttribute(elementID: str) -> str | None:  # F.7.83.2
-    obj = _resolve(elementID)
-    if obj is None:
-        return None
-    return getattr(obj, "vector_id", None)  # optional attribute
+# Shared attribute operation also appears in the Vector BASE category.
+from .element_attribute import getVectorIdAttribute  # noqa: E402 (standard category order)
 
 
 def getVectorLeftID(vectorID: str) -> str | None:  # F.7.83.3
