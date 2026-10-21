@@ -3074,12 +3074,12 @@ View (BASE)
 
 * ☐ ``getAbstractorInstanceViewNameRefByID`` (F.7.87.1)
 * ☐ ``getViewComponentInstantiationRefByID`` (F.7.87.2)
-* ☐ ``getViewComponentInstantiationRefByName`` (F.7.87.3)
+* ☑ ``getViewComponentInstantiationRefByName`` (F.7.87.3)
 * ☐ ``getViewDesignConfigurationInstantiationID`` (F.7.87.4)
 * ☐ ``getViewDesignConfigurationInstantiationRefByID`` (F.7.87.5)
-* ☐ ``getViewDesignConfigurationInstantiationRefByName`` (F.7.87.6)
+* ☑ ``getViewDesignConfigurationInstantiationRefByName`` (F.7.87.6)
 * ☐ ``getViewDesignInstantiationRefByID`` (F.7.87.7)
-* ☐ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
+* ☑ ``getViewDesignInstantiationRefByName`` (F.7.87.8)
 * ☑ ``getViewEnvIdentifierIDs`` (F.7.87.9)
 * ☑ ``getViewEnvIdentifiers`` (F.7.87.10)
 * ☐ ``getViewRefByName`` (F.7.87.11)
@@ -3088,13 +3088,13 @@ View (EXTENDED)
 ~~~~~~~~~~~~~~~
 
 * ☑ ``addViewEnvIdentifier`` (F.7.88.1)
-* ☐ ``removeViewComponentInstantiationRef`` (F.7.88.2)
-* ☐ ``removeViewDesignConfigurationInstantiationRef`` (F.7.88.3)
-* ☐ ``removeViewDesignInstantiationRef`` (F.7.88.4)
+* ☑ ``removeViewComponentInstantiationRef`` (F.7.88.2)
+* ☑ ``removeViewDesignConfigurationInstantiationRef`` (F.7.88.3)
+* ☑ ``removeViewDesignInstantiationRef`` (F.7.88.4)
 * ☑ ``removeViewEnvIdentifier`` (F.7.88.5)
-* ☐ ``setViewComponentInstantiationRef`` (F.7.88.6)
-* ☐ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
-* ☐ ``setViewDesignInstantiationRef`` (F.7.88.8)
+* ☑ ``setViewComponentInstantiationRef`` (F.7.88.6)
+* ☑ ``setViewDesignConfigurationInstantiationRef`` (F.7.88.7)
+* ☑ ``setViewDesignInstantiationRef`` (F.7.88.8)
 * ☐ ``setViewRefValue`` (F.7.88.9)
 
 Development and release automation
@@ -3215,3 +3215,29 @@ View environment metadata
 - ☑ removeViewEnvIdentifier supports generated component/abstractor views, source values and ownership.
 - ☑ Legacy getViewName helper supports generated views; not counted as a standard operation.
 - ☐ Complete view reference resolution and parsed view parent ownership.
+
+View source instantiation references
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewComponentInstantiationRefByName uses generated source strings and the standard view handle.
+- ☑ setViewComponentInstantiationRef uses generated source strings and the standard view handle.
+- ☑ removeViewComponentInstantiationRef uses generated source strings and the standard view handle.
+- ☑ getViewDesignConfigurationInstantiationRefByName uses generated source strings and the standard view handle.
+- ☑ setViewDesignConfigurationInstantiationRef uses generated source strings and the standard view handle.
+- ☑ removeViewDesignConfigurationInstantiationRef uses generated source strings and the standard view handle.
+- ☑ getViewDesignInstantiationRefByName uses generated source strings and the standard view handle.
+- ☑ setViewDesignInstantiationRef uses generated source strings and the standard view handle.
+- ☑ removeViewDesignInstantiationRef uses generated source strings and the standard view handle.
+- ☐ Resolve reference targets, validate configuration semantics and restore parsed view root ownership.
+
+View reference API behavior
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The component, design and design-configuration instantiation reference APIs
+operate on a component view handle. Setters accept a nonempty source name;
+name getters return that string or ``None`` when absent. Removers return
+``True`` when a reference was present and ``False`` when already absent.
+Changing or removing a reference preserves the referenced object and other
+view fields. Invalid view handles raise ``INVALID_ID``; invalid setter values
+raise ``INVALID_ARGUMENT`` before mutation. These source operations do not
+resolve targets or establish configured-reference validity.

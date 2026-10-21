@@ -4,7 +4,7 @@ Implements BASE (F.7.87) and EXTENDED (F.7.88) API for *view* elements.
 A ``view`` in IP-XACT names a particular representation of a component
 and references component instantiations, bus interfaces, filesets, env
 identifiers, etc. This module exposes only the standard public TGI
-functions – no more, no less – following the tolerant BASE / strict
+functions - no more, no less - following the tolerant BASE / strict
 EXTENDED convention used across the codebase.
 
 Notes / assumptions:
@@ -20,7 +20,6 @@ Notes / assumptions:
   ``TgiFaultCode.INVALID_ARGUMENT`` (semantic issues).
 """
 import re
-from types import SimpleNamespace
 from typing import Any
 
 from .core import (
@@ -47,6 +46,8 @@ __all__: list[str] = [
     "getViewParametersID",
     "getViewPortWireRefIDs",
     "getViewVendorExtensionsID",
+    "getViewDesignConfigurationInstantiationRefByName",
+    "getViewDesignInstantiationRefByName",
     # EXTENDED (F.7.88)
     "addViewEnvIdentifier",
     "removeViewBusInterfaceRef",
@@ -58,6 +59,10 @@ __all__: list[str] = [
     "setViewComponentInstantiationRef",
     "setViewModelName",
     "setViewName",
+    "setViewDesignConfigurationInstantiationRef",
+    "removeViewDesignConfigurationInstantiationRef",
+    "setViewDesignInstantiationRef",
+    "removeViewDesignInstantiationRef",
 ]
 
 
@@ -116,14 +121,6 @@ def getViewComponentInstantiationRefByID(viewID: str) -> str | None:  # F.7.87.2
         return None
     ci_ref = getattr(v, "component_instantiation_ref", None)
     return get_handle(ci_ref) if ci_ref is not None else None
-
-
-def getViewComponentInstantiationRefByName(viewID: str) -> str | None:  # F.7.87.3
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    ci_ref = getattr(v, "component_instantiation_ref", None)
-    return getattr(ci_ref, "name", None)
 
 
 def getViewEnvIdentifierIDs(viewID: str) -> list[str]:
@@ -232,10 +229,6 @@ def removeViewBusInterfaceRef(refID: str) -> bool:  # F.7.88.2
     return detach_child_by_handle(refID)
 
 
-def removeViewComponentInstantiationRef(refID: str) -> bool:  # F.7.88.3
-    return detach_child_by_handle(refID)
-
-
 def removeViewEnvIdentifier(envIdentifierID: str) -> bool:
     """Remove an owned generated environment identifier (F.7.88.5)."""
     from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
@@ -267,18 +260,6 @@ def removeViewPortWireRef(refID: str) -> bool:  # F.7.88.7
     return detach_child_by_handle(refID)
 
 
-def setViewComponentInstantiationRef(viewID: str, name: str) -> bool:  # F.7.88.8
-    v = _ensure(viewID)
-    ref = getattr(v, "component_instantiation_ref", None)
-    if ref is None:
-        ref = SimpleNamespace(name=name)
-        v.component_instantiation_ref = ref  # type: ignore[attr-defined]
-        register_parent(ref, v, ("component_instantiation_ref",), "single")
-    else:
-        ref.name = name  # type: ignore[attr-defined]
-    return True
-
-
 def setViewModelName(viewID: str, modelName: str) -> bool:  # F.7.88.9
     v = _ensure(viewID)
     v.model_name = modelName  # type: ignore[attr-defined]
@@ -289,3 +270,130 @@ def setViewName(viewID: str, name: str) -> bool:  # F.7.88.10
     v = _ensure(viewID)
     v.name = name  # type: ignore[attr-defined]
     return True
+
+
+def _reference_view(viewID: str):
+    from org.accellera.ipxact.v1685_2022.model_type import ModelType
+
+    view = resolve_handle(viewID)
+    if not isinstance(view, ModelType.Views.View):
+        raise TgiError("Expected a component view handle", TgiFaultCode.INVALID_ID)
+    return view
+
+
+def _set_reference(viewID: str, value: str, attr: str) -> bool:
+    view = _reference_view(viewID)
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError("Expected a nonempty instantiation name", TgiFaultCode.INVALID_ARGUMENT)
+    setattr(view, attr, value)
+    return True
+
+
+def _remove_reference(viewID: str, attr: str) -> bool:
+    view = _reference_view(viewID)
+    if getattr(view, attr) is None:
+        return False
+    setattr(view, attr, None)
+    return True
+
+
+def getViewComponentInstantiationRefByName(viewID: str) -> str | None:
+    """Return the optional source instantiation name from a component view.
+
+    Section: F.7.87.3.
+
+    The result is the stored string, or None when absent. This does not
+    resolve the target. Invalid or non-component view handles raise INVALID_ID.
+    """
+    return _reference_view(viewID).component_instantiation_ref
+
+
+def setViewComponentInstantiationRef(viewID: str, componentInstantiationRef: str) -> bool:
+    """Set a component view's source reference to the supplied instantiation name.
+
+    Section: F.7.88.6.
+
+    Accept a nonempty string and preserve other view fields. Invalid handles
+    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
+    Target existence and configuration semantics are checked separately.
+    """
+    return _set_reference(viewID, componentInstantiationRef, "component_instantiation_ref")
+
+
+def removeViewComponentInstantiationRef(viewID: str) -> bool:
+    """Remove the optional source reference from the supplied component view.
+
+    Section: F.7.88.2.
+
+    Return True when removed, False when absent. Preserve other view fields
+    and referenced instantiation objects. Invalid handles raise INVALID_ID.
+    """
+    return _remove_reference(viewID, "component_instantiation_ref")
+
+
+def getViewDesignConfigurationInstantiationRefByName(viewID: str) -> str | None:
+    """Return the optional source instantiation name from a component view.
+
+    Section: F.7.87.6.
+
+    The result is the stored string, or None when absent. This does not
+    resolve the target. Invalid or non-component view handles raise INVALID_ID.
+    """
+    return _reference_view(viewID).design_configuration_instantiation_ref
+
+
+def setViewDesignConfigurationInstantiationRef(viewID: str, designInstantiationRef: str) -> bool:
+    """Set a component view's source reference to the supplied instantiation name.
+
+    Section: F.7.88.7.
+
+    Accept a nonempty string and preserve other view fields. Invalid handles
+    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
+    Target existence and configuration semantics are checked separately.
+    """
+    return _set_reference(viewID, designInstantiationRef, "design_configuration_instantiation_ref")
+
+
+def removeViewDesignConfigurationInstantiationRef(viewID: str) -> bool:
+    """Remove the optional source reference from the supplied component view.
+
+    Section: F.7.88.3.
+
+    Return True when removed, False when absent. Preserve other view fields
+    and referenced instantiation objects. Invalid handles raise INVALID_ID.
+    """
+    return _remove_reference(viewID, "design_configuration_instantiation_ref")
+
+
+def getViewDesignInstantiationRefByName(viewID: str) -> str | None:
+    """Return the optional source instantiation name from a component view.
+
+    Section: F.7.87.8.
+
+    The result is the stored string, or None when absent. This does not
+    resolve the target. Invalid or non-component view handles raise INVALID_ID.
+    """
+    return _reference_view(viewID).design_instantiation_ref
+
+
+def setViewDesignInstantiationRef(viewID: str, designInstantiationRef: str) -> bool:
+    """Set a component view's source reference to the supplied instantiation name.
+
+    Section: F.7.88.8.
+
+    Accept a nonempty string and preserve other view fields. Invalid handles
+    raise INVALID_ID; invalid names raise INVALID_ARGUMENT before mutation.
+    Target existence and configuration semantics are checked separately.
+    """
+    return _set_reference(viewID, designInstantiationRef, "design_instantiation_ref")
+
+
+def removeViewDesignInstantiationRef(viewID: str) -> bool:
+    """Remove the optional source reference from the supplied component view.
+
+    Section: F.7.88.4.
+
+    Return True when removed, False when absent. Preserve other view fields
+    and referenced instantiation objects. Invalid handles raise INVALID_ID.
+    """
+    return _remove_reference(viewID, "design_instantiation_ref")
