@@ -69,9 +69,9 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
-def _resolve_generator(handle: str) -> Generator | None:
+def _resolve_generator(handle: str) -> GeneratorType | None:
     obj = resolve_handle(handle)
-    return obj if isinstance(obj, Generator) else None
+    return obj if isinstance(obj, GeneratorType) else None
 
 
 def _resolve_instance_generator(handle: str) -> InstanceGeneratorType | None:
@@ -110,7 +110,9 @@ def getAbstractorGeneratorGroupIDs(abstractorGeneratorID: str) -> list[str]:
     ig = _resolve_instance_generator(abstractorGeneratorID)
     if ig is None or not isinstance(resolve_handle(abstractorGeneratorID), AbstractorGenerator):
         raise TgiError("Invalid abstractorGenerator handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in getattr(ig, "group", [])]
+    for group in ig.group:
+        register_parent(group, ig, ("group",), "list")
+    return [get_handle(group) for group in ig.group]
 
 
 def getComponentGeneratorGroupIDs(componentGeneratorID: str) -> list[str]:
@@ -121,7 +123,9 @@ def getComponentGeneratorGroupIDs(componentGeneratorID: str) -> list[str]:
     ig = _resolve_instance_generator(componentGeneratorID)
     if ig is None or not isinstance(resolve_handle(componentGeneratorID), ComponentGenerator):
         raise TgiError("Invalid componentGenerator handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in getattr(ig, "group", [])]
+    for group in ig.group:
+        register_parent(group, ig, ("group",), "list")
+    return [get_handle(group) for group in ig.group]
 
 
 def getGeneratorApiService(generatorID: str) -> str | None:
@@ -179,7 +183,8 @@ def getGeneratorGroups(generatorID: str) -> list[str]:
     """
     ig = _resolve_instance_generator(generatorID)
     if ig is None:
-        # Plain generator: no groups
+        if _resolve_generator(generatorID) is None:
+            raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
         return []
     return [str(getattr(g, "value", "")) for g in getattr(ig, "group", []) if getattr(g, "value", None) is not None]
 
@@ -223,6 +228,8 @@ def getGeneratorScope(generatorID: str) -> str | None:
     """
     ig = _resolve_instance_generator(generatorID)
     if ig is None:
+        if _resolve_generator(generatorID) is None:
+            raise TgiError("Invalid generator handle", TgiFaultCode.INVALID_ID)
         return None
     scope = getattr(ig, "scope", None)
     if scope is None:
