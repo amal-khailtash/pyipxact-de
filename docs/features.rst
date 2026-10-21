@@ -3342,3 +3342,17 @@ Instantiation optional name removal
 - ☑ removeComponentInstantiationPackageName: tests/test_tgi_instantiation_name_removal.py.
 
 Five scoped cases verify selective removal, repeated calls, parsed XML absence, unrelated/stale handles and sibling preservation.
+
+
+Instantiation virtual state and language lifetime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getComponentInstantiationIsVirtual: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ setComponentInstantiationIsVirtual: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ removeComponentInstantiationIsVirtual: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ getComponentInstantiationLanguageID: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ removeComponentInstantiationLanguage: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ getDesignConfigurationInstantiationLanguageID: tests/test_tgi_instantiation_optional_metadata.py.
+- ☑ removeDesignConfigurationInstantiationLanguage: tests/test_tgi_instantiation_optional_metadata.py.
+
+Preserve absent/false/true virtual source states, reject non-Boolean edits, restore parsed language ownership and invalidate removed language handles.

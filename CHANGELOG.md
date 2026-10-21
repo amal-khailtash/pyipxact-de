@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Preserve absent/false/true virtual source states, reject non-Boolean edits, restore parsed language ownership and invalidate removed language handles.
 - Support selective optional instantiation name removal with parsed XML and lifecycle verification.
 - Validate instantiation source name edits while preserving unrestricted XML strings and absent values.
 - Preserve generated instantiation language and reference metadata during validated updates.

@@ -240,7 +240,7 @@ def getComponentInstantiationLanguage(componentInstantiationID: str) -> str | No
     lang = getattr(inst, "language", None)
     if lang is None:
         return None
-    return lang.value  # LanguageType holds a ValueType
+    return lang.value
 
 
 def getComponentInstantiationLanguageID(componentInstantiationID: str) -> str | None:
@@ -250,7 +250,10 @@ def getComponentInstantiationLanguageID(componentInstantiationID: str) -> str | 
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
     lang = getattr(inst, "language", None)
-    return None if lang is None else get_handle(lang)
+    if lang is None:
+        return None
+    register_parent(lang, inst, ("language",), "single")
+    return get_handle(lang)
 
 
 def getComponentInstantiationLibraryName(componentInstantiationID: str) -> str | None:
@@ -339,7 +342,10 @@ def getDesignConfigurationInstantiationLanguageID(designConfigurationInstantiati
     """
     dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
     lang = getattr(dci, "language", None)
-    return None if lang is None else get_handle(lang)
+    if lang is None:
+        return None
+    register_parent(lang, dci, ("language",), "single")
+    return get_handle(lang)
 
 
 # ---------------------------------------------------------------------------
@@ -495,10 +501,15 @@ def removeComponentInstantiationIsVirtual(componentInstantiationID: str) -> bool
 def removeComponentInstantiationLanguage(componentInstantiationID: str) -> bool:
     """Remove ``language`` element.
 
+    Removal invalidates the language handle and descendants; repeated removal
+    of an absent language succeeds. Parsed ownership is restored before removal.
+
     Section: F.7.56.12.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
-    inst.language = None
+    if inst.language is not None:
+        register_parent(inst.language, inst, ("language",), "single")
+        return detach_child_by_handle(get_handle(inst.language))
     return True
 
 
@@ -544,10 +555,15 @@ def removeComponentInstantiationPackageName(componentInstantiationID: str) -> bo
 def removeDesignConfigurationInstantiationLanguage(designConfigurationInstantiationID: str) -> bool:
     """Remove language element from designConfigurationInstantiation.
 
+    Removal invalidates the language handle and descendants; repeated removal
+    of an absent language succeeds. Parsed ownership is restored before removal.
+
     Section: F.7.56.16.
     """
     dci = _require(_resolve_design_config_instantiation(designConfigurationInstantiationID))
-    dci.language = None
+    if dci.language is not None:
+        register_parent(dci.language, dci, ("language",), "single")
+        return detach_child_by_handle(get_handle(dci.language))
     return True
 
 
@@ -580,11 +596,13 @@ def setComponentInstantiationConfigurationName(componentInstantiationID: str, co
 
 
 def setComponentInstantiationIsVirtual(componentInstantiationID: str, value: bool) -> bool:
-    """Set ``isVirtual`` element value.
+    """Set ``isVirtual`` to a Boolean; reject other types before mutation.
 
     Section: F.7.56.19.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(value, bool):
+        raise TgiError("Expected a Boolean virtual state", TgiFaultCode.INVALID_ARGUMENT)
     inst.is_virtual = value
     return True
 
