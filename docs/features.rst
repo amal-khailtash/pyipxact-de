@@ -3241,3 +3241,13 @@ Changing or removing a reference preserves the referenced object and other
 view fields. Invalid view handles raise ``INVALID_ID``; invalid setter values
 raise ``INVALID_ARGUMENT`` before mutation. These source operations do not
 resolve targets or establish configured-reference validity.
+
+View target resolution
+~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getViewComponentInstantiationRefByID: typed local target lookup verified.
+- ☑ getViewDesignInstantiationRefByID: typed local target lookup verified.
+- ☑ getViewDesignConfigurationInstantiationRefByID: typed local target lookup verified.
+- ☑ getViewDesignConfigurationInstantiationID: typed local target lookup verified.
+- Owner isolation and source-removal target preservation: 32 focused tests passed in 1.60s.
+- Full configured reference semantics remain planned.

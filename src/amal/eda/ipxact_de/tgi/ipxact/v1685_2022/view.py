@@ -115,14 +115,6 @@ def getViewBusInterfaceRefIDs(viewID: str) -> list[str]:  # F.7.87.1
     return [get_handle(r) for r in refs]
 
 
-def getViewComponentInstantiationRefByID(viewID: str) -> str | None:  # F.7.87.2
-    v = _resolve(viewID)
-    if v is None:
-        return None
-    ci_ref = getattr(v, "component_instantiation_ref", None)
-    return get_handle(ci_ref) if ci_ref is not None else None
-
-
 def getViewEnvIdentifierIDs(viewID: str) -> list[str]:
     """Return ordered environment identifiers with ownership (F.7.87.9)."""
     view = _ensure(viewID)
@@ -397,3 +389,62 @@ def removeViewDesignInstantiationRef(viewID: str) -> bool:
     and referenced instantiation objects. Invalid handles raise INVALID_ID.
     """
     return _remove_reference(viewID, "design_instantiation_ref")
+
+
+def _reference_target(viewID: str, attr: str, target_type: type) -> str | None:
+    """Resolve within the owning component only; never return a string-value handle."""
+    from org.accellera.ipxact.v1685_2022 import ComponentType
+
+    from .core import get_parent_info
+
+    view = _reference_view(viewID)
+    name = getattr(view, attr)
+    if name is None:
+        return None
+    info = get_parent_info(viewID)
+    root = resolve_handle(info.parent_handle) if info is not None else None
+    if not isinstance(root, ComponentType) or info.path != ("model", "views", "view"):
+        raise TgiError("View has no component ownership", TgiFaultCode.INVALID_ID)
+    instantiations = root.model.instantiations
+    items = (instantiations.component_instantiation_or_design_instantiation_or_design_configuration_instantiation
+             if instantiations is not None else [])
+    matches = [item for item in items if isinstance(item, target_type) and item.name == name]
+    if len(matches) != 1:
+        raise TgiError("Reference target is missing or ambiguous", TgiFaultCode.NOT_FOUND)
+    register_parent(matches[0], root,
+                    ("model", "instantiations",
+                     "component_instantiation_or_design_instantiation_or_design_configuration_instantiation"), "list")
+    return get_handle(matches[0])
+
+
+def getViewComponentInstantiationRefByID(viewID: str) -> str | None:
+    """Resolve the local component instantiation (F.7.87.2).
+
+    Return None for an absent reference; raise NOT_FOUND for missing/ambiguous
+    targets and INVALID_ID for a view without component ownership.
+    """
+    from org.accellera.ipxact.v1685_2022.component_instantiation_type import ComponentInstantiationType
+    return _reference_target(viewID, "component_instantiation_ref", ComponentInstantiationType)
+
+
+def getViewDesignInstantiationRefByID(viewID: str) -> str | None:
+    """Resolve the local design instantiation with the same fault contract (F.7.87.7)."""
+    from org.accellera.ipxact.v1685_2022.design_instantiation_type import DesignInstantiationType
+    return _reference_target(viewID, "design_instantiation_ref", DesignInstantiationType)
+
+
+def getViewDesignConfigurationInstantiationRefByID(viewID: str) -> str | None:
+    """Resolve the local design configuration instantiation (F.7.87.5)."""
+    from org.accellera.ipxact.v1685_2022.design_configuration_instantiation_type import (
+        DesignConfigurationInstantiationType,
+    )
+    return _reference_target(viewID, "design_configuration_instantiation_ref", DesignConfigurationInstantiationType)
+
+
+def getViewDesignConfigurationInstantiationID(viewID: str) -> str | None:
+    """Return the design configuration instantiation referenced by this view (F.7.87.4)."""
+    return getViewDesignConfigurationInstantiationRefByID(viewID)
+
+
+__all__ += ["getViewDesignInstantiationRefByID", "getViewDesignConfigurationInstantiationRefByID",
+            "getViewDesignConfigurationInstantiationID"]
