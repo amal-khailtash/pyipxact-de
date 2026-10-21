@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Validate instantiation source name edits while preserving unrestricted XML strings and absent values.
 - Preserve generated instantiation language and reference metadata during validated updates.
 - Create generated component, design and design-configuration instantiations with required references and ownership.
 - Add typed generated viewRef source-name access and editing with stable identity and package exports.

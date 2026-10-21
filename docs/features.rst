@@ -3313,3 +3313,20 @@ Instantiation language and reference metadata
 Language setters accept nonempty source strings, preserve existing strict
 metadata and child identity, and reject invalid input before mutation. Reference
 updates validate four nonempty VLNV parts and preserve configuration metadata.
+
+
+Instantiation source name access and editing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getComponentInstantiationArchitectureName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationArchitectureName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationConfigurationName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationConfigurationName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationLibraryName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationLibraryName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationModuleName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationModuleName: tests/test_tgi_instantiation_names.py.
+- ☑ getComponentInstantiationPackageName: tests/test_tgi_instantiation_names.py.
+- ☑ setComponentInstantiationPackageName: tests/test_tgi_instantiation_names.py.
+
+Five scoped cases verify unrestricted xs:string values, empty/whitespace preservation, XML reload, exports and atomic type rejection. Source getters do not synthesize configured defaults.

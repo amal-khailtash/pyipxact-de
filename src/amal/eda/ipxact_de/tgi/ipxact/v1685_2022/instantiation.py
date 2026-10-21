@@ -162,6 +162,9 @@ def getComponentInstanceComponentRefID(componentInstanceID: str) -> str | None:
 def getComponentInstantiationArchitectureName(componentInstantiationID: str) -> str | None:
     """Return ``architectureName`` value.
 
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
+
     Section: F.7.55.4.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -182,6 +185,9 @@ def getComponentInstantiationClearboxElementRefIDs(componentInstantiationID: str
 
 def getComponentInstantiationConfigurationName(componentInstantiationID: str) -> str | None:
     """Return ``configurationName`` value.
+
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
 
     Section: F.7.55.6.
     """
@@ -250,6 +256,9 @@ def getComponentInstantiationLanguageID(componentInstantiationID: str) -> str | 
 def getComponentInstantiationLibraryName(componentInstantiationID: str) -> str | None:
     """Return libraryName value.
 
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
+
     Section: F.7.55.13.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -259,6 +268,9 @@ def getComponentInstantiationLibraryName(componentInstantiationID: str) -> str |
 def getComponentInstantiationModuleName(componentInstantiationID: str) -> str | None:
     """Return moduleName value.
 
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
+
     Section: F.7.55.14.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
@@ -267,6 +279,9 @@ def getComponentInstantiationModuleName(componentInstantiationID: str) -> str | 
 
 def getComponentInstantiationPackageName(componentInstantiationID: str) -> str | None:
     """Return packageName value.
+
+    Return None when absent; preserve explicit empty strings and whitespace.
+    This source getter does not synthesize configured model defaults.
 
     Section: F.7.55.15.
     """
@@ -522,21 +537,29 @@ def removeDesignConfigurationInstantiationLanguage(designConfigurationInstantiat
 
 
 def setComponentInstantiationArchitectureName(componentInstantiationID: str, architectureName: str) -> bool:
-    """Set ``architectureName``.
+    """Set ``architectureName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.17.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(architectureName, str):
+        raise TgiError("Expected a string for architectureName", TgiFaultCode.INVALID_ARGUMENT)
     inst.architecture_name = architectureName
     return True
 
 
 def setComponentInstantiationConfigurationName(componentInstantiationID: str, configurationName: str) -> bool:
-    """Set ``configurationName``.
+    """Set ``configurationName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.18.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(configurationName, str):
+        raise TgiError("Expected a string for configurationName", TgiFaultCode.INVALID_ARGUMENT)
     inst.configuration_name = configurationName
     return True
 
@@ -568,31 +591,43 @@ def setComponentInstantiationLanguage(componentInstantiationID: str, language: s
 
 
 def setComponentInstantiationLibraryName(componentInstantiationID: str, libraryName: str) -> bool:
-    """Set ``libraryName``.
+    """Set ``libraryName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.21.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(libraryName, str):
+        raise TgiError("Expected a string for libraryName", TgiFaultCode.INVALID_ARGUMENT)
     inst.library_name = libraryName
     return True
 
 
 def setComponentInstantiationModuleName(componentInstantiationID: str, moduleName: str) -> bool:
-    """Set ``moduleName``.
+    """Set ``moduleName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.22.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(moduleName, str):
+        raise TgiError("Expected a string for moduleName", TgiFaultCode.INVALID_ARGUMENT)
     inst.module_name = moduleName
     return True
 
 
 def setComponentInstantiationPackageName(componentInstantiationID: str, packageName: str) -> bool:
-    """Set ``packageName``.
+    """Set ``packageName`` source text, including empty strings and whitespace.
+
+    Non-string values raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.56.23.
     """
     inst = _require(_resolve_component_instantiation(componentInstantiationID))
+    if not isinstance(packageName, str):
+        raise TgiError("Expected a string for packageName", TgiFaultCode.INVALID_ARGUMENT)
     inst.package_name = packageName
     return True
 
