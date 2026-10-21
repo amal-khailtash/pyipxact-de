@@ -1,7 +1,7 @@
 """Tests for configurable element category TGI functions."""
 from org.accellera.ipxact.v1685_2022 import ConfigurableElementValue, ConfigurableElementValues
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import (
+from amal.eda.accellera.ipxact.v1685_2022.tgi import (
     getConfigurableElementIDs,
     getConfigurableElementValue,
     getConfigurableElementValueExpression,

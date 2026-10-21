@@ -15,7 +15,7 @@ from org.accellera.standard import STANDARDS
 
 from .. import __description__, __version__
 from ..loader import load_registry_from_cache, load_registry_from_paths
-from ..tgi.ipxact.v1685_2022.core import registry
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
 from .commands import convert_xml, identify_xml, validate_xml
 
 # Global Rich console (single theme) reused for all help rendering.

@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Move TGI under the IP-XACT standard/version hierarchy, preserving existing imports and shared registry identity.
 - Traverse CPU and generator transport children through standard BASE handles.
 - Read CPU source expressions with stable parsed child handles through BASE getters.
 - Read catalog file URI and four-part VLNV metadata through BASE handles.

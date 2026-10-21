@@ -2,9 +2,9 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact import v1685_2022 as package
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import view
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, get_handle
+from amal.eda.accellera.ipxact.v1685_2022 import tgi as package
+from amal.eda.accellera.ipxact.v1685_2022.tgi import view
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022.domain_type_def import DomainTypeDef
 from org.accellera.ipxact.v1685_2022.driver_type import DriverType

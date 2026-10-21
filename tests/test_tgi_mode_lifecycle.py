@@ -2,9 +2,9 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import abstraction_definition as api
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import top_element
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import (
+from amal.eda.accellera.ipxact.v1685_2022.tgi import abstraction_definition as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi import top_element
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import (
     TgiError,
     TgiFaultCode,
     get_handle,
@@ -46,7 +46,7 @@ def test_ordered_mode_traversal_and_removal(port, parsed, generic):
     initiator = getattr(api, prefix + "OnInitiatorID")(handle)
     target = getattr(api, prefix + "OnTargetID")(handle)
     systems = getattr(api, prefix + "OnSystemIDs")(handle)
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import get_parent_info
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import get_parent_info
 
     assert all(get_parent_info(mode) is not None for mode in systems)
     assert systems == api.getAbstractionDefPortOnSystemIDs(handle)

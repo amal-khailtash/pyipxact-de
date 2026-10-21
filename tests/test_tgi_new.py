@@ -11,7 +11,7 @@ from collections.abc import Sequence
 
 import pytest
 from org.accellera.ipxact.v1685_2022 import Catalog
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import (
+from amal.eda.accellera.ipxact.v1685_2022.tgi import (
     TgiError,
     addCatalogComponentsIpxactFile,
     getCatalogComponentsIpxactFileIDs,

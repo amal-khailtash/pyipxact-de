@@ -3,8 +3,8 @@
 import pytest
 from lxml import etree
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import generator as api
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, detach_child_by_handle, get_handle, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import generator as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, detach_child_by_handle, get_handle, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import (
     AbstractorGenerator,

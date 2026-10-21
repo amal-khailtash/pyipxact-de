@@ -3,8 +3,8 @@
 import pytest
 from lxml import etree
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import view as api
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, get_handle, get_parent_info, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import view as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle, get_parent_info, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
 from org.accellera.ipxact.v1685_2022.model_type import ModelType
@@ -76,7 +76,7 @@ def test_component_document_schema_validity():
 
 
 def test_view_removal_invalidates_environment_descendants():
-    from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import component
+    from amal.eda.accellera.ipxact.v1685_2022.tgi import component
     from org.accellera.ipxact.v1685_2022 import Component
 
     root_id = get_handle(Component(vendor="v", library="l", name="c", version="1"))

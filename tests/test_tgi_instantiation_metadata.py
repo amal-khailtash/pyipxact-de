@@ -1,8 +1,8 @@
 """Generated language and reference edits preserve identity and metadata."""
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import component, instantiation
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, get_handle, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import component, instantiation
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle, resolve_handle
 from org.accellera.ipxact.v1685_2022 import Component
 
 

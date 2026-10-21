@@ -2,10 +2,10 @@
 
 import pytest
 
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import abstraction_definition as ad
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import bus_definition as bus
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022 import top_element
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import TgiError, TgiFaultCode, get_handle, registry, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi import abstraction_definition as ad
+from amal.eda.accellera.ipxact.v1685_2022.tgi import bus_definition as bus
+from amal.eda.accellera.ipxact.v1685_2022.tgi import top_element
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, TgiFaultCode, get_handle, registry, resolve_handle
 from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, BusDefinition
 

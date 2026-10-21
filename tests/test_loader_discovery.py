@@ -6,7 +6,7 @@ import pytest
 from lxml import etree
 
 from amal.eda.ipxact_de import loader
-from amal.eda.ipxact_de.tgi.ipxact.v1685_2022.core import registry, resolve_handle
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry, resolve_handle
 
 NS = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 VLNV = ("vendor", "library", "component", "1.0")
