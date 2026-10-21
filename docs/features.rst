@@ -859,11 +859,11 @@ CPU (EXTENDED)
 Catalog (BASE)
 ~~~~~~~~~~~~~~
 
-- ☐ ``getCatalogAbstractionDefIpxactFileIDs`` (F.7.23.1)
-- ☐ ``getCatalogAbstractorsIpxactFileIDs`` (F.7.23.2)
-- ☐ ``getCatalogBusDefinitionsIpxactFileIDs`` (F.7.23.3)
-- ☐ ``getCatalogCatalogsIpxactFileIDs`` (F.7.23.4)
-- ☐ ``getCatalogComponentsIpxactFileIDs`` (F.7.23.5)
+- ☑ ``getCatalogAbstractionDefIpxactFileIDs`` (F.7.23.1) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogAbstractorsIpxactFileIDs`` (F.7.23.2) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogBusDefinitionsIpxactFileIDs`` (F.7.23.3) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogCatalogsIpxactFileIDs`` (F.7.23.4) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogComponentsIpxactFileIDs`` (F.7.23.5) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
 - ☐ ``getCatalogDesignConfigurationsIpxactFileIDs`` (F.7.23.6)
 - ☐ ``getCatalogDesignsIpxactFileIDs`` (F.7.23.7)
 - ☐ ``getCatalogGeneratorChainsIpxactFileIDs`` (F.7.23.8)

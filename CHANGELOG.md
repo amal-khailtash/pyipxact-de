@@ -31,6 +31,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Traverse catalog file categories using standard BASE handles and parsed ownership.
 - Read generated generator-chain group selectors through BASE getters.
 - Traverse generated mixed generator-chain collections through BASE getters.
 - Read generated generator API/executable metadata with parsed child ownership through BASE getters.

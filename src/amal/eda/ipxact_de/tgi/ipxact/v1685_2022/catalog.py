@@ -20,7 +20,7 @@ from org.accellera.ipxact.v1685_2022 import (
     LibraryRefType,
 )
 
-from .core import get_handle
+from .core import TgiError, TgiFaultCode, get_handle, register_parent, resolve_handle
 
 __all__ = [
     # BASE (F.7.23)
@@ -62,6 +62,20 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
+
+def _catalog_entries(catalogID: str | Catalog, field: str) -> list[str]:
+    """Traverse one catalog category with typed handles and legacy object support."""
+    catalog = catalogID if isinstance(catalogID, Catalog) else resolve_handle(catalogID)
+    if not isinstance(catalog, Catalog):
+        raise TgiError("Invalid catalog handle", TgiFaultCode.INVALID_ID)
+    files = getattr(catalog, field)
+    if files is None:
+        return []
+    register_parent(files, catalog, (field,), "single")
+    for entry in files.ipxact_file:
+        register_parent(entry, catalog, (field, "ipxact_file"), "list")
+    return [get_handle(entry) for entry in files.ipxact_file]
+
 
 def _ensure_ipxact_files(container: IpxactFilesType | None) -> IpxactFilesType:
     return container if container is not None else IpxactFilesType()
@@ -107,25 +121,50 @@ def _add_ipxact_file(
 # BASE (F.7.23)
 # ---------------------------------------------------------------------------
 
-def getCatalogAbstractionDefIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of abstractionDefinition ipxactFile entries."""
-    return _list_handles(getattr(catalog, "abstraction_definitions", None))
+def getCatalogAbstractionDefIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered abstraction_definitions entry handles with parsed ownership (F.7.23.1).
 
-def getCatalogAbstractorsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of abstractors ipxactFile entries."""
-    return _list_handles(getattr(catalog, "abstractors", None))
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "abstraction_definitions")
 
-def getCatalogBusDefinitionsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of busDefinitions ipxactFile entries."""
-    return _list_handles(getattr(catalog, "bus_definitions", None))
 
-def getCatalogCatalogsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of catalogs ipxactFile entries."""
-    return _list_handles(getattr(catalog, "catalogs", None))
+def getCatalogAbstractorsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered abstractors entry handles with parsed ownership (F.7.23.2).
 
-def getCatalogComponentsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of components ipxactFile entries."""
-    return _list_handles(getattr(catalog, "components", None))
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "abstractors")
+
+
+def getCatalogBusDefinitionsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered bus_definitions entry handles with parsed ownership (F.7.23.3).
+
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "bus_definitions")
+
+
+def getCatalogCatalogsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered catalogs entry handles with parsed ownership (F.7.23.4).
+
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "catalogs")
+
+
+def getCatalogComponentsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered components entry handles with parsed ownership (F.7.23.5).
+
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "components")
+
 
 def getCatalogDesignConfigurationsIpxactFileIDs(catalog: Catalog) -> list[str]:
     """Return handles of designConfigurations ipxactFile entries."""
