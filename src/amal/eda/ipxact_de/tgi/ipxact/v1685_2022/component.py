@@ -690,85 +690,65 @@ def addComponentResetType(componentID: str, name: str) -> str:
 
 
 def _add_structured_port(
-    component: ComponentType,
-    name: str,
-    kind: str,
-    subPortName: str | None = None,
-    typeName: str | None = None,
-    direction: str | None = None,
+    component: ComponentType, name: str, type_name: str, kind: str,
+    direction: str | None = None, sub_port_name: str | None = None,
 ) -> str:
-    model = _ensure_model(component)
-    from org.accellera.ipxact.v1685_2022.port_type import PortType
-    from org.accellera.ipxact.v1685_2022.model import Ports  # type: ignore
+    """Create the generated structured choice and required type definition."""
+    from org.accellera.ipxact.v1685_2022 import ComponentPortDirectionType, StructPortTypeDefs
+    from org.accellera.ipxact.v1685_2022.sub_port_type import PortStructuredType, SubPortType
+    from org.accellera.ipxact.v1685_2022.port_wire_type import PortWireType
 
-    if model.ports is None:
-        model.ports = Ports(port=[])  # type: ignore[arg-type]
-    pt = PortType(name=name)
-    pt._tgi_portKind = kind  # type: ignore[attr-defined]
-    if subPortName is not None:
-        pt._tgi_subPort = subPortName  # type: ignore[attr-defined]
-    if typeName is not None:
-        pt._tgi_typeDef = typeName  # type: ignore[attr-defined]
-    if direction is not None:
-        pt._tgi_direction = direction  # type: ignore[attr-defined]
-    model.ports.port.append(pt)  # type: ignore[attr-defined]
-    return get_handle(pt)
-
-
-def addComponentStructuredInterfacePort(
-    componentID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
-) -> str:
-    """Add a structured interface port.
-
-    Section: F.7.30.21.
-    """
-    return _add_structured_port(
-        _resolve_component(componentID),
-        name,
-        "structuredInterface",
-        subPortName,
-        structPortTypeDefTypeName,
+    _require_component_text(name)
+    _require_component_text(type_name)
+    if sub_port_name is not None:
+        _require_component_text(sub_port_name)
+    if kind == "interface":
+        choice = PortStructuredType.Interface()
+    else:
+        try:
+            value = ComponentPortDirectionType(direction)
+        except (ValueError, TypeError) as error:
+            raise TgiError("Invalid structured port direction", TgiFaultCode.INVALID_ARGUMENT) from error
+        cls = PortStructuredType.Struct if kind == "struct" else PortStructuredType.UnionType
+        choice = cls(direction=value)
+    definition = StructPortTypeDefs.StructPortTypeDef(
+        type_name=StructPortTypeDefs.StructPortTypeDef.TypeName(value=type_name),
     )
+    structured = PortStructuredType(
+        struct_or_union_or_interface=choice,
+        struct_port_type_defs=StructPortTypeDefs(struct_port_type_def=[definition]),
+    )
+    if sub_port_name is not None:
+        structured.sub_ports = PortStructuredType.SubPorts(sub_port=[
+            SubPortType(name=sub_port_name, wire_or_structured=PortWireType(direction=value)),
+        ])
+    handle = _append_component_port(component, name, structured)
+    port = resolve_handle(handle)
+    register_parent(structured, port, ("wire_or_transactional_or_structured",), "single")
+    register_parent(definition, structured, ("struct_port_type_defs", "struct_port_type_def"), "list")
+    if structured.sub_ports is not None:
+        register_parent(structured.sub_ports.sub_port[0], structured, ("sub_ports", "sub_port"), "list")
+    return handle
+
+
+def addComponentStructuredInterfacePort(componentID: str, name: str, structPortTypeDefTypeName: str) -> str:
+    """Create a structured interface port (F.7.30.21)."""
+    return _add_structured_port(_resolve_component(componentID), name, structPortTypeDefTypeName, "interface")
 
 
 def addComponentStructuredStructPort(
-    componentID: str,
-    name: str,
-    subPortName: str,
-    structPortTypeDefTypeName: str,
+    componentID: str, name: str, structPortTypeDefTypeName: str, direction: str,
 ) -> str:
-    """Add a structured struct port.
-
-    Section: F.7.30.22.
-    """
-    return _add_structured_port(
-        _resolve_component(componentID),
-        name,
-        "structuredStruct",
-        subPortName,
-        structPortTypeDefTypeName,
-    )
+    """Create a structured struct port (F.7.30.22)."""
+    return _add_structured_port(_resolve_component(componentID), name, structPortTypeDefTypeName, "struct", direction)
 
 
 def addComponentStructuredUnionPort(
-    componentID: str,
-    name: str,
-    structPortTypeDefTypeName: str,
-    subPortName: str,
+    componentID: str, name: str, structPortTypeDefTypeName: str, subPortName: str, direction: str,
 ) -> str:
-    """Add a structured union port.
-
-    Section: F.7.30.23.
-    """
+    """Create a structured union port and named sub-port (F.7.30.23)."""
     return _add_structured_port(
-        _resolve_component(componentID),
-        name,
-        "structuredUnion",
-        subPortName,
-        structPortTypeDefTypeName,
+        _resolve_component(componentID), name, structPortTypeDefTypeName, "union", direction, subPortName,
     )
 
 

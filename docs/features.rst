@@ -957,7 +957,7 @@ Component (BASE)
 * ☐ ``getComponentMemoryMapIDs`` (F.7.29.14)
 * ☐ ``getComponentModeIDs`` (F.7.29.15)
 * ☐ ``getComponentOtherClockDriverIDs`` (F.7.29.16)
-* ☐ ``getComponentPortIDs`` (F.7.29.17)
+* ☑ ``getComponentPortIDs`` (F.7.29.17)
 * ☐ ``getComponentPowerDomainIDs`` (F.7.29.18)
 * ☐ ``getComponentResetTypeIDs`` (F.7.29.19)
 * ☐ ``getComponentSelectedViewIDs`` (F.7.29.20)
@@ -989,9 +989,9 @@ Component (EXTENDED)
 * ☐ ``addComponentMonitorBusInterface`` (F.7.30.18)
 * ☑ ``addComponentOtherClockDriver`` (F.7.30.19)
 * ☐ ``addComponentResetType`` (F.7.30.20)
-* ☐ ``addComponentStructuredInterfacePort`` (F.7.30.21)
-* ☐ ``addComponentStructuredStructPort`` (F.7.30.22)
-* ☐ ``addComponentStructuredUnionPort`` (F.7.30.23)
+* ☑ ``addComponentStructuredInterfacePort`` (F.7.30.21)
+* ☑ ``addComponentStructuredStructPort`` (F.7.30.22)
+* ☑ ``addComponentStructuredUnionPort`` (F.7.30.23)
 * ☐ ``addComponentSystemBusInterface`` (F.7.30.24)
 * ☐ ``addComponentTargetBusInterface`` (F.7.30.25)
 * ☑ ``addComponentTransactionalPort`` (F.7.30.26)
@@ -3195,3 +3195,13 @@ Component port view and clock creation
 - ☑ addComponentView uses generated models, standard arguments and immediate ownership.
 - ☑ removeComponentView uses generated models, standard arguments and immediate ownership.
 - ☐ Complete configured view references, expressions, name constraints and structured component ports.
+
+Structured component port contracts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ addComponentStructuredInterfacePort verified with generated structured choices and parsed lifecycle ownership.
+- ☑ addComponentStructuredStructPort verified with generated structured choices and parsed lifecycle ownership.
+- ☑ addComponentStructuredUnionPort verified with generated structured choices and parsed lifecycle ownership.
+- ☑ getComponentPortIDs verified with generated structured choices and parsed lifecycle ownership.
+- ☑ removeComponentPort verified with generated structured choices and parsed lifecycle ownership.
+- ☐ Resolve external structured types and complete sub-port semantic constraints.
