@@ -274,8 +274,8 @@ def getFileFileTypes(fileID: str) -> list[str]:  # F.7.47.8
 
 
 def getFileImageTypeIDs(fileID: str) -> list[str]:  # F.7.47.9
-    """Return imageType handles (Section: F.7.47.9)."""
-    return _ids(_resolve_file(fileID).image_type)  # type: ignore[arg-type]
+    """Return stable imageType handles and restore parsed ownership (Section: F.7.47.9)."""
+    return _owned_file_ids(fileID, "image_type")
 
 
 def getFileImageTypes(fileID: str) -> list[str]:  # F.7.47.10
@@ -284,19 +284,22 @@ def getFileImageTypes(fileID: str) -> list[str]:  # F.7.47.10
 
 
 def getFileIsIncludeFile(fileID: str) -> bool:  # F.7.47.11
-    """Return isIncludeFile boolean (Section: F.7.47.11)."""
+    """Return explicit include state; default to False when absent (Section: F.7.47.11)."""
     inc = _resolve_file(fileID).is_include_file
     return bool(getattr(inc, "value", False)) if inc is not None else False
 
 
 def getFileIsIncludeFileID(fileID: str) -> str | None:  # F.7.47.12
-    """Return handle to isIncludeFile element (Section: F.7.47.12)."""
+    """Return the include child handle with parsed ownership (Section: F.7.47.12)."""
     f = _resolve_file(fileID)
-    return get_handle(f.is_include_file) if f.is_include_file is not None else None
+    if f.is_include_file is None:
+        return None
+    register_parent(f.is_include_file, f, ("is_include_file",), "single")
+    return get_handle(f.is_include_file)
 
 
 def getFileIsStructural(fileID: str) -> bool:  # F.7.47.13
-    """Return isStructural value (Section: F.7.47.13)."""
+    """Return explicit structural state; default to False when absent (Section: F.7.47.13)."""
     return bool(_resolve_file(fileID).is_structural)
 
 
@@ -307,9 +310,12 @@ def getFileLogicalName(fileID: str) -> str | None:  # F.7.47.14
 
 
 def getFileLogicalNameID(fileID: str) -> str | None:  # F.7.47.15
-    """Return handle to logicalName element (Section: F.7.47.15)."""
+    """Return the logical-name handle with parsed ownership (Section: F.7.47.15)."""
     f = _resolve_file(fileID)
-    return get_handle(f.logical_name) if f.logical_name is not None else None
+    if f.logical_name is None:
+        return None
+    register_parent(f.logical_name, f, ("logical_name",), "single")
+    return get_handle(f.logical_name)
 
 
 def getFileName(fileID: str) -> str | None:  # F.7.47.16

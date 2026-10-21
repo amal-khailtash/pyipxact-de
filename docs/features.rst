@@ -3467,3 +3467,18 @@ File BASE source collections
 - ☑ getFileFileTypes: tests/test_tgi_file_base_sources.py.
 
 BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.
+
+
+File BASE identity metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ☑ getFileImageTypeIDs: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileImageTypes: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileIsIncludeFile: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileIsIncludeFileID: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileIsStructural: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileLogicalName: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileLogicalNameID: tests/test_tgi_file_base_metadata.py.
+- ☑ getFileName: tests/test_tgi_file_base_metadata.py.
+
+BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.

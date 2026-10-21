@@ -24,6 +24,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.
 - BASE file collection getters preserve order/source values, return define value text, and restore parsed ownership without changing document content.
 - Generated default builders validate standard file types, restore parsed ownership, preserve siblings and enforce typed removal lifetime.
 - Generated clearbox type enums and optional Boolean driveable edits validate inputs atomically and survive schema validation/XML reload.
