@@ -864,12 +864,12 @@ Catalog (BASE)
 - ☑ ``getCatalogBusDefinitionsIpxactFileIDs`` (F.7.23.3) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
 - ☑ ``getCatalogCatalogsIpxactFileIDs`` (F.7.23.4) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
 - ☑ ``getCatalogComponentsIpxactFileIDs`` (F.7.23.5) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
-- ☐ ``getCatalogDesignConfigurationsIpxactFileIDs`` (F.7.23.6)
-- ☐ ``getCatalogDesignsIpxactFileIDs`` (F.7.23.7)
-- ☐ ``getCatalogGeneratorChainsIpxactFileIDs`` (F.7.23.8)
-- ☐ ``getCatalogTypeDefinitionsIpxactFileIDs`` (F.7.23.9)
-- ☐ ``getIpxactFileName`` (F.7.23.10)
-- ☐ ``getIpxactFileVlnvRefByVLNV`` (F.7.23.11)
+- ☑ ``getCatalogDesignConfigurationsIpxactFileIDs`` (F.7.23.6) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogDesignsIpxactFileIDs`` (F.7.23.7) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogGeneratorChainsIpxactFileIDs`` (F.7.23.8) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getCatalogTypeDefinitionsIpxactFileIDs`` (F.7.23.9) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getIpxactFileName`` (F.7.23.10) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
+- ☑ ``getIpxactFileVlnvRefByVLNV`` (F.7.23.11) - Standard typed handles and legacy objects; ordered source traversal and parsed ownership.
 
 Catalog (EXTENDED)
 ~~~~~~~~~~~~~~~~~~

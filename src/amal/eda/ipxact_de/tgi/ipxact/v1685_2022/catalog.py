@@ -63,6 +63,14 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+def _catalog_entry(handle: str | IpxactFileType) -> IpxactFileType:
+    """Resolve a typed entry handle while preserving legacy object calls."""
+    entry = handle if isinstance(handle, IpxactFileType) else resolve_handle(handle)
+    if not isinstance(entry, IpxactFileType):
+        raise TgiError("Invalid ipxactFile handle", TgiFaultCode.INVALID_ID)
+    return entry
+
+
 def _catalog_entries(catalogID: str | Catalog, field: str) -> list[str]:
     """Traverse one catalog category with typed handles and legacy object support."""
     catalog = catalogID if isinstance(catalogID, Catalog) else resolve_handle(catalogID)
@@ -166,32 +174,59 @@ def getCatalogComponentsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
     return _catalog_entries(catalogID, "components")
 
 
-def getCatalogDesignConfigurationsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of designConfigurations ipxactFile entries."""
-    return _list_handles(getattr(catalog, "design_configurations", None))
+def getCatalogDesignConfigurationsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered design_configurations entry handles with parsed ownership (F.7.23.6).
 
-def getCatalogDesignsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of designs ipxactFile entries."""
-    return _list_handles(getattr(catalog, "designs", None))
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "design_configurations")
 
-def getCatalogGeneratorChainsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of generatorChains ipxactFile entries."""
-    return _list_handles(getattr(catalog, "generator_chains", None))
 
-def getCatalogTypeDefinitionsIpxactFileIDs(catalog: Catalog) -> list[str]:
-    """Return handles of typeDefinitions ipxactFile entries."""
-    return _list_handles(getattr(catalog, "type_definitions", None))
+def getCatalogDesignsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered designs entry handles with parsed ownership (F.7.23.7).
 
-def getIpxactFileName(ipxact_file: IpxactFileType) -> str | None:
-    """Return the file name of an ipxactFile entry."""
-    return ipxact_file.name.value if ipxact_file.name is not None else None
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "designs")
 
-def getIpxactFileVlnvRefByVLNV(ipxact_file: IpxactFileType) -> str | None:
-    """Return the VLNV string (vendor:library:name:version) for an ipxactFile."""
-    if ipxact_file.vlnv is None:
-        return None
-    v = ipxact_file.vlnv
-    return f"{v.vendor}:{v.library}:{v.name}:{v.version}"
+
+def getCatalogGeneratorChainsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered generator_chains entry handles with parsed ownership (F.7.23.8).
+
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "generator_chains")
+
+
+def getCatalogTypeDefinitionsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return ordered type_definitions entry handles with parsed ownership (F.7.23.9).
+
+    Accept standard catalog handles and legacy Catalog objects. Absent categories
+    return an empty list; unrelated or stale handles raise INVALID_ID.
+    """
+    return _catalog_entries(catalogID, "type_definitions")
+
+
+def getIpxactFileName(ipxactFileID: str | IpxactFileType) -> str | None:
+    """Return stored URI source text from a file entry (F.7.23.10).
+
+    Accept standard entry handles and legacy model objects; do not expand
+    environment variables or resolve paths.
+    """
+    entry = _catalog_entry(ipxactFileID)
+    return None if entry.name is None else entry.name.value
+
+
+def getIpxactFileVlnvRefByVLNV(
+    ipxactFileID: str | IpxactFileType,
+) -> tuple[str, str, str, str] | None:
+    """Return four stored VLNV parts, preserving colon-containing values (F.7.23.11)."""
+    entry = _catalog_entry(ipxactFileID)
+    ref = entry.vlnv
+    return None if ref is None else (ref.vendor, ref.library, ref.name, ref.version)
 
 
 # ---------------------------------------------------------------------------
