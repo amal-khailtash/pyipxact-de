@@ -1,7 +1,7 @@
 """Complete Annex F file-builder BASE and EXTENDED operation coverage."""
 
-import csv
 import inspect
+import re
 from pathlib import Path
 
 import pytest
@@ -46,8 +46,8 @@ def _validate(model):
 
 
 def test_file_builder_exports_and_public_contract_docstrings():
-    with Path(".ai/tgi-coverage.csv").open(newline="") as stream:
-        ledger = {row[2] for row in csv.reader(stream) if len(row) > 2 and row[0].startswith(("F.7.45.", "F.7.46."))}
+    features = Path("docs/features.rst").read_text()
+    ledger = set(re.findall(r"``(\w+)`` \(F\.7\.(?:45|46)\.\d+\)", features))
     assert set(api.__all__) == ledger
     assert len(api.__all__) == 91
     for name in api.__all__:
