@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Bus definition numeric/source getters, typed limits and references, strict capabilities, and owned choice/system-group edits.
 - Complete Address space SV numeric/source getters, alias and local-map traversal, executable-image references, typed block creation and atomic owned edits.
 - Complete standard Assertion Boolean/source/handle getters and generated XML creation, expression editing and subtree removal.
 - Complete Access policy mode/external-definition references, typed field-data and write-constraint choices, source expressions and owned lifecycle edits.
