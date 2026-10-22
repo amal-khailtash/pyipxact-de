@@ -3041,29 +3041,29 @@ Type definitions (EXTENDED)
 Vector (BASE)
 ~~~~~~~~~~~~~
 
-- ☐ ``getVectorIDs`` (F.7.83.1)
-- ☐ ``getVectorLeftID`` (F.7.83.2)
-- ☐ ``getVectorRange`` (F.7.83.3)
-- ☐ ``getVectorRangeExpression`` (F.7.83.4)
-- ☐ ``getVectorRightID`` (F.7.83.5)
+- ☑ ``getVectorIDs`` (F.7.83.1)
+- ☑ ``getVectorLeftID`` (F.7.83.2)
+- ☑ ``getVectorRange`` (F.7.83.3)
+- ☑ ``getVectorRangeExpression`` (F.7.83.4)
+- ☑ ``getVectorRightID`` (F.7.83.5)
 
 Vector (EXTENDED)
 ~~~~~~~~~~~~~~~~~
 
-- ☐ ``addVector`` (F.7.84.1)
-- ☐ ``removeVector`` (F.7.84.2)
+- ☑ ``addVector`` (F.7.84.1)
+- ☑ ``removeVector`` (F.7.84.2)
 
 Vendor extensions (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``getVendorExtensions`` (F.7.85.1)
+- ☑ ``getVendorExtensions`` (F.7.85.1)
 
 Vendor extensions (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addVendorExtensions`` (F.7.86.1)
-- ☐ ``removeVendorExtensions`` (F.7.86.2)
-- ☐ ``setVendorExtensions`` (F.7.86.3)
+- ☑ ``addVendorExtensions`` (F.7.86.1)
+- ☑ ``removeVendorExtensions`` (F.7.86.2)
+- ☑ ``setVendorExtensions`` (F.7.86.3)
 
 View (BASE)
 ~~~~~~~~~~~

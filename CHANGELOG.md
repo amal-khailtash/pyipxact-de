@@ -38,6 +38,10 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Vector traversal and lifecycle with generated endpoints, self-contained SV integer evaluation and parsed ownership.
+- Complete Vendor extensions XML fragment retrieval, append, replacement and removal while preserving namespaces and wildcard content.
+- Remove owned children by identity to preserve equal-valued siblings.
+
 - Complete Array editing across bounded, register and field arrays with typed ownership and SystemVerilog integer expression evaluation.
 - Complete Instantiation reference-node, VLNV and typed target-resolution functions with atomic setters.
 - Restore detailed standard-linked module/function docstrings, argument/return documentation and section headings.
