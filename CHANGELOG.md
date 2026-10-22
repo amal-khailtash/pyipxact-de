@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Element attribute typed metadata editing, schema-default removal and document-scoped reference resolution.
 - Complete File builder language-tool/linker choices, expression children and component-scoped generator references.
 - Complete File set file/function/reference editing with schema types, local fileId resolution and parsed ownership.
 - Complete Access handle traversal and schema-selected creation, typed path segments/slices, Boolean force and owned removals.

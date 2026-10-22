@@ -1,26 +1,30 @@
 """Element attribute category TGI functions (IEEE 1685-2022).
 
-Implements BASE (F.7.43) and EXTENDED (F.7.44) *Element attribute* functions.
+Annex F.7.43 BASE and F.7.44 EXTENDED provide named XML attribute access,
+reference resolution, mutation and removal. The function tables retain the
+standard's order and generate the large public API consistently. Generated
+binding metadata maps XML names such as indexVar to Python field names.
 
-Design goals:
-* Provide exact public API surface mandated by Annex F – no extra helpers.
-* Keep implementation data-driven to avoid hand-maintaining ~280 functions.
-* Maintain uniform error semantics (invalid handles => INVALID_ID, coercion
-  failures => INVALID_ARGUMENT) matching other rewritten category modules.
+BASE source getters preserve XML strings, enum values, Boolean flags and list
+attributes. Reference-by-ID operations resolve model targets in their owning
+document rather than manufacturing handles for stored name strings.
+EXTENDED operations validate schema types before assignment and reset optional
+attributes to their schema defaults; required attributes cannot be removed.
+Numeric input overloads preserve XML storage types without lossy truncation.
 
-Previous generic helper functions (getElementVendor, getElementLibrary, ...)
-have been superseded by the exhaustive spec-defined function set and were
-removed intentionally to honor the "no more, no less" requirement. Their
-removal is recorded here to retain historical context (project rule: do not
-remove comments / commented code) – see version control for prior content.
+Wildcard attributes use expanded XML names and retain namespace-qualified
+values. Invalid handles raise INVALID_ID; invalid values and unsupported
+attribute operations raise INVALID_ARGUMENT. The metadata-driven implementation
+keeps argument, return and Annex section documentation on generated functions.
 """
 
 from collections.abc import Callable
-from dataclasses import fields, is_dataclass
+from dataclasses import MISSING, fields, is_dataclass
+from enum import Enum
 from math import isfinite
-from typing import Any
+from typing import Any, get_args, get_origin, get_type_hints
 
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
+from .core import TgiError, TgiFaultCode, resolve_handle
 
 # ---------------------------------------------------------------------------
 # BASE getter specification (subset excerpt – full list per spec F.7.43).
@@ -417,7 +421,8 @@ def _define_base_functions() -> None:
                 obj = _resolve(elementID)
                 raw = _attribute_value(obj, a)
                 if k == "ref":
-                    return None if raw is None else get_handle(raw)
+                    from ._attribute_references import resolve_attribute_reference
+                    return resolve_attribute_reference(elementID, a)
                 if _fn == "getConfigGroupsAttribute" and isinstance(raw, (list, tuple)):
                     return " ".join(raw)
                 if k == "strings":
@@ -437,6 +442,8 @@ def _define_base_functions() -> None:
                 "Generated binding field metadata maps XML names to Python attributes.\n"
                 "Unset attributes return None; invalid handles raise TgiError.\n"
                 + result_note
+                + "\nArgs:\n    elementID: Handle to the XML attribute container.\n"
+                + "\nReturns:\n    Attribute value or referenced element handle; None when absent.\n"
             )
             return _getter
 
@@ -448,6 +455,13 @@ def getOtherAnyAttribute(attributeContainerID: str, attributeName: str) -> str |
 
     Section: F.7.43.77. Names use ``{namespace}local`` for namespaced attributes.
     Missing names return None; invalid handles raise TgiError.
+
+    Args:
+        attributeContainerID: Handle to the attribute container.
+        attributeName: Expanded XML attribute name.
+
+    Returns:
+        Attribute string, or None when absent.
     """
     obj = _resolve(attributeContainerID)
     return getattr(obj, "other_attributes", {}).get(attributeName)
@@ -457,6 +471,12 @@ def getOtherAttributes(attributeContainerID: str) -> list[str]:
     """Return extension attribute names in stored order.
 
     Section: F.7.43.79. Return a copied list; invalid handles raise TgiError.
+
+    Args:
+        attributeContainerID: Handle to the attribute container.
+
+    Returns:
+        Copied list of expanded XML attribute names.
     """
     obj = _resolve(attributeContainerID)
     return list(getattr(obj, "other_attributes", {}))
@@ -465,27 +485,75 @@ def getOtherAttributes(attributeContainerID: str) -> list[str]:
 _define_base_functions()
 
 
+def _attribute_field(obj: Any, xml_name: str):
+    """Find the generated field describing an XML attribute."""
+    if is_dataclass(obj):
+        return next((field for field in fields(obj) if field.metadata.get("type") == "Attribute"
+                     and field.metadata.get("name", field.name) == xml_name), None)
+    return None
+
+
 def _set_attr(obj: Any, attr: str, value: Any) -> None:
-    """Assign attribute value on an element (wrapper-aware)."""
-    current = getattr(obj, attr, None)
-    if current is not None and is_dataclass(current) and hasattr(current, "value"):
+    """Validate and assign through generated XML attribute metadata."""
+    field = _attribute_field(obj, attr)
+    if field is None:
+        if is_dataclass(obj):
+            raise TgiError("Element does not support this XML attribute", TgiFaultCode.INVALID_ARGUMENT)
+        setattr(obj, attr, value)
+        return
+    if attr == "invert" and not isinstance(value, bool):
+        raise TgiError("Invert requires a Boolean", TgiFaultCode.INVALID_ARGUMENT)
+    annotation = get_type_hints(type(obj))[field.name]
+    candidates = get_args(annotation) if get_origin(annotation) is not None else (annotation,)
+    candidates = tuple(candidate for candidate in candidates if candidate is not type(None))
+    enum_type = next((candidate for candidate in candidates if isinstance(candidate, type)
+                      and issubclass(candidate, Enum)), None)
+    if enum_type is not None:
         try:
-            current.value = value  # type: ignore[attr-defined]
-            return
-        except Exception:  # pragma: no cover - fallback
-            pass
-    setattr(obj, attr, value)
+            value = enum_type(value)
+        except (ValueError, TypeError) as error:
+            raise TgiError("Invalid enumerated attribute value", TgiFaultCode.INVALID_ARGUMENT) from error
+    elif bool in candidates:
+        if not isinstance(value, bool):
+            raise TgiError("Boolean attribute requires a Boolean", TgiFaultCode.INVALID_ARGUMENT)
+    elif int in candidates:
+        if type(value) is not int:
+            raise TgiError("Integer attribute requires an integer", TgiFaultCode.INVALID_ARGUMENT)
+    elif float in candidates:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value):
+            raise TgiError("Numeric attribute requires a finite number", TgiFaultCode.INVALID_ARGUMENT)
+        value = float(value)
+    elif field.metadata.get("tokens") or get_origin(annotation) in (list, tuple):
+        if isinstance(value, str):
+            value = value.split()
+        if not isinstance(value, (list, tuple)) or not all(isinstance(item, str) for item in value):
+            raise TgiError("List attribute requires strings", TgiFaultCode.INVALID_ARGUMENT)
+        value = list(value)
+    elif str in candidates and not isinstance(value, str):
+        raise TgiError("String attribute requires a string", TgiFaultCode.INVALID_ARGUMENT)
+    if field.metadata.get("min_inclusive") is not None and value < field.metadata["min_inclusive"]:
+        raise TgiError("Attribute below schema minimum", TgiFaultCode.INVALID_ARGUMENT)
+    setattr(obj, field.name, value)
 
 
 def _del_attr(obj: Any, attr: str) -> bool:
-    """Clear (set to None) an attribute if present.
-
-    Returns:
-        True if the attribute existed and was cleared, else False.
-    """
-    if not hasattr(obj, attr) or getattr(obj, attr) is None:
+    """Reset an optional XML attribute to its generated schema default."""
+    field = _attribute_field(obj, attr)
+    name = field.name if field is not None else attr
+    if field is None and is_dataclass(obj):
+        raise TgiError("Element does not support this XML attribute", TgiFaultCode.INVALID_ARGUMENT)
+    if not hasattr(obj, name) or getattr(obj, name) is None:
         return False
-    setattr(obj, attr, None)
+    if field is not None:
+        if field.default is not MISSING:
+            value = field.default
+        elif field.default_factory is not MISSING:
+            value = field.default_factory()
+        else:
+            raise TgiError("Required XML attribute cannot be removed", TgiFaultCode.INVALID_ARGUMENT)
+    else:
+        value = None
+    setattr(obj, name, value)
     return True
 
 
@@ -519,11 +587,13 @@ def isSetAttribute(elementID: str, attributeName: str) -> bool:  # F.7.44.2
         True if set, else False.
     """
     obj = _resolve(elementID)
-    return getattr(obj, attributeName, None) is not None
+    return _attribute_value(obj, attributeName) is not None
 
 
 def removeAttribute(elementID: str, attributeName: str) -> bool:  # Generic removal
     """Remove (clear) an arbitrary attribute by name.
+
+    Section: F.7.44.6.
 
     Args:
         elementID: Element handle.
@@ -537,11 +607,11 @@ def removeAttribute(elementID: str, attributeName: str) -> bool:  # Generic remo
 
 
 # Auto-generate the explicit remove*/set* functions declared in spec.
-for fname, attr, _kind in _EXTENDED_ATTRIBUTE_FUNCS:
+for subsection, (fname, attr, _kind) in enumerate(_EXTENDED_ATTRIBUTE_FUNCS, 1):
     if fname in {"addConstrainedAttribute", "isSetAttribute", "removeAttribute"}:
         continue
     if fname.startswith("remove") and attr:
-        def _make_remove(a: str, fn: str):
+        def _make_remove(a: str, fn: str, section: int):
             def _rem(elementID: str) -> bool:
                 """Remove attribute if present (spec EXTENDED remove function).
 
@@ -554,10 +624,11 @@ for fname, attr, _kind in _EXTENDED_ATTRIBUTE_FUNCS:
                 obj = _resolve(elementID)
                 return _del_attr(obj, a)
             _rem.__name__ = fn
+            _rem.__doc__ += f"\nSection: F.7.44.{section}.\n"
             return _rem
-        globals()[fname] = _make_remove(attr, fname)
+        globals()[fname] = _make_remove(attr, fname, subsection)
     elif fname.startswith("set") and attr:
-        def _make_set(a: str, fn: str):
+        def _make_set(a: str, fn: str, section: int):
             def _set(elementID: str, value: Any) -> bool:
                 """Set (create or replace) attribute value.
 
@@ -569,10 +640,58 @@ for fname, attr, _kind in _EXTENDED_ATTRIBUTE_FUNCS:
                     Always True.
                 """
                 obj = _resolve(elementID)
+                field = _attribute_field(obj, a)
+                if fn.endswith("IntAttribute"):
+                    if type(value) is not int:
+                        raise TgiError("Integer setter requires an integer", TgiFaultCode.INVALID_ARGUMENT)
+                elif fn.endswith(("DoubleAttribute", "FloatAttribute")) and (
+                    isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value)
+                ):
+                    raise TgiError("Numeric setter requires a finite number", TgiFaultCode.INVALID_ARGUMENT)
+                if field is not None and a in {"minimum", "maximum"}:
+                    annotation = get_type_hints(type(obj))[field.name]
+                    candidates = get_args(annotation)
+                    if str in candidates and isinstance(value, (int, float)):
+                        value = str(value)
+                    elif int in candidates and isinstance(value, float):
+                        if not value.is_integer():
+                            raise TgiError(
+                                "Fractional bound cannot be stored in integer attribute",
+                                TgiFaultCode.INVALID_ARGUMENT,
+                            )
+                        value = int(value)
+                    elif float in candidates and isinstance(value, str):
+                        try:
+                            value = float(value)
+                        except ValueError as error:
+                            raise TgiError("Invalid numeric bound", TgiFaultCode.INVALID_ARGUMENT) from error
                 _set_attr(obj, a, value)
                 return True
             _set.__name__ = fn
+            _set.__doc__ += f"\nSection: F.7.44.{section}.\n"
             return _set
-        globals()[fname] = _make_set(attr, fname)
+        globals()[fname] = _make_set(attr, fname, subsection)
 
 
+# Expanded-name wildcard setter has three standard arguments, unlike named setters.
+def setOtherAnyAttribute(attributeContainerID: str, attributeName: str, value: str) -> bool:
+    """Set a wildcard XML attribute by its expanded name.
+
+    Section: F.7.44.129.
+
+    Args:
+        attributeContainerID: Handle to a generated wildcard attribute container.
+        attributeName: XML name; namespaced attributes use {namespace}local.
+        value: XML attribute string value.
+
+    Returns:
+        True on success; invalid inputs raise INVALID_ARGUMENT before mutation.
+    """
+    obj = _resolve(attributeContainerID)
+    if not isinstance(attributeName, str) or not attributeName or not isinstance(value, str):
+        raise TgiError("Wildcard attributes require a name and string value", TgiFaultCode.INVALID_ARGUMENT)
+    attrs = getattr(obj, "other_attributes", None)
+    if attrs is None:
+        raise TgiError("Element does not support wildcard attributes", TgiFaultCode.INVALID_ARGUMENT)
+    attrs[attributeName] = value
+    return True
