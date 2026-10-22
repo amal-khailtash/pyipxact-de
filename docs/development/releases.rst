@@ -146,3 +146,16 @@ Project-specific validation
 pyipxact-de builds pure Python wheels, checks distribution metadata, and tests
 XML/schema behavior with the recorded schema submodule and native XML tools.
 Publication uses uv trusted publishing with PEP 740 attestations.
+
+Local HTML reports
+------------------
+
+Run ``make coverage`` to test application code and generated schema bindings
+and write HTML coverage to ``build/coverage/html/index.html``. The XML report
+is ``build/coverage/coverage.xml``. CI measures the same two package trees and
+uploads the ``build/coverage`` directory as the coverage artifact.
+
+Run ``make docs`` to write HTML documentation directly to
+``build/docs/index.html``; ``make view-docs`` opens that page. The documentation
+Makefile also supports ``uv run --locked make -C docs api html`` to regenerate
+API pages before building. Build outputs are ignored by Git.

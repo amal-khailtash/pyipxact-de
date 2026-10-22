@@ -276,11 +276,19 @@ generate-app:
 # ----------------------------------------------------------------------------------------------------------------------
 .PHONY: test
 test:
-	$(run) pytest -q
+	$(run) --locked pytest -q
 #	$(run) pytest -v tests/test_versions.py
 #	$(run) pytest -v tests/test_xml.py
 #	$(run) pytest -v tests/test_xml_validator.py
 #	$(run) pytest -v tests/test_xml_transformer.py
+
+# ----------------------------------------------------------------------------------------------------------------------
+# coverage: ## Run tests and generate HTML/XML coverage for application code and schema bindings
+# ----------------------------------------------------------------------------------------------------------------------
+.PHONY: coverage
+coverage:
+	$(run) --locked pytest --cov=amal --cov=org --cov-report=term-missing --cov-report=xml:build/coverage/coverage.xml --cov-report=html:build/coverage/html
+
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ###@ Run:
@@ -339,15 +347,15 @@ web:
 # ----------------------------------------------------------------------------------------------------------------------
 .PHONY: docs
 docs:
-	@SPHINXOPTS="-j auto" make -C docs -j $(shell nproc) html
+	@$(run) --locked make -C docs html SPHINXOPTS="-j auto"
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # view-docs: ## View HTML documentation
 # ----------------------------------------------------------------------------------------------------------------------
 .PHONY: view-docs
-view-docs: docs/_build/html/index.html
-	@xdg-open docs/_build/html/index.html
+view-docs: docs
+	@xdg-open build/docs/index.html
 
 
 

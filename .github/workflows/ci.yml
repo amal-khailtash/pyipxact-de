@@ -73,7 +73,7 @@ jobs:
           uv sync --locked --all-groups
       - name: Run semantic tests and coverage
         env:
-          COVERAGE_SOURCE: ${{ github.event.repository.name == 'pysystemc' && 'amal.eda.systemc' || 'amal' }}
+          COVERAGE_SOURCE: ${{ github.event.repository.name == 'pysystemc' && 'amal.eda.systemc' || 'src' }}
         run: uv run --locked pytest --cov="$COVERAGE_SOURCE" --cov-report=term-missing --cov-report=xml:build/coverage/coverage.xml --cov-report=html:build/coverage/html
       - name: Save coverage reports
         if: always()
@@ -135,8 +135,6 @@ jobs:
           else
             uv sync --locked --all-groups
             uv run --locked make -C docs api html
-            mkdir -p build/docs
-            cp -a docs/_build/html/. build/docs/
           fi
       - uses: actions/upload-artifact@v7
         with:

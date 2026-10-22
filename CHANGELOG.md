@@ -38,6 +38,8 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Add make coverage HTML/XML reports including generated org bindings; build documentation directly under build/docs.
+
 - Complete Vector traversal and lifecycle with generated endpoints, self-contained SV integer evaluation and parsed ownership.
 - Complete Vendor extensions XML fragment retrieval, append, replacement and removal while preserving namespaces and wildcard content.
 - Remove owned children by identity to preserve equal-valued siblings.
