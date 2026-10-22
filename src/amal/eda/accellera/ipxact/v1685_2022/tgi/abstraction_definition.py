@@ -6,7 +6,15 @@ for :class:`AbstractionDefinition` objects.
 """
 from collections.abc import Sequence
 
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle, register_parent, detach_child_by_handle
+from .core import (
+    TgiError,
+    TgiFaultCode,
+    detach_child_by_handle,
+    get_handle,
+    register_parent,
+    resolve_handle,
+    vlnv_to_tuple,
+)
 from org.accellera.ipxact.v1685_2022.wire import Wire
 from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, Choices
 
@@ -70,7 +78,9 @@ __all__ = [
     "addAbstractionDefPortTransactionalOnSystem",
     "addAbstractionDefPortWireOnSystem",
     "removeAbstractionDefChoice",
+    "removeAbstractionDefExtends",
     "removeAbstractionDefPort",
+    "removeAbstractionDefPortMatch",
     "removeAbstractionDefPortMode",
     "removeAbstractionDefPortTransactionalOnSystem",
     "removeAbstractionDefPortWireOnSystem",
@@ -92,6 +102,10 @@ __all__ = [
     "removeAbstractionDefPortWireOnTarget",
     "removeAbstractionDefPortWireQualifier",
     "removeAbstractionDefPortWireRequiresDriver",
+    "removeCustomAttribute",
+    "removeMandatoryAttribute",
+    "setAbstractionDefPortLogicalName",
+    "setAbstractionDefPortMatch",
     "setAbstractionDefPortTransactionalModeBusWidth",
     "setAbstractionDefPortTransactionalModeInitiative",
     "setAbstractionDefPortTransactionalModeKind",
@@ -112,6 +126,8 @@ __all__ = [
     "setAbstractionDefPortWireOnTarget",
     "setAbstractionDefPortWireQualifier",
     "setAbstractionDefPortWireRequiresDriver",
+    "setModeConstraintsDriveConstraint",
+    "setModeConstraintsLoadConstraint",
 ]
 
 
@@ -202,6 +218,24 @@ def _resolve_packet_field(packetFieldID: str):  # type: ignore[return-type]
     obj = resolve_handle(packetFieldID)
     from org.accellera.ipxact.v1685_2022.port_packet_field_type import PortPacketFieldType
     return obj if isinstance(obj, PortPacketFieldType) else None
+
+
+def _numeric_value(expression: object) -> int | None:
+    """Evaluate a self-contained SystemVerilog integer expression if possible."""
+    if not isinstance(expression, str):
+        return None
+    if not expression.strip():
+        return None
+    try:
+        from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
+    except ImportError:
+        return None
+
+    try:
+        value = SvExpressionParser().evaluate(expression)
+    except SvExpressionError:
+        return None
+    return value if type(value) is int else None
 
 # ---------------------------------------------------------------------------
 # BASE
@@ -388,7 +422,7 @@ def getAbstractionDefPortStyle(abstractionDefPortModeID: str) -> str | None:
 
 
 def getAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str) -> int | None:
-    """Return transactional busWidth resolved value.
+    """Return the evaluated transactional busWidth when it is self-contained.
 
     Section: F.7.2.10.
 
@@ -396,23 +430,15 @@ def getAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str
         abstractionDefPortModeID: Handle to a transactional abstractionDefPort element.
 
     Returns:
-        Integer width or ``None`` if not specified / not transactional.
+        Integer result for a self-contained expression; ``None`` when absent, requiring external
+        parameter or scope resolution, or evaluating to a non-integer.
     """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    tr = getattr(p, "transactional", None)
-    if tr is None:
-        return None
-    # On initiator/on target do not carry busWidth; onSystem entries may.
-    for os in getattr(tr, "on_system", []):
-        bw = getattr(os, "bus_width", None)
-        if bw is not None and getattr(bw, "value", None) is not None:
-            try:
-                return int(bw.value)  # type: ignore[arg-type]
-            except Exception:  # pragma: no cover
-                return None
-    return None
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)):
+        raise TgiError("Invalid transactional logical port mode handle", TgiFaultCode.INVALID_ID)
+    width = mode.bus_width
+    return _numeric_value(width.value) if width is not None else None
 
 
 def getAbstractionDefPortTransactionalModeBusWidthExpression(abstractionDefPortModeID: str) -> str | None:
@@ -571,7 +597,7 @@ def getAbstractionDefPortTransactionalQualifierID(portID: str) -> str | None:
 
 
 def getAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> int | None:
-    """Return wire defaultValue numeric value.
+    """Return the evaluated wire defaultValue when it is self-contained.
 
     Section: F.7.2.21.
 
@@ -579,19 +605,26 @@ def getAbstractionDefPortWireDefaultValue(abstractionDefPortID: str) -> int | No
         abstractionDefPortID: Handle to a wire port element.
 
     Returns:
-        Integer value or ``None`` if not present / not wire.
+        Integer result for a self-contained expression; ``None`` if absent, requiring external
+        parameter or scope resolution, non-integer, or not wire style.
     """
     p = _resolve_port(abstractionDefPortID)
     if p is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    dv = getattr(w, "default_value", None) if w is not None else None
-    if dv is None:
+    wire = p.wire_or_transactional
+    if not isinstance(wire, Wire):
         return None
-    try:
-        return int(getattr(dv, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
+    from org.accellera.ipxact.v1685_2022.requires_driver import RequiresDriver
+    from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
+        UnsignedBitVectorExpression,
+    )
+
+    default_value = wire.default_value_or_requires_driver
+    if not isinstance(default_value, UnsignedBitVectorExpression | RequiresDriver):
         return None
+    if isinstance(default_value, RequiresDriver):
+        return None
+    return _numeric_value(default_value.value)
 
 
 def getAbstractionDefPortWireDefaultValueExpression(abstractionDefPortID: str) -> str | None:
@@ -672,7 +705,7 @@ def getAbstractionDefPortWireModePresence(abstractionDefPortModeID: str) -> str 
 
 
 def getAbstractionDefPortWireModeWidth(abstractionDefPortModeID: str) -> int | None:
-    """Return wire width numeric value.
+    """Return the evaluated wire mode width when it is self-contained.
 
     Section: F.7.2.28.
 
@@ -680,19 +713,14 @@ def getAbstractionDefPortWireModeWidth(abstractionDefPortModeID: str) -> int | N
         abstractionDefPortModeID: Handle to a wire port element.
 
     Returns:
-        Integer width or ``None``.
+        Integer result for a self-contained expression; ``None`` when absent, requiring external
+        parameter or scope resolution, or evaluating to a non-integer.
     """
-    p = _resolve_port(abstractionDefPortModeID)
-    if p is None:
-        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
-    w = getattr(p, "wire", None)
-    width = getattr(w, "width", None) if w is not None else None
-    if width is None:
-        return None
-    try:
-        return int(getattr(width, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    mode = resolve_handle(abstractionDefPortModeID)
+    if not isinstance(mode, (Wire.OnInitiator, Wire.OnTarget, Wire.OnSystem)):
+        raise TgiError("Invalid wire logical port mode handle", TgiFaultCode.INVALID_ID)
+    width = mode.width
+    return _numeric_value(width.value) if width is not None else None
 
 
 def getAbstractionDefPortWireModeWidthExpression(abstractionDefPortModeID: str) -> str | None:
@@ -950,7 +978,7 @@ def getPacketFieldQualifierID(packetFieldID: str) -> str | None:
 
 
 def getPacketFieldValue(packetFieldID: str) -> int | None:
-    """Return numeric packetField value.
+    """Return the evaluated packetField value when it is self-contained.
 
     Section: F.7.2.44.
 
@@ -958,7 +986,8 @@ def getPacketFieldValue(packetFieldID: str) -> int | None:
         packetFieldID: Handle to a packetField element.
 
     Returns:
-        Integer value or ``None``.
+        Integer result for a self-contained expression; ``None`` when absent, requiring external
+        parameter or scope resolution, or evaluating to a non-integer.
     """
     pf = _resolve_packet_field(packetFieldID)
     if pf is None:
@@ -966,10 +995,7 @@ def getPacketFieldValue(packetFieldID: str) -> int | None:
     val = getattr(pf, "value", None)
     if val is None:
         return None
-    try:
-        return int(getattr(val, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    return _numeric_value(getattr(val, "value", None))
 
 
 def getPacketFieldValueExpression(packetFieldID: str) -> str | None:
@@ -1002,7 +1028,7 @@ def getPacketFieldValueID(packetFieldID: str) -> str | None:
 
 
 def getPacketFieldWidth(packetFieldID: str) -> int | None:
-    """Return packetField width numeric value.
+    """Return the evaluated packetField width when it is self-contained.
 
     Section: F.7.2.47.
 
@@ -1010,7 +1036,8 @@ def getPacketFieldWidth(packetFieldID: str) -> int | None:
         packetFieldID: Handle to a packetField element.
 
     Returns:
-        Integer width or ``None``.
+        Integer result for a self-contained expression; ``None`` when absent, requiring external
+        parameter or scope resolution, or evaluating to a non-integer.
     """
     pf = _resolve_packet_field(packetFieldID)
     if pf is None:
@@ -1018,10 +1045,7 @@ def getPacketFieldWidth(packetFieldID: str) -> int | None:
     width = getattr(pf, "width", None)
     if width is None:
         return None
-    try:
-        return int(getattr(width, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    return _numeric_value(getattr(width, "value", None))
 
 
 def getPacketFieldWidthExpression(packetFieldID: str) -> str | None:
@@ -1267,6 +1291,15 @@ def removeAbstractionDefChoice(choiceID: str) -> bool:  # pragma: no cover - sca
     return detach_child_by_handle(choiceID)
 
 
+def removeAbstractionDefExtends(abstractionDefinitionID: str) -> bool:
+    """Remove the optional extends reference and invalidate its handle (F.7.3.10)."""
+    ad = _resolve(abstractionDefinitionID)
+    if ad is None or ad.extends is None:
+        return False
+    register_parent(ad.extends, ad, ("extends",), "single")
+    return detach_child_by_handle(get_handle(ad.extends))
+
+
 def removeAbstractionDefPort(portID: str) -> bool:
     """Remove a port.
 
@@ -1282,6 +1315,15 @@ def removeAbstractionDefPort(portID: str) -> bool:
     if target is None:
         return False
     return detach_child_by_handle(portID)
+
+
+def removeAbstractionDefPortMatch(abstractionDefPortID: str) -> bool:
+    """Remove the optional match element from a logical port (F.7.3.12)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None or port.match is None:
+        return False
+    port.match = None
+    return True
 
 
 def removeAbstractionDefPortMode(portModeID: str) -> bool:
@@ -1307,18 +1349,16 @@ def removeAbstractionDefPortWireOnSystem(onSystemID: str) -> bool:
 
 
 def setAbstractionDefExtends(
-    abstractionDefinitionID: str, vendor: str, library: str, name: str, version: str
-) -> bool:  # pragma: no cover - scaffold
+    abstractionDefinitionID: str,
+    abstractionDefVLNV: Sequence[str],
+) -> bool:
     """Set the extends reference.
 
     Section: F.7.3.44.
 
     Args:
         abstractionDefinitionID: Abstraction definition handle.
-        vendor: Vendor string.
-        library: Library string.
-        name: Name string.
-        version: Version string.
+        abstractionDefVLNV: Four-part vendor, library, name and version sequence.
 
     Returns:
         True on success.
@@ -1331,7 +1371,42 @@ def setAbstractionDefExtends(
         raise TgiError("Invalid abstraction definition handle", TgiFaultCode.INVALID_ID)
     from org.accellera.ipxact.v1685_2022.library_ref_type import LibraryRefType
 
-    ad.extends = LibraryRefType(vendor=vendor, library=library, name=name, version=version)  # type: ignore[arg-type]
+    try:
+        parts = vlnv_to_tuple(abstractionDefVLNV)
+    except (TypeError, ValueError) as error:
+        raise TgiError(
+            "Abstraction definition VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT
+        ) from error
+    if not all(isinstance(part, str) and part.strip() for part in parts):
+        raise TgiError("Abstraction definition VLNV requires four nonempty strings", TgiFaultCode.INVALID_ARGUMENT)
+    vendor, library, name, version = parts
+    if ad.extends is not None:
+        register_parent(ad.extends, ad, ("extends",), "single")
+        detach_child_by_handle(get_handle(ad.extends))
+    ad.extends = LibraryRefType(vendor=vendor, library=library, name=name, version=version)
+    register_parent(ad.extends, ad, ("extends",), "single")
+    return True
+
+
+def setAbstractionDefPortLogicalName(abstractionDefPortID: str, value: str) -> bool:
+    """Set the required logical name on a port (F.7.3.45)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError("Logical name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    port.logical_name = value
+    return True
+
+
+def setAbstractionDefPortMatch(abstractionDefPortID: str, value: bool) -> bool:
+    """Set the optional port match element (F.7.3.46)."""
+    port = _resolve_port(abstractionDefPortID)
+    if port is None:
+        raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(value, bool):
+        raise TgiError("Port match requires a Boolean value", TgiFaultCode.INVALID_ARGUMENT)
+    port.match = value
     return True
 
 
@@ -1545,6 +1620,34 @@ def removeAbstractionDefPortWireRequiresDriver(portID: str) -> bool:
         return False
     register_parent(driver, wire, ("default_value_or_requires_driver",), "single")
     return detach_child_by_handle(get_handle(driver))
+
+
+def _resolve_transactional_mode(handle: str):
+    """Resolve one abstraction-definition transactional mode handle."""
+    tr = AbstractionDefinition.Ports.Port.Transactional
+    obj = resolve_handle(handle)
+    return obj if isinstance(obj, (tr.OnInitiator, tr.OnTarget, tr.OnSystem)) else None
+
+
+def removeCustomAttribute(abstractionDefPortModeID: str) -> bool:
+    """Remove the optional custom attribute from a mode's kind element (F.7.3.34)."""
+    mode = _resolve_transactional_mode(abstractionDefPortModeID)
+    if mode is None or mode.kind is None or mode.kind.custom is None:
+        return False
+    mode.kind.custom = None
+    return True
+
+
+def removeMandatoryAttribute(abstractionDefPortModeID: str) -> bool:
+    """Clear the mandatory attribute on a mode's protocol payload extension (F.7.3.35)."""
+    mode = _resolve_transactional_mode(abstractionDefPortModeID)
+    protocol = mode.protocol if mode is not None else None
+    payload = protocol.payload if protocol is not None else None
+    extension = payload.extension if payload is not None else None
+    if extension is None or not extension.mandatory:
+        return False
+    extension.mandatory = False
+    return True
 
 
 def setAbstractionDefPortTransactionalModeBusWidth(abstractionDefPortModeID: str, width: str) -> bool:
@@ -2113,6 +2216,66 @@ def removeModeConstraintsLoadConstraint(modeConstraintsID: str) -> bool:
 
 
 __all__ += ["removeModeConstraintsLoadConstraint"]
+
+
+def _append_mode_cell_constraint(modeConstraintsID: str, cellType: str, *, drive: bool) -> bool:
+    """Append one drive or load constraint after validating its model choice and cardinality."""
+    from org.accellera.ipxact.v1685_2022.abstraction_def_port_constraints_type import (
+        AbstractionDefPortConstraintsType,
+    )
+    from org.accellera.ipxact.v1685_2022.cell_class_value_type import CellClassValueType
+    from org.accellera.ipxact.v1685_2022.cell_function_value_type import CellFunctionValueType
+    from org.accellera.ipxact.v1685_2022.cell_specification import CellSpecification
+    from org.accellera.ipxact.v1685_2022.drive_constraint import DriveConstraint
+    from org.accellera.ipxact.v1685_2022.load_constraint import LoadConstraint
+
+    constraints = resolve_handle(modeConstraintsID)
+    if not isinstance(constraints, AbstractionDefPortConstraintsType):
+        raise TgiError("Invalid modeConstraints handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(cellType, str) or not cellType:
+        raise TgiError("Cell type requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        cell_function = CellFunctionValueType(cellType)
+        cell_choice = CellSpecification.CellFunction(value=cell_function)
+    except ValueError:
+        try:
+            cell_choice = CellClassValueType(cellType)
+        except ValueError as error:
+            raise TgiError("Invalid cell function or cell class", TgiFaultCode.INVALID_ARGUMENT) from error
+
+    target_type = DriveConstraint if drive else LoadConstraint
+    matches = [
+        child for child in constraints.drive_constraint_or_load_constraint if isinstance(child, target_type)
+    ]
+    if matches:
+        raise TgiError("Constraint type has reached its maximum occurrence count", TgiFaultCode.INVALID_ARGUMENT)
+    cell_specification = CellSpecification(cell_function_or_cell_class=cell_choice)
+    if drive:
+        constraint = DriveConstraint(cell_specification=cell_specification)
+    else:
+        constraint = LoadConstraint(cell_specification=cell_specification)
+    mixed_constraints = constraints.drive_constraint_or_load_constraint
+    if drive:
+        first_load = next(
+            (index for index, item in enumerate(mixed_constraints) if isinstance(item, LoadConstraint)),
+            len(mixed_constraints),
+        )
+        mixed_constraints.insert(first_load, constraint)
+    else:
+        mixed_constraints.append(constraint)
+    register_parent(constraint, constraints, ("drive_constraint_or_load_constraint",), "list")
+    register_parent(cell_specification, constraint, ("cell_specification",), "single")
+    return True
+
+
+def setModeConstraintsDriveConstraint(modeConstraintsID: str, cellType: str) -> bool:
+    """Append a driveConstraint with the requested cell function or class (F.7.3.68)."""
+    return _append_mode_cell_constraint(modeConstraintsID, cellType, drive=True)
+
+
+def setModeConstraintsLoadConstraint(modeConstraintsID: str, cellType: str) -> bool:
+    """Append a loadConstraint with the requested cell function or class (F.7.3.69)."""
+    return _append_mode_cell_constraint(modeConstraintsID, cellType, drive=False)
 
 
 def addModeConstraintsTimingConstraint(modeConstraintsID: str, value: float, clockName: str) -> str:

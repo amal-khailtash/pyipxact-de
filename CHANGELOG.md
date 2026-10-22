@@ -38,6 +38,8 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete remaining Abstraction definition TGI editing and getters, with slang-backed integer expressions, atomic extends references and schema-valid drive/load constraints.
+
 - Resolve Clearbox references within their owning component and abstractor-instance views through the referenced abstractor VLNV.
 
 - Complete Abstractor interface and file-set-reference-group removal with parsed ownership and descendant invalidation.
