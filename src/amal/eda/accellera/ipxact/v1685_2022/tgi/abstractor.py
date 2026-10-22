@@ -490,6 +490,14 @@ def removeAbstractorAbstractorInterface(abstractorInterfaceID: str) -> bool:
     """Remove an abstractor interface and invalidate its descendants (F.7.5.13).
 
     Unknown handles and handles of other element types return False.
+
+    Section: F.7.5.13.
+
+    Args:
+        abstractorInterfaceID: Handle to an abstractorInterface element.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
     """
     from .core import registry
 
@@ -554,6 +562,14 @@ def removeFileSetRefGroupFileSetRef(fileSetRefID: str) -> bool:
 
     Discover ownership in registered documents, including deserialized groups.
     References in other containers and unknown handles return False.
+
+    Section: F.7.5.20.
+
+    Args:
+        fileSetRefID: Handle to a fileSetRef.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
     """
     from org.accellera.ipxact.v1685_2022 import BusInterfaceType, ExecutableImage, FileSetRef
     from .core import get_parent_info, registry

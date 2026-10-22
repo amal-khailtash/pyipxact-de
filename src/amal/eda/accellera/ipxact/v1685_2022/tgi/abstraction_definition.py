@@ -1,8 +1,23 @@
 # ruff: noqa: I001
-"""Abstraction definition category TGI functions.
+"""Abstraction definition category TGI functions (IEEE 1685-2022).
 
-Provides traversal of ports, parameters, choices and basic metadata getters
-for :class:`AbstractionDefinition` objects.
+Annex F.7.2 (BASE) and F.7.3 (EXTENDED) provide access and editing for the
+abstractionDefinition model described in Clause 5.6, and its packets and
+packet fields described in Clause 5.11. Generated schema choices distinguish
+wire and transactional logical ports, their initiator/target/system modes,
+qualifiers, constraints and packet metadata. Mode-specific functions take
+mode handles; port-level functions take logical-port handles.
+
+Source-expression getters preserve XML text. Numeric getters evaluate
+self-contained SystemVerilog integer expressions using slang; Annex E
+parameter and scope resolution remains separate work. Packet endianness
+getters report values defined on the element as specified by Annex F;
+effective inheritance under Clause 5.11 is a separate model concern.
+
+EXTENDED editing validates before mutation, registers generated child
+ownership and invalidates detached reference handles. Drive/load constraints
+follow the actual XSD choice: at most one of each, with drive before load.
+Generated choice metadata must not be interpreted as a summed cardinality.
 """
 from collections.abc import Sequence
 
@@ -1292,7 +1307,16 @@ def removeAbstractionDefChoice(choiceID: str) -> bool:  # pragma: no cover - sca
 
 
 def removeAbstractionDefExtends(abstractionDefinitionID: str) -> bool:
-    """Remove the optional extends reference and invalidate its handle (F.7.3.10)."""
+    """Remove the optional extends reference and invalidate its handle (F.7.3.10).
+
+    Section: F.7.3.10.
+
+    Args:
+        abstractionDefinitionID: Handle to an abstractionDef element.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     ad = _resolve(abstractionDefinitionID)
     if ad is None or ad.extends is None:
         return False
@@ -1318,7 +1342,16 @@ def removeAbstractionDefPort(portID: str) -> bool:
 
 
 def removeAbstractionDefPortMatch(abstractionDefPortID: str) -> bool:
-    """Remove the optional match element from a logical port (F.7.3.12)."""
+    """Remove the optional match element from a logical port (F.7.3.12).
+
+    Section: F.7.3.12.
+
+    Args:
+        abstractionDefPortID: Handle to abstractionDefPort element.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     port = _resolve_port(abstractionDefPortID)
     if port is None or port.match is None:
         return False
@@ -1389,7 +1422,17 @@ def setAbstractionDefExtends(
 
 
 def setAbstractionDefPortLogicalName(abstractionDefPortID: str, value: str) -> bool:
-    """Set the required logical name on a port (F.7.3.45)."""
+    """Set the required logical name on a port (F.7.3.45).
+
+    Section: F.7.3.45.
+
+    Args:
+        abstractionDefPortID: Handle to abstractionDefPort elemen.
+        value: new logical port name.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     port = _resolve_port(abstractionDefPortID)
     if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
@@ -1400,7 +1443,17 @@ def setAbstractionDefPortLogicalName(abstractionDefPortID: str, value: str) -> b
 
 
 def setAbstractionDefPortMatch(abstractionDefPortID: str, value: bool) -> bool:
-    """Set the optional port match element (F.7.3.46)."""
+    """Set the optional port match element (F.7.3.46).
+
+    Section: F.7.3.46.
+
+    Args:
+        abstractionDefPortID: Handle to abstractionDefPort element.
+        value: match value.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     port = _resolve_port(abstractionDefPortID)
     if port is None:
         raise TgiError("Invalid abstractionDefPort handle", TgiFaultCode.INVALID_ID)
@@ -1630,7 +1683,16 @@ def _resolve_transactional_mode(handle: str):
 
 
 def removeCustomAttribute(abstractionDefPortModeID: str) -> bool:
-    """Remove the optional custom attribute from a mode's kind element (F.7.3.34)."""
+    """Remove the optional custom attribute from a mode's kind element (F.7.3.34).
+
+    Section: F.7.3.34.
+
+    Args:
+        abstractionDefPortModeID: Handle to abstractionDefPortMode element.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     mode = _resolve_transactional_mode(abstractionDefPortModeID)
     if mode is None or mode.kind is None or mode.kind.custom is None:
         return False
@@ -1639,7 +1701,16 @@ def removeCustomAttribute(abstractionDefPortModeID: str) -> bool:
 
 
 def removeMandatoryAttribute(abstractionDefPortModeID: str) -> bool:
-    """Clear the mandatory attribute on a mode's protocol payload extension (F.7.3.35)."""
+    """Clear the mandatory attribute on a mode's protocol payload extension (F.7.3.35).
+
+    Section: F.7.3.35.
+
+    Args:
+        abstractionDefPortModeID: Handle to abstractionDefPort element.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     mode = _resolve_transactional_mode(abstractionDefPortModeID)
     protocol = mode.protocol if mode is not None else None
     payload = protocol.payload if protocol is not None else None
@@ -2269,12 +2340,32 @@ def _append_mode_cell_constraint(modeConstraintsID: str, cellType: str, *, drive
 
 
 def setModeConstraintsDriveConstraint(modeConstraintsID: str, cellType: str) -> bool:
-    """Append a driveConstraint with the requested cell function or class (F.7.3.68)."""
+    """Append a driveConstraint with the requested cell function or class (F.7.3.68).
+
+    Section: F.7.3.68.
+
+    Args:
+        modeConstraintsID: Handle to modeConstraints element.
+        cellType: cellFunction or cellClass of the driveConstraint.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     return _append_mode_cell_constraint(modeConstraintsID, cellType, drive=True)
 
 
 def setModeConstraintsLoadConstraint(modeConstraintsID: str, cellType: str) -> bool:
-    """Append a loadConstraint with the requested cell function or class (F.7.3.69)."""
+    """Append a loadConstraint with the requested cell function or class (F.7.3.69).
+
+    Section: F.7.3.69.
+
+    Args:
+        modeConstraintsID: Handle to modeConstraints element.
+        cellType: cellFunction or cellClass of the driveConstraint.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     return _append_mode_cell_constraint(modeConstraintsID, cellType, drive=False)
 
 

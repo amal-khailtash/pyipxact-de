@@ -196,6 +196,12 @@ def getAbstractorInstanceViewNameRefByID(abstractorInstanceID: str) -> str:
     The view name is resolved within the abstractor identified by this
     instance's ``abstractorRef``. A same-named view in another abstractor is
     never considered.
+
+    Args:
+        abstractorInstanceID: Handle to an abstractorInstance element.
+
+    Returns:
+        Handle to the referenced view element.
     """
     from org.accellera.ipxact.v1685_2022.abstractor import Abstractor
     from org.accellera.ipxact.v1685_2022.design_configuration import DesignConfiguration

@@ -1,8 +1,18 @@
 """Top element category TGI functions (IEEE 1685-2022).
 
-BASE operations enumerate registered roots and access their VLNV and XML file
-metadata. EXTENDED operations create roots, signal editing and update file
-locations. Optional container arguments preserve historical scoped traversal.
+Annex F.7.79 defines BASE access to registered abstraction definitions,
+abstractors, bus definitions, catalogs, components, designs, design
+configurations, generator chains and type definitions. Enumeration operates
+on the VLNV registry; an optional historical container handle retains scoped
+traversal compatibility. F.7.79.9-F.7.79.12 expose root identity, VLNV and the
+registered XML file location, including filesystem-link dereferencing.
+
+Annex F.7.80 defines root creation, the editing-start signal and XML-location
+updates. Roots use generated 1685-2022 schema classes, and file locations are
+registry metadata rather than serialized XML content. The writable in-memory
+backend needs no checkout to begin editing. Legacy container/name creation
+forms remain available where previously supported; standard creation uses a
+four-part VLNV and returns None for an already registered identity.
 """
 from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
@@ -170,6 +180,14 @@ def getAbstractionDefIDs(topElementID: str | None = None) -> list[str]:  # F.7.7
 
     Without arguments, enumerate registered roots (F.7.79.1).
     The optional top handle preserves historical scoped traversal.
+
+    Section: F.7.79.1.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to abstractionDefinition objects.
     """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, AbstractionDefinition)))
@@ -178,7 +196,16 @@ def getAbstractionDefIDs(topElementID: str | None = None) -> list[str]:  # F.7.7
 
 
 def getAbstractorIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.2
-    """Return handles of Abstractors under a top element registered in the environment."""
+    """Return handles of Abstractors under a top element registered in the environment.
+
+    Section: F.7.79.2.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to abstractor objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, Abstractor)))
     top = _resolve_top(topElementID)
@@ -186,7 +213,16 @@ def getAbstractorIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.2
 
 
 def getBusDefIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.3
-    """Return handles of Bus Definitions registered in the environment."""
+    """Return handles of Bus Definitions registered in the environment.
+
+    Section: F.7.79.3.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to busDefinition objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, BusDefinition)))
     top = _resolve_top(topElementID)
@@ -219,6 +255,15 @@ def getCatalogIDs(*args, **kwargs):  # type: ignore[override]
     Dev-phase convenience: with no arguments enumerate globally
     registered root Catalog handles. With an argument delegate to the
     spec-conformant top-element scoped enumeration.
+
+    Section: F.7.79.4.
+
+    Args:
+        args: Optional historical top-element container handle.
+        kwargs: Optional historical topElementID keyword.
+
+    Returns:
+        List of handles to catalog objects.
     """
     if not args and not kwargs:
         return _getCatalogIDs_noarg()
@@ -226,7 +271,16 @@ def getCatalogIDs(*args, **kwargs):  # type: ignore[override]
 
 
 def getComponentIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.5
-    """Return handles of Components registered in the environment."""
+    """Return handles of Components registered in the environment.
+
+    Section: F.7.79.5.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to component objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, Component)))
     top = _resolve_top(topElementID)
@@ -234,7 +288,16 @@ def getComponentIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.5
 
 
 def getDesignConfigurationIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.6
-    """Return handles of Design Configurations registered in the environment."""
+    """Return handles of Design Configurations registered in the environment.
+
+    Section: F.7.79.6.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to designConfiguration objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, DesignConfiguration)))
     top = _resolve_top(topElementID)
@@ -242,7 +305,16 @@ def getDesignConfigurationIDs(topElementID: str | None = None) -> list[str]:  # 
 
 
 def getDesignIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.7
-    """Return handles of Designs registered in the environment."""
+    """Return handles of Designs registered in the environment.
+
+    Section: F.7.79.7.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to design objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, Design)))
     top = _resolve_top(topElementID)
@@ -250,7 +322,16 @@ def getDesignIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.7
 
 
 def getGeneratorChainIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.8
-    """Return handles of Generator Chains registered in the environment."""
+    """Return handles of Generator Chains registered in the environment.
+
+    Section: F.7.79.8.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to generatorChain objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, GeneratorChain)))
     top = _resolve_top(topElementID)
@@ -262,6 +343,14 @@ def getID(elementID):  # F.7.79.9
 
     A handle argument is retained as a historical identity convenience.
     Unknown VLNVs and invalid handles return None.
+
+    Section: F.7.79.9.
+
+    Args:
+        elementID: Four-part VLNV; a handle is also accepted for historical compatibility.
+
+    Returns:
+        Handle to the object with the given VLNV.
     """
     # VLNV pattern
     if isinstance(elementID, list | tuple) and len(elementID) == 4 and all(
@@ -275,7 +364,16 @@ def getID(elementID):  # F.7.79.9
 
 
 def getTypeDefinitionsIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.10
-    """Return handles of Type Definitions registered in the environment."""
+    """Return handles of Type Definitions registered in the environment.
+
+    Section: F.7.79.10.
+
+    Args:
+        topElementID: Optional historical container handle; omit to enumerate registered roots.
+
+    Returns:
+        List of handles to typeDefinitions objects.
+    """
     if topElementID is None:
         return list(registry.iter_by_predicate(lambda root: isinstance(root, TypeDefinitions)))
     top = _resolve_top(topElementID)
@@ -283,7 +381,16 @@ def getTypeDefinitionsIDs(topElementID: str | None = None) -> list[str]:  # F.7.
 
 
 def getVLNV(elementID: str):  # F.7.79.11
-    """Return the registered root VLNV, or None if no association exists (F.7.79.11)."""
+    """Return the registered root VLNV, or None if no association exists (F.7.79.11).
+
+    Section: F.7.79.11.
+
+    Args:
+        elementID: Registered root handle.
+
+    Returns:
+        Four-part registered VLNV, or None if unregistered.
+    """
     return registry.get_vlnv(elementID) if isinstance(elementID, str) else None
 
 
@@ -291,6 +398,15 @@ def getXMLPath(elementID: str, dereference: bool = False) -> str | None:  # F.7.
     """Return the registered XML file location, optionally resolving filesystem links.
 
     An unregistered root or a root without a file location returns None.
+
+    Section: F.7.79.12.
+
+    Args:
+        elementID: Registered root handle.
+        dereference: True if the links have to be dereferenced.
+
+    Returns:
+        Registered file location, or None if absent or unregistered.
     """
     from pathlib import Path
 
@@ -325,6 +441,17 @@ def createAbstractionDef(
 
     Invalid inputs raise INVALID_ARGUMENT; duplicate root VLNVs return None.
     The bus reference need not already exist in the registry.
+
+    Section: F.7.80.1.
+
+    Args:
+        abstractionDefVLNV: abstractionDef VLNV.
+        busDefVLNV: busDef VLNV.
+        logicalName: Logical port name.
+        type: Logical port style (wire or transactional).
+
+    Returns:
+        Handle to a new abstractionDef element.
     """
     _required_text(logicalName, "Logical port name")
     if type not in ("wire", "transactional"):
@@ -351,6 +478,18 @@ def createAbstractor(
     Invalid inputs raise INVALID_ARGUMENT; duplicate root VLNVs return None.
     System mode is initialized without a group because this operation has no
     group input; callers must supply it before semantic validation.
+
+    Section: F.7.80.2.
+
+    Args:
+        vlnv: VLNV for a new abstractor.
+        mode: Abstractor mode.
+        busDefVLNV: busDef VLNV.
+        firstBusInterfaceName: First busInterface name.
+        secondBusInterfaceName: Second busInterfaceName.
+
+    Returns:
+        Handle to a new abstractor.
     """
     try:
         mode_value = AbstractorModeType(mode)
@@ -377,7 +516,18 @@ def createAbstractor(
 
 
 def createBusDefinition(vlnv: Sequence[str], directConnection: bool, isAddressable: bool) -> str | None:
-    """Create a bus definition with Boolean capabilities (F.7.80.3)."""
+    """Create a bus definition with Boolean capabilities (F.7.80.3).
+
+    Section: F.7.80.3.
+
+    Args:
+        vlnv: busDef VLNV.
+        directConnection: busDef directionConnection.
+        isAddressable: busDef isAddressable.
+
+    Returns:
+        Handle to a new busDef element.
+    """
     if not isinstance(directConnection, bool) or not isinstance(isAddressable, bool):
         raise TgiError("Bus capabilities require Boolean values", TgiFaultCode.INVALID_ARGUMENT)
     return _create_registered_root(
@@ -390,6 +540,15 @@ def createCatalog(vlnv: Sequence[str] | str, name: str | None = None) -> str | N
 
     Duplicate VLNVs return None. The historical top-handle/name form remains
     available as a convenience overload, outside the standard contract.
+
+    Section: F.7.80.4.
+
+    Args:
+        vlnv: Four-part catalog VLNV, or a historical container handle when name is supplied.
+        name: Optional name for the historical container-handle creation form.
+
+    Returns:
+        Handle to a new catalog element, or None if its VLNV already exists.
     """
     if name is None:
         return _create_registered_root(Catalog, vlnv)
@@ -406,7 +565,17 @@ def createCatalog(vlnv: Sequence[str] | str, name: str | None = None) -> str | N
 
 
 def createComponent(vlnv: Sequence[str] | str, name: str | None = None) -> str | None:  # F.7.80.5
-    """Create a Component (EXTENDED)."""
+    """Create a Component (EXTENDED).
+
+    Section: F.7.80.5.
+
+    Args:
+        vlnv: VLNV for a new component.
+        name: Optional name for the historical container-handle creation form.
+
+    Returns:
+        Handle to a new component, or None if its VLNV already exists.
+    """
     if name is None:
         return _create_registered_root(Component, vlnv)
     # Preserve the historical top-handle/name convenience form.
@@ -422,7 +591,17 @@ def createComponent(vlnv: Sequence[str] | str, name: str | None = None) -> str |
 
 
 def createDesign(vlnv: Sequence[str] | str, name: str | None = None) -> str | None:  # F.7.80.6
-    """Create a Design (EXTENDED)."""
+    """Create a Design (EXTENDED).
+
+    Section: F.7.80.6.
+
+    Args:
+        vlnv: Design VLNV.
+        name: Optional name for the historical container-handle creation form.
+
+    Returns:
+        Handle to a design element, or None if its VLNV already exists.
+    """
     if name is None:
         return _create_registered_root(Design, vlnv)
     # Preserve the historical top-handle/name convenience form.
@@ -438,7 +617,17 @@ def createDesign(vlnv: Sequence[str] | str, name: str | None = None) -> str | No
 
 
 def createDesignConfiguration(vlnv: Sequence[str] | str, name: str | None = None) -> str | None:  # F.7.80.7
-    """Create a Design Configuration (EXTENDED)."""
+    """Create a Design Configuration (EXTENDED).
+
+    Section: F.7.80.7.
+
+    Args:
+        vlnv: designConfiguration VLNV.
+        name: Optional name for the historical container-handle creation form.
+
+    Returns:
+        Handle to a designConfiguration element, or None if its VLNV already exists.
+    """
     if name is None:
         return _create_registered_root(DesignConfiguration, vlnv)
     # Preserve the historical top-handle/name convenience form.
@@ -454,7 +643,18 @@ def createDesignConfiguration(vlnv: Sequence[str] | str, name: str | None = None
 
 
 def createGeneratorChain(generatorChainVLNV: Sequence[str], generatorName: str, generatorExe: str) -> str | None:
-    """Create a chain containing its initial generator (F.7.80.8)."""
+    """Create a chain containing its initial generator (F.7.80.8).
+
+    Section: F.7.80.8.
+
+    Args:
+        generatorChainVLNV: generatorChain VLNV.
+        generatorName: The name value to be set on the generator.
+        generatorExe: The generatorExe value to be set.
+
+    Returns:
+        Handle to a new generatorChain element.
+    """
     if not isinstance(generatorName, str) or not generatorName.strip():
         raise TgiError("Generator name requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     if not isinstance(generatorExe, str) or not generatorExe.strip():
@@ -473,7 +673,17 @@ def createGeneratorChain(generatorChainVLNV: Sequence[str], generatorName: str, 
 
 
 def createTypeDefinitions(vlnv: Sequence[str] | str, name: str | None = None) -> str | None:  # F.7.80.9
-    """Create a TypeDefinitions element (EXTENDED)."""
+    """Create a TypeDefinitions element (EXTENDED).
+
+    Section: F.7.80.9.
+
+    Args:
+        vlnv: VLNV for a new typeDefinitions.
+        name: Optional name for the historical container-handle creation form.
+
+    Returns:
+        Handle to the added typeDefinitions, or None if its VLNV already exists.
+    """
     if name is None:
         return _create_registered_root(TypeDefinitions, vlnv)
     # Preserve the historical top-handle/name convenience form.
@@ -493,12 +703,30 @@ def edit(elementID: str) -> bool:  # F.7.80.10
 
     No checkout is required by the in-memory backend; model content is preserved.
     Unknown, unregistered and child handles return False.
+
+    Section: F.7.80.10.
+
+    Args:
+        elementID: Registered root handle.
+
+    Returns:
+        True for a registered root ready for editing; False otherwise.
     """
     return registry.get_vlnv(elementID) is not None
 
 
 def setXMLPath(elementID: str, path: str) -> bool:  # F.7.80.11
-    """Set a registered root's XML location without modifying serialized content."""
+    """Set a registered root's XML location without modifying serialized content.
+
+    Section: F.7.80.11.
+
+    Args:
+        elementID: Registered root handle.
+        path: New location of XML file.
+
+    Returns:
+        Indicates call is successful (true) or not (false).
+    """
     if registry.get_vlnv(elementID) is None:
         raise TgiError("Invalid registered root handle", TgiFaultCode.INVALID_ID)
     if not isinstance(path, str) or not path.strip():
