@@ -18,7 +18,7 @@ decorator API requires MCP 1.x.
 - `src/org/accellera/` : generated bindings for SPIRIT 1.0/1.1/1.2/1.4/1.5/1685-2009 and IP-XACT 1685-2014/1685-2022;
   `standard.py` and the package initializer provide schema/version metadata.
 - `submodules/accellera-schemas/`: upstream XSD/WSDL schemas. `src/org/accellera/xsl/` holds conversion stylesheets.
-- `tests/`: pytest coverage and XML fixtures. `docs/`: Sphinx documentation. `.ai/`: ignored local standard references.
+- `tests/`: pytest coverage and XML fixtures. `docs/`: Sphinx documentation. Local standard references remain untracked.
 - `PyXB/`: historical bindings, excluded from distribution; use the current xsdata bindings for new work.
 
 GUI/web prototypes exist locally but are currently ignored by Git. Check tracking before depending on them in a
@@ -92,8 +92,8 @@ completion report alone does not establish verification or feature completion.
 ## Implementation tracking
 
 Implement features in sets of 5–10 depending on complexity. After each completed set of changes, update
-`docs/features.rst` , the ignored `.ai/implementation-plan.md` and relevant coverage ledgers, and `CHANGELOG.md` , then
-commit the changes. Organize both `docs/features.rst` and `.ai/implementation-plan.md` by feature category,
+`docs/features.rst`, local implementation tracking and relevant coverage ledgers, and `CHANGELOG.md`, then
+commit the changes. Organize the feature list and local implementation plan by feature category,
 without batch headings.
 Use ASCII dashes and no blank lines between consecutive bullets in `docs/features.rst`.
 Match RST heading underline lengths to their titles.
@@ -117,7 +117,7 @@ and version rules. Use the `amal-khailtash` GitHub account; never use `akhailta_
 
 ## Context handoff
 
-At 90% context usage, update the ignored `.ai/HANDOFF.md` before continuing or restarting.
+At 90% context usage, update the local, untracked handoff before continuing or restarting.
 Record the objective, user constraints, branch/commit/worktree state, completed features, exact test and
-coverage evidence, pending work, live processes, and the next concrete action. Read this file and
-`.ai/implementation-plan.md` when starting a replacement session; verify current Git state before editing.
+coverage evidence, pending work, live processes, and the next concrete action. Read the local handoff and
+implementation plan when starting a replacement session; verify current Git state before editing.
