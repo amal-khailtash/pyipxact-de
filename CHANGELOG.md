@@ -38,28 +38,21 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Access handle traversal and schema-selected creation, typed path segments/slices, Boolean force and owned removals.
 - Complete Generator phase resolution and metadata/group/transport editing with typed ownership and atomic validation.
 - Complete Generator chain editing and selector references using generated mixed collections and schema choices.
-
 - Add make coverage HTML/XML reports including generated org bindings; build documentation directly under build/docs.
-
 - Complete Vector traversal and lifecycle with generated endpoints, self-contained SV integer evaluation and parsed ownership.
 - Complete Vendor extensions XML fragment retrieval, append, replacement and removal while preserving namespaces and wildcard content.
 - Remove owned children by identity to preserve equal-valued siblings.
-
 - Complete Array editing across bounded, register and field arrays with typed ownership and SystemVerilog integer expression evaluation.
 - Complete Instantiation reference-node, VLNV and typed target-resolution functions with atomic setters.
 - Restore detailed standard-linked module/function docstrings, argument/return documentation and section headings.
-
 - Complete Top element registry enumeration, XML file-location metadata and editing-start contracts.
 - Verify all Choice operations with parsed ownership, schema-valid edits and atomic string validation.
-
 - Complete remaining Abstraction definition TGI editing and getters, with slang-backed integer expressions, atomic extends references and schema-valid drive/load constraints.
-
 - Resolve Clearbox references within their owning component and abstractor-instance views through the referenced abstractor VLNV.
-
 - Complete Abstractor interface and file-set-reference-group removal with parsed ownership and descendant invalidation.
-
 - Add pyslang-backed SystemVerilog expression parsing and a highlighted REPL under amal.eda.systemverilog, with a Makefile target.
 - Verify BASE unit, units, usageType, type and reset-type reference attributes.
 - Verify BASE custom, other, modify, text and flowType attributes.
@@ -168,7 +161,6 @@ This document lists notable changes for each release and follows:
 - Use standard interface handles for abstractor abstraction-type creation and traversal.
 - Validate abstraction references and component-instantiation names before mutation.
 - Repair abstraction-type and component-instantiation parent paths for removal and verify XML round trips.
-
 - Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
 - Validate abstractor mode and bus-reference updates before mutation; preserve mode handles and existing groups.
 - Correct abstractor file-set parent paths and verify add/list/remove behavior and XML round trips.
