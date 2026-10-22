@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.7.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.6.0...v0.7.0) (2026-10-22)
+
+
+### Features
+
+* complete standard TGI categories and add SV expression tools ([#25](https://github.com/amal-khailtash/pyipxact-de/issues/25)) ([cc7a6ff](https://github.com/amal-khailtash/pyipxact-de/commit/cc7a6ffd0deb53959cd0b295b6d070d660f08fd3))
+
 ## [0.6.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.5.0...v0.6.0) (2026-10-21)
 
 
