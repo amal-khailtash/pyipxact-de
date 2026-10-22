@@ -38,6 +38,8 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete File builder language-tool/linker choices, expression children and component-scoped generator references.
+- Complete File set file/function/reference editing with schema types, local fileId resolution and parsed ownership.
 - Complete Access handle traversal and schema-selected creation, typed path segments/slices, Boolean force and owned removals.
 - Complete Generator phase resolution and metadata/group/transport editing with typed ownership and atomic validation.
 - Complete Generator chain editing and selector references using generated mixed collections and schema choices.

@@ -9,19 +9,24 @@ from amal.eda.ipxact_de.xml_document import XmlDocument
 from org.accellera.ipxact.v1685_2022 import File, FileType, IpxactUri, SimpleFileType
 
 
-@pytest.mark.parametrize("name,field,value", [("TargetName", "target_name", "${OUT}/target.o"),
-                                            ("ReplaceDefaultFlags", "replace_default_flags", "1")])
+@pytest.mark.parametrize(
+    "name,field,value",
+    [("TargetName", "target_name", "${OUT}/target.o"), ("ReplaceDefaultFlags", "replace_default_flags", "1")],
+)
 @pytest.mark.parametrize("parsed", [False, True])
 def test_target_source_and_container_lifetime(name, field, value, parsed):
     root = File(name=IpxactUri(value="source.vhd"), file_type=[FileType(value=SimpleFileType.VHDL_SOURCE)])
     file_id = get_handle(root)
     assert api.getFileBuildCommandID(file_id) is None
-    command_id = api.setFileBuildCommand(file_id)
-    assert api.setFileBuildCommand(file_id) == command_id
+    assert api.setFileBuildCommand(file_id) is True
+    command_id = api.getFileBuildCommandID(file_id)
+    assert api.setFileBuildCommand(file_id) is True
     assert api.getFileBuildCommandID(file_id) == command_id
     setter = getattr(api, f"setBuildCommand{name}")
     remover = getattr(api, f"removeBuildCommand{name}")
     setter(command_id, value)
+    if name == "ReplaceDefaultFlags":
+        assert api.getBuildCommandReplaceDefaultFlags(command_id) is True
     child = getattr(root.build_command, field)
     setter(command_id, "")
     assert getattr(root.build_command, field) is child
