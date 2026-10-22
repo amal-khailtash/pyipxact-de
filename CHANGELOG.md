@@ -38,6 +38,8 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Resolve Clearbox references within their owning component and abstractor-instance views through the referenced abstractor VLNV.
+
 - Complete Abstractor interface and file-set-reference-group removal with parsed ownership and descendant invalidation.
 
 - Add pyslang-backed SystemVerilog expression parsing and a highlighted REPL under amal.eda.systemverilog, with a Makefile target.

@@ -33,6 +33,7 @@ from .core import (
 
 __all__: list[str] = [
     # BASE (F.7.87)
+    "getAbstractorInstanceViewNameRefByID",
     "getViewBusInterfaceRefIDs",
     "getViewComponentInstantiationRefByID",
     "getViewComponentInstantiationRefByName",
@@ -186,6 +187,41 @@ def _reference_target(viewID: str, attr: str, target_type: type) -> str | None:
 # ---------------------------------------------------------------------------
 # BASE (F.7.87) – tolerant getters
 # ---------------------------------------------------------------------------
+
+def getAbstractorInstanceViewNameRefByID(abstractorInstanceID: str) -> str:
+    """Resolve an abstractor instance's selected view by its abstractor VLNV.
+
+    Section: F.7.87.1.
+
+    The view name is resolved within the abstractor identified by this
+    instance's ``abstractorRef``. A same-named view in another abstractor is
+    never considered.
+    """
+    from org.accellera.ipxact.v1685_2022.abstractor import Abstractor
+    from org.accellera.ipxact.v1685_2022.design_configuration import DesignConfiguration
+
+    from .core import registry
+
+    instance = resolve_handle(abstractorInstanceID)
+    instance_type = DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance
+    if not isinstance(instance, instance_type):
+        raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
+
+    ref = instance.abstractor_ref
+    abstractor_id = registry.get_id((ref.vendor, ref.library, ref.name, ref.version))
+    abstractor = resolve_handle(abstractor_id) if abstractor_id is not None else None
+    if not isinstance(abstractor, Abstractor):
+        raise TgiError("Referenced abstractor is missing", TgiFaultCode.NOT_FOUND)
+
+    model = abstractor.model
+    views = model.views.view if model is not None and model.views is not None else []
+    matches = [candidate for candidate in views if candidate.name == instance.view_name]
+    if len(matches) != 1:
+        raise TgiError("Referenced abstractor view is missing or ambiguous", TgiFaultCode.NOT_FOUND)
+    target = matches[0]
+    register_parent(target, abstractor, ("model", "views", "view"), "list")
+    return get_handle(target)
+
 
 def getViewComponentInstantiationRefByID(viewID: str) -> str | None:
     """Resolve the local component instantiation (F.7.87.2).

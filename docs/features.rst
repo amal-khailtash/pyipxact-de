@@ -921,7 +921,7 @@ Clearbox (BASE)
 
 - ☑ ``getClearboxElementClearboxType`` (F.7.27.1)
 - ☑ ``getClearboxElementDriveable`` (F.7.27.2)
-- ☐ ``getClearboxElementRefByID`` (F.7.27.3)
+- ☑ ``getClearboxElementRefByID`` (F.7.27.3)
 - ☑ ``getClearboxElementRefLocationIDs`` (F.7.27.4)
 
 Clearbox (EXTENDED)
@@ -3068,7 +3068,7 @@ Vendor extensions (EXTENDED)
 View (BASE)
 ~~~~~~~~~~~
 
-- ☐ ``getAbstractorInstanceViewNameRefByID`` (F.7.87.1)
+- ☑ ``getAbstractorInstanceViewNameRefByID`` (F.7.87.1)
 - ☑ ``getViewComponentInstantiationRefByID`` (F.7.87.2) - Resolves typed local targets within the owning component, including registered parsed views; configured/external resolution remains planned.
 - ☑ ``getViewComponentInstantiationRefByName`` (F.7.87.3) - uses generated source strings and the standard view handle.
 - ☑ ``getViewDesignConfigurationInstantiationID`` (F.7.87.4) - Resolves typed local targets within the owning component, including registered parsed views; configured/external resolution remains planned.
