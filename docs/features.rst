@@ -450,11 +450,6 @@ Abstractor (EXTENDED)
 - ☑ ``setAbstractorAbstractorMode`` (F.7.5.21)
 - ☑ ``setAbstractorBusType`` (F.7.5.22)
 
-Access Policy (BASE)
-~~~~~~~~~~~~~~~~~~~~
-
-- ☐ ``getFieldAccessPolicyModeRefByID`` (F.7.6.1)
-
 Access handle (BASE)
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -483,6 +478,7 @@ Access handle (EXTENDED)
 Access policy (BASE)
 ~~~~~~~~~~~~~~~~~~~~
 
+- ☐ ``getFieldAccessPolicyModeRefByID`` (F.7.6.1)
 - ☐ ``getAccessPolicyAccess`` (F.7.9.1)
 - ☐ ``getAccessPolicyModeRefByID`` (F.7.9.2)
 - ☐ ``getAccessPolicyModeRefByNames`` (F.7.9.3)
