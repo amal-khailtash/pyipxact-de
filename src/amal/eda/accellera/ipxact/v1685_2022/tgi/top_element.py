@@ -1,19 +1,8 @@
 """Top element category TGI functions (IEEE 1685-2022).
 
-Implements BASE (F.7.79) and EXTENDED (F.7.80) top element functions. The
-"top element" represents the container / repository scope from which all
-other IP-XACT elements (components, bus definitions, etc.) can be enumerated
-or created. BASE traversal getters return empty lists or neutral values when
-the provided handle is invalid (tolerant semantics). EXTENDED creation and
-edit operations raise :class:`TgiError` with appropriate fault codes for
-invalid IDs or arguments.
-
-Because this implementation operates without a backing persistent database,
-we treat a *top handle* as any object carrying collections named after the
-relevant categories (e.g. ``abstraction_definitions``, ``components``). If
-such collections are absent they are initialised on demand for creation
-operations. Created objects are minimal, leveraging generated schema classes
-when available or ``SimpleNamespace`` fallbacks otherwise.
+BASE operations enumerate registered roots and access their VLNV and XML file
+metadata. EXTENDED operations create roots, signal editing and update file
+locations. Optional container arguments preserve historical scoped traversal.
 """
 from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
@@ -24,17 +13,17 @@ from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
     AbstractorBusInterfaceType,
     AbstractorModeType,
-    LibraryRefType,
-    Wire,
     BusDefinition,
     Catalog,
     Component,
     Design,
     DesignConfiguration,
-    GeneratorChain,
     Generator,
+    GeneratorChain,
     IpxactUri,
+    LibraryRefType,
     TypeDefinitions,
+    Wire,
 )
 
 from .core import (
@@ -176,23 +165,30 @@ def _create_registered_root(cls, vlnv: Sequence[str], **kwargs: Any) -> str | No
 # BASE (F.7.79) traversal & meta
 # ---------------------------------------------------------------------------
 
-def getAbstractionDefIDs(topElementID: str) -> list[str]:  # F.7.79.1
+def getAbstractionDefIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.1
     """Return handles of Abstraction Definitions under a top element.
 
-    Tolerant BASE behavior: invalid ``topElementID`` returns ``[]``.
+    Without arguments, enumerate registered roots (F.7.79.1).
+    The optional top handle preserves historical scoped traversal.
     """
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, AbstractionDefinition)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "abstraction_definitions")
 
 
-def getAbstractorIDs(topElementID: str) -> list[str]:  # F.7.79.2
-    """Return handles of Abstractors under a top element (BASE)."""
+def getAbstractorIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.2
+    """Return handles of Abstractors under a top element registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, Abstractor)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "abstractors")
 
 
-def getBusDefIDs(topElementID: str) -> list[str]:  # F.7.79.3
-    """Return handles of Bus Definitions (BASE)."""
+def getBusDefIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.3
+    """Return handles of Bus Definitions registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, BusDefinition)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "bus_definitions")
 
@@ -229,46 +225,43 @@ def getCatalogIDs(*args, **kwargs):  # type: ignore[override]
     return _getCatalogIDs_spec(*args, **kwargs)
 
 
-def getComponentIDs(topElementID: str) -> list[str]:  # F.7.79.5
-    """Return handles of Components (BASE)."""
+def getComponentIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.5
+    """Return handles of Components registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, Component)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "components")
 
 
-def getDesignConfigurationIDs(topElementID: str) -> list[str]:  # F.7.79.6
-    """Return handles of Design Configurations (BASE)."""
+def getDesignConfigurationIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.6
+    """Return handles of Design Configurations registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, DesignConfiguration)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "design_configurations")
 
 
-def getDesignIDs(topElementID: str) -> list[str]:  # F.7.79.7
-    """Return handles of Designs (BASE)."""
+def getDesignIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.7
+    """Return handles of Designs registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, Design)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "designs")
 
 
-def getGeneratorChainIDs(topElementID: str) -> list[str]:  # F.7.79.8
-    """Return handles of Generator Chains (BASE)."""
+def getGeneratorChainIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.8
+    """Return handles of Generator Chains registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, GeneratorChain)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "generator_chains")
 
 
 def getID(elementID):  # F.7.79.9
-    """Return element handle (overloaded for VLNV sequences).
+    """Resolve a registered root by four-part VLNV (F.7.79.9).
 
-    Spec (Top element BASE) defines ``getID(elementID)`` returning the handle
-    if valid else ``None``. The *Administrative* category defines
-    ``getID(vlnvSequence)`` resolving a VLNV to a handle. To avoid one
-    overshadowing the other in the aggregated namespace we implement a
-    tolerant polymorphic version here: if *elementID* looks like a 4-length
-    string sequence treat it as a VLNV, else treat it as an element handle.
-
-    Args:
-        elementID: Either a candidate handle string or a 4-sequence (vendor,
-            library, name, version).
-
-    Returns:
-        Handle string or ``None`` if resolution fails.
+    A handle argument is retained as a historical identity convenience.
+    Unknown VLNVs and invalid handles return None.
     """
     # VLNV pattern
     if isinstance(elementID, list | tuple) and len(elementID) == 4 and all(
@@ -281,65 +274,30 @@ def getID(elementID):  # F.7.79.9
     return None if obj is None else get_handle(obj)
 
 
-def getTypeDefinitionsIDs(topElementID: str) -> list[str]:  # F.7.79.10
-    """Return handles of Type Definitions (BASE)."""
+def getTypeDefinitionsIDs(topElementID: str | None = None) -> list[str]:  # F.7.79.10
+    """Return handles of Type Definitions registered in the environment."""
+    if topElementID is None:
+        return list(registry.iter_by_predicate(lambda root: isinstance(root, TypeDefinitions)))
     top = _resolve_top(topElementID)
     return _collect_ids(top, "type_definitions")
 
 
 def getVLNV(elementID: str):  # F.7.79.11
-    """Return VLNV quadruple of an element (BASE).
+    """Return the registered root VLNV, or None if no association exists (F.7.79.11)."""
+    return registry.get_vlnv(elementID) if isinstance(elementID, str) else None
 
-    If the *handle* refers to a root registered in the global registry we
-    delegate to that (ensuring unregistered elements return ``None`` after
-    removal). Otherwise we fall back to extracting vendor/library/name/
-    version attributes directly and returning a 4-tuple with ``None`` in
-    missing positions. Invalid handles return ``(None, None, None, None)``.
+
+def getXMLPath(elementID: str, dereference: bool = False) -> str | None:  # F.7.79.12
+    """Return the registered XML file location, optionally resolving filesystem links.
+
+    An unregistered root or a root without a file location returns None.
     """
-    # First attempt registry resolution (administrative semantics)
-    reg_vlnv = None
-    if isinstance(elementID, str):  # guard for malformed input
-        reg_vlnv = registry.get_vlnv(elementID)
-    if reg_vlnv is not None:
-        return reg_vlnv
-    # If the caller passed a handle string that is *not* currently registered
-    # administrative semantics expect None (see tests expecting None after
-    # unregister). We therefore return None instead of synthesizing from
-    # attributes. To access raw attributes callers can still inspect the
-    # underlying object via resolve_handle.
-    if isinstance(elementID, str):
-        return None
-    obj = resolve_handle(elementID)
-    if obj is None:
-        return (None, None, None, None)
-    return (
-        getattr(obj, "vendor", None),
-        getattr(obj, "library", None),
-        getattr(obj, "name", None),
-        getattr(obj, "version", None),
-    )
+    from pathlib import Path
 
-
-def getXMLPath(elementID: str) -> str | None:  # F.7.79.12
-    """Return XML path for an element or synthesize one from VLNV.
-
-    Synthesis produces ``/vendor:library:name:version`` skipping missing parts.
-    Invalid handle returns ``None``.
-    """
-    obj = resolve_handle(elementID)
-    if obj is None:
-        return None
-    path = getattr(obj, "xml_path", None)
-    if path is None:
-        vendor, library, name, version = (
-            getattr(obj, "vendor", None),
-            getattr(obj, "library", None),
-            getattr(obj, "name", None),
-            getattr(obj, "version", None),
-        )
-        if name is not None:
-            return "/" + ":".join([p for p in (vendor, library, name, version) if p])
-    return path
+    if not isinstance(dereference, bool):
+        raise TgiError("dereference requires a Boolean", TgiFaultCode.INVALID_ARGUMENT)
+    path = registry.get_file_name(elementID)
+    return str(Path(path).resolve()) if path is not None and dereference else path
 
 
 # ---------------------------------------------------------------------------
@@ -530,28 +488,19 @@ def createTypeDefinitions(vlnv: Sequence[str] | str, name: str | None = None) ->
     return get_handle(obj)
 
 
-def edit(elementID: str, attribute: str, value: Any) -> bool:  # F.7.80.10
-    """Set an arbitrary attribute on a model element (EXTENDED).
+def edit(elementID: str) -> bool:  # F.7.80.10
+    """Signal the start of editing a registered root in this writable environment.
 
-    Raises:
-        TgiError: If the element handle is invalid or the update fails.
+    No checkout is required by the in-memory backend; model content is preserved.
+    Unknown, unregistered and child handles return False.
     """
-    obj = resolve_handle(elementID)
-    if obj is None:
-        raise TgiError("Invalid element handle", TgiFaultCode.INVALID_ID)
-    try:
-        setattr(obj, attribute, value)
-    except Exception as exc:  # pragma: no cover
-        raise TgiError(
-            f"Failed to edit attribute {attribute}: {exc}", TgiFaultCode.INVALID_ARGUMENT
-        ) from exc
-    return True
+    return registry.get_vlnv(elementID) is not None
 
 
 def setXMLPath(elementID: str, path: str) -> bool:  # F.7.80.11
-    """Associate an XML path with an element (EXTENDED)."""
-    obj = resolve_handle(elementID)
-    if obj is None:
-        raise TgiError("Invalid element handle", TgiFaultCode.INVALID_ID)
-    obj.xml_path = path  # type: ignore[attr-defined]
-    return True
+    """Set a registered root's XML location without modifying serialized content."""
+    if registry.get_vlnv(elementID) is None:
+        raise TgiError("Invalid registered root handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(path, str) or not path.strip():
+        raise TgiError("XML path requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+    return registry.set_file_name(elementID, path)

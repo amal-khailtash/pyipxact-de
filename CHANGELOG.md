@@ -38,6 +38,9 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Top element registry enumeration, XML file-location metadata and editing-start contracts.
+- Verify all Choice operations with parsed ownership, schema-valid edits and atomic string validation.
+
 - Complete remaining Abstraction definition TGI editing and getters, with slang-backed integer expressions, atomic extends references and schema-valid drive/load constraints.
 
 - Resolve Clearbox references within their owning component and abstractor-instance views through the referenced abstractor VLNV.

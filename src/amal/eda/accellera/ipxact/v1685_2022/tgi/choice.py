@@ -70,7 +70,7 @@ def getChoiceEnumerationIDs(choiceID: str) -> list[str]:
         handles.append(get_handle(enum))
     return handles
 
-def getEnumerationValue(choiceEnumerationID: str) -> str | None:
+def getEnumerationValue(choiceEnumerationID: str) -> str:
     """Return the enumerationValue defined on the given enumeration element.
 
     Section: F.7.25.2
@@ -78,16 +78,16 @@ def getEnumerationValue(choiceEnumerationID: str) -> str | None:
     Args:
         choiceEnumerationID: Handle to a Choices.Choice.Enumeration element.
     Returns:
-        The enumeration value string, or None if not set.
+        The enumeration value string.
     Raises:
         TgiError: If the handle is invalid.
     """
     en = _resolve_enum(choiceEnumerationID)
     if en is None:
         raise TgiError("Invalid enumeration handle", TgiFaultCode.INVALID_ID)
-    return getattr(en, "value", None)
+    return en.value
 
-def getEnumerationValueExpression(choiceEnumerationID: str) -> str | None:
+def getEnumerationValueExpression(choiceEnumerationID: str) -> str:
     """Return the expression defined on the given enumeration element.
 
     Section: F.7.25.3
@@ -95,7 +95,7 @@ def getEnumerationValueExpression(choiceEnumerationID: str) -> str | None:
     Args:
         choiceEnumerationID: Handle to a Choices.Choice.Enumeration element.
     Returns:
-        The enumeration expression string, or None if not set.
+        The enumeration expression string.
     Raises:
         TgiError: If the handle is invalid.
     """
@@ -124,6 +124,8 @@ def addChoiceEnumeration(choiceID: str, name: str) -> str:
     ch = _resolve_choice(choiceID)
     if ch is None:
         raise TgiError("Invalid choice handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(name, str):
+        raise TgiError("Enumeration value requires a string", TgiFaultCode.INVALID_ARGUMENT)
     enum = Choices.Choice.Enumeration(value=name)
     ch.enumeration.append(enum)  # type: ignore[attr-defined]
     register_parent(enum, ch, ("enumeration",), "list")
@@ -159,6 +161,8 @@ def setEnumerationValue(choiceEnumerationID: str, value: str) -> bool:
     en = _resolve_enum(choiceEnumerationID)
     if en is None:
         raise TgiError("Invalid enumeration handle", TgiFaultCode.INVALID_ID)
+    if not isinstance(value, str):
+        raise TgiError("Enumeration value requires a string", TgiFaultCode.INVALID_ARGUMENT)
     en.value = value
     return True
 
