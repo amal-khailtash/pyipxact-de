@@ -15,8 +15,18 @@ Creation / mutation helpers create missing optional container elements where
 allowed by the schema.
 """
 
-from org.accellera.ipxact.v1685_2022 import AddressSpaces, ComponentType
-from org.accellera.ipxact.v1685_2022.address_spaces import AddressSpaces as AddressSpacesClass  # noqa: F401  (retained for potential future use)
+from dataclasses import fields, is_dataclass
+from typing import Any
+from unicodedata import category
+
+from org.accellera.ipxact.v1685_2022 import AddressSpaces, ComponentType, FieldType
+from org.accellera.ipxact.v1685_2022.address_block import AddressBlock
+from org.accellera.ipxact.v1685_2022.base_address import BaseAddress
+from org.accellera.ipxact.v1685_2022.executable_image import ExecutableImage
+from org.accellera.ipxact.v1685_2022.file_set_ref import FileSetRef
+from org.accellera.ipxact.v1685_2022.generator_ref import GeneratorRef
+from org.accellera.ipxact.v1685_2022.linker_command_file import LinkerCommandFile
+from org.accellera.ipxact.v1685_2022.local_address_bank_type import LocalAddressBankType
 from org.accellera.ipxact.v1685_2022.local_memory_map_type import LocalMemoryMapType
 from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import (
     UnsignedLongintExpression,
@@ -33,8 +43,10 @@ from .core import (
     TgiFaultCode,
     get_handle,
     resolve_handle,
+    get_parent_info,
     register_parent,
     detach_child_by_handle,
+    registry,
 )
 
 __all__ = [  # BASE + EXTENDED exports
@@ -147,12 +159,160 @@ def _resolve_local_memory_map(localMemoryMapID: str) -> LocalMemoryMapType | Non
     return obj if isinstance(obj, LocalMemoryMapType) else None
 
 
+def _resolve_alias_of(aliasOfID: str) -> FieldType.AliasOf | None:
+    obj = resolve_handle(aliasOfID)
+    return obj if isinstance(obj, FieldType.AliasOf) else None
+
+
+def _resolve_executable_image(executableImageID: str) -> ExecutableImage | None:
+    obj = resolve_handle(executableImageID)
+    return obj if isinstance(obj, ExecutableImage) else None
+
+
+def _integer_value(expression: Any) -> int | None:
+    """Evaluate a self-contained SystemVerilog integer expression."""
+    value = getattr(expression, "value", None)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return _integer_text(value)
+
+
+def _integer_text(value: str) -> int | None:
+    """Evaluate a self-contained integer expression from source text."""
+    try:
+        try:
+            return int(value, 0) if value.lower().startswith(("0x", "0o", "0b")) else int(value)
+        except ValueError:
+            from amal.eda.systemverilog.expression_parser import SvExpressionParser
+
+            result = SvExpressionParser().evaluate(value)
+            return result if type(result) is int else None
+    except (ImportError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def _expression_value(value: Any, argument: str, minimum: int, maximum: int) -> str:
+    """Validate a typed setter input without modifying its target model."""
+    if type(value) is int:
+        if not minimum <= value <= maximum:
+            raise TgiError(f"{argument} is outside the supported integer range", TgiFaultCode.INVALID_ARGUMENT)
+        return str(value)
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError(f"{argument} must be a non-empty expression string or integer", TgiFaultCode.INVALID_ARGUMENT)
+    evaluated = _integer_text(value)
+    if evaluated is not None and not minimum <= evaluated <= maximum:
+        raise TgiError(f"{argument} is outside the supported integer range", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _name_value(value: Any, argument: str) -> str:
+    """Validate an XML Schema ``xs:Name`` argument."""
+    if not isinstance(value, str) or not value:
+        raise TgiError(f"{argument} must be a non-empty xs:Name", TgiFaultCode.INVALID_ARGUMENT)
+
+    def start(char: str) -> bool:
+        return char in ":_" or category(char) in {"Lu", "Ll", "Lt", "Lm", "Lo", "Nl"}
+
+    def continuation(char: str) -> bool:
+        return start(char) or char in "-." or category(char) in {"Mn", "Mc", "Nd", "Pc"}
+
+    if not start(value[0]) or any(not continuation(char) for char in value[1:]):
+        raise TgiError(f"{argument} must be a valid xs:Name", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _set_expression(
+    parent: Any,
+    attribute: str,
+    model_type: type,
+    value: Any,
+    argument: str,
+    minimum: int,
+    maximum: int,
+) -> None:
+    """Set an expression child in place when possible, preserving child handle identity."""
+    current = getattr(parent, attribute, None)
+    if current is not None and not isinstance(current, model_type):
+        raise TgiError(f"Invalid {attribute} model on parent", TgiFaultCode.INVALID_ID)
+    current_minimum = getattr(current, "minimum", None)
+    current_maximum = getattr(current, "maximum", None)
+    if current_minimum is not None:
+        minimum = max(minimum, current_minimum)
+    if current_maximum is not None:
+        maximum = min(maximum, current_maximum)
+    source = _expression_value(value, argument, minimum, maximum)
+    if current is None:
+        current = model_type(value=source)
+        setattr(parent, attribute, current)
+    else:
+        current.value = source
+    register_parent(current, parent, (attribute,), "single")
+
+
+def _walk_model(root: Any):
+    """Yield each generated dataclass object with its direct owning field."""
+    pending = [(root, None, None, "single")]
+    seen: set[int] = set()
+    while pending:
+        obj, parent, attribute, container = pending.pop()
+        if id(obj) in seen:
+            continue
+        seen.add(id(obj))
+        yield obj, parent, attribute, container
+        if not is_dataclass(obj) or isinstance(obj, type):
+            continue
+        for model_field in fields(obj):
+            value = getattr(obj, model_field.name)
+            if is_dataclass(value) and not isinstance(value, type):
+                pending.append((value, obj, model_field.name, "single"))
+            elif isinstance(value, (list, tuple)):
+                pending.extend(
+                    (child, obj, model_field.name, "list")
+                    for child in value
+                    if is_dataclass(child) and not isinstance(child, type)
+                )
+
+
+def _register_owned_child(child: Any, expected_parent: type | tuple[type, ...] | None = None) -> Any | None:
+    """Register and return a child's direct owner from known TGI parent links or roots."""
+    info = get_parent_info(get_handle(child))
+    parent = resolve_handle(info.parent_handle) if info is not None else None
+    if parent is not None and (expected_parent is None or isinstance(parent, expected_parent)):
+        return parent
+    for root_id in registry.iter_by_predicate(lambda _root: True):
+        root = resolve_handle(root_id)
+        if root is None:
+            continue
+        for obj, owner, attribute, container in _walk_model(root):
+            if (
+                obj is child
+                and owner is not None
+                and attribute is not None
+                and (expected_parent is None or isinstance(owner, expected_parent))
+            ):
+                register_parent(child, owner, (attribute,), container)
+                return owner
+    return None
+
+
+def _remove_owned(handle: str, expected: type, parent_type: type, label: str) -> bool:
+    """Remove a typed child after discovering its owning schema container."""
+    obj = resolve_handle(handle)
+    if not isinstance(obj, expected):
+        raise TgiError(f"Invalid {label} handle", TgiFaultCode.INVALID_ID)
+    if _register_owned_child(obj, parent_type) is None:
+        raise TgiError(f"{label} handle has no registered owning container", TgiFaultCode.INVALID_ID)
+    if not detach_child_by_handle(handle):
+        raise TgiError(f"Could not remove {label}", TgiFaultCode.INVALID_ID)
+    return True
+
+
 # ----------------------------------------------------------------------------
 # BASE (F.7.11)
 # ----------------------------------------------------------------------------
 
 def getAddressSpaceAddressUnitBits(addressSpaceID: str) -> int | None:
-    """Get the evaluated integer value of ``addressUnitBits``.
+    """Return the evaluated address unit size (IEEE 1685-2022 F.7.11.1).
 
     Section: F.7.11.1.
 
@@ -160,8 +320,8 @@ def getAddressSpaceAddressUnitBits(addressSpaceID: str) -> int | None:
         addressSpaceID: Handle referencing an ``addressSpace`` element.
 
     Returns:
-        int | None: Evaluated numeric value, or ``None`` when the element is
-        absent or not numerically evaluable.
+        int | None: Evaluated ``addressUnitBits`` value, or ``None`` if it is
+        absent or its expression cannot be evaluated.
 
     Raises:
         TgiError: If ``addressSpaceID`` is invalid.
@@ -169,17 +329,11 @@ def getAddressSpaceAddressUnitBits(addressSpaceID: str) -> int | None:
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    aub = getattr(as_, "address_unit_bits", None)
-    if aub is None:
-        return None
-    try:
-        return int(getattr(aub, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    return _integer_value(getattr(as_, "address_unit_bits", None))
 
 
 def getAddressSpaceAddressUnitBitsExpression(addressSpaceID: str) -> str | None:
-    """Get the (string) expression of ``addressUnitBits``.
+    """Return source text for ``addressUnitBits`` (IEEE 1685-2022 F.7.11.2).
 
     Section: F.7.11.2.
 
@@ -187,8 +341,7 @@ def getAddressSpaceAddressUnitBitsExpression(addressSpaceID: str) -> str | None:
         addressSpaceID: Handle of the parent addressSpace.
 
     Returns:
-        str | None: Original expression string (not evaluated) or ``None`` if
-        absent.
+        str | None: Original expression string, or ``None`` when absent.
 
     Raises:
         TgiError: If ``addressSpaceID`` is invalid.
@@ -201,7 +354,7 @@ def getAddressSpaceAddressUnitBitsExpression(addressSpaceID: str) -> str | None:
 
 
 def getAddressSpaceAddressUnitBitsID(addressSpaceID: str) -> str | None:
-    """Get the handle of the ``addressUnitBits`` element.
+    """Return the ``addressUnitBits`` child handle (IEEE 1685-2022 F.7.11.3).
 
     Section: F.7.11.3.
 
@@ -218,11 +371,14 @@ def getAddressSpaceAddressUnitBitsID(addressSpaceID: str) -> str | None:
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
     aub = getattr(as_, "address_unit_bits", None)
-    return get_handle(aub) if aub is not None else None
+    if aub is None:
+        return None
+    register_parent(aub, as_, ("address_unit_bits",), "single")
+    return get_handle(aub)
 
 
 def getAddressSpaceLocalMemoryMapID(addressSpaceID: str) -> str | None:
-    """Get the handle of the ``localMemoryMap`` element.
+    """Return the ``localMemoryMap`` child handle (IEEE 1685-2022 F.7.11.4).
 
     Section: F.7.11.4.
 
@@ -239,20 +395,14 @@ def getAddressSpaceLocalMemoryMapID(addressSpaceID: str) -> str | None:
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
     lmm = getattr(as_, "local_memory_map", None)
-    return get_handle(lmm) if lmm is not None else None
-
-
-def _range_numeric(expr_obj) -> int | None:  # helper
-    if expr_obj is None:
+    if lmm is None:
         return None
-    try:
-        return int(getattr(expr_obj, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    register_parent(lmm, as_, ("local_memory_map",), "single")
+    return get_handle(lmm)
 
 
 def getAddressSpaceRange(addressSpaceID: str) -> int | None:
-    """Get evaluated numeric value of ``range``.
+    """Return evaluated ``range`` (IEEE 1685-2022 F.7.11.5).
 
     Section: F.7.11.5.
 
@@ -260,7 +410,7 @@ def getAddressSpaceRange(addressSpaceID: str) -> int | None:
         addressSpaceID: Handle of the addressSpace.
 
     Returns:
-        int | None: Numeric value or ``None`` if absent or not evaluable.
+        int | None: Evaluated range or ``None`` when unresolved.
 
     Raises:
         TgiError: If the addressSpace handle is invalid.
@@ -268,11 +418,11 @@ def getAddressSpaceRange(addressSpaceID: str) -> int | None:
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    return _range_numeric(getattr(as_, "range", None))
+    return _integer_value(getattr(as_, "range", None))
 
 
 def getAddressSpaceRangeExpression(addressSpaceID: str) -> str | None:
-    """Get expression string for ``range``.
+    """Return the source ``range`` expression (IEEE 1685-2022 F.7.11.6).
 
     Section: F.7.11.6.
 
@@ -293,7 +443,7 @@ def getAddressSpaceRangeExpression(addressSpaceID: str) -> str | None:
 
 
 def getAddressSpaceRangeID(addressSpaceID: str) -> str | None:
-    """Get handle of the ``range`` element.
+    """Return the ``range`` child handle (IEEE 1685-2022 F.7.11.7).
 
     Section: F.7.11.7.
 
@@ -310,11 +460,14 @@ def getAddressSpaceRangeID(addressSpaceID: str) -> str | None:
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
     r = getattr(as_, "range", None)
-    return get_handle(r) if r is not None else None
+    if r is None:
+        return None
+    register_parent(r, as_, ("range",), "single")
+    return get_handle(r)
 
 
 def getAddressSpaceSegmentIDs(addressSpaceID: str) -> list[str]:
-    """List handles of ``segment`` children.
+    """Return address-space segment handles (IEEE 1685-2022 F.7.11.8).
 
     Section: F.7.11.8.
 
@@ -333,11 +486,16 @@ def getAddressSpaceSegmentIDs(addressSpaceID: str) -> list[str]:
     segs = getattr(as_, "segments", None)
     if segs is None:
         return []
-    return [get_handle(s) for s in getattr(segs, "segment", [])]
+    register_parent(segs, as_, ("segments",), "single")
+    result = []
+    for segment in getattr(segs, "segment", []):
+        register_parent(segment, segs, ("segment",), "list")
+        result.append(get_handle(segment))
+    return result
 
 
 def getAddressSpaceWidth(addressSpaceID: str) -> int | None:
-    """Get evaluated numeric ``width`` value.
+    """Return evaluated ``width`` (IEEE 1685-2022 F.7.11.9).
 
     Section: F.7.11.9.
 
@@ -353,17 +511,11 @@ def getAddressSpaceWidth(addressSpaceID: str) -> int | None:
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    w = getattr(as_, "width", None)
-    if w is None:
-        return None
-    try:
-        return int(getattr(w, "value", None))  # type: ignore[arg-type]
-    except Exception:  # pragma: no cover
-        return None
+    return _integer_value(getattr(as_, "width", None))
 
 
 def getAddressSpaceWidthExpression(addressSpaceID: str) -> str | None:
-    """Get expression string for ``width``.
+    """Return the source ``width`` expression (IEEE 1685-2022 F.7.11.10).
 
     Section: F.7.11.10.
 
@@ -384,7 +536,7 @@ def getAddressSpaceWidthExpression(addressSpaceID: str) -> str | None:
 
 
 def getAddressSpaceWidthID(addressSpaceID: str) -> str | None:
-    """Get handle of the ``width`` element.
+    """Return the ``width`` child handle (IEEE 1685-2022 F.7.11.11).
 
     Section: F.7.11.11.
 
@@ -401,57 +553,75 @@ def getAddressSpaceWidthID(addressSpaceID: str) -> str | None:
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
     w = getattr(as_, "width", None)
-    return get_handle(w) if w is not None else None
+    if w is None:
+        return None
+    register_parent(w, as_, ("width",), "single")
+    return get_handle(w)
 
 
-def getAliasOfAddressSpaceRefByName(addressSpaceID: str) -> str | None:  # F.7.11.12
-    """Get the name of the referenced addressSpace when this one is an alias.
+def getAliasOfAddressSpaceRefByName(aliasOfID: str) -> str | None:
+    """Return the stored address-space reference name (IEEE 1685-2022 F.7.11.12).
 
     Section: F.7.11.12.
 
-    Note:
-        The 2022 generated schema currently exposes no ``aliasOf`` element for
-        addressSpace; this function therefore returns ``None`` (stub).
-
     Args:
-        addressSpaceID: Address space handle (validated for existence only).
+        aliasOfID: Handle to a field ``aliasOf`` element.
 
     Returns:
-        str | None: Referenced addressSpace name or ``None`` (schema gap).
+        str | None: Referenced address-space name, or ``None`` if no such choice exists.
+
+    Raises:
+        TgiError: If ``aliasOfID`` does not reference an ``aliasOf`` model.
     """
-    _ = _resolve_address_space(addressSpaceID)  # validation
-    if _ is None:
-        raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    return None
+    alias = _resolve_alias_of(aliasOfID)
+    if alias is None:
+        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
+    ref = next(
+        (
+            child
+            for child in alias.address_space_ref_or_memory_map_ref_or_memory_remap_ref
+            if isinstance(child, FieldType.AliasOf.AddressSpaceRef)
+        ),
+        None,
+    )
+    return ref.address_space_ref if ref is not None else None
 
 
-def getAliasOfAddressSpaceRefID(addressSpaceID: str) -> str | None:  # F.7.11.13
-    """Get the handle of the alias reference element.
+def getAliasOfAddressSpaceRefID(aliasOfID: str) -> str | None:
+    """Return the ``addressSpaceRef`` child handle (IEEE 1685-2022 F.7.11.13).
 
     Section: F.7.11.13.
 
-    Note:
-        Not present in current schema; always returns ``None`` (stub).
-
     Args:
-        addressSpaceID: Address space handle (validated for existence).
+        aliasOfID: Handle to a field ``aliasOf`` element.
 
     Returns:
-        str | None: Always ``None`` until schema models ``aliasOf``.
+        str | None: Handle to its ``addressSpaceRef`` choice, or ``None`` when absent.
+
+    Raises:
+        TgiError: If ``aliasOfID`` does not reference an ``aliasOf`` model.
     """
-    _ = _resolve_address_space(addressSpaceID)
-    if _ is None:
-        raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    return None
+    alias = _resolve_alias_of(aliasOfID)
+    if alias is None:
+        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
+    path = "address_space_ref_or_memory_map_ref_or_memory_remap_ref"
+    ref = next(
+        (child for child in getattr(alias, path, []) if isinstance(child, FieldType.AliasOf.AddressSpaceRef)),
+        None,
+    )
+    if ref is None:
+        return None
+    register_parent(ref, alias, (path,), "list")
+    return get_handle(ref)
 
 
-def getLocalMemoryMapAddressBlockIDs(localMemoryMapID: str) -> list[str]:
-    """List ``addressBlock`` handles in a localMemoryMap.
+def getLocalMemoryMapAddressBlockIDs(addressSpaceID: str) -> list[str]:
+    """Return local address-block handles (IEEE 1685-2022 F.7.11.14).
 
     Section: F.7.11.14.
 
     Args:
-        localMemoryMapID: Handle referencing a ``localMemoryMap``.
+        addressSpaceID: Handle referencing an ``addressSpace`` element.
 
     Returns:
         list[str]: Handles of contained ``addressBlock`` elements (empty if none).
@@ -459,19 +629,23 @@ def getLocalMemoryMapAddressBlockIDs(localMemoryMapID: str) -> list[str]:
     Raises:
         TgiError: If handle invalid.
     """
-    lmm = _resolve_local_memory_map(localMemoryMapID)
+    as_ = _resolve_address_space(addressSpaceID)
+    if as_ is None:
+        raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
+    lmm = as_.local_memory_map
     if lmm is None:
-        raise TgiError("Invalid localMemoryMap handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(ab) for ab in getattr(lmm, "address_block", [])]
+        return []
+    register_parent(lmm, as_, ("local_memory_map",), "single")
+    return _local_memory_map_child_ids(lmm, AddressBlock)
 
 
-def getLocalMemoryMapBankIDs(localMemoryMapID: str) -> list[str]:
-    """List bank handles within a localMemoryMap.
+def getLocalMemoryMapBankIDs(addressSpaceID: str) -> list[str]:
+    """Return local bank handles (IEEE 1685-2022 F.7.11.15).
 
     Section: F.7.11.15.
 
     Args:
-        localMemoryMapID: Handle referencing a ``localMemoryMap``.
+        addressSpaceID: Handle referencing an ``addressSpace`` element.
 
     Returns:
         list[str]: Bank handles (empty list if none present).
@@ -479,14 +653,28 @@ def getLocalMemoryMapBankIDs(localMemoryMapID: str) -> list[str]:
     Raises:
         TgiError: If handle invalid.
     """
-    lmm = _resolve_local_memory_map(localMemoryMapID)
+    as_ = _resolve_address_space(addressSpaceID)
+    if as_ is None:
+        raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
+    lmm = as_.local_memory_map
     if lmm is None:
-        raise TgiError("Invalid localMemoryMap handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(b) for b in getattr(lmm, "bank", [])]
+        return []
+    register_parent(lmm, as_, ("local_memory_map",), "single")
+    return _local_memory_map_child_ids(lmm, LocalAddressBankType)
+
+
+def _local_memory_map_child_ids(local_memory_map: LocalMemoryMapType, expected: type) -> list[str]:
+    """Return owned child handles from the generated mixed addressBlock/bank choice."""
+    result = []
+    for child in local_memory_map.address_block_or_bank:
+        if isinstance(child, expected):
+            register_parent(child, local_memory_map, ("address_block_or_bank",), "list")
+            result.append(get_handle(child))
+    return result
 
 
 def getRegionAddressOffset(regionID: str) -> int | None:
-    """Get numeric value of a CPU region ``addressOffset``.
+    """Return an evaluated region offset (IEEE 1685-2022 F.7.11.16).
 
     Section: F.7.11.16.
 
@@ -494,7 +682,7 @@ def getRegionAddressOffset(regionID: str) -> int | None:
         regionID: Handle referencing a ``region``.
 
     Returns:
-        int | None: Evaluated offset or ``None`` if absent or not evaluable.
+        int | None: Evaluated offset, or ``None`` when unresolved.
 
     Raises:
         TgiError: If region handle invalid.
@@ -502,17 +690,11 @@ def getRegionAddressOffset(regionID: str) -> int | None:
     seg = _resolve_region(regionID)
     if seg is None:
         raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
-    ao = getattr(seg, "address_offset", None)
-    if ao is None:
-        return None
-    try:
-        return int(ao.value, 0) if ao.value.lower().startswith(("0x", "0o", "0b")) else int(ao.value)
-    except (ValueError, TypeError, AttributeError):
-        return None
+    return _integer_value(getattr(seg, "address_offset", None))
 
 
 def getRegionAddressOffsetExpression(regionID: str) -> str | None:
-    """Get expression string of a region ``addressOffset``.
+    """Return source text for a region offset (IEEE 1685-2022 F.7.11.17).
 
     Section: F.7.11.17.
 
@@ -533,7 +715,7 @@ def getRegionAddressOffsetExpression(regionID: str) -> str | None:
 
 
 def getRegionAddressOffsetID(regionID: str) -> str | None:
-    """Get handle of the region ``addressOffset`` element.
+    """Return the region offset child handle (IEEE 1685-2022 F.7.11.18).
 
     Section: F.7.11.18.
 
@@ -557,7 +739,7 @@ def getRegionAddressOffsetID(regionID: str) -> str | None:
 
 
 def getRegionRange(regionID: str) -> int | None:
-    """Get numeric value of a region ``range``.
+    """Return an evaluated region range (IEEE 1685-2022 F.7.11.19).
 
     Section: F.7.11.19.
 
@@ -565,7 +747,7 @@ def getRegionRange(regionID: str) -> int | None:
         regionID: Region handle.
 
     Returns:
-        int | None: Numeric range value or ``None`` if absent/not evaluable.
+        int | None: Evaluated range, or ``None`` when unresolved.
 
     Raises:
         TgiError: If handle invalid.
@@ -573,17 +755,11 @@ def getRegionRange(regionID: str) -> int | None:
     seg = _resolve_region(regionID)
     if seg is None:
         raise TgiError("Invalid region handle", TgiFaultCode.INVALID_ID)
-    r = getattr(seg, "range", None)
-    if r is None:
-        return None
-    try:
-        return int(r.value, 0) if r.value.lower().startswith(("0x", "0o", "0b")) else int(r.value)
-    except (ValueError, TypeError, AttributeError):
-        return None
+    return _integer_value(getattr(seg, "range", None))
 
 
 def getRegionRangeExpression(regionID: str) -> str | None:
-    """Get expression string for a region ``range``.
+    """Return source text for a region range (IEEE 1685-2022 F.7.11.20).
 
     Section: F.7.11.20.
 
@@ -604,7 +780,7 @@ def getRegionRangeExpression(regionID: str) -> str | None:
 
 
 def getRegionRangeID(regionID: str) -> str | None:
-    """Get handle of the region ``range`` element.
+    """Return the region range child handle (IEEE 1685-2022 F.7.11.21).
 
     Section: F.7.11.21.
 
@@ -628,30 +804,38 @@ def getRegionRangeID(regionID: str) -> str | None:
 
 
 def getSegmentAddressOffset(segmentID: str) -> int | None:
-    """Return the segment address_offset integer literal value.
+    """Return evaluated segment offset (IEEE 1685-2022 F.7.11.22).
 
     Section: F.7.11.22.
-    Absent children return ``None``; invalid or wrong-type handles raise
-    ``TgiError``. Parameterized expressions are retained without evaluation.
+
+    Args:
+        segmentID: Handle to a ``segment`` element.
+
+    Returns:
+        int | None: Evaluated offset, or ``None`` when unresolved.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
     segment = _resolve_segment(segmentID)
     if segment is None:
         raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
-    child = getattr(segment, "address_offset", None)
-    if child is None:
-        return None
-    try:
-        return int(child.value, 0) if child.value.lower().startswith(("0x", "0o", "0b")) else int(child.value)
-    except (ValueError, TypeError, AttributeError):
-        return None
+    return _integer_value(getattr(segment, "address_offset", None))
 
 
 def getSegmentAddressOffsetExpression(segmentID: str) -> str | None:
-    """Return the segment address_offset source expression.
+    """Return source text for segment offset (IEEE 1685-2022 F.7.11.23).
 
     Section: F.7.11.23.
-    Absent children return ``None``; invalid or wrong-type handles raise
-    ``TgiError``. Parameterized expressions are retained without evaluation.
+
+    Args:
+        segmentID: Handle to a ``segment`` element.
+
+    Returns:
+        str | None: Original offset expression, or ``None`` if absent.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
     segment = _resolve_segment(segmentID)
     if segment is None:
@@ -663,11 +847,18 @@ def getSegmentAddressOffsetExpression(segmentID: str) -> str | None:
 
 
 def getSegmentAddressOffsetID(segmentID: str) -> str | None:
-    """Return the segment address_offset child handle.
+    """Return the segment offset child handle (IEEE 1685-2022 F.7.11.24).
 
     Section: F.7.11.24.
-    Absent children return ``None``; invalid or wrong-type handles raise
-    ``TgiError``. Child handles preserve ownership for parsed documents.
+
+    Args:
+        segmentID: Handle to a ``segment`` element.
+
+    Returns:
+        str | None: Handle to ``addressOffset``, or ``None`` if absent.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
     segment = _resolve_segment(segmentID)
     if segment is None:
@@ -680,30 +871,38 @@ def getSegmentAddressOffsetID(segmentID: str) -> str | None:
 
 
 def getSegmentRange(segmentID: str) -> int | None:
-    """Return the segment range integer literal value.
+    """Return evaluated segment range (IEEE 1685-2022 F.7.11.25).
 
     Section: F.7.11.25.
-    Absent children return ``None``; invalid or wrong-type handles raise
-    ``TgiError``. Parameterized expressions are retained without evaluation.
+
+    Args:
+        segmentID: Handle to a ``segment`` element.
+
+    Returns:
+        int | None: Evaluated range, or ``None`` when unresolved.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
     segment = _resolve_segment(segmentID)
     if segment is None:
         raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
-    child = getattr(segment, "range", None)
-    if child is None:
-        return None
-    try:
-        return int(child.value, 0) if child.value.lower().startswith(("0x", "0o", "0b")) else int(child.value)
-    except (ValueError, TypeError, AttributeError):
-        return None
+    return _integer_value(getattr(segment, "range", None))
 
 
 def getSegmentRangeExpression(segmentID: str) -> str | None:
-    """Return the segment range source expression.
+    """Return source text for segment range (IEEE 1685-2022 F.7.11.26).
 
     Section: F.7.11.26.
-    Absent children return ``None``; invalid or wrong-type handles raise
-    ``TgiError``. Parameterized expressions are retained without evaluation.
+
+    Args:
+        segmentID: Handle to a ``segment`` element.
+
+    Returns:
+        str | None: Original range expression, or ``None`` if absent.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
     segment = _resolve_segment(segmentID)
     if segment is None:
@@ -715,11 +914,18 @@ def getSegmentRangeExpression(segmentID: str) -> str | None:
 
 
 def getSegmentRangeID(segmentID: str) -> str | None:
-    """Return the segment range child handle.
+    """Return the segment range child handle (IEEE 1685-2022 F.7.11.27).
 
     Section: F.7.11.27.
-    Absent children return ``None``; invalid or wrong-type handles raise
-    ``TgiError``. Child handles preserve ownership for parsed documents.
+
+    Args:
+        segmentID: Handle to a ``segment`` element.
+
+    Returns:
+        str | None: Handle to ``range``, or ``None`` if absent.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
     segment = _resolve_segment(segmentID)
     if segment is None:
@@ -736,65 +942,69 @@ def getSegmentRangeID(segmentID: str) -> str | None:
 # ----------------------------------------------------------------------------
 
 def addAddressSpaceSegment(addressSpaceID: str, name: str, addressOffsetExpr: str, rangeExpr: str) -> str:
-    """Create and append a ``segment`` to an addressSpace.
+    """Append a segment (IEEE 1685-2022 F.7.12.1).
 
     Section: F.7.12.1.
 
     Args:
         addressSpaceID: Parent ``addressSpace`` handle.
         name: New segment name.
-        addressOffsetExpr: Expression for ``addressOffset``.
-        rangeExpr: Expression for ``range``.
+        addressOffsetExpr: Source expression for ``addressOffset``.
+        rangeExpr: Source expression for positive ``range``.
 
     Returns:
         str: Handle of the newly created segment.
 
     Raises:
-        TgiError: If the parent handle is invalid.
+        TgiError: If the parent is invalid or an argument is not a valid typed value.
     """
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    if as_.segments is None:
-        as_.segments = AddressSpaces.AddressSpace.Segments(segment=[])  # type: ignore[arg-type]
-    from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import (
-        UnsignedLongintExpression as ULIE,
-    )
-    from org.accellera.ipxact.v1685_2022.unsigned_positive_longint_expression import (
-        UnsignedPositiveLongintExpression as UPLE,
-    )
+    name = _name_value(name, "name")
+    offset = _expression_value(addressOffsetExpr, "addressOffset", 0, (1 << 64) - 1)
+    range_ = _expression_value(rangeExpr, "range", 1, (1 << 64) - 1)
     seg = AddressSpaces.AddressSpace.Segments.Segment(  # type: ignore[attr-defined]
         name=name,
-        address_offset=ULIE(value=addressOffsetExpr),  # type: ignore[arg-type]
-        range=UPLE(value=rangeExpr),  # type: ignore[arg-type]
+        address_offset=UnsignedLongintExpression(value=offset),
+        range=UnsignedPositiveLongintExpression(value=range_),
     )
-    as_.segments.segment.append(seg)  # type: ignore[attr-defined]
+    if as_.segments is None:
+        as_.segments = AddressSpaces.AddressSpace.Segments(segment=[])
+    register_parent(as_.segments, as_, ("segments",), "single")
+    as_.segments.segment.append(seg)
     register_parent(seg, as_.segments, ("segment",), "list")
     return get_handle(seg)
 
 
-def addExecutableImageFileSetRef(addressSpaceID: str, fileSetName: str) -> str | None:  # pragma: no cover - schema gap
-    """Add an executableImage ``fileSetRef`` (stub).
+def addExecutableImageFileSetRef(executableImageID: str, localName: str) -> str:
+    """Append an executable-image file-set reference (IEEE 1685-2022 F.7.12.2).
 
     Section: F.7.12.2.
 
-    The 2022 generated schema in this project does not include the executable
-    image container; this function therefore validates the parent handle and
-    returns ``None``.
-
     Args:
-        addressSpaceID: Address space handle.
-        fileSetName: Name of the fileSet to reference (unused in stub).
+        executableImageID: Handle to an ``executableImage`` element.
+        localName: Name of a file set in the containing component.
 
     Returns:
-        None: Always ``None`` until schema support is added.
+        str: Handle of the new ``fileSetRef``.
 
     Raises:
-        TgiError: If the addressSpace handle is invalid.
+        TgiError: If the parent handle is invalid or ``localName`` is not an xs:Name.
     """
-    if _resolve_address_space(addressSpaceID) is None:
-        raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    return None
+    image = _resolve_executable_image(executableImageID)
+    if image is None:
+        raise TgiError("Invalid executableImage handle", TgiFaultCode.INVALID_ID)
+    local_name = _name_value(localName, "localName")
+    group = image.file_set_ref_group
+    if group is None:
+        group = ExecutableImage.FileSetRefGroup(file_set_ref=[])
+        image.file_set_ref_group = group
+        register_parent(group, image, ("file_set_ref_group",), "single")
+    ref = FileSetRef(local_name=local_name)
+    group.file_set_ref.append(ref)
+    register_parent(ref, group, ("file_set_ref",), "list")
+    return get_handle(ref)
 
 
 def addLocalMemoryMapAddressBlock(
@@ -804,13 +1014,13 @@ def addLocalMemoryMapAddressBlock(
     rangeExpr: str,
     widthExpr: str,
 ) -> str:
-    """Create and append an ``addressBlock`` to a localMemoryMap.
+    """Append an inline local address block (IEEE 1685-2022 F.7.12.3).
 
     Section: F.7.12.3.
 
     Args:
         localMemoryMapID: Parent localMemoryMap handle.
-        name: New addressBlock name.
+        name: New address-block name.
         baseAddressExpr: Expression for baseAddress.
         rangeExpr: Expression for range.
         widthExpr: Expression for width.
@@ -819,27 +1029,30 @@ def addLocalMemoryMapAddressBlock(
         str: Handle of the newly created addressBlock.
 
     Raises:
-        TgiError: If the localMemoryMap handle is invalid.
+        TgiError: If the parent is invalid or an argument is not a valid typed value.
     """
     lmm = _resolve_local_memory_map(localMemoryMapID)
     if lmm is None:
         raise TgiError("Invalid localMemoryMap handle", TgiFaultCode.INVALID_ID)
-    from org.accellera.ipxact.v1685_2022.address_block import AddressBlock
-    from org.accellera.ipxact.v1685_2022.base_address import BaseAddress
-
-    ab = AddressBlock(  # type: ignore[call-arg]
+    name = _name_value(name, "name")
+    base_address = _expression_value(baseAddressExpr, "baseAddress", 0, (1 << 64) - 1)
+    range_ = _expression_value(rangeExpr, "range", 1, (1 << 64) - 1)
+    width = _expression_value(widthExpr, "width", 1, (1 << 32) - 1)
+    ab = AddressBlock(
         name=name,
-        base_address=BaseAddress(value=baseAddressExpr),  # type: ignore[arg-type]
-        range=UnsignedPositiveLongintExpression(value=rangeExpr),  # type: ignore[arg-type]
-        width=UnsignedPositiveIntExpression(value=widthExpr),  # type: ignore[arg-type]
+        base_address=BaseAddress(value=base_address),
+        choice=[
+            UnsignedPositiveLongintExpression(value=range_),
+            UnsignedPositiveIntExpression(value=width),
+        ],
     )
-    lmm.address_block.append(ab)  # type: ignore[attr-defined]
-    register_parent(ab, lmm, ("address_block",), "list")
+    lmm.address_block_or_bank.append(ab)
+    register_parent(ab, lmm, ("address_block_or_bank",), "list")
     return get_handle(ab)
 
 
 def removeAddressSpaceAddressUnitBits(addressSpaceID: str) -> bool:
-    """Remove the ``addressUnitBits`` element if present.
+    """Remove ``addressUnitBits`` and its handle (IEEE 1685-2022 F.7.12.4).
 
     Section: F.7.12.4.
 
@@ -855,14 +1068,15 @@ def removeAddressSpaceAddressUnitBits(addressSpaceID: str) -> bool:
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    if getattr(as_, "address_unit_bits", None) is None:
+    child = as_.address_unit_bits
+    if child is None:
         return False
-    as_.address_unit_bits = None  # type: ignore[attr-defined]
-    return True
+    register_parent(child, as_, ("address_unit_bits",), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
 def removeAddressSpaceLocalMemoryMap(addressSpaceID: str) -> bool:
-    """Remove the ``localMemoryMap`` element if present.
+    """Remove ``localMemoryMap`` and its descendants (IEEE 1685-2022 F.7.12.5).
 
     Section: F.7.12.5.
 
@@ -878,14 +1092,15 @@ def removeAddressSpaceLocalMemoryMap(addressSpaceID: str) -> bool:
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    if getattr(as_, "local_memory_map", None) is None:
+    child = as_.local_memory_map
+    if child is None:
         return False
-    as_.local_memory_map = None  # type: ignore[attr-defined]
-    return True
+    register_parent(child, as_, ("local_memory_map",), "single")
+    return detach_child_by_handle(get_handle(child))
 
 
 def removeAddressSpaceSegment(segmentID: str) -> bool:
-    """Remove a ``segment`` element.
+    """Remove a segment and its descendants (IEEE 1685-2022 F.7.12.6).
 
     Section: F.7.12.6.
 
@@ -893,38 +1108,55 @@ def removeAddressSpaceSegment(segmentID: str) -> bool:
         segmentID: Segment handle.
 
     Returns:
-        bool: ``True`` if removed, ``False`` if not found.
+        bool: ``True`` after removing the segment.
+
+    Raises:
+        TgiError: If ``segmentID`` is invalid or has another model type.
     """
-    seg = _resolve_segment(segmentID)
-    if seg is None:
-        return False
-    return detach_child_by_handle(segmentID)
+    return _remove_owned(
+        segmentID,
+        AddressSpaces.AddressSpace.Segments.Segment,
+        AddressSpaces.AddressSpace.Segments,
+        "segment",
+    )
 
 
-def removeExecutableImageFileSetRef(fileSetRefID: str) -> bool:  # pragma: no cover - schema gap
-    """Remove an executableImage fileSetRef (stub).
+def removeExecutableImageFileSetRef(fileSetRefID: str) -> bool:
+    """Remove an executable-image file-set reference (IEEE 1685-2022 F.7.12.7).
 
     Section: F.7.12.7.
 
+    Args:
+        fileSetRefID: Handle to the executable image's ``fileSetRef``.
+
     Returns:
-        bool: Always ``False`` (schema gap).
+        bool: ``True`` after removal.
+
+    Raises:
+        TgiError: If the handle is not a file-set reference in an executable image.
     """
-    return False
+    return _remove_owned(fileSetRefID, FileSetRef, ExecutableImage.FileSetRefGroup, "fileSetRef")
 
 
-def removeLinkerCommandFileGenerator(generatorID: str) -> bool:  # pragma: no cover - schema gap
-    """Remove a linkerCommandFile generator (stub).
+def removeLinkerCommandFileGenerator(generatorID: str) -> bool:
+    """Remove a linker-command-file generator reference (IEEE 1685-2022 F.7.12.8).
 
     Section: F.7.12.8.
 
+    Args:
+        generatorID: Handle to a ``generatorRef`` in a linker command file.
+
     Returns:
-        bool: Always ``False`` (schema gap).
+        bool: ``True`` after removal.
+
+    Raises:
+        TgiError: If this is not a ``GeneratorRef`` owned by a ``linkerCommandFile``.
     """
-    return False
+    return _remove_owned(generatorID, GeneratorRef, LinkerCommandFile, "linker command file generator")
 
 
 def removeLocalMemoryMapAddressBlock(addressBlockID: str) -> bool:
-    """Remove an ``addressBlock``.
+    """Remove a local address block and descendants (IEEE 1685-2022 F.7.12.9).
 
     Section: F.7.12.9.
 
@@ -932,16 +1164,16 @@ def removeLocalMemoryMapAddressBlock(addressBlockID: str) -> bool:
         addressBlockID: AddressBlock handle.
 
     Returns:
-        bool: ``True`` if removed, ``False`` otherwise.
+        bool: ``True`` after removal.
+
+    Raises:
+        TgiError: If this is not an address block owned by a local map.
     """
-    obj = resolve_handle(addressBlockID)
-    if obj is None:
-        return False
-    return detach_child_by_handle(addressBlockID)
+    return _remove_owned(addressBlockID, AddressBlock, LocalMemoryMapType, "local addressBlock")
 
 
 def removeLocalMemoryMapBank(bankID: str) -> bool:
-    """Remove a bank element.
+    """Remove a local bank and descendants (IEEE 1685-2022 F.7.12.10).
 
     Section: F.7.12.10.
 
@@ -949,62 +1181,108 @@ def removeLocalMemoryMapBank(bankID: str) -> bool:
         bankID: Bank handle.
 
     Returns:
-        bool: ``True`` if removed, ``False`` otherwise.
+        bool: ``True`` after removal.
+
+    Raises:
+        TgiError: If this is not a local bank owned by a local map.
     """
-    obj = resolve_handle(bankID)
-    if obj is None:
-        return False
-    return detach_child_by_handle(bankID)
+    return _remove_owned(bankID, LocalAddressBankType, LocalMemoryMapType, "local bank")
 
 
 def setAddressSpaceAddressUnitBits(addressSpaceID: str, value: int | str) -> bool:
-    """Set or create ``addressUnitBits``.
+    """Set or create ``addressUnitBits`` (IEEE 1685-2022 F.7.12.11).
 
     Section: F.7.12.11.
 
     Args:
         addressSpaceID: Address space handle.
-        value: Integer or expression string.
+        value: Source expression string or integer value.
 
     Returns:
         bool: ``True`` on success.
 
     Raises:
-        TgiError: If handle invalid.
+        TgiError: If the parent handle or typed expression value is invalid.
     """
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
     from org.accellera.ipxact.v1685_2022.address_unit_bits import AddressUnitBits
 
-    as_.address_unit_bits = AddressUnitBits(value=str(value))  # type: ignore[arg-type]
+    _set_expression(as_, "address_unit_bits", AddressUnitBits, value, "addressUnitBitsExpression", 1, (1 << 64) - 1)
     return True
 
 
-def setAddressSpaceLocalMemoryMap(addressSpaceID: str, name: str | None = None) -> bool:
-    """Create or replace the ``localMemoryMap`` element.
+def setAddressSpaceLocalMemoryMap(
+    addressSpaceID: str,
+    name: str,
+    addressBlockName: str,
+    baseAddress: str,
+    range: str,
+    width: str,
+) -> bool:
+    """Set a local map with one default address block (IEEE 1685-2022 F.7.12.12).
 
     Section: F.7.12.12.
 
+    The generated 2022 schema models a local address block inline as
+    ``baseAddress`` followed by the ``range`` and ``width`` choice entries.
+    The TGI text mentions an ``addressBlockDefinitionRef`` even though the
+    operation has no definition-name or type-definitions input. This function
+    therefore creates a schema-valid inline address block from its supplied
+    values.
+
     Args:
         addressSpaceID: Parent addressSpace handle.
-        name: Optional name for the new localMemoryMap.
+        name: Name for the localMemoryMap.
+        addressBlockName: Name for its default addressBlock.
+        baseAddress: Base address expression.
+        range: Positive address range expression.
+        width: Positive block width expression.
 
     Returns:
         bool: ``True`` on success.
 
     Raises:
-        TgiError: If handle invalid.
+        TgiError: If the parent or any name/expression argument is invalid.
     """
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    as_.local_memory_map = LocalMemoryMapType(name=name)  # type: ignore[arg-type]
+    map_name = _name_value(name, "name")
+    block_name = _name_value(addressBlockName, "addressBlockName")
+    base_value = _expression_value(baseAddress, "baseAddress", 0, (1 << 64) - 1)
+    range_value = _expression_value(range, "range", 1, (1 << 64) - 1)
+    width_value = _expression_value(width, "width", 1, (1 << 32) - 1)
+    block = AddressBlock(
+        name=block_name,
+        base_address=BaseAddress(value=base_value),
+        choice=[
+            UnsignedPositiveLongintExpression(value=range_value),
+            UnsignedPositiveIntExpression(value=width_value),
+        ],
+    )
+    local_map = as_.local_memory_map
+    if local_map is None:
+        local_map = LocalMemoryMapType(name=map_name, address_block_or_bank=[])
+        as_.local_memory_map = local_map
+        register_parent(local_map, as_, ("local_memory_map",), "single")
+    else:
+        register_parent(local_map, as_, ("local_memory_map",), "single")
+        if not isinstance(local_map.address_block_or_bank, list):
+            local_map.address_block_or_bank = list(local_map.address_block_or_bank)
+        for child in list(local_map.address_block_or_bank):
+            register_parent(child, local_map, ("address_block_or_bank",), "list")
+            if not detach_child_by_handle(get_handle(child)):
+                raise TgiError("Could not replace local memory map contents", TgiFaultCode.INVALID_ID)
+        local_map.name = map_name
+    local_map.address_block_or_bank.append(block)
+    register_parent(block, local_map, ("address_block_or_bank",), "list")
     return True
 
 
 def setAddressSpaceRange(addressSpaceID: str, value: int | str) -> bool:
-    """Set or create the ``range`` element.
+    """Set the positive ``range`` expression (IEEE 1685-2022 F.7.12.13).
 
     Section: F.7.12.13.
 
@@ -1016,17 +1294,19 @@ def setAddressSpaceRange(addressSpaceID: str, value: int | str) -> bool:
         bool: ``True`` on success.
 
     Raises:
-        TgiError: If handle invalid.
+        TgiError: If the parent or typed expression value is invalid.
     """
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    as_.range = UnsignedPositiveLongintExpression(value=str(value))  # type: ignore[arg-type]
+    _set_expression(
+        as_, "range", UnsignedPositiveLongintExpression, value, "value", 1, (1 << 64) - 1
+    )
     return True
 
 
 def setAddressSpaceWidth(addressSpaceID: str, value: int | str) -> bool:
-    """Set or create the ``width`` element.
+    """Set the positive ``width`` expression (IEEE 1685-2022 F.7.12.14).
 
     Section: F.7.12.14.
 
@@ -1038,17 +1318,17 @@ def setAddressSpaceWidth(addressSpaceID: str, value: int | str) -> bool:
         bool: ``True`` on success.
 
     Raises:
-        TgiError: If handle invalid.
+        TgiError: If the parent or typed expression value is invalid.
     """
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    as_.width = UnsignedPositiveIntExpression(value=str(value))  # type: ignore[arg-type]
+    _set_expression(as_, "width", UnsignedPositiveIntExpression, value, "value", 1, (1 << 32) - 1)
     return True
 
 
 def setSegmentAddressOffset(segmentID: str, value: int | str) -> bool:
-    """Set or create a segment's ``addressOffset``.
+    """Set segment ``addressOffset`` (IEEE 1685-2022 F.7.12.15).
 
     Section: F.7.12.15.
 
@@ -1060,17 +1340,17 @@ def setSegmentAddressOffset(segmentID: str, value: int | str) -> bool:
         bool: ``True`` on success.
 
     Raises:
-        TgiError: If handle invalid.
+        TgiError: If the segment handle or typed expression value is invalid.
     """
     seg = _resolve_segment(segmentID)
     if seg is None:
         raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
-    seg.address_offset = UnsignedLongintExpression(value=str(value))  # type: ignore[arg-type]
+    _set_expression(seg, "address_offset", UnsignedLongintExpression, value, "value", 0, (1 << 64) - 1)
     return True
 
 
 def setSegmentRange(segmentID: str, value: int | str) -> bool:
-    """Set or create a segment's ``range`` element.
+    """Set segment ``range`` (IEEE 1685-2022 F.7.12.16).
 
     Section: F.7.12.16.
 
@@ -1082,10 +1362,10 @@ def setSegmentRange(segmentID: str, value: int | str) -> bool:
         bool: ``True`` on success.
 
     Raises:
-        TgiError: If handle invalid.
+        TgiError: If the segment handle or typed expression value is invalid.
     """
     seg = _resolve_segment(segmentID)
     if seg is None:
         raise TgiError("Invalid segment handle", TgiFaultCode.INVALID_ID)
-    seg.range = UnsignedPositiveLongintExpression(value=str(value))  # type: ignore[arg-type]
+    _set_expression(seg, "range", UnsignedPositiveLongintExpression, value, "value", 1, (1 << 64) - 1)
     return True
