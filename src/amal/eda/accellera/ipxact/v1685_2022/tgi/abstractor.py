@@ -9,6 +9,7 @@ for semantic violations as per the general TGI error model.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import fields, is_dataclass
 
 from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
@@ -61,12 +62,14 @@ __all__ = [
     "addAbstractorStructuredUnionPort",
     "addAbstractorView",
     "removeAbstractorAbstractorGenerator",
+    "removeAbstractorAbstractorInterface",
     "removeAbstractorChoice",
     "removeAbstractorComponentInstantiation",
     "removeAbstractorFileSet",
     "removeAbstractorInterfaceAbstractionType",
     "removeAbstractorPort",
     "removeAbstractorView",
+    "removeFileSetRefGroupFileSetRef",
     "setAbstractorAbstractorMode",
     "setAbstractorBusType",
 ]
@@ -109,7 +112,10 @@ def getAbstractorAbstractorInterfaceIDs(abstractorID: str) -> list[str]:
         raise TgiError("Invalid abstractor handle", TgiFaultCode.INVALID_ID)
     if a.abstractor_interfaces is None:
         return []
-    return [get_handle(i) for i in getattr(a.abstractor_interfaces, "abstractor_interface", [])]
+    interfaces = a.abstractor_interfaces.abstractor_interface
+    for interface in interfaces:
+        register_parent(interface, a, ("abstractor_interfaces", "abstractor_interface"), "list")
+    return [get_handle(interface) for interface in interfaces]
 
 
 def getAbstractorAbstractorMode(abstractorID: str) -> tuple[str | None, str | None]:
@@ -480,6 +486,21 @@ def removeAbstractorAbstractorGenerator(abstractorGeneratorID: str) -> bool:
     return detach_child_by_handle(abstractorGeneratorID)
 
 
+def removeAbstractorAbstractorInterface(abstractorInterfaceID: str) -> bool:
+    """Remove an abstractor interface and invalidate its descendants (F.7.5.13).
+
+    Unknown handles and handles of other element types return False.
+    """
+    from .core import registry
+
+    interface = resolve_handle(abstractorInterfaceID)
+    if not isinstance(interface, AbstractorBusInterfaceType):
+        return False
+    for root_id in registry.iter_by_predicate(lambda root: isinstance(root, Abstractor)):
+        getAbstractorAbstractorInterfaceIDs(root_id)
+    return detach_child_by_handle(abstractorInterfaceID)
+
+
 def removeAbstractorChoice(choiceID: str) -> bool:
     """Remove a choice element.
 
@@ -526,6 +547,39 @@ def removeAbstractorView(viewID: str) -> bool:
     Section: F.7.5.19.
     """
     return detach_child_by_handle(viewID)
+
+
+def removeFileSetRefGroupFileSetRef(fileSetRefID: str) -> bool:
+    """Remove a fileSetRef from its owning fileSetRefGroup (F.7.5.20).
+
+    Discover ownership in registered documents, including deserialized groups.
+    References in other containers and unknown handles return False.
+    """
+    from org.accellera.ipxact.v1685_2022 import BusInterfaceType, ExecutableImage, FileSetRef
+    from .core import get_parent_info, registry
+
+    child = resolve_handle(fileSetRefID)
+    if not isinstance(child, FileSetRef):
+        return False
+    group_types = (BusInterfaceType.Target.FileSetRefGroup, ExecutableImage.FileSetRefGroup)
+    pending = [resolve_handle(root_id) for root_id in registry.iter_by_predicate(lambda root: True)]
+    info = get_parent_info(fileSetRefID)
+    if info is not None:
+        pending.append(resolve_handle(info.parent_handle))
+    visited: set[int] = set()
+    while pending:
+        obj = pending.pop()
+        if id(obj) in visited:
+            continue
+        visited.add(id(obj))
+        if isinstance(obj, group_types) and any(item is child for item in obj.file_set_ref):
+            register_parent(child, obj, ("file_set_ref",), "list")
+            return detach_child_by_handle(fileSetRefID)
+        if is_dataclass(obj) and not isinstance(obj, type):
+            pending.extend(getattr(obj, field.name) for field in fields(obj))
+        elif isinstance(obj, (list, tuple)):
+            pending.extend(obj)
+    return False
 
 
 def setAbstractorAbstractorMode(abstractorID: str, modeValue: str, group: str | None = None) -> bool:

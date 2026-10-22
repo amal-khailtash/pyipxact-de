@@ -38,6 +38,8 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Abstractor interface and file-set-reference-group removal with parsed ownership and descendant invalidation.
+
 - Add pyslang-backed SystemVerilog expression parsing and a highlighted REPL under amal.eda.systemverilog, with a Makefile target.
 - Verify BASE unit, units, usageType, type and reset-type reference attributes.
 - Verify BASE custom, other, modify, text and flowType attributes.
