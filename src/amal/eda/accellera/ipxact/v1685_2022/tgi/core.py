@@ -147,10 +147,10 @@ class HandleManager:
             if not isinstance(lst, list):
                 return False
             obj = self._handle_to_obj.get(child_handle)
-            try:
-                lst.remove(obj)
-            except ValueError:
+            index = next((index for index, candidate in enumerate(lst) if candidate is obj), None)
+            if index is None:
                 return False
+            del lst[index]
             self.forget(child_handle)
             return True
         return False
@@ -322,6 +322,21 @@ class VlnvRegistry:
         """
         entry = self._by_handle.get(handle)
         return entry.element_type if entry else None
+
+    def get_file_name(self, handle: str) -> str | None:
+        """Return the registered XML location for a root handle."""
+        with self._lock:
+            entry = self._by_handle.get(handle)
+            return entry.file_name if entry is not None else None
+
+    def set_file_name(self, handle: str, path: str) -> bool:
+        """Update a registered root location without replacing its identity."""
+        with self._lock:
+            entry = self._by_handle.get(handle)
+            if entry is None:
+                return False
+            entry.file_name = path
+            return True
 
     def iter_by_predicate(self, predicate) -> Iterable[str]:  # predicate(root) -> bool
         """Yield handles whose root object satisfies ``predicate``.

@@ -4,6 +4,8 @@
    :maxdepth: 2
 
    features
+   sv_expressions
+   AnnexE
    intro/release_notes
    intro/references
 

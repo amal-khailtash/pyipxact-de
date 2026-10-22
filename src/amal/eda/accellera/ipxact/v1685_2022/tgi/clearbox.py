@@ -131,17 +131,70 @@ def getClearboxElementRefByID(clearboxElementRefID: str) -> str | None:
     Args:
         clearboxElementRefID: Handle to a clearboxElementRef element.
     Returns:
-        Handle to referenced clearboxElement or None if resolution fails.
+        Handle to the referenced clearboxElement.
     Raises:
-        TgiError: If the ref handle is invalid.
+        TgiError: If the ref handle is invalid, it has no component owner, or
+            its name does not resolve to exactly one clearboxElement in the
+            owning component.
     """
     ref = _resolve_clearbox_element_ref(clearboxElementRefID)
     if ref is None:
         raise TgiError("Invalid clearboxElementRef handle", TgiFaultCode.INVALID_ID)
-    # Reference by name attribute; search siblings (?) – Without DE index we cannot resolve by name.
-    # If the ref already holds a resolved object attribute (implementation dependent), return handle.
-    target = getattr(ref, "_resolved_target", None)
-    return None if target is None else get_handle(target)
+    from org.accellera.ipxact.v1685_2022 import ComponentInstantiationType, ComponentType
+
+    from .core import get_parent_info, registry
+
+    ref_info = get_parent_info(clearboxElementRefID)
+    if ref_info is None or ref_info.path != ("clearbox_element_refs", "clearbox_element_ref"):
+        # Registered roots provide enough information to recover parent links
+        # when callers obtained the ref handle directly from a parsed model.
+        for root_id in registry.iter_by_predicate(lambda root: isinstance(root, ComponentType)):
+            root = resolve_handle(root_id)
+            model = root.model
+            instantiations = model.instantiations if model is not None else None
+            instances = (
+                instantiations.component_instantiation_or_design_instantiation_or_design_configuration_instantiation
+                if instantiations is not None else []
+            )
+            for inst in instances:
+                if not isinstance(inst, ComponentInstantiationType):
+                    continue
+                refs = inst.clearbox_element_refs
+                if refs is not None and any(candidate is ref for candidate in refs.clearbox_element_ref):
+                    register_parent(inst, root, (
+                        "model", "instantiations",
+                        "component_instantiation_or_design_instantiation_or_design_configuration_instantiation",
+                    ), "list")
+                    register_parent(ref, inst, ("clearbox_element_refs", "clearbox_element_ref"), "list")
+                    ref_info = get_parent_info(clearboxElementRefID)
+                    break
+            if ref_info is not None:
+                break
+    if (ref_info is None or ref_info.path != ("clearbox_element_refs", "clearbox_element_ref")
+            or ref_info.container != "list"):
+        raise TgiError("clearboxElementRef has no component instantiation owner", TgiFaultCode.INVALID_ID)
+
+    instantiation = resolve_handle(ref_info.parent_handle)
+    if not isinstance(instantiation, ComponentInstantiationType):
+        raise TgiError("clearboxElementRef has no component instantiation owner", TgiFaultCode.INVALID_ID)
+    inst_info = get_parent_info(ref_info.parent_handle)
+    if (inst_info is None or inst_info.path != (
+            "model", "instantiations",
+            "component_instantiation_or_design_instantiation_or_design_configuration_instantiation",
+        ) or inst_info.container != "list"):
+        raise TgiError("componentInstantiation has no component owner", TgiFaultCode.INVALID_ID)
+    component = resolve_handle(inst_info.parent_handle)
+    if not isinstance(component, ComponentType):
+        raise TgiError("componentInstantiation has no component owner", TgiFaultCode.INVALID_ID)
+
+    elements = component.clearbox_elements
+    candidates = elements.clearbox_element if elements is not None else []
+    matches = [candidate for candidate in candidates if candidate.name == ref.name]
+    if len(matches) != 1:
+        raise TgiError("clearboxElement reference is missing or ambiguous", TgiFaultCode.NOT_FOUND)
+    target = matches[0]
+    register_parent(target, component, ("clearbox_elements", "clearbox_element"), "list")
+    return get_handle(target)
 
 
 def getClearboxElementRefLocationIDs(clearboxElementRefID: str) -> list[str]:

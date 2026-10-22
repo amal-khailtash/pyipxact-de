@@ -38,6 +38,49 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Component traversal, typed required-argument factories, mode expressions, reference edits and owned removal with handle invalidation.
+- Complete Catalog category traversal and typed entry edits, cross-category name/VLNV uniqueness, and owned removal with handle invalidation.
+- Complete Bus interface modes, typed abstraction and local references, SV numeric/source values, remapping, channels and owned atomic edits.
+- Complete Bus definition numeric/source getters, typed limits and references, strict capabilities, and owned choice/system-group edits.
+- Complete Address space SV numeric/source getters, alias and local-map traversal, executable-image references, typed block creation and atomic owned edits.
+- Complete standard Assertion Boolean/source/handle getters and generated XML creation, expression editing and subtree removal.
+- Complete Access policy mode/external-definition references, typed field-data and write-constraint choices, source expressions and owned lifecycle edits.
+- Complete Element attribute typed metadata editing, schema-default removal and document-scoped reference resolution.
+- Complete File builder language-tool/linker choices, expression children and component-scoped generator references.
+- Complete File set file/function/reference editing with schema types, local fileId resolution and parsed ownership.
+- Complete Access handle traversal and schema-selected creation, typed path segments/slices, Boolean force and owned removals.
+- Complete Generator phase resolution and metadata/group/transport editing with typed ownership and atomic validation.
+- Complete Generator chain editing and selector references using generated mixed collections and schema choices.
+- Add make coverage HTML/XML reports including generated org bindings; build documentation directly under build/docs.
+- Complete Vector traversal and lifecycle with generated endpoints, self-contained SV integer evaluation and parsed ownership.
+- Complete Vendor extensions XML fragment retrieval, append, replacement and removal while preserving namespaces and wildcard content.
+- Remove owned children by identity to preserve equal-valued siblings.
+- Complete Array editing across bounded, register and field arrays with typed ownership and SystemVerilog integer expression evaluation.
+- Complete Instantiation reference-node, VLNV and typed target-resolution functions with atomic setters.
+- Restore detailed standard-linked module/function docstrings, argument/return documentation and section headings.
+- Complete Top element registry enumeration, XML file-location metadata and editing-start contracts.
+- Verify all Choice operations with parsed ownership, schema-valid edits and atomic string validation.
+- Complete remaining Abstraction definition TGI editing and getters, with slang-backed integer expressions, atomic extends references and schema-valid drive/load constraints.
+- Resolve Clearbox references within their owning component and abstractor-instance views through the referenced abstractor VLNV.
+- Complete Abstractor interface and file-set-reference-group removal with parsed ownership and descendant invalidation.
+- Add pyslang-backed SystemVerilog expression parsing and a highlighted REPL under amal.eda.systemverilog, with a Makefile target.
+- Verify BASE unit, units, usageType, type and reset-type reference attributes.
+- Verify BASE custom, other, modify, text and flowType attributes.
+- Copy Annex E expression reference into documentation and link it from the SV parser guide.
+- Verify BASE port, sub-port, field, memory-map and power-domain reference source attributes.
+- Verify BASE interface mode, isIO, group selection operator, packed and phantom attributes.
+- Implement BASE wildcard attribute lookup/names and verify libext, level and imageType source attributes.
+- Verify BASE bus, component-instance, choice, mode and view reference source attributes.
+- Verify BASE document-reference vendor, library, name, version and executable image ID attributes.
+- Verify BASE address-block, address-space, alternate-register, bank and register reference source attributes.
+- Verify BASE help, prompt, prefix, user and hierarchical path attributes with XML reloads.
+- Verify BASE force, mandatory, misalignmentAllowed, replicate and unique boolean flags.
+- Return BASE configuration groups as XML list text and constrained values as copied string lists; verify index, order and constraint-set ID attributes.
+- Verify BASE resolve, scope, sign, test constraint and usage configuration attributes.
+- Verify BASE XML identity attributes and share the vector ID getter across category and package exports.
+- Verify BASE exact, externalDeclarations, implicit, strict and hidden boolean attributes.
+- Read BASE minimum/maximum source, integer and double attributes; reject fractional or non-finite integer conversions.
+- Verify BASE data type, delay, direction and driver attributes with generated XML bindings.
 - Read BASE array ID, bank alignment, cell strength and clock attributes using generated XML metadata.
 - Read BASE boolean XML attributes through generated binding metadata, preserving false values.
 - Read register/field array dimensions and strides through BASE getters with typed parent checks and parsed ownership.
@@ -128,7 +171,6 @@ This document lists notable changes for each release and follows:
 - Use standard interface handles for abstractor abstraction-type creation and traversal.
 - Validate abstraction references and component-instantiation names before mutation.
 - Repair abstraction-type and component-instantiation parent paths for removal and verify XML round trips.
-
 - Synchronize Read the Docs release tags, wait for discovery, activate versions, and request builds after publication.
 - Validate abstractor mode and bus-reference updates before mutation; preserve mode handles and existing groups.
 - Correct abstractor file-set parent paths and verify add/list/remove behavior and XML round trips.

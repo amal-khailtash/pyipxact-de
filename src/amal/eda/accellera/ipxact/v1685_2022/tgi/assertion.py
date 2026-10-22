@@ -1,46 +1,43 @@
-"""Assertion category TGI functions (IEEE 1685-2022).
+"""Assertion TGI operations for IEEE 1685-2022 Annex F.7.15 and F.7.16.
 
-Implements BASE (F.7.15) and EXTENDED (F.7.16) Assertion functions.
+Assertions describe valid parameter settings through an unsigned-bit SystemVerilog
+expression. Names and descriptions communicate a failed condition. The generated
+Assertions container belongs to a component, abstraction definition, abstractor,
+bus definition, design, design configuration, type definitions or generator chain.
 
-Assertions appear inside several schema elements (component, abstraction
-definition, bus definition, design, design configuration, abstractor, type
-definitions, generator chain). Each such container MAY include an
-``assertions`` element containing one or more ``assertion`` child elements.
-
-The BASE API provides enumeration and value/expression retrieval. The
-EXTENDED API allows adding, removing and setting textual metadata and the
-assert expression itself. Where the underlying schema does not model a
-feature mentioned in the spec (e.g. a dedicated failure message separate
-from description), a setter will either map to the closest schema field or
-raise ``TgiError`` with ``TgiFaultCode.UNSUPPORTED_OPERATION``.
-
-All getters return ``None`` when the requested value is absent. Mutators
-create intermediate containers on demand (e.g. the ``assertions`` wrapper)
-consistent with other category implementations.
+BASE getters distinguish the evaluated Boolean, source expression and expression
+handle. Evaluation currently supports self-contained constants; unresolved parameter
+scope and unknown bits raise INVALID_ARGUMENT. EXTENDED edits preserve expression
+identity and XML metadata. Parsed traversal registers ownership for subtree removal.
+Additional name/description and Expression helpers are compatibility extensions,
+not separately numbered functions in Annex F.
 """
 
-from collections.abc import Iterable
+from dataclasses import fields, is_dataclass
 from typing import Any
 
-from org.accellera.ipxact.v1685_2022 import Assertion
+from org.accellera.ipxact.v1685_2022 import Assertion, Assertions
 from org.accellera.ipxact.v1685_2022.description import Description
 from org.accellera.ipxact.v1685_2022.display_name import DisplayName
 from org.accellera.ipxact.v1685_2022.short_description import ShortDescription
 from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
 
-# ruff: noqa: I001 (import ordering intentionally mirrors sibling modules)
-
 from .core import (
     TgiError,
     TgiFaultCode,
-    get_handle,
-    resolve_handle,
-    register_parent,
     detach_child_by_handle,
+    get_handle,
+    get_parent_info,
+    register_parent,
+    registry,
+    resolve_handle,
 )
 
 __all__: list[str] = [
     # BASE (F.7.15)
+    "getAssertionAssert",
+    "getAssertionAssertExpression",
+    "getAssertionAssertID",
     "getAssertionIDs",
     "getAssertionName",
     "getAssertionDisplayName",
@@ -51,6 +48,7 @@ __all__: list[str] = [
     # EXTENDED (F.7.16)
     "addAssertion",
     "removeAssertion",
+    "setAssertionAssert",
     "setAssertionName",
     "setAssertionDisplayName",
     "setAssertionShortDescription",
@@ -63,15 +61,19 @@ __all__: list[str] = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
-def _iter(value: Any) -> Iterable[Any]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    try:  # pragma: no cover
-        return list(value)
-    except Exception:  # pragma: no cover
-        return []
+
+def _require_text(value: str, label: str) -> None:
+    """Validate required source/name text before a mutation."""
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError(f"{label} must be a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _resolve_container(handle: str) -> Any:
+    """Resolve a generated owner whose schema declares assertions."""
+    obj = resolve_handle(handle)
+    if obj is None or not is_dataclass(obj) or not any(field.name == "assertions" for field in fields(obj)):
+        raise TgiError("Invalid assertion container handle", TgiFaultCode.INVALID_ID)
+    return obj
 
 
 def _resolve_assertion(assertionID: str) -> Assertion:
@@ -94,13 +96,70 @@ def _text_value(obj: Any, field: str) -> str | None:
 # BASE (F.7.15)
 # ---------------------------------------------------------------------------
 
-def getAssertionIDs(parentID: str) -> list[str]:  # F.7.15.1
-    """Return handles of ``assertion`` children under a parent.
+
+def getAssertionAssert(assertionID: str) -> bool:
+    """Return the self-contained assertion Boolean value.
 
     Section: F.7.15.1.
 
     Args:
-        parentID: Handle referencing any object which MAY own an
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Evaluated Boolean assertion result.
+
+    Raises:
+        TgiError: INVALID_ARGUMENT when the expression cannot be evaluated.
+    """
+    from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
+
+    expression = getAssertionAssertExpression(assertionID)
+    try:
+        value = SvExpressionParser().evaluate(expression)
+    except SvExpressionError as error:
+        raise TgiError("Assertion expression cannot be resolved", TgiFaultCode.INVALID_ARGUMENT) from error
+    if type(value) is not int or value not in (0, 1):
+        raise TgiError("Assertion expression must evaluate to an unsigned bit", TgiFaultCode.INVALID_ARGUMENT)
+    return bool(value)
+
+
+def getAssertionAssertExpression(assertionID: str) -> str:
+    """Return the assertion source expression without evaluation.
+
+    Section: F.7.15.2.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Original SystemVerilog assertion expression text.
+    """
+    return _resolve_assertion(assertionID).assert_value.value
+
+
+def getAssertionAssertID(assertionID: str) -> str:
+    """Return the handle to the assertion's required assert expression.
+
+    Section: F.7.15.3.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Handle to the generated unsigned-bit expression.
+    """
+    assertion = _resolve_assertion(assertionID)
+    register_parent(assertion.assert_value, assertion, ("assert_value",), "single")
+    return get_handle(assertion.assert_value)
+
+
+def getAssertionIDs(assertionContainerElementID: str) -> list[str]:  # F.7.15.4
+    """Return handles of ``assertion`` children under a parent.
+
+    Section: F.7.15.4.
+
+    Args:
+        assertionContainerElementID: Handle referencing any object which MAY own an
             ``assertions`` container.
 
     Returns:
@@ -109,78 +168,109 @@ def getAssertionIDs(parentID: str) -> list[str]:  # F.7.15.1
     Raises:
         TgiError: If the parent handle is invalid.
     """
-    parent = resolve_handle(parentID)
-    if parent is None:
-        raise TgiError("Invalid parent handle", TgiFaultCode.INVALID_ID)
-    container = getattr(parent, "assertions", None)
+    parent = _resolve_container(assertionContainerElementID)
+    container = parent.assertions
     if container is None:
         return []
-    items = getattr(container, "assertion", [])
-    result: list[str] = []
-    for a in _iter(items):
-        if isinstance(a, Assertion):
-            result.append(get_handle(a))
-    return result
+    register_parent(container, parent, ("assertions",), "single")
+    for assertion in container.assertion:
+        register_parent(assertion, container, ("assertion",), "list")
+    return [get_handle(assertion) for assertion in container.assertion]
 
 
-def getAssertionName(assertionID: str) -> str | None:  # F.7.15.2
+def getAssertionName(assertionID: str) -> str | None:  # compatibility extension
     """Return the assertion ``name``.
 
-    Section: F.7.15.2.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Source text or child handle; None if absent.
     """
     a = _resolve_assertion(assertionID)
     return getattr(a, "name", None)
 
 
-def getAssertionDisplayName(assertionID: str) -> str | None:  # F.7.15.3
+def getAssertionDisplayName(assertionID: str) -> str | None:  # compatibility extension
     """Return ``displayName`` value.
 
-    Section: F.7.15.3.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Source text or child handle; None if absent.
     """
     return _text_value(_resolve_assertion(assertionID), "display_name")
 
 
-def getAssertionShortDescription(assertionID: str) -> str | None:  # F.7.15.4
+def getAssertionShortDescription(assertionID: str) -> str | None:  # compatibility extension
     """Return ``shortDescription`` value.
 
-    Section: F.7.15.4.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Source text or child handle; None if absent.
     """
     return _text_value(_resolve_assertion(assertionID), "short_description")
 
 
-def getAssertionDescription(assertionID: str) -> str | None:  # F.7.15.5
+def getAssertionDescription(assertionID: str) -> str | None:  # compatibility extension
     """Return ``description`` value.
 
-    Section: F.7.15.5.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Source text or child handle; None if absent.
     """
     return _text_value(_resolve_assertion(assertionID), "description")
 
 
-def getAssertionExpression(assertionID: str) -> str | None:  # F.7.15.6
+def getAssertionExpression(assertionID: str) -> str | None:  # compatibility extension
     """Return the assert expression string value.
 
-    Section: F.7.15.6. Maps to ``assert_value.value`` in the schema.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Source text or child handle; None if absent.
     """
     a = _resolve_assertion(assertionID)
     expr = getattr(a, "assert_value", None)
     return getattr(expr, "value", None) if expr is not None else None
 
 
-def getAssertionExpressionID(assertionID: str) -> str | None:  # F.7.15.7
+def getAssertionExpressionID(assertionID: str) -> str | None:  # compatibility extension
     """Return handle of the underlying expression object.
 
-    Section: F.7.15.7.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+
+    Returns:
+        Source text or child handle; None if absent.
     """
-    a = _resolve_assertion(assertionID)
-    expr = getattr(a, "assert_value", None)
-    return get_handle(expr) if expr is not None else None
+    return getAssertionAssertID(assertionID)
 
 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.16)
 # ---------------------------------------------------------------------------
 
-def addAssertion(parentID: str, name: str, expression: str) -> str:  # F.7.16.1
+
+def addAssertion(assertionContainerElementID: str, name: str, expression: str) -> str:  # F.7.16.1
     """Create and append a new ``assertion`` element.
 
     Section: F.7.16.1.
@@ -189,7 +279,7 @@ def addAssertion(parentID: str, name: str, expression: str) -> str:  # F.7.16.1
     will be created if absent.
 
     Args:
-        parentID: Parent element handle.
+        assertionContainerElementID: Parent element handle.
         name: Assertion name.
         expression: Expression string for the assert condition.
 
@@ -199,22 +289,19 @@ def addAssertion(parentID: str, name: str, expression: str) -> str:  # F.7.16.1
     Raises:
         TgiError: If parent handle invalid.
     """
-    parent = resolve_handle(parentID)
-    if parent is None:
-        raise TgiError("Invalid parent handle", TgiFaultCode.INVALID_ID)
-    # Create container dynamically if necessary (duck-typed to have 'assertion' list)
-    if getattr(parent, "assertions", None) is None:
-        class AssertionsContainer:  # minimal dynamic wrapper
-            def __init__(self):
-                self.assertion: list[Assertion] = []
-
-        parent.assertions = AssertionsContainer()  # type: ignore[attr-defined]
-    a = Assertion()
-    a.name = name
-    a.assert_value = UnsignedBitExpression(value=expression)
-    parent.assertions.assertion.append(a)  # type: ignore[attr-defined]
-    register_parent(a, parent, ("assertions",), "list")
-    return get_handle(a)
+    parent = _resolve_container(assertionContainerElementID)
+    _require_text(name, "name")
+    _require_text(expression, "expression")
+    if parent.assertions is not None and any(item.name == name for item in parent.assertions.assertion):
+        raise TgiError("Assertion name already exists", TgiFaultCode.INVALID_ARGUMENT)
+    assertion = Assertion(name=name, assert_value=UnsignedBitExpression(value=expression))
+    if parent.assertions is None:
+        parent.assertions = Assertions()
+    register_parent(parent.assertions, parent, ("assertions",), "single")
+    parent.assertions.assertion.append(assertion)
+    register_parent(assertion, parent.assertions, ("assertion",), "list")
+    register_parent(assertion.assert_value, assertion, ("assert_value",), "single")
+    return get_handle(assertion)
 
 
 def removeAssertion(assertionID: str) -> bool:  # F.7.16.2
@@ -228,55 +315,131 @@ def removeAssertion(assertionID: str) -> bool:  # F.7.16.2
     Returns:
         bool: True if removed else False.
     """
+    assertion = _resolve_assertion(assertionID)
+    if get_parent_info(assertionID) is None:
+        for root_id in registry.iter_by_predicate(lambda _root: True):
+            root = resolve_handle(root_id)
+            container = getattr(root, "assertions", None)
+            if container is not None and any(item is assertion for item in container.assertion):
+                register_parent(container, root, ("assertions",), "single")
+                register_parent(assertion, container, ("assertion",), "list")
+                break
     return detach_child_by_handle(assertionID)
 
 
-def setAssertionName(assertionID: str, name: str) -> bool:  # F.7.16.3
-    """Set assertion ``name``.
+def setAssertionAssert(assertionID: str, assertExpression: str) -> bool:
+    """Set the assertion source expression, preserving its handle and attributes.
 
     Section: F.7.16.3.
+
+    Args:
+        assertionID: Handle to an assertion element.
+        assertExpression: Nonempty SystemVerilog expression text; stored without evaluation.
+
+    Returns:
+        True after updating the expression.
+    """
+    assertion = _resolve_assertion(assertionID)
+    _require_text(assertExpression, "assertExpression")
+    assertion.assert_value.value = assertExpression
+    register_parent(assertion.assert_value, assertion, ("assert_value",), "single")
+    return True
+
+
+def setAssertionName(assertionID: str, name: str) -> bool:  # compatibility extension
+    """Set assertion ``name``.
+
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+        name: Text value to assign.
+
+    Returns:
+        True after assignment.
     """
     a = _resolve_assertion(assertionID)
+    _require_text(name, "name")
     a.name = name
     return True
 
 
-def setAssertionDisplayName(assertionID: str, value: str) -> bool:  # F.7.16.4
+def setAssertionDisplayName(assertionID: str, value: str) -> bool:  # compatibility extension
     """Set or create ``displayName``.
 
-    Section: F.7.16.4.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+        value: Text value to assign.
+
+    Returns:
+        True after assignment.
     """
     a = _resolve_assertion(assertionID)
-    a.display_name = DisplayName(value=value)
+    if not isinstance(value, str):
+        raise TgiError("Value must be a string", TgiFaultCode.INVALID_ARGUMENT)
+    if a.display_name is None:
+        a.display_name = DisplayName(value=value)
+    else:
+        a.display_name.value = value
     return True
 
 
-def setAssertionShortDescription(assertionID: str, value: str) -> bool:  # F.7.16.5
+def setAssertionShortDescription(assertionID: str, value: str) -> bool:  # compatibility extension
     """Set or create ``shortDescription``.
 
-    Section: F.7.16.5.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+        value: Text value to assign.
+
+    Returns:
+        True after assignment.
     """
     a = _resolve_assertion(assertionID)
-    a.short_description = ShortDescription(value=value)
+    if not isinstance(value, str):
+        raise TgiError("Value must be a string", TgiFaultCode.INVALID_ARGUMENT)
+    if a.short_description is None:
+        a.short_description = ShortDescription(value=value)
+    else:
+        a.short_description.value = value
     return True
 
 
-def setAssertionDescription(assertionID: str, value: str) -> bool:  # F.7.16.6
+def setAssertionDescription(assertionID: str, value: str) -> bool:  # compatibility extension
     """Set or create ``description``.
 
-    Section: F.7.16.6.
+    Section: Project extension outside IEEE 1685-2022 Annex F.
+
+    Args:
+        assertionID: Handle to an assertion element.
+        value: Text value to assign.
+
+    Returns:
+        True after assignment.
     """
     a = _resolve_assertion(assertionID)
-    a.description = Description(value=value)
+    if not isinstance(value, str):
+        raise TgiError("Value must be a string", TgiFaultCode.INVALID_ARGUMENT)
+    if a.description is None:
+        a.description = Description(value=value)
+    else:
+        a.description.value = value
     return True
 
 
-def setAssertionExpression(assertionID: str, expression: str) -> bool:  # F.7.16.7
+def setAssertionExpression(assertionID: str, expression: str) -> bool:  # compatibility extension
     """Set the assert expression string.
 
-    Section: F.7.16.7. Creates the expression container if absent.
-    """
-    a = _resolve_assertion(assertionID)
-    a.assert_value = UnsignedBitExpression(value=expression)
-    return True
+    Section: Project extension outside IEEE 1685-2022 Annex F.
 
+    Args:
+        assertionID: Handle to an assertion element.
+        expression: Text value to assign.
+
+    Returns:
+        True after assignment.
+    """
+    return setAssertionAssert(assertionID, expression)

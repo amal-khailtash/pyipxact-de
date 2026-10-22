@@ -1,34 +1,47 @@
-"""Array category TGI functions (IEEE 1685-2022).
+"""Array category TGI functions for IEEE 1685-2022 Annex F.
 
-Implements BASE (F.7.13) and EXTENDED (F.7.14) Array functions. The schema
-represents arrayable constructs (e.g. register arrays, field arrays, generic
-``array`` helper types) with a container having:
+This module implements the BASE calls in F.7.13 and the EXTENDED calls in
+F.7.14. It follows the generated 1685-2022 schema classes because the XML
+schema defines distinct array forms: port and parameter arrays have left/right
+bounds in an ``arrays`` wrapper, register arrays contain ``dim`` plus optional
+``stride``, and register-field arrays contain ``dim`` plus optional
+``bitStride``. A ``dim`` value is preserved as an expression and may carry an
+``indexVar`` XML ``Name`` attribute.
 
-* ``dim``: list of dimension elements (each with ``value`` expression and
-  optional ``indexVar`` attribute in EXTENDED mode)
-* Optional left/right bound elements (``left``, ``right``) for some array
-  forms
-* Range getters return the ordered left/right pair for bounded arrays
-* Optional stride element named either ``stride`` (generic), ``bit_stride`` or
-  ``bitStride`` depending on the generated dataclass; we normalise access via
-  *stride* accessors.
-
-Not all array forms carry every sub-element; getters return ``None`` when a
-sub-element is absent. Numeric getters attempt integer conversion of the
-underlying ``value`` field, otherwise return ``None``. Parameterized expressions
-are retained as source text; this module does not evaluate parameters.
+Numeric getters convert integer literals and evaluate self-contained
+SystemVerilog integer expressions with slang. References that need IP-XACT
+parameter or scope resolution return ``None``. Extended mutations create the
+corresponding generated binding objects, reject malformed argument shapes
+before editing, and keep handle ownership synchronized with model ownership.
+Removing the final bounded array removes its now-empty optional wrapper so the
+parent remains serializable under the schema.
 """
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, get_args, get_type_hints
+from unicodedata import category
 
-from org.accellera.ipxact.v1685_2022 import AddressBlockType, Dim, FieldType, RegisterFile
+from org.accellera.ipxact.v1685_2022 import (
+    AddressBlockType,
+    Array,
+    Arrays,
+    BitStride,
+    ConfigurableArrays,
+    Dim,
+    FieldType,
+    Left,
+    ModuleParameterArrays,
+    RegisterFile,
+    Right,
+    Stride,
+)
 
 from .core import (
     TgiError,
     TgiFaultCode,
     detach_child_by_handle,
     get_handle,
+    get_parent_info,
     register_parent,
     resolve_handle,
 )
@@ -61,132 +74,165 @@ __all__ = [
 ]
 
 
+_BOUNDED_ARRAY_TYPES = (Arrays.Array, ConfigurableArrays.Array, ModuleParameterArrays.Array)
+_DIM_ARRAY_TYPES = (Array, FieldType.Array)
+_ARRAY_TYPES = _BOUNDED_ARRAY_TYPES + _DIM_ARRAY_TYPES
+_ARRAY_CONTAINER_TYPES = (Arrays, ConfigurableArrays, ModuleParameterArrays)
+
+
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_array(arrayID: str) -> Any:
-    """Resolve an array-like container by handle.
-
-    Helper (non-spec). Accept dimension arrays and bounded arrays with left/right
-    children. This function validates the handle and shape.
-
-    Args:
-        arrayID: Handle referencing a potential array container.
-
-    Returns:
-        Any: The resolved object.
-
-    Raises:
-        TgiError: If the handle is invalid or references a different element.
-    """
+    """Resolve one of the array elements defined by the 1685-2022 schema."""
     obj = resolve_handle(arrayID)
-    if obj is None or not (hasattr(obj, "dim") or (hasattr(obj, "left") and hasattr(obj, "right"))):
+    if not isinstance(obj, _ARRAY_TYPES):
         raise TgiError("Invalid array handle", TgiFaultCode.INVALID_ID)
     return obj
 
 
-def _resolve_dim(dimID: str) -> Any:
-    """Resolve a dimension element by handle.
-
-    Args:
-        dimID: Handle referencing a ``dim`` element.
-
-    Returns:
-        Any: Dimension object.
-
-    Raises:
-        TgiError: If the handle is invalid or references a non-dimension element.
-    """
+def _resolve_dim(dimID: str) -> Dim:
+    """Resolve a schema-bound ``dim`` element."""
     obj = resolve_handle(dimID)
     if not isinstance(obj, Dim):
         raise TgiError("Invalid dim handle", TgiFaultCode.INVALID_ID)
     return obj
 
 
-def _get_attr(obj: Any, *names: str) -> Any:
-    """Return first existing attribute among names (or None)."""
-    for n in names:
-        if hasattr(obj, n):
-            return getattr(obj, n)
-    return None
-
-
 def _int_value(expr_obj: Any) -> int | None:
-    """Attempt to convert expression object's ``value`` to int."""
+    """Convert a literal or evaluate a self-contained SystemVerilog integer expression."""
     if expr_obj is None:
         return None
     try:
         value = expr_obj.value
-        return int(value, 0) if value.lower().startswith(("0x", "0o", "0b")) else int(value)
-    except (ValueError, TypeError, AttributeError):
+        if not isinstance(value, str) or not value.strip():
+            return None
+        try:
+            return int(value, 0) if value.lower().startswith(("0x", "0o", "0b")) else int(value)
+        except ValueError:
+            from amal.eda.systemverilog.expression_parser import SvExpressionParser
+
+            evaluated = SvExpressionParser().evaluate(value)
+            return evaluated if type(evaluated) is int else None
+    except ImportError, ValueError, TypeError, AttributeError:
         return None
+
+
+def _expression(value: Any, argument: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise TgiError(f"{argument} must be a non-empty string", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _bounded_array_wrapper(parent: Any) -> tuple[type, Any] | None:
+    """Return the schema-declared wrapper class and current value for ``parent.arrays``."""
+    if not hasattr(parent, "arrays"):
+        return None
+    current = parent.arrays
+    if current is not None:
+        if type(current) not in _ARRAY_CONTAINER_TYPES:
+            return None
+        return type(current), current
+
+    try:
+        annotation = get_type_hints(type(parent)).get("arrays")
+    except NameError, TypeError:
+        return None
+    declared = [candidate for candidate in get_args(annotation) if candidate in _ARRAY_CONTAINER_TYPES]
+    if len(declared) != 1:
+        return None
+    return declared[0], None
+
+
+def _valid_name(value: str) -> bool:
+    """Check the XML Schema ``xs:Name`` lexical form for an indexVar."""
+    if not value:
+        return False
+
+    def is_start(char: str) -> bool:
+        return char in "_:" or category(char) in {"Lu", "Ll", "Lt", "Lm", "Lo", "Nl"}
+
+    def is_name_char(char: str) -> bool:
+        return is_start(char) or char in "-." or category(char) in {"Mn", "Mc", "Nd", "Pc"}
+
+    return is_start(value[0]) and all(is_name_char(char) for char in value[1:])
 
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.13)
 # ---------------------------------------------------------------------------
 
-def getArrayDimIDs(arrayID: str) -> list[str]:
-    """List handles of dimension (``dim``) elements.
 
-    Section: F.7.13.1.
+def getArrayDimIDs(arrayOrfieldArrayID: str) -> list[str]:  # F.7.13.1
+    """Return handles to all dimensions on a register or register-field array.
 
     Args:
-        arrayID: Handle referencing an array container.
+        arrayOrfieldArrayID: Handle to a register or register-field array.
 
     Returns:
-        list[str]: Handles (possibly empty) of ``dim`` elements.
+        List of handles to the array's ``dim`` elements.
+
+    Section: F.7.13.1.
     """
-    arr = _resolve_array(arrayID)
+    arr = _resolve_array(arrayOrfieldArrayID)
+    if not isinstance(arr, _DIM_ARRAY_TYPES):
+        return []
     result = []
-    for dim in getattr(arr, "dim", []):
+    for dim in arr.dim:
         register_parent(dim, arr, ("dim",), "list")
         result.append(get_handle(dim))
     return result
 
 
-def getArrayIDs(parentID: str) -> list[str]:  # F.7.13.2
-    """Return handles of child array containers under a parent.
-
-    Section: F.7.13.2.
-
-    The spec enumerates retrieval of arrays contained in a parent object. We
-    Traverse generated ``arrays.array`` wrappers or a single memory-map array.
-    Preserve source order and parsed ownership. Missing arrays return an empty list.
+def getArrayIDs(arrayContainerElementID: str) -> list[str]:  # F.7.13.2
+    """Return handles of arrays contained by an element.
 
     Args:
-        parentID: Parent handle (any object).
+        arrayContainerElementID: Handle to an element that contains arrays.
 
     Returns:
-        list[str]: Handles of arrays (empty if none).
+        List of handles to bounded arrays or the register/field array, if present.
+
+    Section: F.7.13.2.
     """
-    parent = resolve_handle(parentID)
+    parent = resolve_handle(arrayContainerElementID)
     if parent is None:
-        raise TgiError("Invalid parent handle", TgiFaultCode.INVALID_ID)
-    cand = _get_attr(parent, "array", "arrays")
-    if cand is None:
-        return []
-    if hasattr(cand, "array"):
-        owner, path, items = parent, ("arrays", "array"), cand.array
-    else:
-        owner, path = parent, ("array",)
-        items = cand if isinstance(cand, Sequence) else [cand]
-    result = []
-    for item in items:
-        if hasattr(item, "dim") or (hasattr(item, "left") and hasattr(item, "right")):
-            register_parent(item, owner, path, "list" if isinstance(cand, Sequence) or len(path) > 1 else "single")
+        raise TgiError("Invalid array container handle", TgiFaultCode.INVALID_ID)
+
+    # Prefer list container 'arrays'
+    wrapper = getattr(parent, "arrays", None)
+    if type(wrapper) in _ARRAY_CONTAINER_TYPES:
+        result = []
+        for item in wrapper.array:
+            if not isinstance(item, _BOUNDED_ARRAY_TYPES):
+                continue
+            register_parent(item, parent, ("arrays", "array"), "list")
             result.append(get_handle(item))
-    return result
+        return result
+
+    # Fallback single attribute 'array'
+    arr = getattr(parent, "array", None)
+    if isinstance(arr, _ARRAY_TYPES):
+        register_parent(arr, parent, ("array",), "single")
+        return [get_handle(arr)]
+    return []
 
 
 def getArrayLeftID(arrayID: str) -> str | None:  # F.7.13.3
-    """Return handle of ``left`` bound element if present.
+    """Return the handle of the array's ``left`` bound, if it exists.
+
+    Args:
+        arrayID: Handle to an array element.
+
+    Returns:
+        Handle to the ``left`` bound, or ``None`` when it is absent.
 
     Section: F.7.13.3.
     """
     arr = _resolve_array(arrayID)
-    left = _get_attr(arr, "left")
+    left = getattr(arr, "left", None)
     if left is None:
         return None
     register_parent(left, arr, ("left",), "single")
@@ -194,30 +240,48 @@ def getArrayLeftID(arrayID: str) -> str | None:  # F.7.13.3
 
 
 def getArrayRange(arrayID: str) -> list[int | None]:  # F.7.13.4
-    """Return left and right integer literal values, in that order.
+    """Return integer values for the array's left and right bound expressions.
+
+    Args:
+        arrayID: Handle to an array element.
+
+    Returns:
+        Two values ordered as left then right; unresolved expressions return ``None``.
 
     Section: F.7.13.4.
     """
     arr = _resolve_array(arrayID)
-    return [_int_value(_get_attr(arr, bound)) for bound in ("left", "right")]
+    return [_int_value(getattr(arr, bound, None)) for bound in ("left", "right")]
 
 
 def getArrayRangeExpression(arrayID: str) -> list[str | None]:  # F.7.13.5
-    """Return original left and right expressions, in that order.
+    """Return the original expressions for the array's left and right bounds.
+
+    Args:
+        arrayID: Handle to an array element.
+
+    Returns:
+        Two expressions ordered as left then right; missing bounds return ``None``.
 
     Section: F.7.13.5.
     """
     arr = _resolve_array(arrayID)
-    return [getattr(_get_attr(arr, bound), "value", None) for bound in ("left", "right")]
+    return [getattr(getattr(arr, bound, None), "value", None) for bound in ("left", "right")]
 
 
 def getArrayRightID(arrayID: str) -> str | None:  # F.7.13.6
-    """Return handle of ``right`` bound element if present.
+    """Return the handle of the array's ``right`` bound, if it exists.
+
+    Args:
+        arrayID: Handle to an array element.
+
+    Returns:
+        Handle to the ``right`` bound, or ``None`` when it is absent.
 
     Section: F.7.13.6.
     """
     arr = _resolve_array(arrayID)
-    right = _get_attr(arr, "right")
+    right = getattr(arr, "right", None)
     if right is None:
         return None
     register_parent(right, arr, ("right",), "single")
@@ -225,92 +289,146 @@ def getArrayRightID(arrayID: str) -> str | None:  # F.7.13.6
 
 
 def getArrayStride(arrayID: str) -> int | None:  # F.7.13.7
-    """Return numeric stride value (bit/part stride).
+    """Return an integer literal stride value, if one is defined.
+
+    Args:
+        arrayID: Handle to a register or register-field array.
+
+    Returns:
+        Integer stride value, or ``None`` for unresolved expressions or absent strides.
 
     Section: F.7.13.7.
     """
     arr = _resolve_array(arrayID)
-    stride = _get_attr(arr, "stride", "bit_stride", "bitStride")
+    stride = getattr(arr, "bit_stride", None) if isinstance(arr, FieldType.Array) else getattr(arr, "stride", None)
     return _int_value(stride)
 
 
 def getArrayStrideExpression(arrayID: str) -> str | None:  # F.7.13.8
-    """Return stride expression string.
+    """Return the original stride expression, if one is defined.
+
+    Args:
+        arrayID: Handle to a register or register-field array.
+
+    Returns:
+        Stride expression, or ``None`` when no stride is defined.
 
     Section: F.7.13.8.
     """
     arr = _resolve_array(arrayID)
-    stride = _get_attr(arr, "stride", "bit_stride", "bitStride")
+    stride = getattr(arr, "bit_stride", None) if isinstance(arr, FieldType.Array) else getattr(arr, "stride", None)
     return getattr(stride, "value", None) if stride is not None else None
 
 
-def getArrayStrideID(arrayID: str) -> str | None:  # F.7.13.9
-    """Return a stable stride or bitStride handle with parsed ownership.
+def getArrayStrideID(arrayOrfieldArrayID: str) -> str | None:  # F.7.13.9
+    """Return a handle to a register stride or field ``bitStride`` element.
+
+    Args:
+        arrayOrfieldArrayID: Handle to a register or register-field array.
+
+    Returns:
+        Handle to the stride element, or ``None`` when absent.
 
     Section: F.7.13.9.
     """
-    arr = _resolve_array(arrayID)
-    stride = _get_attr(arr, "stride", "bit_stride", "bitStride")
+    arr = _resolve_array(arrayOrfieldArrayID)
+    if isinstance(arr, FieldType.Array):
+        name = "bit_stride"
+    elif isinstance(arr, Array):
+        name = "stride"
+    else:
+        return None
+    stride = getattr(arr, name)
     if stride is None:
         return None
-    field = "stride" if hasattr(arr, "stride") else "bit_stride"
-    register_parent(stride, arr, (field,), "single")
+    register_parent(stride, arr, (name,), "single")
     return get_handle(stride)
 
 
-def getDimExpression(dimID: str) -> str | None:  # F.7.13.10
-    """Return dimension expression string.
+def getDimExpression(dimID: str) -> str:  # F.7.13.10
+    """Return the expression text stored in a ``dim`` element.
+
+    Args:
+        dimID: Handle to a ``dim`` element.
+
+    Returns:
+        The dimension expression.
 
     Section: F.7.13.10.
     """
-    dim = _resolve_dim(dimID)
-    return getattr(dim, "value", None)
+    return _resolve_dim(dimID).value
 
 
 def getDimIndexVar(dimID: str) -> str | None:  # F.7.13.11
     """Return the ``indexVar`` attribute of a dimension.
 
+    Args:
+        dimID: Handle to a ``dim`` element.
+
+    Returns:
+        The index variable name, or ``None`` when the attribute is absent.
+
     Section: F.7.13.11.
     """
-    dim = _resolve_dim(dimID)
-    return dim.index_var
+    return _resolve_dim(dimID).index_var
 
 
 def getDimValue(dimID: str) -> int | None:  # F.7.13.12
-    """Return an integer literal dimension value, or ``None`` for expressions.
+    """Return an integer value for the dimension, or ``None`` when unresolved.
+
+    Args:
+        dimID: Handle to a ``dim`` element.
+
+    Returns:
+        Integer dimension value, or ``None`` when the value is unresolved or non-integer.
 
     Section: F.7.13.12.
     """
-    dim = _resolve_dim(dimID)
-    return _int_value(dim)
+    return _int_value(_resolve_dim(dimID))
 
 
 def getRegisterArrayID(registerID: str) -> str | None:  # F.7.13.13
-    """Return an owned array handle for a register, or ``None`` if absent.
+    """Return the handle of the array on a register, if present.
+
+    Args:
+        registerID: Handle to a register.
+
+    Returns:
+        Handle to the register's array, or ``None`` when absent.
 
     Section: F.7.13.13.
     """
     reg = resolve_handle(registerID)
     if not isinstance(reg, (AddressBlockType.Register, RegisterFile.Register)):
         raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
-    arr = _get_attr(reg, "array")
+    arr = reg.array
     if arr is None:
         return None
+    if not isinstance(arr, Array):
+        raise TgiError("Invalid register array", TgiFaultCode.INVALID_ID)
     register_parent(arr, reg, ("array",), "single")
     return get_handle(arr)
 
 
-def getRegisterFieldArrayID(fieldID: str) -> str | None:  # F.7.13.14
-    """Return an owned array handle for a field, or ``None`` if absent.
+def getRegisterFieldArrayID(registerFieldID: str) -> str | None:  # F.7.13.14
+    """Return the handle of the array on a register field, if present.
+
+    Args:
+        registerFieldID: Handle to a register field.
+
+    Returns:
+        Handle to the field's array, or ``None`` when absent.
 
     Section: F.7.13.14.
     """
-    fld = resolve_handle(fieldID)
+    fld = resolve_handle(registerFieldID)
     if not isinstance(fld, FieldType):
         raise TgiError("Invalid field handle", TgiFaultCode.INVALID_ID)
-    arr = _get_attr(fld, "array")
+    arr = fld.array
     if arr is None:
         return None
+    if not isinstance(arr, FieldType.Array):
+        raise TgiError("Invalid field array", TgiFaultCode.INVALID_ID)
     register_parent(arr, fld, ("array",), "single")
     return get_handle(arr)
 
@@ -319,188 +437,222 @@ def getRegisterFieldArrayID(fieldID: str) -> str | None:  # F.7.13.14
 # EXTENDED (F.7.14)
 # ---------------------------------------------------------------------------
 
-def addArray(parentID: str) -> str:  # F.7.14.1
-    """Add a new generic ``array`` element under a parent.
+
+def addArray(arrayContainerElementID: str, range: Sequence[str]) -> str:  # F.7.14.1
+    """Add a bounded array with left and right range expressions to an element.
+
+    Args:
+        arrayContainerElementID: Handle to an element that contains arrays.
+        range: Two expressions, with the left bound at index 0 and right at index 1.
+
+    Returns:
+        Handle to the created array.
 
     Section: F.7.14.1.
+    """
+    parent = resolve_handle(arrayContainerElementID)
+    if parent is None:
+        raise TgiError("Invalid array container handle", TgiFaultCode.INVALID_ID)
+    if isinstance(range, (str, bytes)) or not isinstance(range, Sequence) or len(range) != 2:
+        raise TgiError("range must contain left and right expressions", TgiFaultCode.INVALID_ARGUMENT)
+    left_value, right_value = (_expression(value, "range expression") for value in range)
 
-    This is a generic implementation; creation only succeeds if the parent
-    has an attribute suitable for receiving arrays: ``array`` (single) or
-    ``arrays`` (list). If both exist and ``arrays`` is a list, we append there.
+    declared = _bounded_array_wrapper(parent)
+    if declared is None:
+        raise TgiError("Element cannot contain a bounded array", TgiFaultCode.INVALID_ARGUMENT)
+    wrapper_type, wrapper = declared
+    child_types = {
+        Arrays: Arrays.Array,
+        ConfigurableArrays: ConfigurableArrays.Array,
+        ModuleParameterArrays: ModuleParameterArrays.Array,
+    }
+    item = child_types[wrapper_type](left=Left(value=left_value), right=Right(value=right_value))
+
+    if wrapper is None:
+        wrapper = wrapper_type(array=[item])
+        parent.arrays = wrapper
+    else:
+        items = wrapper.array
+        if (
+            isinstance(items, (str, bytes))
+            or not isinstance(items, Sequence)
+            or any(not isinstance(existing, _BOUNDED_ARRAY_TYPES) for existing in items)
+        ):
+            raise TgiError("Array container has invalid contents", TgiFaultCode.INVALID_ID)
+        if isinstance(items, list):
+            items.append(item)
+        else:
+            wrapper.array = [*items, item]
+
+    register_parent(item, parent, ("arrays", "array"), "list")
+    return get_handle(item)
+
+
+def addArrayDim(arrayOrfieldArrayID: str, value: str) -> str:  # F.7.14.2
+    """Add a dimension to a register or register-field array.
 
     Args:
-        parentID: Handle of the parent object.
+        arrayOrfieldArrayID: Handle to a register or register-field array.
+        value: Dimension value or expression.
 
     Returns:
-        str: Handle of the created array.
-
-    Raises:
-        TgiError: If the parent handle is invalid or no array slot exists.
-    """
-    parent = resolve_handle(parentID)
-    if parent is None:
-        raise TgiError("Invalid parent handle", TgiFaultCode.INVALID_ID)
-    # Prefer list container 'arrays'
-    if hasattr(parent, "arrays") and isinstance(parent.arrays, list):  # type: ignore[attr-defined]
-        class SimpleArray:  # minimal dynamic container
-            def __init__(self):
-                self.dim: list[Any] = []
-
-        arr = SimpleArray()
-        parent.arrays.append(arr)  # type: ignore[attr-defined]
-        register_parent(arr, parent, ("arrays",), "list")
-        return get_handle(arr)
-    # Fallback single attribute 'array'
-    if hasattr(parent, "array") and parent.array is None:  # type: ignore[attr-defined]
-        class SimpleArray:  # minimal dynamic container
-            def __init__(self):
-                self.dim: list[Any] = []
-
-        arr = SimpleArray()
-        parent.array = arr  # type: ignore[attr-defined]
-        register_parent(arr, parent, ("array",), "single")
-        return get_handle(arr)
-    raise TgiError("Parent cannot contain a new array", TgiFaultCode.INVALID_ARGUMENT)
-
-
-def addArrayDim(arrayID: str, expression: str) -> str:  # F.7.14.2
-    """Append a new ``dim`` element to an array.
+        Handle to the added ``dim`` element.
 
     Section: F.7.14.2.
-
-    Args:
-        arrayID: Array handle.
-        expression: Value/expression string.
-
-    Returns:
-        str: Handle of created dimension.
-
-    Raises:
-        TgiError: If array handle invalid.
     """
-    arr = _resolve_array(arrayID)
-    class Dim:  # minimal dynamic dimension
-        def __init__(self, value: str):
-            self.value = value
-            self.index_var: str | None = None
-    d = Dim(expression)
-    arr.dim.append(d)  # type: ignore[attr-defined]
-    register_parent(d, arr, ("dim",), "list")
-    return get_handle(d)
+    arr = _resolve_array(arrayOrfieldArrayID)
+    if not isinstance(arr, _DIM_ARRAY_TYPES):
+        raise TgiError("Array does not contain dimensions", TgiFaultCode.INVALID_ARGUMENT)
+    expression = _expression(value, "value")
+    dim = Dim(value=expression)
+    if isinstance(arr.dim, list):
+        arr.dim.append(dim)
+    else:
+        arr.dim = [*arr.dim, dim]
+    register_parent(dim, arr, ("dim",), "list")
+    return get_handle(dim)
 
 
 def removeArray(arrayID: str) -> bool:  # F.7.14.3
-    """Remove an ``array`` element.
-
-    Section: F.7.14.3.
+    """Remove an array from its schema parent and invalidate its handles.
 
     Args:
-        arrayID: Array handle.
+        arrayID: Handle to an array element.
 
     Returns:
-        bool: ``True`` if removed, else ``False``.
+        ``True`` when the array was removed; otherwise ``False``.
+
+    Section: F.7.14.3.
     """
-    return detach_child_by_handle(arrayID)
+    arr = _resolve_array(arrayID)
+    info = get_parent_info(arrayID)
+    removed = detach_child_by_handle(arrayID)
+    if removed and isinstance(arr, _BOUNDED_ARRAY_TYPES) and info is not None and info.path == ("arrays", "array"):
+        parent = resolve_handle(info.parent_handle)
+        wrapper = getattr(parent, "arrays", None) if parent is not None else None
+        if type(wrapper) in _ARRAY_CONTAINER_TYPES and not wrapper.array:
+            parent.arrays = None
+    return removed
 
 
 def removeArrayDim(dimID: str) -> bool:  # F.7.14.4
-    """Remove a ``dim`` element.
-
-    Section: F.7.14.4.
+    """Remove a dimension from its array and invalidate its handle.
 
     Args:
-        dimID: Dimension handle.
+        dimID: Handle to a ``dim`` element.
 
     Returns:
-        bool: ``True`` if removed, else ``False``.
+        ``True`` when the dimension was removed; otherwise ``False``.
+
+    Section: F.7.14.4.
     """
+    _resolve_dim(dimID)
+    info = get_parent_info(dimID)
+    if info is not None and info.path == ("dim",):
+        parent = resolve_handle(info.parent_handle)
+        if isinstance(parent, _DIM_ARRAY_TYPES) and len(parent.dim) == 1:
+            raise TgiError("An array must retain at least one dimension", TgiFaultCode.INVALID_ARGUMENT)
     return detach_child_by_handle(dimID)
 
 
 def removeArrayStride(arrayID: str) -> bool:  # F.7.14.5
-    """Remove stride element if present.
-
-    Section: F.7.14.5.
+    """Remove a register stride or field ``bitStride`` and invalidate its handle.
 
     Args:
-        arrayID: Array handle.
+        arrayID: Handle to a register or register-field array.
 
     Returns:
-        bool: ``True`` if present and removed, else ``False``.
+        ``True`` when a stride was removed; otherwise ``False``.
+
+    Section: F.7.14.5.
     """
     arr = _resolve_array(arrayID)
-    for name in ("stride", "bit_stride", "bitStride"):
-        if hasattr(arr, name) and getattr(arr, name) is not None:
-            setattr(arr, name, None)
-            return True
-    return False
+    if isinstance(arr, FieldType.Array):
+        name = "bit_stride"
+    elif isinstance(arr, Array):
+        name = "stride"
+    else:
+        raise TgiError("Array does not contain a stride", TgiFaultCode.INVALID_ARGUMENT)
+    stride = getattr(arr, name)
+    if stride is None:
+        return False
+    stride_id = get_handle(stride)
+    register_parent(stride, arr, (name,), "single")
+    return detach_child_by_handle(stride_id)
 
 
 def removeIndexVarAttribute(dimID: str) -> bool:  # F.7.14.6
     """Remove the ``indexVar`` attribute from a dimension.
 
-    Section: F.7.14.6.
-
     Args:
-        dimID: Dimension handle.
+        dimID: Handle to a ``dim`` element.
 
     Returns:
-        bool: ``True`` if removed, ``False`` if not set.
+        ``True`` when the attribute was removed; otherwise ``False``.
+
+    Section: F.7.14.6.
     """
     dim = _resolve_dim(dimID)
-    if hasattr(dim, "index_var") and dim.index_var is not None:  # type: ignore[attr-defined]
-        dim.index_var = None  # type: ignore[attr-defined]
-        return True
-    if hasattr(dim, "indexVar") and dim.indexVar is not None:  # type: ignore[attr-defined]
-        dim.indexVar = None  # type: ignore[attr-defined]
-        return True
-    return False
+    if dim.index_var is None:
+        return False
+    dim.index_var = None
+    return True
 
 
-def setArrayStride(arrayID: str, value: int | str) -> bool:  # F.7.14.7
-    """Set or create the stride element.
+def setArrayStride(arrayID: str, stride: str) -> bool:  # F.7.14.7
+    """Set or create a register stride or field ``bitStride`` expression.
+
+    Args:
+        arrayID: Handle to a register or register-field array.
+        stride: New stride value or expression.
+
+    Returns:
+        ``True`` when the stride was set.
 
     Section: F.7.14.7.
-
-    Args:
-        arrayID: Array handle.
-        value: Integer or expression string.
-
-    Returns:
-        bool: ``True`` on success.
     """
     arr = _resolve_array(arrayID)
-    # Choose existing attribute preference; else create 'stride'.
-    target_name = None
-    for n in ("stride", "bit_stride", "bitStride"):
-        if hasattr(arr, n):
-            target_name = n
-            break
-    if target_name is None:
-        target_name = "stride"
-    class Stride:
-        def __init__(self, v: str):
-            self.value = v
-    setattr(arr, target_name, Stride(str(value)))
+    expression = _expression(stride, "stride")
+    if isinstance(arr, FieldType.Array):
+        name, replacement = "bit_stride", BitStride(value=expression)
+    elif isinstance(arr, Array):
+        name, replacement = "stride", Stride(value=expression)
+    else:
+        raise TgiError("Array does not contain a stride", TgiFaultCode.INVALID_ARGUMENT)
+
+    previous = getattr(arr, name)
+    if previous is not None:
+        previous_id = get_handle(previous)
+        register_parent(previous, arr, (name,), "single")
+        detach_child_by_handle(previous_id)
+    setattr(arr, name, replacement)
+    register_parent(replacement, arr, (name,), "single")
     return True
 
 
-def setDimIndexVar(dimID: str, name: str) -> bool:  # F.7.14.8
-    """Set (or create) ``indexVar`` attribute of a dimension.
-
-    Section: F.7.14.8.
+def setDimIndexVar(dimID: str, value: str) -> bool:  # F.7.14.8
+    """Set the ``indexVar`` attribute on a dimension.
 
     Args:
-        dimID: Dimension handle.
-        name: Index variable name.
+        dimID: Handle to a ``dim`` element.
+        value: New XML Name for the index variable.
 
     Returns:
-        bool: ``True`` on success.
+        ``True`` when the attribute was set.
+
+    Section: F.7.14.8.
     """
     dim = _resolve_dim(dimID)
-    if hasattr(dim, "index_var"):
-        dim.index_var = name  # type: ignore[attr-defined]
-    else:  # legacy variation
-        dim.indexVar = name  # type: ignore[attr-defined]
-    return True
+    index_var = _expression(value, "value")
+    if not _valid_name(index_var):
+        raise TgiError("value must be an XML Name", TgiFaultCode.INVALID_ARGUMENT)
 
+    owner_info = get_parent_info(dimID)
+    if owner_info is not None and owner_info.path == ("dim",):
+        owner = resolve_handle(owner_info.parent_handle)
+        if isinstance(owner, _DIM_ARRAY_TYPES) and any(
+            sibling is not dim and sibling.index_var == index_var for sibling in owner.dim
+        ):
+            raise TgiError("indexVar must be unique within its array", TgiFaultCode.INVALID_ARGUMENT)
+    dim.index_var = index_var
+    return True
