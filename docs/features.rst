@@ -666,17 +666,17 @@ Array (EXTENDED)
 Assertion (BASE)
 ~~~~~~~~~~~~~~~~
 
-- ☐ ``getAssertionAssert`` (F.7.15.1)
-- ☐ ``getAssertionAssertExpression`` (F.7.15.2)
-- ☐ ``getAssertionAssertID`` (F.7.15.3)
-- ☐ ``getAssertionIDs`` (F.7.15.4)
+- ☑ ``getAssertionAssert`` (F.7.15.1)
+- ☑ ``getAssertionAssertExpression`` (F.7.15.2)
+- ☑ ``getAssertionAssertID`` (F.7.15.3)
+- ☑ ``getAssertionIDs`` (F.7.15.4)
 
 Assertion (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addAssertion`` (F.7.16.1)
-- ☐ ``removeAssertion`` (F.7.16.2)
-- ☐ ``setAssertionAssert`` (F.7.16.3)
+- ☑ ``addAssertion`` (F.7.16.1)
+- ☑ ``removeAssertion`` (F.7.16.2)
+- ☑ ``setAssertionAssert`` (F.7.16.3)
 
 Bus definition (BASE)
 ~~~~~~~~~~~~~~~~~~~~~
