@@ -1800,8 +1800,8 @@ Generator (BASE)
 - ☑ ``getGeneratorExecutable`` (F.7.49.6) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
 - ☑ ``getGeneratorGeneratorExe`` (F.7.49.7) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
 - ☑ ``getGeneratorGroups`` (F.7.49.8) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
-- ☐ ``getGeneratorPhase`` (F.7.49.9)
-- ☐ ``getGeneratorPhaseExpression`` (F.7.49.10)
+- ☑ ``getGeneratorPhase`` (F.7.49.9)
+- ☑ ``getGeneratorPhaseExpression`` (F.7.49.10)
 - ☑ ``getGeneratorPhaseID`` (F.7.49.11) - Generated metadata across standalone/component/abstractor generators; parsed child ownership.
 - ☑ ``getGeneratorScope`` (F.7.49.12) - Ordered instance-generator groups and scope with typed handles and parsed ownership.
 - ☑ ``getGeneratorTransportMethodsID`` (F.7.49.13) - Generated source/child traversal with typed handles and parsed ownership; target resolution separate.
@@ -1810,22 +1810,22 @@ Generator (BASE)
 Generator (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addAbstractorGeneratorGroup`` (F.7.50.1)
-- ☐ ``addComponentGeneratorGroup`` (F.7.50.2)
-- ☐ ``removeAbstractorGeneratorGroup`` (F.7.50.3)
-- ☐ ``removeComponentGeneratorGroup`` (F.7.50.4)
-- ☐ ``removeGeneratorApiService`` (F.7.50.5)
-- ☐ ``removeGeneratorApiType`` (F.7.50.6)
-- ☐ ``removeGeneratorPhase`` (F.7.50.7)
-- ☐ ``removeGeneratorTransportMethods`` (F.7.50.8)
-- ☐ ``removeTransportMethodsTransportMethod`` (F.7.50.9)
-- ☐ ``setGeneratorApiService`` (F.7.50.10)
-- ☐ ``setGeneratorApiType`` (F.7.50.11)
-- ☐ ``setGeneratorGeneratorExe`` (F.7.50.12)
-- ☐ ``setGeneratorPhase`` (F.7.50.13)
-- ☐ ``setGeneratorScope`` (F.7.50.14)
-- ☐ ``setGeneratorTransportMethods`` (F.7.50.15)
-- ☐ ``setTransportMethodsTransportMethod`` (F.7.50.16)
+- ☑ ``addAbstractorGeneratorGroup`` (F.7.50.1)
+- ☑ ``addComponentGeneratorGroup`` (F.7.50.2)
+- ☑ ``removeAbstractorGeneratorGroup`` (F.7.50.3)
+- ☑ ``removeComponentGeneratorGroup`` (F.7.50.4)
+- ☑ ``removeGeneratorApiService`` (F.7.50.5)
+- ☑ ``removeGeneratorApiType`` (F.7.50.6)
+- ☑ ``removeGeneratorPhase`` (F.7.50.7)
+- ☑ ``removeGeneratorTransportMethods`` (F.7.50.8)
+- ☑ ``removeTransportMethodsTransportMethod`` (F.7.50.9)
+- ☑ ``setGeneratorApiService`` (F.7.50.10)
+- ☑ ``setGeneratorApiType`` (F.7.50.11)
+- ☑ ``setGeneratorGeneratorExe`` (F.7.50.12)
+- ☑ ``setGeneratorPhase`` (F.7.50.13)
+- ☑ ``setGeneratorScope`` (F.7.50.14)
+- ☑ ``setGeneratorTransportMethods`` (F.7.50.15)
+- ☑ ``setTransportMethodsTransportMethod`` (F.7.50.16)
 
 Generator chain (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -1836,8 +1836,8 @@ Generator chain (BASE)
 - ☑ ``getGeneratorChainComponentGeneratorSelectorIDs`` (F.7.51.4) - Ordered typed traversal of generated chain collections with parsed ownership.
 - ☑ ``getGeneratorChainGeneratorChainSelectorIDs`` (F.7.51.5) - Ordered typed traversal of generated chain collections with parsed ownership.
 - ☑ ``getGeneratorChainGeneratorIDs`` (F.7.51.6) - Ordered typed traversal of generated chain collections with parsed ownership.
-- ☐ ``getGeneratorChainSelectorGeneratorChainRefByID`` (F.7.51.7)
-- ☐ ``getGeneratorChainSelectorGeneratorChainRefByVLNV`` (F.7.51.8)
+- ☑ ``getGeneratorChainSelectorGeneratorChainRefByID`` (F.7.51.7)
+- ☑ ``getGeneratorChainSelectorGeneratorChainRefByVLNV`` (F.7.51.8)
 - ☑ ``getGeneratorChainSelectorGroupSelectorID`` (F.7.51.9) - Generated group-selector source traversal with stable handles and parsed ownership.
 - ☑ ``getGroupSelectorNameIDs`` (F.7.51.10) - Generated group-selector source traversal with stable handles and parsed ownership.
 - ☑ ``getGroupSelectorSelectionNames`` (F.7.51.11) - Generated group-selector source traversal with stable handles and parsed ownership.
@@ -1846,21 +1846,21 @@ Generator chain (BASE)
 Generator chain (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addGeneratorChainChainGroup`` (F.7.52.1)
-- ☐ ``addGeneratorChainChoice`` (F.7.52.2)
-- ☐ ``addGeneratorChainComponentGeneratorSelector`` (F.7.52.3)
-- ☐ ``addGeneratorChainGenerator`` (F.7.52.4)
-- ☐ ``addGeneratorChainGeneratorChainSelector`` (F.7.52.5)
-- ☐ ``addGroupSelectorName`` (F.7.52.6)
-- ☐ ``removeGeneratorChainChainGroup`` (F.7.52.7)
-- ☐ ``removeGeneratorChainChoice`` (F.7.52.8)
-- ☐ ``removeGeneratorChainComponentGeneratorSelector`` (F.7.52.9)
-- ☐ ``removeGeneratorChainGenerator`` (F.7.52.10)
-- ☐ ``removeGeneratorChainGeneratorChainSelector`` (F.7.52.11)
-- ☐ ``removeGroupSelectorName`` (F.7.52.12)
-- ☐ ``setComponentGeneratorSelectorGroupSelector`` (F.7.52.13)
-- ☐ ``setGeneratorChainSelectorGeneratorChainRef`` (F.7.52.14)
-- ☐ ``setGeneratorChainSelectorGroupSelector`` (F.7.52.15)
+- ☑ ``addGeneratorChainChainGroup`` (F.7.52.1)
+- ☑ ``addGeneratorChainChoice`` (F.7.52.2)
+- ☑ ``addGeneratorChainComponentGeneratorSelector`` (F.7.52.3)
+- ☑ ``addGeneratorChainGenerator`` (F.7.52.4)
+- ☑ ``addGeneratorChainGeneratorChainSelector`` (F.7.52.5)
+- ☑ ``addGroupSelectorName`` (F.7.52.6)
+- ☑ ``removeGeneratorChainChainGroup`` (F.7.52.7)
+- ☑ ``removeGeneratorChainChoice`` (F.7.52.8)
+- ☑ ``removeGeneratorChainComponentGeneratorSelector`` (F.7.52.9)
+- ☑ ``removeGeneratorChainGenerator`` (F.7.52.10)
+- ☑ ``removeGeneratorChainGeneratorChainSelector`` (F.7.52.11)
+- ☑ ``removeGroupSelectorName`` (F.7.52.12)
+- ☑ ``setComponentGeneratorSelectorGroupSelector`` (F.7.52.13)
+- ☑ ``setGeneratorChainSelectorGeneratorChainRef`` (F.7.52.14)
+- ☑ ``setGeneratorChainSelectorGroupSelector`` (F.7.52.15)
 
 Indirect interface (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~

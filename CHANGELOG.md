@@ -38,6 +38,9 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Generator phase resolution and metadata/group/transport editing with typed ownership and atomic validation.
+- Complete Generator chain editing and selector references using generated mixed collections and schema choices.
+
 - Add make coverage HTML/XML reports including generated org bindings; build documentation directly under build/docs.
 
 - Complete Vector traversal and lifecycle with generated endpoints, self-contained SV integer evaluation and parsed ownership.
