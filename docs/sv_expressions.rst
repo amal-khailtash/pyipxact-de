@@ -34,3 +34,10 @@ history, suggestions and SystemVerilog highlighting. Enter an expression to see
 its decimal/binary/octal/hex value and native SV width/signedness. ``help`` or
 ``?`` displays help; ``quit``, ``exit``, Ctrl+D or Ctrl+C exits. The REPL accepts
 the same expressions as the reusable parser.
+
+Standard reference
+------------------
+
+See :doc:`AnnexE` for the IP-XACT SystemVerilog expression requirements.
+The parser utility is a foundation for these requirements; full IP-XACT
+parameter scope and configuration integration remains planned.
