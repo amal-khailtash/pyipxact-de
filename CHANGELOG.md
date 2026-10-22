@@ -38,6 +38,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Catalog category traversal and typed entry edits, cross-category name/VLNV uniqueness, and owned removal with handle invalidation.
 - Complete Bus interface modes, typed abstraction and local references, SV numeric/source values, remapping, channels and owned atomic edits.
 - Complete Bus definition numeric/source getters, typed limits and references, strict capabilities, and owned choice/system-group edits.
 - Complete Address space SV numeric/source getters, alias and local-map traversal, executable-image references, typed block creation and atomic owned edits.

@@ -1201,7 +1201,7 @@ def getBusInterfaceBusTypeRefByVLNV(busInterfaceID: str) -> tuple[str | None, st
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        busTypeVLNV (String): The VLNV of the bus
+        busTypeVLNV: The VLNV of the bus
 
     Section: F.7.19.25.
     """
@@ -1239,7 +1239,7 @@ def getBusInterfaceConnectionRequired(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        value (Boolean): The connectionRequired value
+        value: The connectionRequired value
 
     Section: F.7.19.26.
     """
@@ -1254,7 +1254,7 @@ def getAbstractionTypeAbstractionRefByID(abstractionTypeID: str) -> str:
         abstractionTypeID: Handle to an abstractionType element
 
     Returns:
-        abstractionDefinitionID (String): Handle to the referenced abstraction- Definition object
+        abstractionDefinitionID: Handle to the referenced abstraction- Definition object
 
     Section: F.7.19.1.
     """
@@ -1274,7 +1274,7 @@ def getAbstractionTypeAbstractionRefByVLNV(
         abstractionTypeID: Handle to an abstractionType element
 
     Returns:
-        VLNV (String): The VLNV of the referenced abstractionDefinition object
+        VLNV: The VLNV of the referenced abstractionDefinition object
 
     Section: F.7.19.2.
     """
@@ -1289,7 +1289,7 @@ def getAbstractionTypePortMapIDs(abstractionTypeID: str) -> list[str]:
         abstractionTypeID: Handle to an abstractionType element
 
     Returns:
-        portMapIDs (String): List of handles to the portMap elements
+        portMapIDs: List of handles to the portMap elements
 
     Section: F.7.19.3.
     """
@@ -1305,7 +1305,7 @@ def getAbstractionTypeViewRefByID(abstractionTypeID: str, viewRef: str) -> str:
         viewRef: Handle to the viewRef element
 
     Returns:
-        viewID (String): Handle to the referenced view
+        viewID: Handle to the referenced view
 
     Section: F.7.19.4.
     """
@@ -1320,7 +1320,7 @@ def getAbstractionTypeViewRefByNames(abstractionTypeID: str) -> list[str]:
         abstractionTypeID: Handle to an abstractionType element
 
     Returns:
-        viewRefs (String): List of the referenced views
+        viewRefs: List of the referenced views
 
     Section: F.7.19.5.
     """
@@ -1335,7 +1335,7 @@ def getAbstractionTypeViewRefIDs(abstractionTypeID: str) -> list[str]:
         abstractionTypeID: Handle to an abstractionType element
 
     Returns:
-        viewRefsIDs (String): List of handles to the viewRef elements
+        viewRefsIDs: List of handles to the viewRef elements
 
     Section: F.7.19.6.
     """
@@ -1352,7 +1352,7 @@ def getAddressSpaceRefBaseAddress(addressSpaceRefID: str) -> int | None:
         addressSpaceRefID: Handle to an addressSpaceRef element
 
     Returns:
-        baseAddressValue (Long): The resolved baseAddress value
+        baseAddressValue: The resolved baseAddress value
 
     Section: F.7.19.7.
     """
@@ -1367,7 +1367,7 @@ def getAddressSpaceRefBaseAddressExpression(addressSpaceRefID: str) -> str | Non
         addressSpaceRefID: Handle to an addressSpaceRef element
 
     Returns:
-        baseAddressExpression (String): The baseAddress expression
+        baseAddressExpression: The baseAddress expression
 
     Section: F.7.19.8.
     """
@@ -1382,7 +1382,7 @@ def getAddressSpaceRefBaseAddressID(addressSpaceRefID: str) -> str | None:
         addressSpaceRefID: Handle to an addressSpaceRef element
 
     Returns:
-        baseAddressID (String): Handle to the baseAddress element
+        baseAddressID: Handle to the baseAddress element
 
     Section: F.7.19.9.
     """
@@ -1398,7 +1398,7 @@ def getAddressSpaceRefModeRefByID(addressSpaceRefID: str, modeRef: str) -> str |
         modeRef: The referenced mode
 
     Returns:
-        modeID (String): Handle to the referenced mode element
+        modeID: Handle to the referenced mode element
 
     Section: F.7.19.10.
     """
@@ -1413,7 +1413,7 @@ def getAddressSpaceRefModeRefByNames(addressSpaceRefID: str) -> list[str]:
         addressSpaceRefID: Handle to an addressSpaceRef element
 
     Returns:
-        modeRefs (String): List of the referenced modes
+        modeRefs: List of the referenced modes
 
     Section: F.7.19.11.
     """
@@ -1428,7 +1428,7 @@ def getBaseAddressesRange(baseAddressesID: str) -> int | None:
         baseAddressesID: Handle to a baseAddressses element
 
     Returns:
-        rangeValue (Long): The range value
+        rangeValue: The range value
 
     Section: F.7.19.12.
     """
@@ -1443,7 +1443,7 @@ def getBaseAddressesRangeExpression(baseAddressesID: str) -> str | None:
         baseAddressesID: Handle to a baseAddressses element
 
     Returns:
-        rangeExpression (String): The range expression
+        rangeExpression: The range expression
 
     Section: F.7.19.13.
     """
@@ -1458,7 +1458,7 @@ def getBaseAddressesRangeID(baseAddressesID: str) -> str | None:
         baseAddressesID: Handle to a baseAddressses element
 
     Returns:
-        rangeID (String): Handle to the range element
+        rangeID: Handle to the range element
 
     Section: F.7.19.14.
     """
@@ -1476,7 +1476,7 @@ def getBaseAddressesRemapAddressIDs(baseAddressesID: str) -> list[str]:
         baseAddressesID: Handle to a baseAddressses element
 
     Returns:
-        remapAddressesIDs (String): List of handles to the baseAddress elements
+        remapAddressesIDs: List of handles to the baseAddress elements
 
     Section: F.7.19.15.
     """
@@ -1491,7 +1491,7 @@ def getBusInterfaceAbstractionTypeIDs(busInterfaceID: str) -> list[str]:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        abstractionTypeIDs (String): List of handles to the abstractionType elements
+        abstractionTypeIDs: List of handles to the abstractionType elements
 
     Section: F.7.19.16.
     """
@@ -1508,7 +1508,7 @@ def getBusInterfaceBitSteering(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        value (Boolean): The bitSteering value
+        value: The bitSteering value
 
     Section: F.7.19.17.
     """
@@ -1523,7 +1523,7 @@ def getBusInterfaceBitSteeringExpression(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        valueExpression (String): The bitSteering expression
+        valueExpression: The bitSteering expression
 
     Section: F.7.19.18.
     """
@@ -1538,7 +1538,7 @@ def getBusInterfaceBitSteeringID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        bitSteeringID (String): Handle to the bitSteering element
+        bitSteeringID: Handle to the bitSteering element
 
     Section: F.7.19.19.
     """
@@ -1556,7 +1556,7 @@ def getBusInterfaceBitsInLau(busInterfaceID: str) -> int | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        value (Long): The bitsInLau resolved value
+        value: The bitsInLau resolved value
 
     Section: F.7.19.20.
     """
@@ -1571,7 +1571,7 @@ def getBusInterfaceBitsInLauExpression(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        bitsInLauExpression (String): The bitsInLau expression
+        bitsInLauExpression: The bitsInLau expression
 
     Section: F.7.19.21.
     """
@@ -1586,7 +1586,7 @@ def getBusInterfaceBitsInLauID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        bitsInLauID (String): Handle to the bitsInLau element
+        bitsInLauID: Handle to the bitsInLau element
 
     Section: F.7.19.22.
     """
@@ -1601,7 +1601,7 @@ def getBusInterfaceBusTypeID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        busTypeID (String): Handle to the busType element
+        busTypeID: Handle to the busType element
 
     Section: F.7.19.23.
     """
@@ -1617,7 +1617,7 @@ def getBusInterfaceBusTypeRefByID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        busDefinitionID (String): Handle to the referenced busDefinition object
+        busDefinitionID: Handle to the referenced busDefinition object
 
     Section: F.7.19.24.
     """
@@ -1634,7 +1634,7 @@ def getBusInterfaceEndianness(busInterfaceID: str) -> str:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        value (String): The endianness value
+        value: The endianness value
 
     Section: F.7.19.27.
     """
@@ -1649,7 +1649,7 @@ def getBusInterfaceInitiatorID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        initiatorID (String): Handle to an initiator element
+        initiatorID: Handle to an initiator element
 
     Section: F.7.19.28.
     """
@@ -1667,7 +1667,7 @@ def getBusInterfaceInterfaceMode(busInterfaceID: str) -> str:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        interfaceMode (String): The interface mode (initiator, target, system)
+        interfaceMode: The interface mode (initiator, target, system)
 
     Section: F.7.19.29.
     """
@@ -1682,7 +1682,7 @@ def getBusInterfaceMirroredSystemID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        mirroredSystemID (String): Handle to the mirroredSystem element
+        mirroredSystemID: Handle to the mirroredSystem element
 
     Section: F.7.19.30.
     """
@@ -1697,7 +1697,7 @@ def getBusInterfaceMirroredTargetID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        mirroredTargetID (String): Handle to the mirroredTarget element
+        mirroredTargetID: Handle to the mirroredTarget element
 
     Section: F.7.19.31.
     """
@@ -1712,7 +1712,7 @@ def getBusInterfaceMonitorID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        monitorID (String): Handle to the monitor element
+        monitorID: Handle to the monitor element
 
     Section: F.7.19.32.
     """
@@ -1727,7 +1727,7 @@ def getBusInterfaceRefLocalName(busInterfaceRefID: str) -> str:
         busInterfaceRefID: Handle to a busInterfaceRef element
 
     Returns:
-        localName (String): The local name
+        localName: The local name
 
     Section: F.7.19.33.
     """
@@ -1742,7 +1742,7 @@ def getBusInterfaceSystemID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        systemID (String): Handle to the system element
+        systemID: Handle to the system element
 
     Section: F.7.19.34.
     """
@@ -1757,7 +1757,7 @@ def getBusInterfaceTargetID(busInterfaceID: str) -> str | None:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        targetID (String): Handle to the target element
+        targetID: Handle to the target element
 
     Section: F.7.19.35.
     """
@@ -1772,7 +1772,7 @@ def getChannelBusInterfaceRefByID(busInterfaceRefID: str) -> str | None:
         busInterfaceRefID: Handle to an busInterfaceRef element
 
     Returns:
-        busInterfaceID (String): Handle to the referenced busInterface element
+        busInterfaceID: Handle to the referenced busInterface element
 
     Section: F.7.19.36.
     """
@@ -1787,7 +1787,7 @@ def getChannelBusInterfaceRefIDs(channelID: str) -> list[str]:
         channelID: Handle to a channel element
 
     Returns:
-        busInterfaceRefIDs (String): List of handles to the busInterfaceRef elements
+        busInterfaceRefIDs: List of handles to the busInterfaceRef elements
 
     Section: F.7.19.37.
     """
@@ -1802,7 +1802,7 @@ def getFileSetRefGroupGroup(fileSetRefGroupID: str) -> str:
         fileSetRefGroupID: Handle to a fileSetRefGroup element
 
     Returns:
-        group (String): The group name
+        group: The group name
 
     Section: F.7.19.38.
     """
@@ -1817,7 +1817,7 @@ def getIndirectInterfaceBitsInLauID(indirectInterfaceID: str) -> str | None:
         indirectInterfaceID: Handle to an indirectInterface element
 
     Returns:
-        bitsInLauID (String): Handle to the bitsInLau element
+        bitsInLauID: Handle to the bitsInLau element
 
     Section: F.7.19.39.
     """
@@ -1832,7 +1832,7 @@ def getInitiatorAddressSpaceRefByName(initiatorID: str) -> str | None:
         initiatorID: Handle to a busInterface initiator element
 
     Returns:
-        addressSpace (String): The referenced addressSpace name
+        addressSpace: The referenced addressSpace name
 
     Section: F.7.19.40.
     """
@@ -1847,7 +1847,7 @@ def getInitiatorAddressSpaceRefID(initiatorID: str) -> str | None:
         initiatorID: Handle to an initiator element
 
     Returns:
-        addressSPaceRefID (String): Handle to the addressSpaceRef element
+        addressSPaceRefID: Handle to the addressSpaceRef element
 
     Section: F.7.19.41.
     """
@@ -1863,7 +1863,7 @@ def getMemoryMapRefModeRefByID(memoryMapRefID: str, modeRef: str) -> str | None:
         modeRef: The referenced mode
 
     Returns:
-        modeID (String): Handle to the referenced mode element
+        modeID: Handle to the referenced mode element
 
     Section: F.7.19.42.
     """
@@ -1878,7 +1878,7 @@ def getMemoryMapRefModeRefByNames(memoryMapRefID: str) -> list[str]:
         memoryMapRefID: Handle to a memoryMapRef element
 
     Returns:
-        modeRefs (String): List of the referenced modes
+        modeRefs: List of the referenced modes
 
     Section: F.7.19.43.
     """
@@ -1893,7 +1893,7 @@ def getMirroredSystemGroup(mirroredSystemID: str) -> str:
         mirroredSystemID: Handle to a mirroredSystem element
 
     Returns:
-        group (String): The group value on the mirroredSystem element
+        group: The group value on the mirroredSystem element
 
     Section: F.7.19.44.
     """
@@ -1908,7 +1908,7 @@ def getMirroredTargetBaseAddressesID(mirroredTargetID: str) -> str | None:
         mirroredTargetID: Handle to a mirroredTarget element
 
     Returns:
-        baseAddressesID (String): Handle to a baseAddresses element
+        baseAddressesID: Handle to a baseAddresses element
 
     Section: F.7.19.45.
     """
@@ -1923,7 +1923,7 @@ def getMonitorGroup(monitorID: str) -> str:
         monitorID: Handle to a monitor element
 
     Returns:
-        group (String): The group name
+        group: The group name
 
     Section: F.7.19.46.
     """
@@ -1941,7 +1941,7 @@ def getRemapAddressModeRefByID(remapAddressID: str) -> str | None:
         remapAddressID: Handle to a remapAddress element
 
     Returns:
-        modeID (String): Handle to the referenced mode element
+        modeID: Handle to the referenced mode element
 
     Section: F.7.19.47.
     """
@@ -1956,7 +1956,7 @@ def getRemapAddressesRemapAddressID(remapAddressesID: str) -> str | None:
         remapAddressesID: Handle to a remapAddresses element
 
     Returns:
-        remapAddressID (String): Handle to a remapAddress element
+        remapAddressID: Handle to a remapAddress element
 
     Section: F.7.19.48.
     """
@@ -1971,7 +1971,7 @@ def getSystemGroup(systemID: str) -> str:
         systemID: Handle to a system element
 
     Returns:
-        group (String): The group name
+        group: The group name
 
     Section: F.7.19.49.
     """
@@ -1986,7 +1986,7 @@ def getTargetFileSetRefGroupIDs(targetID: str) -> list[str]:
         targetID: Handle to a busInterface target element
 
     Returns:
-        fileSetRefgroupIDs (String): List of handles to the fileSetRefGroup elements
+        fileSetRefgroupIDs: List of handles to the fileSetRefGroup elements
 
     Section: F.7.19.50.
     """
@@ -2001,7 +2001,7 @@ def getTargetMemoryMapRefByName(targetID: str) -> str | None:
         targetID: Handle to a target element of a busInterface
 
     Returns:
-        memoryMapRef (String): The memoryMap reference
+        memoryMapRef: The memoryMap reference
 
     Section: F.7.19.51.
     """
@@ -2016,7 +2016,7 @@ def getTargetMemoryMapRefID(targetID: str) -> str | None:
         targetID: Handle to a busInterface target element
 
     Returns:
-        memoryMapRefID (String): Handle to the memoryMapRef element
+        memoryMapRefID: Handle to the memoryMapRef element
 
     Section: F.7.19.52.
     """
@@ -2031,7 +2031,7 @@ def getTargetTransparentBridgeIDs(targetID: str) -> list[str]:
         targetID: Handle to a busInterface target element
 
     Returns:
-        transparentBrigesIDs (String): List of handles to the transparentBridge ele- ments
+        transparentBrigesIDs: List of handles to the transparentBridge ele- ments
 
     Section: F.7.19.53.
     """
@@ -2152,7 +2152,7 @@ def setBusInterfaceConnectionRequired(busInterfaceID: str, value: bool) -> bool:
         value: ConnectionRequired value
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.36.
     """
@@ -2169,7 +2169,7 @@ def addAbstractionTypePortMap(abstractionTypeID: str, logicalPortName: str, phys
         physicalPortName: Physical port name
 
     Returns:
-        portMapID (String): Handle to a new portMap element
+        portMapID: Handle to a new portMap element
 
     Section: F.7.20.1.
     """
@@ -2185,7 +2185,7 @@ def addAbstractionTypeViewRef(abstractionTypeID: str, viewRef: str) -> str:
         viewRef: View name
 
     Returns:
-        viewRefID (String): the viewRef identifier
+        viewRefID: the viewRef identifier
 
     Section: F.7.20.2.
     """
@@ -2201,7 +2201,7 @@ def addAddressSpaceRefModeRef(addressSpaceRefID: str, modeRef: str) -> bool:
         modeRef: The modeRef expression to be added on an addressSpaceRef element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.3.
     """
@@ -2217,7 +2217,7 @@ def addBaseAddressesRemapAddresses(baseAddressesID: str, remapAddress: str) -> s
         remapAddress: The remapAddress value to be set on the remapAddresses element
 
     Returns:
-        remapAddressesID (String): Handle to a remapAddresses element
+        remapAddressesID: Handle to a remapAddresses element
 
     Section: F.7.20.4.
     """
@@ -2233,7 +2233,7 @@ def addBusInterfaceAbstractionType(busInterfaceID: str, abstractionRef: Sequence
         abstractionRef: AbstractionDef VLNV
 
     Returns:
-        abstractionTypeID (String): Handle to a new abstractionType element
+        abstractionTypeID: Handle to a new abstractionType element
 
     Section: F.7.20.5.
     """
@@ -2249,7 +2249,7 @@ def addChannelBusInterfaceRef(channelID: str, name: str) -> str:
         name: BusInterface name
 
     Returns:
-        busInterfaceRefID (String): Handle to busInterfaceRef element
+        busInterfaceRefID: Handle to busInterfaceRef element
 
     Section: F.7.20.6.
     """
@@ -2265,7 +2265,7 @@ def addMemoryMapRefModeRef(memoryMapRefID: str, modeRef: str) -> bool:
         modeRef: The mode reference to be add on the memoryMapRef element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.7.
     """
@@ -2280,7 +2280,7 @@ def addTargetFileSetRefGroup(targetID: str) -> str:
         targetID: Handle to a target element of a busInterface
 
     Returns:
-        fileSetRefGroupID (String): Handle to a fileSetRefGroup element
+        fileSetRefGroupID: Handle to a fileSetRefGroup element
 
     Section: F.7.20.8.
     """
@@ -2296,7 +2296,7 @@ def addTargetTransparentBridge(targetID: str, initiatorRef: str) -> str:
         initiatorRef: The initiator reference value to be added
 
     Returns:
-        transparentBridgeID (String): Handle of a transparentBrige element
+        transparentBridgeID: Handle of a transparentBrige element
 
     Section: F.7.20.9.
     """
@@ -2311,7 +2311,7 @@ def removeAbstractionTypePortMap(portMapID: str) -> bool:
         portMapID: Handle to a portMap element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.10.
     """
@@ -2326,7 +2326,7 @@ def removeAbstractionTypeViewRef(viewRefID: str) -> bool:
         viewRefID: Handle of the viewRef
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.11.
     """
@@ -2341,7 +2341,7 @@ def removeAddressSpaceRefBaseAddress(addressSpaceRefID: str) -> bool:
         addressSpaceRefID: Handle to an addressSpaceRef element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.12.
     """
@@ -2357,7 +2357,7 @@ def removeAddressSpaceRefModeRef(addressSpaceRefID: str, modeRef: str) -> bool:
         modeRef: The mode reference to be removed
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.13.
     """
@@ -2372,7 +2372,7 @@ def removeBaseAddressesRemapAddresses(remapAddressesID: str) -> bool:
         remapAddressesID: Handle to a remapAddresses element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.14.
     """
@@ -2387,7 +2387,7 @@ def removeBusInterfaceAbstractionType(abstractionTypeID: str) -> bool:
         abstractionTypeID: Handle to an abstractionType element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.16.
     """
@@ -2402,7 +2402,7 @@ def removeBusInterfaceBitSteering(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.17.
     """
@@ -2417,7 +2417,7 @@ def removeBusInterfaceBitsInLau(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to an busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.18.
     """
@@ -2432,7 +2432,7 @@ def removeBusInterfaceConnectionRequired(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.19.
     """
@@ -2447,7 +2447,7 @@ def removeBusInterfaceEndianness(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to a busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.20.
     """
@@ -2462,7 +2462,7 @@ def removeChannelBusInterfaceRef(busInterfaceRefID: str) -> bool:
         busInterfaceRefID: Handle to a busInterfaceRef element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.21.
     """
@@ -2477,7 +2477,7 @@ def removeFileSetRefGroupGroup(fileSetRefGroupID: str) -> bool:
         fileSetRefGroupID: Handle to a fileSetRefGroup element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.22.
     """
@@ -2492,7 +2492,7 @@ def removeIndirectInterfaceBitsInLau(indirectInterfaceID: str) -> bool:
         indirectInterfaceID: Handle to an indirectInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.23.
     """
@@ -2507,7 +2507,7 @@ def removeInitiatorAddressSpaceRef(initiatorID: str) -> bool:
         initiatorID: Handle to an initiator element of a busInterface
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.24.
     """
@@ -2523,7 +2523,7 @@ def removeMemoryMapRefModeRef(memoryMapRefID: str, modeRef: str) -> bool:
         modeRef: The mode reference to be remove on the memoryMapRef element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.25.
     """
@@ -2538,7 +2538,7 @@ def removeMirroredTargetBaseAddresses(mirroredTargetID: str) -> bool:
         mirroredTargetID: Handle to a mirroredTarget element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.26.
     """
@@ -2553,7 +2553,7 @@ def removeMonitorGroup(monitorID: str) -> bool:
         monitorID: Handle to a monitor element of a busInterface
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.27.
     """
@@ -2568,7 +2568,7 @@ def removeTargetFileSetRefGroup(fileSetRefGroupID: str) -> bool:
         fileSetRefGroupID: Handle to a fileSetRefGroup
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.28.
     """
@@ -2583,7 +2583,7 @@ def removeTargetMemoryMapRef(targetID: str) -> bool:
         targetID: Handle to a target element of a busInterface
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.29.
     """
@@ -2598,7 +2598,7 @@ def removeTargetTransparentBridge(transparentBrigeID: str) -> bool:
         transparentBrigeID: Handle to a transparentBrige element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.30.
     """
@@ -2614,7 +2614,7 @@ def setAddressSpaceRefBaseAddress(addressSpaceRefID: str, baseAddress: str) -> b
         baseAddress: The baseAddress expression to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.31.
     """
@@ -2630,7 +2630,7 @@ def setBaseAddressesRange(baseAddressesID: str, range: str) -> bool:
         range: the new range to set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.32.
     """
@@ -2646,7 +2646,7 @@ def setBusInterfaceBitSteering(busInterfaceID: str, value: str) -> bool:
         value: BitSteering value
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.33.
     """
@@ -2662,7 +2662,7 @@ def setBusInterfaceBitsInLau(busInterfaceID: str, bitsInLau: str) -> bool:
         bitsInLau: The bitsInLau expression
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.34.
     """
@@ -2678,7 +2678,7 @@ def setBusInterfaceBusType(busInterfaceID: str, vlnv: Sequence[str]) -> bool:
         vlnv: The vlnv expression to be set on the busType
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.35.
     """
@@ -2694,7 +2694,7 @@ def setBusInterfaceEndianness(busInterfaceID: str, endianness: str) -> bool:
         endianness: Endianness value : little or big
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.37.
     """
@@ -2709,7 +2709,7 @@ def setBusInterfaceInitiator(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to an busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.38.
     """
@@ -2724,7 +2724,7 @@ def setBusInterfaceMirroredInitiator(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to an busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.39.
     """
@@ -2740,7 +2740,7 @@ def setBusInterfaceMirroredSystem(busInterfaceID: str, group: str) -> bool:
         group: The group value to be set on the system element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.40.
     """
@@ -2755,7 +2755,7 @@ def setBusInterfaceMirroredTarget(busInterfaceID: str) -> bool:
         busInterfaceID: Handle to an busInterface element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.41.
     """
@@ -2771,7 +2771,7 @@ def setBusInterfaceMonitor(busInterfaceID: str, interfaceMode: str) -> bool:
         interfaceMode: The interfaceMode value to be set on the monitor element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.42.
     """
@@ -2787,7 +2787,7 @@ def setBusInterfaceRefLocalName(busInterfaceRefID: str, name: str) -> bool:
         name: BusInterface name
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.43.
     """
@@ -2803,7 +2803,7 @@ def setBusInterfaceSystem(busInterfaceID: str, group: str) -> bool:
         group: The group value to be set on the system element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.44.
     """
@@ -2819,7 +2819,7 @@ def setBusInterfaceTarget(busInterfaceID: str, memoryMapRef: str) -> bool:
         memoryMapRef: The memoryMap reference set on the target element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.45.
     """
@@ -2835,7 +2835,7 @@ def setFileSetRefGroupGroup(fileSetRefGroupID: str, group: str) -> bool:
         group: The group value to be set on the fileSetRefGroup element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.46.
     """
@@ -2851,7 +2851,7 @@ def setFileSetRefLocalName(fileSetRefID: str, localName: str) -> bool:
         localName: The local Name value to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.47.
     """
@@ -2867,7 +2867,7 @@ def setIndirectInterfaceBitsInLau(indirectInterfaceID: str, bitsInLau: str) -> b
         bitsInLau: BitsInLau expression
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.48.
     """
@@ -2883,7 +2883,7 @@ def setInitiatorAddressSpaceRef(initiatorID: str, addressSpaceRef: str) -> bool:
         addressSpaceRef: The addressSpace reference to be set on the initiator element
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.49.
     """
@@ -2899,7 +2899,7 @@ def setMirroredSystemGroup(mirroredSystemID: str, group: str) -> bool:
         group: The group value to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.50.
     """
@@ -2916,7 +2916,7 @@ def setMirroredTargetBaseAddresses(mirroredTargetID: str, remapAddress: str, ran
         range: The new range expression
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.51.
     """
@@ -2932,7 +2932,7 @@ def setMonitorGroup(monitorID: str, group: str) -> bool:
         group: The group value to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.52.
     """
@@ -2948,7 +2948,7 @@ def setRemapAddressesRemapAddress(remapAddressesID: str, remapAddress: str) -> b
         remapAddress: The remapAddress value to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.53.
     """
@@ -2964,7 +2964,7 @@ def setSystemGroup(systemID: str, group: str) -> bool:
         group: The group value to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.54.
     """
@@ -2980,7 +2980,7 @@ def setTargetMemoryMapRef(targetID: str, memoryMapRef: str) -> bool:
         memoryMapRef: The memoryMap reference to be set
 
     Returns:
-        status (Boolean): Indicates call is successful (true) or not (false)
+        status: Indicates call is successful (true) or not (false)
 
     Section: F.7.20.55.
     """

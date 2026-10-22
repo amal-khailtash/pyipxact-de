@@ -1,13 +1,9 @@
 """Catalog category TGI functions (IEEE 1685-2022).
 
-Implements BASE (F.7.23) and EXTENDED (F.7.24) Catalog functions.
-
-Catalogs provide traversal and manipulation of ipxactFile entries for all major
-schema categories (abstractionDef, abstractors, busDefinitions, catalogs,
-components, designConfigurations, designs, generatorChains, typeDefinitions).
-BASE functions enumerate ipxactFile handles for each category and retrieve
-element metadata. EXTENDED functions add/remove ipxactFile entries and set
-element properties (name, VLNV reference).
+Implements the Catalog BASE functions in F.7.23 and EXTENDED functions in
+F.7.24. Catalogs contain ordered ``ipxactFile`` entries grouped under nine
+IP-XACT document categories. Entry handles retain their Catalog and category
+ownership so the extended operations can validate, update, and remove records.
 """
 
 from collections.abc import Sequence
@@ -20,7 +16,16 @@ from org.accellera.ipxact.v1685_2022 import (
     LibraryRefType,
 )
 
-from .core import TgiError, TgiFaultCode, get_handle, register_parent, resolve_handle
+from ._attribute_references import _root_for
+from .core import (
+    TgiError,
+    TgiFaultCode,
+    detach_child_by_handle,
+    get_handle,
+    get_parent_info,
+    register_parent,
+    resolve_handle,
+)
 
 __all__ = [
     # BASE (F.7.23)
@@ -58,163 +63,371 @@ __all__ = [
     "setIpxactFileVlnv",
 ]
 
+_CATEGORY_FIELDS = (
+    "catalogs",
+    "bus_definitions",
+    "abstraction_definitions",
+    "components",
+    "abstractors",
+    "designs",
+    "design_configurations",
+    "generator_chains",
+    "type_definitions",
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
-def _catalog_entry(handle: str | IpxactFileType) -> IpxactFileType:
-    """Resolve a typed entry handle while preserving legacy object calls."""
-    entry = handle if isinstance(handle, IpxactFileType) else resolve_handle(handle)
+
+def _catalog(catalog_id: str | Catalog) -> Catalog:
+    """Resolve a Catalog TGI handle, retaining support for direct model calls."""
+    if not isinstance(catalog_id, (str, Catalog)):
+        raise TgiError("Invalid catalog handle", TgiFaultCode.INVALID_ID)
+    catalog = catalog_id if isinstance(catalog_id, Catalog) else resolve_handle(catalog_id)
+    if not isinstance(catalog, Catalog):
+        raise TgiError("Invalid catalog handle", TgiFaultCode.INVALID_ID)
+    return catalog
+
+
+def _catalog_entry(ipxact_file_id: str | IpxactFileType) -> IpxactFileType:
+    """Resolve an ipxactFile handle, retaining support for direct model calls."""
+    if not isinstance(ipxact_file_id, (str, IpxactFileType)):
+        raise TgiError("Invalid ipxactFile handle", TgiFaultCode.INVALID_ID)
+    entry = ipxact_file_id if isinstance(ipxact_file_id, IpxactFileType) else resolve_handle(ipxact_file_id)
     if not isinstance(entry, IpxactFileType):
         raise TgiError("Invalid ipxactFile handle", TgiFaultCode.INVALID_ID)
     return entry
 
 
-def _catalog_entries(catalogID: str | Catalog, field: str) -> list[str]:
-    """Traverse one catalog category with typed handles and legacy object support."""
-    catalog = catalogID if isinstance(catalogID, Catalog) else resolve_handle(catalogID)
-    if not isinstance(catalog, Catalog):
-        raise TgiError("Invalid catalog handle", TgiFaultCode.INVALID_ID)
+def _register_category(catalog: Catalog, field: str) -> list[str]:
+    """Return ordered entry IDs and record typed nested ownership."""
     files = getattr(catalog, field)
     if files is None:
         return []
+
     register_parent(files, catalog, (field,), "single")
+    handles: list[str] = []
     for entry in files.ipxact_file:
+        handle = get_handle(entry)
         register_parent(entry, catalog, (field, "ipxact_file"), "list")
-    return [get_handle(entry) for entry in files.ipxact_file]
+        _register_entry_references(entry)
+        handles.append(handle)
+    return handles
 
 
-def _ensure_ipxact_files(container: IpxactFilesType | None) -> IpxactFilesType:
-    return container if container is not None else IpxactFilesType()
+def _register_entry_references(entry: IpxactFileType) -> None:
+    """Register the required typed reference wrappers under their entry."""
+    for field in ("name", "vlnv"):
+        reference = getattr(entry, field)
+        if reference is not None:
+            register_parent(reference, entry, (field,), "single")
 
-def _list_handles(files: IpxactFilesType | None) -> list[str]:
-    if files is None:
-        return []
-    return [get_handle(f) for f in files.ipxact_file]
 
-def _remove_file_by_handle(files: IpxactFilesType | None, file_id: str) -> bool:
-    if files is None:
-        return False
-    new_list = []
-    removed = False
-    for f in list(files.ipxact_file):
-        if get_handle(f) == file_id and not removed:
-            removed = True
+def _catalog_entries(catalog_id: str | Catalog, field: str) -> list[str]:
+    """Return category entry handles from a Catalog handle or legacy object."""
+    return _register_category(_catalog(catalog_id), field)
+
+
+def _resolve_vlnv(vlnv: Sequence[str]) -> tuple[str, str, str, str]:
+    """Validate a four-string VLNV before any Catalog mutation."""
+    if isinstance(vlnv, str):
+        raise TgiError("VLNV must be a four-string sequence", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        values = tuple(vlnv)
+    except TypeError as exc:
+        raise TgiError("VLNV must be a four-string sequence", TgiFaultCode.INVALID_ARGUMENT) from exc
+    if len(values) != 4 or not all(isinstance(value, str) and value for value in values):
+        raise TgiError("VLNV must contain four non-empty strings", TgiFaultCode.INVALID_ARGUMENT)
+    return values  # type: ignore[return-value]
+
+
+def _check_unique(
+    catalog: Catalog,
+    *,
+    entry: IpxactFileType | None = None,
+    name: str | None = None,
+    vlnv: tuple[str, str, str, str] | None = None,
+) -> None:
+    """Enforce catalog.xsd name and VLNV uniqueness across all categories."""
+    for field in _CATEGORY_FIELDS:
+        files = getattr(catalog, field)
+        if files is None:
             continue
-        new_list.append(f)
-    if removed:
-        files.ipxact_file = new_list  # type: ignore[attr-defined]
-    return removed
+        for candidate in files.ipxact_file:
+            if candidate is entry:
+                continue
+            if name is not None and candidate.name is not None and candidate.name.value == name:
+                raise TgiError("Catalog ipxactFile name already exists", TgiFaultCode.ALREADY_EXISTS)
+            if candidate.vlnv is not None and vlnv is not None:
+                current_vlnv = (
+                    candidate.vlnv.vendor,
+                    candidate.vlnv.library,
+                    candidate.vlnv.name,
+                    candidate.vlnv.version,
+                )
+                if current_vlnv == vlnv:
+                    raise TgiError("Catalog ipxactFile VLNV already exists", TgiFaultCode.ALREADY_EXISTS)
+
+
+def _entry_catalog_and_field(entry: IpxactFileType) -> tuple[Catalog, str] | None:
+    """Return parsed owning Catalog/category when this entry has typed ownership."""
+    info = get_parent_info(get_handle(entry))
+    if info is not None and info.container == "list" and len(info.path) == 2 and info.path[1] == "ipxact_file":
+        catalog = resolve_handle(info.parent_handle)
+        field = info.path[0]
+        if isinstance(catalog, Catalog) and field in _CATEGORY_FIELDS:
+            files = getattr(catalog, field)
+            if files is not None and any(candidate is entry for candidate in files.ipxact_file):
+                _register_entry_references(entry)
+                return catalog, field
+
+    # A handle can be obtained directly from a nested model before any Catalog
+    # getter has traversed it. Discover its registered top-level owner and
+    # establish the same typed category path used by BASE enumeration.
+    catalog = _root_for(entry)
+    if not isinstance(catalog, Catalog):
+        return None
+    for field in _CATEGORY_FIELDS:
+        files = getattr(catalog, field)
+        if files is not None and any(candidate is entry for candidate in files.ipxact_file):
+            register_parent(files, catalog, (field,), "single")
+            register_parent(entry, catalog, (field, "ipxact_file"), "list")
+            _register_entry_references(entry)
+            return catalog, field
+    return None
+
+
+def _mutate_catalog_entry(
+    ipxact_file_id: str | IpxactFileType,
+    *,
+    field: str | None = None,
+    name: str | None = None,
+    vlnv: Sequence[str] | None = None,
+) -> bool:
+    """Add or update an entry after validating schema-wide uniqueness."""
+    entry = _catalog_entry(ipxact_file_id)
+    owner = _entry_catalog_and_field(entry)
+    if field is not None and (owner is None or owner[1] != field):
+        raise TgiError("ipxactFile handle does not belong to the requested category", TgiFaultCode.INVALID_ID)
+
+    vlnv_tuple = _resolve_vlnv(vlnv) if vlnv is not None else None
+    if name is not None and not isinstance(name, str):
+        raise TgiError("ipxactFile name must be a string", TgiFaultCode.INVALID_ARGUMENT)
+    if owner is not None and (name is not None or vlnv_tuple is not None):
+        _check_unique(owner[0], entry=entry, name=name, vlnv=vlnv_tuple)
+
+    if name is not None:
+        if entry.name is None:
+            entry.name = IpxactUri(value=name)
+        else:
+            entry.name.value = name
+        register_parent(entry.name, entry, ("name",), "single")
+    if vlnv_tuple is not None:
+        if entry.vlnv is None:
+            entry.vlnv = LibraryRefType(
+                vendor=vlnv_tuple[0], library=vlnv_tuple[1], name=vlnv_tuple[2], version=vlnv_tuple[3]
+            )
+        else:
+            entry.vlnv.vendor, entry.vlnv.library, entry.vlnv.name, entry.vlnv.version = vlnv_tuple
+        register_parent(entry.vlnv, entry, ("vlnv",), "single")
+    return True
+
 
 def _add_ipxact_file(
-    files: IpxactFilesType | None,
+    catalog_id: str | Catalog,
+    field: str,
     vlnv: Sequence[str],
     file_name: str,
-) -> tuple[IpxactFilesType, IpxactFileType]:
-    if len(vlnv) != 4:
-        raise ValueError("VLNV must be vendor, library, name, version")
-    container = _ensure_ipxact_files(files)
-    new_file = IpxactFileType(
-        vlnv=LibraryRefType(vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]),
+) -> str:
+    """Validate and append one typed entry, then register its owner metadata."""
+    catalog = _catalog(catalog_id)
+    values = _resolve_vlnv(vlnv)
+    if not isinstance(file_name, str):
+        raise TgiError("ipxactFile name must be a string", TgiFaultCode.INVALID_ARGUMENT)
+    _check_unique(catalog, name=file_name, vlnv=values)
+
+    files = getattr(catalog, field)
+    if files is None:
+        files = IpxactFilesType()
+    entry = IpxactFileType(
+        vlnv=LibraryRefType(vendor=values[0], library=values[1], name=values[2], version=values[3]),
         name=IpxactUri(value=file_name),
     )
-    current = list(container.ipxact_file)
-    current.append(new_file)
-    container.ipxact_file = current  # type: ignore[attr-defined]
-    return container, new_file
+    current = list(files.ipxact_file)
+    current.append(entry)
+    files.ipxact_file = current
+    setattr(catalog, field, files)
+    register_parent(files, catalog, (field,), "single")
+    register_parent(entry, catalog, (field, "ipxact_file"), "list")
+    _register_entry_references(entry)
+    return get_handle(entry)
+
+
+def _remove_ipxact_file(ipxact_file_id: str, field: str) -> bool:
+    """Remove the addressed entry only when it belongs to this category."""
+    if not isinstance(ipxact_file_id, str):
+        return False
+    entry = resolve_handle(ipxact_file_id)
+    if not isinstance(entry, IpxactFileType):
+        return False
+    owner = _entry_catalog_and_field(entry)
+    if owner is None or owner[1] != field:
+        return False
+    catalog, _ = owner
+    files = getattr(catalog, field)
+    if not detach_child_by_handle(ipxact_file_id):
+        return False
+    if files is not None and not files.ipxact_file:
+        container_id = get_handle(files)
+        register_parent(files, catalog, (field,), "single")
+        if not detach_child_by_handle(container_id):
+            setattr(catalog, field, None)
+    return True
 
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.23)
 # ---------------------------------------------------------------------------
 
-def getCatalogAbstractionDefIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered abstraction_definitions entry handles with parsed ownership (F.7.23.1).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+def getCatalogAbstractionDefIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
+    """Return handles to the Catalog abstractionDefinitions ipxactFile elements (F.7.23.1).
+
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to abstractionDefinitions ipxactFile elements (empty if absent).
+
+    Section: F.7.23.1.
     """
     return _catalog_entries(catalogID, "abstraction_definitions")
 
 
 def getCatalogAbstractorsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered abstractors entry handles with parsed ownership (F.7.23.2).
+    """Return handles to the Catalog abstractors ipxactFile elements (F.7.23.2).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to abstractors ipxactFile elements (empty if absent).
+
+    Section: F.7.23.2.
     """
     return _catalog_entries(catalogID, "abstractors")
 
 
 def getCatalogBusDefinitionsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered bus_definitions entry handles with parsed ownership (F.7.23.3).
+    """Return handles to the Catalog busDefinitions ipxactFile elements (F.7.23.3).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to busDefinitions ipxactFile elements (empty if absent).
+
+    Section: F.7.23.3.
     """
     return _catalog_entries(catalogID, "bus_definitions")
 
 
 def getCatalogCatalogsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered catalogs entry handles with parsed ownership (F.7.23.4).
+    """Return handles to the Catalog catalogs ipxactFile elements (F.7.23.4).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to catalogs ipxactFile elements (empty if absent).
+
+    Section: F.7.23.4.
     """
     return _catalog_entries(catalogID, "catalogs")
 
 
 def getCatalogComponentsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered components entry handles with parsed ownership (F.7.23.5).
+    """Return handles to the Catalog components ipxactFile elements (F.7.23.5).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to components ipxactFile elements (empty if absent).
+
+    Section: F.7.23.5.
     """
     return _catalog_entries(catalogID, "components")
 
 
 def getCatalogDesignConfigurationsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered design_configurations entry handles with parsed ownership (F.7.23.6).
+    """Return handles to the Catalog designConfigurations ipxactFile elements (F.7.23.6).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to designConfigurations ipxactFile elements (empty if absent).
+
+    Section: F.7.23.6.
     """
     return _catalog_entries(catalogID, "design_configurations")
 
 
 def getCatalogDesignsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered designs entry handles with parsed ownership (F.7.23.7).
+    """Return handles to the Catalog designs ipxactFile elements (F.7.23.7).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to designs ipxactFile elements (empty if absent).
+
+    Section: F.7.23.7.
     """
     return _catalog_entries(catalogID, "designs")
 
 
 def getCatalogGeneratorChainsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered generator_chains entry handles with parsed ownership (F.7.23.8).
+    """Return handles to the Catalog generatorChains ipxactFile elements (F.7.23.8).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to generatorChains ipxactFile elements (empty if absent).
+
+    Section: F.7.23.8.
     """
     return _catalog_entries(catalogID, "generator_chains")
 
 
 def getCatalogTypeDefinitionsIpxactFileIDs(catalogID: str | Catalog) -> list[str]:
-    """Return ordered type_definitions entry handles with parsed ownership (F.7.23.9).
+    """Return handles to the Catalog typeDefinitions ipxactFile elements (F.7.23.9).
 
-    Accept standard catalog handles and legacy Catalog objects. Absent categories
-    return an empty list; unrelated or stale handles raise INVALID_ID.
+    Args:
+        catalogID: Handle to a catalog element; a Catalog object is accepted for compatibility.
+
+    Returns:
+        Ordered handles to typeDefinitions ipxactFile elements (empty if absent).
+
+    Section: F.7.23.9.
     """
     return _catalog_entries(catalogID, "type_definitions")
 
 
 def getIpxactFileName(ipxactFileID: str | IpxactFileType) -> str | None:
-    """Return stored URI source text from a file entry (F.7.23.10).
+    """Return the stored file name for an ipxactFile element (F.7.23.10).
 
-    Accept standard entry handles and legacy model objects; do not expand
-    environment variables or resolve paths.
+    Args:
+        ipxactFileID: Handle to an ipxactFile element; a model object is accepted for compatibility.
+
+    Returns:
+        The lexical URI stored in the name element, or None for malformed model data.
+
+    Section: F.7.23.10.
     """
     entry = _catalog_entry(ipxactFileID)
     return None if entry.name is None else entry.name.value
@@ -223,166 +436,361 @@ def getIpxactFileName(ipxactFileID: str | IpxactFileType) -> str | None:
 def getIpxactFileVlnvRefByVLNV(
     ipxactFileID: str | IpxactFileType,
 ) -> tuple[str, str, str, str] | None:
-    """Return four stored VLNV parts, preserving colon-containing values (F.7.23.11)."""
+    """Return the four stored VLNV parts for an ipxactFile element (F.7.23.11).
+
+    Args:
+        ipxactFileID: Handle to an ipxactFile element; a model object is accepted for compatibility.
+
+    Returns:
+        The vendor, library, name, and version tuple, or None for malformed model data.
+
+    Section: F.7.23.11.
+    """
     entry = _catalog_entry(ipxactFileID)
-    ref = entry.vlnv
-    return None if ref is None else (ref.vendor, ref.library, ref.name, ref.version)
+    if entry.vlnv is None:
+        return None
+    return entry.vlnv.vendor, entry.vlnv.library, entry.vlnv.name, entry.vlnv.version
 
 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.24)
 # ---------------------------------------------------------------------------
 
+
 def addCatalogAbstractionDefIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     abstractionDefVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add an abstractionDefinition ipxactFile entry to the catalog.
+    """Add an abstractionDefinition ipxactFile to a catalog (F.7.24.1).
 
     Args:
-        catalog: Catalog handle object.
-        abstractionDefVLNV: Sequence [vendor, library, name, version].
-        fileName: Relative or absolute XML file name.
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        abstractionDefVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
 
     Returns:
-        Handle string of the created ipxactFile element.
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.1.
     """
-    catalog.abstraction_definitions, nf = _add_ipxact_file(
-        getattr(catalog, "abstraction_definitions", None),
-        abstractionDefVLNV,
-        fileName,
-    )
-    return get_handle(nf)
+    return _add_ipxact_file(catalogID, "abstraction_definitions", abstractionDefVLNV, fileName)
+
 
 def addCatalogAbstractorsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     abstractorVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add an abstractors ipxactFile entry to the catalog."""
-    catalog.abstractors, nf = _add_ipxact_file(getattr(catalog, "abstractors", None), abstractorVLNV, fileName)
-    return get_handle(nf)
+    """Add an abstractor ipxactFile to a catalog (F.7.24.2).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        abstractorVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.2.
+    """
+    return _add_ipxact_file(catalogID, "abstractors", abstractorVLNV, fileName)
+
 
 def addCatalogBusDefinitionsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     busDefVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a busDefinitions ipxactFile entry to the catalog."""
-    catalog.bus_definitions, nf = _add_ipxact_file(getattr(catalog, "bus_definitions", None), busDefVLNV, fileName)
-    return get_handle(nf)
+    """Add a busDefinition ipxactFile to a catalog (F.7.24.3).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        busDefVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.3.
+    """
+    return _add_ipxact_file(catalogID, "bus_definitions", busDefVLNV, fileName)
+
 
 def addCatalogCatalogsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     catalogVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a catalogs ipxactFile entry to the catalog."""
-    catalog.catalogs, nf = _add_ipxact_file(getattr(catalog, "catalogs", None), catalogVLNV, fileName)
-    return get_handle(nf)
+    """Add a catalog ipxactFile to a catalog (F.7.24.4).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        catalogVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.4.
+    """
+    return _add_ipxact_file(catalogID, "catalogs", catalogVLNV, fileName)
+
 
 def addCatalogComponentsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     componentVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a components ipxactFile entry to the catalog."""
-    catalog.components, nf = _add_ipxact_file(getattr(catalog, "components", None), componentVLNV, fileName)
-    return get_handle(nf)
+    """Add a component ipxactFile to a catalog (F.7.24.5).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        componentVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.5.
+    """
+    return _add_ipxact_file(catalogID, "components", componentVLNV, fileName)
+
 
 def addCatalogDesignConfigurationsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     designConfigurationVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a designConfigurations ipxactFile entry to the catalog."""
-    catalog.design_configurations, nf = _add_ipxact_file(
-        getattr(catalog, "design_configurations", None),
-        designConfigurationVLNV,
-        fileName,
-    )
-    return get_handle(nf)
+    """Add a designConfiguration ipxactFile to a catalog (F.7.24.6).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        designConfigurationVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.6.
+    """
+    return _add_ipxact_file(catalogID, "design_configurations", designConfigurationVLNV, fileName)
+
 
 def addCatalogDesignsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     designVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a designs ipxactFile entry to the catalog."""
-    catalog.designs, nf = _add_ipxact_file(getattr(catalog, "designs", None), designVLNV, fileName)
-    return get_handle(nf)
+    """Add a design ipxactFile to a catalog (F.7.24.7).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        designVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.7.
+    """
+    return _add_ipxact_file(catalogID, "designs", designVLNV, fileName)
+
 
 def addCatalogGeneratorChainsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     generatorChainVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a generatorChains ipxactFile entry to the catalog."""
-    catalog.generator_chains, nf = _add_ipxact_file(
-        getattr(catalog, "generator_chains", None),
-        generatorChainVLNV,
-        fileName,
-    )
-    return get_handle(nf)
+    """Add a generatorChain ipxactFile to a catalog (F.7.24.8).
+
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        generatorChainVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
+
+    Returns:
+        Handle to the new ipxactFile element.
+
+    Section: F.7.24.8.
+    """
+    return _add_ipxact_file(catalogID, "generator_chains", generatorChainVLNV, fileName)
+
 
 def addCatalogTypeDefinitionsIpxactFile(
-    catalog: Catalog,
+    catalogID: str | Catalog,
     typeDefinitionVLNV: Sequence[str],
     fileName: str,
 ) -> str:
-    """Add a typeDefinitions ipxactFile entry to the catalog."""
-    catalog.type_definitions, nf = _add_ipxact_file(
-        getattr(catalog, "type_definitions", None),
-        typeDefinitionVLNV,
-        fileName,
-    )
-    return get_handle(nf)
+    """Add a typeDefinition ipxactFile to a catalog (F.7.24.9).
 
-def removeCatalogAbstractionDefIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove an abstractionDefinition ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "abstraction_definitions", None), ipxactFileID)
+    Args:
+        catalogID: Handle to the catalog element; a Catalog object is accepted for compatibility.
+        typeDefinitionVLNV: Four strings (vendor, library, name, version).
+        fileName: File name URI stored in the ipxactFile name element.
 
-def removeCatalogAbstractorsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove an abstractors ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "abstractors", None), ipxactFileID)
+    Returns:
+        Handle to the new ipxactFile element.
 
-def removeCatalogBusDefinitionsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a busDefinitions ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "bus_definitions", None), ipxactFileID)
+    Section: F.7.24.9.
+    """
+    return _add_ipxact_file(catalogID, "type_definitions", typeDefinitionVLNV, fileName)
 
-def removeCatalogCatalogsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a catalogs ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "catalogs", None), ipxactFileID)
 
-def removeCatalogComponentsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a components ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "components", None), ipxactFileID)
+def removeCatalogAbstractionDefIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed abstractionDefinitions ipxactFile element (F.7.24.10).
 
-def removeCatalogDesignConfigurationsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a designConfigurations ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "design_configurations", None), ipxactFileID)
+    Args:
+        ipxactFileID: Handle to an abstractionDefinitions ipxactFile element.
 
-def removeCatalogDesignsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a designs ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "designs", None), ipxactFileID)
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
 
-def removeCatalogGeneratorChainsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a generatorChains ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "generator_chains", None), ipxactFileID)
+    Section: F.7.24.10.
+    """
+    return _remove_ipxact_file(ipxactFileID, "abstraction_definitions")
 
-def removeCatalogTypeDefinitionsIpxactFile(catalog: Catalog, ipxactFileID: str) -> bool:
-    """Remove a typeDefinitions ipxactFile entry by handle."""
-    return _remove_file_by_handle(getattr(catalog, "type_definitions", None), ipxactFileID)
 
-def setIpxactFileName(ipxact_file: IpxactFileType, name: str) -> bool:
-    """Set the file name of an ipxactFile entry."""
-    ipxact_file.name = IpxactUri(value=name)
-    return True
+def removeCatalogAbstractorsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed abstractors ipxactFile element (F.7.24.11).
 
-def setIpxactFileVlnv(ipxact_file: IpxactFileType, vlnv: Sequence[str]) -> bool:
-    """Set the VLNV reference of an ipxactFile entry."""
-    if len(vlnv) != 4:
-        raise ValueError("VLNV must be sequence of 4 strings")
-    ipxact_file.vlnv = LibraryRefType(vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3])
-    return True
+    Args:
+        ipxactFileID: Handle to an abstractors ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.11.
+    """
+    return _remove_ipxact_file(ipxactFileID, "abstractors")
+
+
+def removeCatalogBusDefinitionsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed busDefinitions ipxactFile element (F.7.24.12).
+
+    Args:
+        ipxactFileID: Handle to a busDefinitions ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.12.
+    """
+    return _remove_ipxact_file(ipxactFileID, "bus_definitions")
+
+
+def removeCatalogCatalogsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed catalogs ipxactFile element (F.7.24.13).
+
+    Args:
+        ipxactFileID: Handle to a catalogs ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.13.
+    """
+    return _remove_ipxact_file(ipxactFileID, "catalogs")
+
+
+def removeCatalogComponentsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed components ipxactFile element (F.7.24.14).
+
+    Args:
+        ipxactFileID: Handle to a components ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.14.
+    """
+    return _remove_ipxact_file(ipxactFileID, "components")
+
+
+def removeCatalogDesignConfigurationsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed designConfigurations ipxactFile element (F.7.24.15).
+
+    Args:
+        ipxactFileID: Handle to a designConfigurations ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.15.
+    """
+    return _remove_ipxact_file(ipxactFileID, "design_configurations")
+
+
+def removeCatalogDesignsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed designs ipxactFile element (F.7.24.16).
+
+    Args:
+        ipxactFileID: Handle to a designs ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.16.
+    """
+    return _remove_ipxact_file(ipxactFileID, "designs")
+
+
+def removeCatalogGeneratorChainsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed generatorChains ipxactFile element (F.7.24.17).
+
+    Args:
+        ipxactFileID: Handle to a generatorChains ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.17.
+    """
+    return _remove_ipxact_file(ipxactFileID, "generator_chains")
+
+
+def removeCatalogTypeDefinitionsIpxactFile(ipxactFileID: str) -> bool:
+    """Remove the addressed typeDefinitions ipxactFile element (F.7.24.18).
+
+    Args:
+        ipxactFileID: Handle to a typeDefinitions ipxactFile element.
+
+    Returns:
+        True when that entry is removed; false if it is absent or owned by another category.
+
+    Section: F.7.24.18.
+    """
+    return _remove_ipxact_file(ipxactFileID, "type_definitions")
+
+
+def setIpxactFileName(ipxactFileID: str | IpxactFileType, name: str) -> bool:
+    """Set the name of an ipxactFile element (F.7.24.19).
+
+    Args:
+        ipxactFileID: Handle to an ipxactFile element; a model object is accepted for compatibility.
+        name: Name URI to store in the ipxactFile element.
+
+    Returns:
+        True when the name is set.
+
+    Section: F.7.24.19.
+    """
+    if not isinstance(name, str):
+        raise TgiError("ipxactFile name must be a string", TgiFaultCode.INVALID_ARGUMENT)
+    return _mutate_catalog_entry(ipxactFileID, name=name)
+
+
+def setIpxactFileVlnv(ipxactFileID: str | IpxactFileType, vlnv: Sequence[str]) -> bool:
+    """Set the four-part VLNV of an ipxactFile element (F.7.24.20).
+
+    Args:
+        ipxactFileID: Handle to an ipxactFile element; a model object is accepted for compatibility.
+        vlnv: Four strings (vendor, library, name, version).
+
+    Returns:
+        True when the VLNV is set.
+
+    Section: F.7.24.20.
+    """
+    _resolve_vlnv(vlnv)
+    return _mutate_catalog_entry(ipxactFileID, vlnv=vlnv)
