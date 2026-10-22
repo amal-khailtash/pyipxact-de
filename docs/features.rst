@@ -933,88 +933,88 @@ Clearbox (EXTENDED)
 Component (BASE)
 ~~~~~~~~~~~~~~~~
 
-- ☐ ``getComponentAddressSpaceIDs`` (F.7.29.1)
-- ☐ ``getComponentBusInterfaceIDs`` (F.7.29.2)
-- ☐ ``getComponentChannelIDs`` (F.7.29.3)
-- ☐ ``getComponentChoiceIDs`` (F.7.29.4)
-- ☐ ``getComponentClearboxElementIDs`` (F.7.29.5)
-- ☐ ``getComponentComponentGeneratorIDs`` (F.7.29.6)
+- ☑ ``getComponentAddressSpaceIDs`` (F.7.29.1)
+- ☑ ``getComponentBusInterfaceIDs`` (F.7.29.2)
+- ☑ ``getComponentChannelIDs`` (F.7.29.3)
+- ☑ ``getComponentChoiceIDs`` (F.7.29.4)
+- ☑ ``getComponentClearboxElementIDs`` (F.7.29.5)
+- ☑ ``getComponentComponentGeneratorIDs`` (F.7.29.6)
 - ☑ ``getComponentComponentInstantiationIDs`` (F.7.29.7) - verified with mixed generated choices.
-- ☐ ``getComponentCpuIDs`` (F.7.29.8)
+- ☑ ``getComponentCpuIDs`` (F.7.29.8)
 - ☑ ``getComponentDesignConfigurationInstantiationIDs`` (F.7.29.9) - verified with mixed generated choices.
 - ☑ ``getComponentDesignInstantiationIDs`` (F.7.29.10) - verified with mixed generated choices.
-- ☐ ``getComponentExternalTypeDefinitionsIDs`` (F.7.29.11)
-- ☐ ``getComponentFileSetIDs`` (F.7.29.12)
-- ☐ ``getComponentIndirectInterfaceIDs`` (F.7.29.13)
-- ☐ ``getComponentMemoryMapIDs`` (F.7.29.14)
-- ☐ ``getComponentModeIDs`` (F.7.29.15)
-- ☐ ``getComponentOtherClockDriverIDs`` (F.7.29.16)
+- ☑ ``getComponentExternalTypeDefinitionsIDs`` (F.7.29.11)
+- ☑ ``getComponentFileSetIDs`` (F.7.29.12)
+- ☑ ``getComponentIndirectInterfaceIDs`` (F.7.29.13)
+- ☑ ``getComponentMemoryMapIDs`` (F.7.29.14)
+- ☑ ``getComponentModeIDs`` (F.7.29.15)
+- ☑ ``getComponentOtherClockDriverIDs`` (F.7.29.16)
 - ☑ ``getComponentPortIDs`` (F.7.29.17) - verified with generated structured choices and parsed lifecycle ownership.
-- ☐ ``getComponentPowerDomainIDs`` (F.7.29.18)
-- ☐ ``getComponentResetTypeIDs`` (F.7.29.19)
-- ☐ ``getComponentSelectedViewIDs`` (F.7.29.20)
-- ☐ ``getComponentViewIDs`` (F.7.29.21)
-- ☐ ``getModeCondition`` (F.7.29.22)
-- ☐ ``getModeConditionExpression`` (F.7.29.23)
-- ☐ ``getModeName`` (F.7.29.24)
+- ☑ ``getComponentPowerDomainIDs`` (F.7.29.18)
+- ☑ ``getComponentResetTypeIDs`` (F.7.29.19)
+- ☑ ``getComponentSelectedViewIDs`` (F.7.29.20)
+- ☑ ``getComponentViewIDs`` (F.7.29.21)
+- ☑ ``getModeCondition`` (F.7.29.22)
+- ☑ ``getModeConditionExpression`` (F.7.29.23)
+- ☑ ``getModeName`` (F.7.29.24)
 
 Component (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addComponentAddressSpace`` (F.7.30.1)
-- ☐ ``addComponentChannel`` (F.7.30.2)
-- ☐ ``addComponentChoice`` (F.7.30.3)
-- ☐ ``addComponentClearboxElement`` (F.7.30.4)
-- ☐ ``addComponentComponentGenerator`` (F.7.30.5)
+- ☑ ``addComponentAddressSpace`` (F.7.30.1)
+- ☑ ``addComponentChannel`` (F.7.30.2)
+- ☑ ``addComponentChoice`` (F.7.30.3)
+- ☑ ``addComponentClearboxElement`` (F.7.30.4)
+- ☑ ``addComponentComponentGenerator`` (F.7.30.5)
 - ☑ ``addComponentComponentInstantiation`` (F.7.30.6) - generated creation and immediate lifecycle verified.
-- ☐ ``addComponentCpu`` (F.7.30.7)
+- ☑ ``addComponentCpu`` (F.7.30.7)
 - ☑ ``addComponentDesignConfigurationInstantiation`` (F.7.30.8) - generated creation and immediate lifecycle verified.
 - ☑ ``addComponentDesignInstantiation`` (F.7.30.9) - generated creation and immediate lifecycle verified.
-- ☐ ``addComponentFileSet`` (F.7.30.10)
-- ☐ ``addComponentIndirectInterface`` (F.7.30.11)
-- ☐ ``addComponentInitiatorBusInterface`` (F.7.30.12)
-- ☐ ``addComponentMemoryMap`` (F.7.30.13)
-- ☐ ``addComponentMirroredInitiatorBusInterface`` (F.7.30.14)
-- ☐ ``addComponentMirroredSystemBusInterface`` (F.7.30.15)
-- ☐ ``addComponentMirroredTargetBusInterface`` (F.7.30.16)
-- ☐ ``addComponentMode`` (F.7.30.17)
-- ☐ ``addComponentMonitorBusInterface`` (F.7.30.18)
+- ☑ ``addComponentFileSet`` (F.7.30.10)
+- ☑ ``addComponentIndirectInterface`` (F.7.30.11)
+- ☑ ``addComponentInitiatorBusInterface`` (F.7.30.12)
+- ☑ ``addComponentMemoryMap`` (F.7.30.13)
+- ☑ ``addComponentMirroredInitiatorBusInterface`` (F.7.30.14)
+- ☑ ``addComponentMirroredSystemBusInterface`` (F.7.30.15)
+- ☑ ``addComponentMirroredTargetBusInterface`` (F.7.30.16)
+- ☑ ``addComponentMode`` (F.7.30.17)
+- ☑ ``addComponentMonitorBusInterface`` (F.7.30.18)
 - ☑ ``addComponentOtherClockDriver`` (F.7.30.19) - uses generated models, standard arguments and immediate ownership.
-- ☐ ``addComponentResetType`` (F.7.30.20)
+- ☑ ``addComponentResetType`` (F.7.30.20)
 - ☑ ``addComponentStructuredInterfacePort`` (F.7.30.21) - verified with generated structured choices and parsed lifecycle ownership.
 - ☑ ``addComponentStructuredStructPort`` (F.7.30.22) - verified with generated structured choices and parsed lifecycle ownership.
 - ☑ ``addComponentStructuredUnionPort`` (F.7.30.23) - verified with generated structured choices and parsed lifecycle ownership.
-- ☐ ``addComponentSystemBusInterface`` (F.7.30.24)
-- ☐ ``addComponentTargetBusInterface`` (F.7.30.25)
+- ☑ ``addComponentSystemBusInterface`` (F.7.30.24)
+- ☑ ``addComponentTargetBusInterface`` (F.7.30.25)
 - ☑ ``addComponentTransactionalPort`` (F.7.30.26) - uses generated models, standard arguments and immediate ownership.
 - ☑ ``addComponentView`` (F.7.30.27) - uses generated models, standard arguments and immediate ownership.
 - ☑ ``addComponentWirePort`` (F.7.30.28) - uses generated models, standard arguments and immediate ownership.
-- ☐ ``removeComponentAddressSpace`` (F.7.30.29)
-- ☐ ``removeComponentBusInterface`` (F.7.30.30)
-- ☐ ``removeComponentChannel`` (F.7.30.31)
-- ☐ ``removeComponentChoice`` (F.7.30.32)
-- ☐ ``removeComponentClearboxElement`` (F.7.30.33)
-- ☐ ``removeComponentComponentGenerator`` (F.7.30.34)
+- ☑ ``removeComponentAddressSpace`` (F.7.30.29)
+- ☑ ``removeComponentBusInterface`` (F.7.30.30)
+- ☑ ``removeComponentChannel`` (F.7.30.31)
+- ☑ ``removeComponentChoice`` (F.7.30.32)
+- ☑ ``removeComponentClearboxElement`` (F.7.30.33)
+- ☑ ``removeComponentComponentGenerator`` (F.7.30.34)
 - ☑ ``removeComponentComponentInstantiation`` (F.7.30.35) - verified with mixed generated choices.
-- ☐ ``removeComponentCpu`` (F.7.30.36)
+- ☑ ``removeComponentCpu`` (F.7.30.36)
 - ☑ ``removeComponentDesignConfigurationInstantiation`` (F.7.30.37) - verified with mixed generated choices.
 - ☑ ``removeComponentDesignInstantiation`` (F.7.30.38) - verified with mixed generated choices.
 - ☑ ``removeComponentFileSet`` (F.7.30.39) - uses its standard child handle with parsed ownership and descendant invalidation.
-- ☐ ``removeComponentIndirectInterface`` (F.7.30.40)
+- ☑ ``removeComponentIndirectInterface`` (F.7.30.40)
 - ☑ ``removeComponentMemoryMap`` (F.7.30.41) - uses its standard child handle with parsed ownership and descendant invalidation.
-- ☐ ``removeComponentMode`` (F.7.30.42)
+- ☑ ``removeComponentMode`` (F.7.30.42)
 - ☑ ``removeComponentOtherClockDriver`` (F.7.30.43) - uses its standard child handle with parsed ownership and descendant invalidation.
 - ☑ ``removeComponentPort`` (F.7.30.44) - uses its standard child handle with parsed ownership and descendant invalidation; verified with generated structured choices and parsed lifecycle ownership.
 - ☑ ``removeComponentResetType`` (F.7.30.45) - uses its standard child handle with parsed ownership and descendant invalidation.
 - ☑ ``removeComponentView`` (F.7.30.46) - uses generated models, standard arguments and immediate ownership; verified with registered parsed roots or typed local target lifecycle.
-- ☐ ``removeMemoryMapAddressUnitBits`` (F.7.30.47)
-- ☐ ``removeModeCondition`` (F.7.30.48)
-- ☐ ``removePowerDomainAlwaysOn`` (F.7.30.49)
-- ☐ ``setIndirectInterfaceIndirectAddressRef`` (F.7.30.50)
-- ☐ ``setIndirectInterfaceIndirectDataRef`` (F.7.30.51)
-- ☐ ``setMemoryMapAddressUnitBits`` (F.7.30.52)
-- ☐ ``setModeCondition`` (F.7.30.53)
-- ☐ ``setModeName`` (F.7.30.54)
+- ☑ ``removeMemoryMapAddressUnitBits`` (F.7.30.47)
+- ☑ ``removeModeCondition`` (F.7.30.48)
+- ☑ ``removePowerDomainAlwaysOn`` (F.7.30.49)
+- ☑ ``setIndirectInterfaceIndirectAddressRef`` (F.7.30.50)
+- ☑ ``setIndirectInterfaceIndirectDataRef`` (F.7.30.51)
+- ☑ ``setMemoryMapAddressUnitBits`` (F.7.30.52)
+- ☑ ``setModeCondition`` (F.7.30.53)
+- ☑ ``setModeName`` (F.7.30.54)
 
 Configurable element (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
