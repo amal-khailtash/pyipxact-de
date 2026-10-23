@@ -12,6 +12,7 @@ public API surface.
 # ruff: noqa: I001
 
 from org.accellera.ipxact.v1685_2022 import (
+    Abstractor,
     Choices,
     ConfigurableElementValue,
     ConfigurableLibraryRefType,
@@ -19,6 +20,12 @@ from org.accellera.ipxact.v1685_2022 import (
     InstanceName,
     LibraryRefType,
 )
+
+from ._expressions import _xml_text
+from ._model import _walk_model
+from .address_space import _register_owned_child
+from .instantiation import _registered_reference_target, _validated_vlnv, getAbstractorInstanceAbstractorRefID
+from .name_group import _name_text
 
 from .core import (
     TgiError,
@@ -144,20 +151,48 @@ def _resolve_configurable_element_value(cevID: str) -> ConfigurableElementValue 
     return obj if isinstance(obj, ConfigurableElementValue) else None
 
 
+def _abstractor_name(owner: object, value: str) -> str:
+    return _name_text(owner, _xml_text(value))
+
+
+def _abstractor_scope(owner: object) -> object:
+    scope = owner
+    seen: set[int] = set()
+    while not isinstance(scope, DesignConfiguration):
+        if id(scope) in seen:
+            raise TgiError("Cyclic abstractor ownership", TgiFaultCode.INVALID_ID)
+        seen.add(id(scope))
+        parent = _register_owned_child(scope)
+        if parent is None:
+            break
+        scope = parent
+    return scope
+
+
+def _unique_abstractor_name(owner: object, name: str, current: object | None = None) -> None:
+    for child, _, _, _ in _walk_model(_abstractor_scope(owner)):
+        if (
+            isinstance(child, DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance)
+            and child is not current
+            and _abstractor_name(child, child.instance_name) == name
+        ):
+            raise TgiError("Abstractor instance name already exists", TgiFaultCode.ALREADY_EXISTS)
+
+
 # ---------------------------------------------------------------------------
 # BASE (F.7.39)
 # ---------------------------------------------------------------------------
 
-def getAbstractorInstanceAbstractorRefByID(abstractorInstanceID: str) -> str | None:
-    """Return handle of the ``abstractorRef`` element of an abstractorInstance.
+def getAbstractorInstanceAbstractorRefByID(abstractorInstanceID: str) -> str:
+    """Return the handle of the abstractor referenced by an abstractorInstance.
 
-    Section: F.7.39.1. Returns ``None`` if not present (schema requires it though).
+    Section: F.7.39.1. A missing or wrong-kind target raises NOT_FOUND.
     """
-    inst = _resolve_abstractor_instance(abstractorInstanceID)
-    if inst is None:
-        raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
-    ref = inst.abstractor_ref
-    return None if ref is None else get_handle(ref)
+    ref_id = getAbstractorInstanceAbstractorRefID(abstractorInstanceID)
+    ref = resolve_handle(ref_id) if ref_id is not None else None
+    if ref is not None and not isinstance(ref, ConfigurableLibraryRefType):
+        raise TgiError("Invalid abstractorRef model", TgiFaultCode.INVALID_ID)
+    return get_handle(_registered_reference_target(ref, Abstractor, "abstractorRef"))
 
 
 def getAbstractorInstanceAbstractorRefByVLNV(
@@ -167,12 +202,12 @@ def getAbstractorInstanceAbstractorRefByVLNV(
 
     Section: F.7.39.2.
     """
-    inst = _resolve_abstractor_instance(abstractorInstanceID)
-    if inst is None:
-        raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
-    ref = inst.abstractor_ref
-    if ref is None:
+    ref_id = getAbstractorInstanceAbstractorRefID(abstractorInstanceID)
+    if ref_id is None:
         return (None, None, None, None)
+    ref = resolve_handle(ref_id)
+    if not isinstance(ref, ConfigurableLibraryRefType):
+        raise TgiError("Invalid abstractorRef model", TgiFaultCode.INVALID_ID)
     return (ref.vendor, ref.library, ref.name, ref.version)
 
 
@@ -392,29 +427,37 @@ def getViewConfigurationViewID(viewConfigurationID: str) -> str | None:
 
 def addAbstractorInstancesAbstractorInstance(
     abstractorInstancesID: str,
+    abstractorVLNV: tuple[str, str, str, str],
     instanceName: str,
     viewName: str,
-    abstractorRefVLNV: tuple[str, str, str, str],
 ) -> str:
     """Create and append an ``abstractorInstance``.
 
-    Section: F.7.40.1.
+    Section: F.7.40.1. Arguments follow the standard's VLNV, instanceName,
+    viewName order after the containing abstractorInstances handle.
     """
     ai = _resolve_abstractor_instances(abstractorInstancesID)
     if ai is None:
         raise TgiError("Invalid abstractorInstances handle", TgiFaultCode.INVALID_ID)
+    name = _abstractor_name(ai, instanceName)
+    view = _abstractor_name(ai, viewName)
+    parts = _validated_vlnv(abstractorVLNV)
+    for part in parts:
+        _xml_text(part)
+    _unique_abstractor_name(ai, name)
     inst = DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance(
-        instance_name=instanceName,
-        view_name=viewName,
+        instance_name=name,
+        view_name=view,
         abstractor_ref=ConfigurableLibraryRefType(
-            vendor=abstractorRefVLNV[0],
-            library=abstractorRefVLNV[1],
-            name=abstractorRefVLNV[2],
-            version=abstractorRefVLNV[3],
+            vendor=parts[0],
+            library=parts[1],
+            name=parts[2],
+            version=parts[3],
         ),
     )
-    ai.abstractor_instance.append(inst)  # type: ignore[attr-defined]
+    ai.abstractor_instance = [*ai.abstractor_instance, inst]
     register_parent(inst, ai, ("abstractor_instance",), "list")
+    register_parent(inst.abstractor_ref, inst, ("abstractor_ref",), "single")
     return get_handle(inst)
 
 
@@ -527,9 +570,13 @@ def removeAbstractorInstancesAbstractorInstance(abstractorInstanceID: str) -> bo
     """Remove an abstractorInstance.
 
     Section: F.7.40.8. Returns False if handle invalid or not found under its parent.
+    The section's input label says abstractorInstancesID; its description
+    identifies the individual abstractorInstance to remove.
     """
     inst = _resolve_abstractor_instance(abstractorInstanceID)
     if inst is None:
+        return False
+    if _register_owned_child(inst, DesignConfiguration.InterconnectionConfiguration.AbstractorInstances) is None:
         return False
     return detach_child_by_handle(abstractorInstanceID)
 
@@ -629,16 +676,25 @@ def removeViewConfigurationConfigurableElementValue(configurableElementValueID: 
 def setAbstractorInstanceAbstractorRef(
     abstractorInstanceID: str, vlnv: tuple[str, str, str, str]
 ) -> bool:
-    """Set (replace) the abstractorRef of an abstractorInstance.
+    """Set the abstractorRef VLNV, preserving its configurable values and handle.
 
     Section: F.7.40.17.
     """
     inst = _resolve_abstractor_instance(abstractorInstanceID)
     if inst is None:
         raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
-    inst.abstractor_ref = ConfigurableLibraryRefType(
-        vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]
-    )
+    parts = _validated_vlnv(vlnv)
+    for part in parts:
+        _xml_text(part)
+    ref = inst.abstractor_ref
+    if ref is not None and not isinstance(ref, ConfigurableLibraryRefType):
+        raise TgiError("Invalid abstractorRef model", TgiFaultCode.INVALID_ID)
+    if ref is None:
+        ref = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+        inst.abstractor_ref = ref
+    else:
+        ref.vendor, ref.library, ref.name, ref.version = parts
+    register_parent(ref, inst, ("abstractor_ref",), "single")
     return True
 
 
@@ -650,7 +706,9 @@ def setAbstractorInstanceInstanceName(abstractorInstanceID: str, instanceName: s
     inst = _resolve_abstractor_instance(abstractorInstanceID)
     if inst is None:
         raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
-    inst.instance_name = instanceName
+    name = _abstractor_name(inst, instanceName)
+    _unique_abstractor_name(inst, name, inst)
+    inst.instance_name = name
     return True
 
 
@@ -662,7 +720,7 @@ def setAbstractorInstanceViewName(abstractorInstanceID: str, viewName: str) -> b
     inst = _resolve_abstractor_instance(abstractorInstanceID)
     if inst is None:
         raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
-    inst.view_name = viewName
+    inst.view_name = _abstractor_name(inst, viewName)
     return True
 
 
