@@ -2252,22 +2252,22 @@ Name group (EXTENDED)
 Parameter (BASE)
 ~~~~~~~~~~~~~~~~
 
-- ☐ ``getModuleParameterDataTypeDefinitionRefByID`` (F.7.65.1)
-- ☐ ``getParameterChoiceRefByName`` (F.7.65.2)
-- ☐ ``getParameterIDFromReferenceID`` (F.7.65.3)
-- ☐ ``getParameterIDs`` (F.7.65.4)
-- ☐ ``getParameterNameFromReferenceID`` (F.7.65.5)
-- ☐ ``getParameterValue`` (F.7.65.6)
-- ☐ ``getParameterValueExpression`` (F.7.65.7)
-- ☐ ``getParameterValueID`` (F.7.65.8)
+- ☑ ``getModuleParameterDataTypeDefinitionRefByID`` (F.7.65.1)
+- ☑ ``getParameterChoiceRefByName`` (F.7.65.2)
+- ☑ ``getParameterIDFromReferenceID`` (F.7.65.3)
+- ☑ ``getParameterIDs`` (F.7.65.4)
+- ☑ ``getParameterNameFromReferenceID`` (F.7.65.5)
+- ☑ ``getParameterValue`` (F.7.65.6)
+- ☑ ``getParameterValueExpression`` (F.7.65.7)
+- ☑ ``getParameterValueID`` (F.7.65.8)
 
 Parameter (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addParameter`` (F.7.66.1)
-- ☐ ``removeConfigGroupsAttribute`` (F.7.66.2)
-- ☐ ``removeParameter`` (F.7.66.3)
-- ☐ ``setParameterValue`` (F.7.66.4)
+- ☑ ``addParameter`` (F.7.66.1)
+- ☑ ``removeConfigGroupsAttribute`` (F.7.66.2)
+- ☑ ``removeParameter`` (F.7.66.3)
+- ☑ ``setParameterValue`` (F.7.66.4)
 
 Port (BASE)
 ~~~~~~~~~~~
