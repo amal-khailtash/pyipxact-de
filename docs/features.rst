@@ -2218,16 +2218,16 @@ Miscellaneous (EXTENDED)
 Module parameter (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``getModuleParameterIDs`` (F.7.61.1)
-- ☐ ``getModuleParameterValue`` (F.7.61.2)
-- ☐ ``getModuleParameterValueExpression`` (F.7.61.3)
+- ☑ ``getModuleParameterIDs`` (F.7.61.1)
+- ☑ ``getModuleParameterValue`` (F.7.61.2)
+- ☑ ``getModuleParameterValueExpression`` (F.7.61.3)
 
 Module parameter (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addModuleParameter`` (F.7.62.1)
-- ☐ ``removeModuleParameter`` (F.7.62.2)
-- ☐ ``setModuleParameterValue`` (F.7.62.3)
+- ☑ ``addModuleParameter`` (F.7.62.1)
+- ☑ ``removeModuleParameter`` (F.7.62.2)
+- ☑ ``setModuleParameterValue`` (F.7.62.3)
 
 Name group (BASE)
 ~~~~~~~~~~~~~~~~~

@@ -45,6 +45,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Module parameter BASE and EXTENDED contracts with generated module/type holders, numeric/source values and owned atomic edits.
 - Complete Constraint Set timing-percentage traversal and atomic additions with clock-name validation and parsed handle ownership.
 - Complete Component traversal, typed required-argument factories, mode expressions, reference edits and owned removal with handle invalidation.
 - Complete Catalog category traversal and typed entry edits, cross-category name/VLNV uniqueness, and owned removal with handle invalidation.
