@@ -6,7 +6,11 @@ manipulation, argument/define/expression setters, VLNV registry operations
 and administrative calls (init/end/message/save). Only the standard 2022
 API surface (no more, no less) is exported.
 
-Values and expressions retain their generated schema wrappers and source text.
+Where the underlying schema objects have simple content, generic access
+uses their ``value`` attributes with strict fault code semantics. Argument
+and define values use typed generated Value wrappers; expression source is
+stored in simple content. Values, expressions and part-select edits retain
+their generated schema wrappers and metadata.
 """
 
 # ruff: noqa: I001
@@ -93,7 +97,11 @@ __all__: list[str] = [
 # Helper utilities (non-spec)
 # ---------------------------------------------------------------------------
 
-# Administrative session state for F.3.2 (Init / Message / End).
+# Administrative session state for F.3.2 (Init / Message / End).  This is a
+# lightweight in-memory representation for current DE embedding scenarios.
+# The standard requires Init first and End last; Message is only valid
+# between them. The administrative calls enforce this session ordering;
+# ordinary model operations do not establish or check a transport session.
 _session_started: bool = False
 _session_ended: bool = False
 _session_messages: list[tuple[str, str]] = []  # (severity, message)
@@ -129,6 +137,7 @@ def _expression(handle: str) -> ComplexBaseExpression:
 
 
 def _text(obj: Any) -> str:
+    # Simple content objects may themselves have a value attribute.
     if isinstance(obj, NameValuePairType):
         obj = obj.value
     value = obj if isinstance(obj, str) else getattr(obj, "value", None)
@@ -267,60 +276,64 @@ def _log_with_severity(severity: str, text: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def getArgumentValue(argumentID: str) -> str:
-    """Return the source text of the owned value element.
+def getArgumentValue(argumentID: str) -> str:  # F.7.59.1
+    """Return argument value as the source string of its value element.
 
     Section: F.7.59.1.
 
+    The generated Value wrapper and its source text are retained; this getter does not evaluate the source.
+
     Args:
-        argumentID: Standard operation input.
+        argumentID: Handle to the argument element.
 
     Returns:
-        The standard operation result.
+        The value element's source string.
     """
     return _text(_pair(argumentID).value)
 
 
-def getArgumentValueExpression(argumentID: str) -> str:
-    """Return the source text of the owned value element.
+def getArgumentValueExpression(argumentID: str) -> str:  # F.7.59.2
+    """Return associated expression string for an argument if present.
 
     Section: F.7.59.2.
 
+    Expression source is stored in the owned Value element's simple content.
+
     Args:
-        argumentID: Standard operation input.
+        argumentID: Handle to the argument element.
 
     Returns:
-        The standard operation result.
+        The value element's expression source string.
     """
     return _text(_pair(argumentID).value)
 
 
-def getArgumentValueID(argumentID: str) -> str:
-    """Return the handle of the owned value element.
+def getArgumentValueID(argumentID: str) -> str:  # F.7.59.3
+    """Return handle to the value element owned by the argument.
 
     Section: F.7.59.3.
 
     Args:
-        argumentID: Standard operation input.
+        argumentID: Handle to the argument element.
 
     Returns:
-        The standard operation result.
+        Handle to the owned Value element.
     """
     parent = _pair(argumentID)
     register_parent(parent.value, parent, ("value",), "single")
     return get_handle(parent.value)
 
 
-def getBooleanValue(elementID: str) -> bool:
-    """Return an XML Schema Boolean value.
+def getBooleanValue(elementID: str) -> bool:  # F.7.59.4
+    """Return boolean simple content value.
 
     Section: F.7.59.4.
 
     Args:
-        elementID: Standard operation input.
+        elementID: Handle to the IP-XACT element.
 
     Returns:
-        The standard operation result.
+        The XML Schema Boolean value.
     """
     obj = _boolean_target(elementID)
     value = obj if isinstance(obj, bool) else getattr(obj, "value", None)
@@ -331,74 +344,79 @@ def getBooleanValue(elementID: str) -> bool:
     raise TgiError("Invalid XML Boolean", TgiFaultCode.INVALID_ARGUMENT)
 
 
-def getDefineValue(defineID: str) -> str:
-    """Return the source text of the owned value element.
+def getDefineValue(defineID: str) -> str:  # F.7.59.5
+    """Return define value string.
 
     Section: F.7.59.5.
 
     Args:
-        defineID: Standard operation input.
+        defineID: Handle to the define element.
 
     Returns:
-        The standard operation result.
+        The define value string.
     """
     return _text(_pair(defineID).value)
 
 
-def getDefineValueExpression(defineID: str) -> str:
-    """Return the source text of the owned value element.
+def getDefineValueExpression(defineID: str) -> str:  # F.7.59.6
+    """Return expression for define value.
 
     Section: F.7.59.6.
 
+    Expression source is stored in the owned Value element's simple content.
+
     Args:
-        defineID: Standard operation input.
+        defineID: Handle to the define element.
 
     Returns:
-        The standard operation result.
+        The define value's expression source string.
     """
     return _text(_pair(defineID).value)
 
 
-def getDefineValueID(defineID: str) -> str:
-    """Return the handle of the owned value element.
+def getDefineValueID(defineID: str) -> str:  # F.7.59.7
+    """Return handle to the value element owned by the define.
 
     Section: F.7.59.7.
 
     Args:
-        defineID: Standard operation input.
+        defineID: Handle to the define element.
 
     Returns:
-        The standard operation result.
+        Handle to the owned Value element.
     """
     parent = _pair(defineID)
     register_parent(parent.value, parent, ("value",), "single")
     return get_handle(parent.value)
 
 
-def getExpression(expressionID: str) -> str:
-    """Return the specified element content.
+def getExpression(expressionID: str) -> str:  # F.7.59.8
+    """Return raw expression text.
 
     Section: F.7.59.8.
 
     Args:
-        expressionID: Standard operation input.
+        expressionID: Handle to the expression element.
 
     Returns:
-        The standard operation result.
+        The raw expression text.
     """
     return _text(_expression(expressionID))
 
 
-def getExpressionIntValue(expressionID: str) -> int:
-    """Return the specified element content.
+def getExpressionIntValue(expressionID: str) -> int:  # F.7.59.9
+    """Return the evaluated integer value of an expression.
 
     Section: F.7.59.9.
 
+    Uses SvExpressionParser for SystemVerilog constant evaluation. Unresolved, non-integral and out-of-range values
+    raise TgiError; the result must fit the signed 64-bit TGI Long domain.
+
     Args:
-        expressionID: Standard operation input.
+        expressionID: Handle to the expression element.
 
     Returns:
-        The standard operation result.
+        The evaluated integer as a TGI Long.
     """
     value = _evaluate(_text(_expression(expressionID)))
     if not isinstance(value, int) or not -(1 << 63) <= value < (1 << 63):
@@ -406,162 +424,174 @@ def getExpressionIntValue(expressionID: str) -> int:
     return value
 
 
-def getExpressionValue(expressionID: str) -> str:
-    """Return the specified element content.
+def getExpressionValue(expressionID: str) -> str:  # F.7.59.10
+    """Return evaluated value as a string.
 
     Section: F.7.59.10.
 
+    Uses SvExpressionParser for constant evaluation. Numeric constants are returned as strings; other constant values
+    retain the parser's literal representation. Unresolved expressions raise TgiError.
+
     Args:
-        expressionID: Standard operation input.
+        expressionID: Handle to the expression element.
 
     Returns:
-        The standard operation result.
+        The evaluated constant as a string.
     """
     return _evaluated_text(_text(_expression(expressionID)))
 
 
-def getGroup(groupID: str) -> str:
-    """Return the specified element content.
+def getGroup(groupID: str) -> str:  # F.7.59.11
+    """Return the group name defined on the given group element.
 
     Section: F.7.59.11.
 
     Args:
-        groupID: Standard operation input.
+        groupID: Handle to the group element.
 
     Returns:
-        The standard operation result.
+        The group name.
     """
     return _text(_require(groupID))
 
 
-def getPartSelectIndexIDs(partSelectID: str) -> list[str]:
-    """getPartSelectIndexIDs on the specified schema content.
+def getPartSelectIndexIDs(partSelectID: str) -> list[str]:  # F.7.59.12
+    """Return handles of each index element in a partSelect.
 
     Section: F.7.59.12.
 
+    Traverses generated Indices/Index children in the partSelect range_or_indices choice and registers their ownership.
+
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The standard operation result.
+        Index handles in source order, or an empty list when no indices are defined.
     """
     return _part_select_ops.getPartSelectIndexIDs(partSelectID)
 
 
-def getPartSelectIndices(partSelectID: str) -> list[int]:
-    """getPartSelectIndices on the specified schema content.
+def getPartSelectIndices(partSelectID: str) -> list[int]:  # F.7.59.13
+    """Return concrete integer indices for part select.
 
     Section: F.7.59.13.
 
+    Uses SvExpressionParser for constant expressions. Unresolved or out-of-domain indices raise TgiError.
+
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The standard operation result.
+        Evaluated unsigned 32-bit indices in source order.
     """
     return _part_select_ops.getPartSelectIndices(partSelectID)
 
 
-def getPartSelectIndicesExpression(partSelectID: str) -> list[str]:
-    """getPartSelectIndicesExpression on the specified schema content.
+def getPartSelectIndicesExpression(partSelectID: str) -> list[str]:  # F.7.59.14
+    """Return raw expressions/values for each index.
 
     Section: F.7.59.14.
 
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The standard operation result.
+        Index source expressions in source order.
     """
     return _part_select_ops.getPartSelectIndicesExpression(partSelectID)
 
 
-def getPartSelectRange(partSelectID: str) -> list[int] | None:
-    """getPartSelectRange on the specified schema content.
+def getPartSelectRange(partSelectID: str) -> list[int] | None:  # F.7.59.15
+    """Return [left, right] numeric range, or None when no range is defined.
 
     Section: F.7.59.15.
 
+    Uses SvExpressionParser for constant expressions. Unresolved or out-of-domain bounds raise TgiError.
+
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The operation result; absent optional schema content returns None.
+        [left, right] evaluated unsigned 32-bit bounds, or None when absent.
     """
     return _part_select_ops.getPartSelectRange(partSelectID)
 
 
-def getPartSelectRangeExpression(partSelectID: str) -> list[str] | None:
-    """getPartSelectRangeExpression on the specified schema content.
+def getPartSelectRangeExpression(partSelectID: str) -> list[str] | None:  # F.7.59.16
+    """Return [leftExpr, rightExpr] raw expression/value strings, or None when no range is defined.
 
     Section: F.7.59.16.
 
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The operation result; absent optional schema content returns None.
+        [left, right] source expressions, or None when absent.
     """
     return _part_select_ops.getPartSelectRangeExpression(partSelectID)
 
 
-def getPartSelectRangeLeftID(partSelectID: str) -> str | None:
-    """getPartSelectRangeLeftID on the specified schema content.
+def getPartSelectRangeLeftID(partSelectID: str) -> str | None:  # F.7.59.17
+    """Return handle of left expression element if present.
 
     Section: F.7.59.17.
 
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The operation result; absent optional schema content returns None.
+        Handle to the left bound element, or None when absent.
     """
     return _part_select_ops.getPartSelectRangeLeftID(partSelectID)
 
 
-def getPartSelectRangeRightID(partSelectID: str) -> str | None:
-    """getPartSelectRangeRightID on the specified schema content.
+def getPartSelectRangeRightID(partSelectID: str) -> str | None:  # F.7.59.18
+    """Return handle of right expression element if present.
 
     Section: F.7.59.18.
 
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The operation result; absent optional schema content returns None.
+        Handle to the right bound element, or None when absent.
     """
     return _part_select_ops.getPartSelectRangeRightID(partSelectID)
 
 
-def getValue(elementID: str) -> str:
-    """Return the specified element content.
+def getValue(elementID: str) -> str:  # F.7.59.19
+    """Return generic simple content value.
 
     Section: F.7.59.19.
 
     Args:
-        elementID: Standard operation input.
+        elementID: Handle to the IP-XACT element.
 
     Returns:
-        The standard operation result.
+        The simple content as a string.
     """
     return _text(_require(elementID))
 
 
-def getXML(elementID: str) -> str:
-    """Return the specified element content.
+def getXML(elementID: str) -> str:  # F.7.59.20
+    """Serialize an element to XML using xsdata's ``XmlSerializer``.
 
-    Section: F.7.59.20.
+    Section: F.7.59.20. Uses the project-wide serializer configuration
+    (indentation two spaces). If the element cannot be resolved, TgiError
+    is raised with INVALID_ID. Errors during serialization raise TgiError
+    with INVALID_ARGUMENT.
 
     Args:
-        elementID: Standard operation input.
+        elementID: Handle to the IP-XACT element.
 
     Returns:
-        The standard operation result.
+        The serialized XML fragment.
     """
     try:
         return XmlDocument.serializer().render(_require(elementID))
     except TgiError:
         raise
-    except Exception as exc:
+    except Exception as exc:  # defensive: surface as TGI error
         raise TgiError("Cannot serialize element", TgiFaultCode.INVALID_ARGUMENT) from exc
 
 
@@ -570,33 +600,46 @@ def getXML(elementID: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def addPartSelectIndex(partSelectID: str, value: str) -> str:
-    """addPartSelectIndex on the specified schema content.
+def addPartSelectIndex(partSelectID: str, value: str) -> str:  # F.7.60.1
+    """Add a new index entry to partSelect returning its handle.
 
     Section: F.7.60.1.
 
     Args:
-        partSelectID: Standard operation input.
-        value: Standard operation input.
+        partSelectID: Handle to the partSelect element.
+        value: Source value to assign.
 
     Returns:
-        The standard operation result.
+        Handle to the new Index element.
     """
     return _part_select_ops.addPartSelectIndex(partSelectID, value)
 
 
-def init(apiVersion: str, failureMode: str, message: str) -> bool:
-    """Initialize the generator administrative session.
+def init(apiVersion: str, failureMode: str, message: str) -> bool:  # F.7.60.3
+    """Initialize a new TGI administrative session (Init command).
 
     Section: F.7.60.3.
 
+    Section F.3.2 specifies Init as the required first administrative
+    message from the generator to the DE. F.7.60.3 requires an API version,
+    compatibility failure mode and message, with a boolean return status.
+    These values are recorded for the active session.
+
     Args:
-        apiVersion: Standard operation input.
-        failureMode: Standard operation input.
-        message: Standard operation input.
+        apiVersion: API version string requested/advertised by the
+            generator (e.g. "1685-2022"). Stored for later inspection.
+        failureMode: Compatibility failure mode: "fail", "error" or
+            "warning". The value is validated and stored.
+        message: Initial status line to record and display with informational
+            severity. The message is required; its text may be empty.
+
+    Raises:
+        TgiError: If a session is already active (no intervening End),
+            fault code ``ALREADY_EXISTS``; or if an input is invalid,
+            fault code ``INVALID_ARGUMENT``.
 
     Returns:
-        The standard operation result.
+        True when initialization succeeds.
     """
     global _session_started, _session_ended, _session_api_version, _session_failure_mode, _session_init_message
     _xml_text(apiVersion)
@@ -605,25 +648,51 @@ def init(apiVersion: str, failureMode: str, message: str) -> bool:
         raise TgiError("Invalid failure mode", TgiFaultCode.INVALID_ARGUMENT)
     if _session_started and not _session_ended:
         raise TgiError("Session already initialized", TgiFaultCode.ALREADY_EXISTS)
+    # Reset state for new lifecycle
     _session_started, _session_ended = True, False
     _session_api_version, _session_failure_mode, _session_init_message = apiVersion, failureMode, message
     _session_messages.clear()
     _session_messages.append(("info", message))
+    # Log initialization message
     _log_with_severity("info", message)
     return True
 
 
-def end(genStatus: int, message: str) -> int:
-    """End the session and return zero when the DE accepts the termination.
+def end(genStatus: int, message: str) -> int:  # F.7.60.2
+    """Terminate the active TGI administrative session.
 
     Section: F.7.60.2.
 
+    Implements the End administrative command defined in section F.3.2.
+    According to the specification this shall be the final message sent
+    from the generator to the DE and conveys that the generator no longer
+    requires the DE to listen for further TGI calls. The IEEE text also
+    notes that a generator is not strictly required to terminate after
+    sending End.
+
+    Ordering rules enforced:
+        * ``init()`` must have been called successfully first; otherwise a
+            ``TgiError`` is raised with ``INVALID_ARGUMENT``.
+        * The session must still be active. Repeated ``end()`` calls after
+            termination raise ``TgiError`` with ``INVALID_ARGUMENT``.
+
+    Side effects:
+        * Records and displays the generator's termination message.
+        * Marks the session as ended. Additional administrative calls that
+            depend on an open session (``message``) will raise.
+
     Args:
-        genStatus: Standard operation input.
-        message: Standard operation input.
+        genStatus: TGI Long status indicator from the generator. Non-zero
+            implies a generator error; this is separate from the DE status.
+        message: Message that the DE may display to the user.
+
+    Raises:
+        TgiError: If the session is not active, genStatus is not a signed
+            64-bit integer or message is invalid, with ``INVALID_ARGUMENT``.
 
     Returns:
-        The standard operation result.
+        Zero when the DE accepts termination. A non-zero DE status would
+        indicate a DE error; generator errors are supplied through genStatus.
     """
     global _session_ended
     _active_session()
@@ -636,17 +705,27 @@ def end(genStatus: int, message: str) -> int:
     return 0
 
 
-def message(severity: str, message: str) -> bool:
-    """Record a generator status message during an active session.
+def message(severity: str, message: str) -> bool:  # F.7.60.5
+    """Record a status message (Message command) for the active session.
 
     Section: F.7.60.5.
 
+    Section F.3.2 defines Message as a way for a generator to convey
+    status to the user. This implementation captures both a required
+    severity tag and the message text, storing them in the session log.
+
     Args:
-        severity: Standard operation input.
-        message: Standard operation input.
+        severity: Free-form severity level (e.g. ``INFO``, ``WARN``,
+            ``ERROR``). No severity enumeration is enforced; callers may
+            adopt any taxonomy. Known levels are mapped to the logger.
+        message: Message body. Empty strings are recorded and accepted.
+
+    Raises:
+        TgiError: If called before ``init`` or after ``end`` with fault
+            code ``INVALID_ARGUMENT``, or if an input is invalid.
 
     Returns:
-        The standard operation result.
+        True if the message is accepted.
     """
     _active_session()
     _xml_text(severity)
@@ -656,17 +735,17 @@ def message(severity: str, message: str) -> bool:
     return True
 
 
-def isSetElement(elementContainerID: str, elementName: str) -> bool:
-    """Return whether the named child element is present.
+def isSetElement(elementContainerID: str, elementName: str) -> bool:  # F.7.60.4
+    """Return True if the named child element is set on its container.
 
     Section: F.7.60.4.
 
     Args:
-        elementContainerID: Standard operation input.
-        elementName: Standard operation input.
+        elementContainerID: Handle to the parent element container.
+        elementName: XML name of the child element to check.
 
     Returns:
-        The standard operation result.
+        True when the named child element is present; False otherwise.
     """
     obj = _require(elementContainerID)
     _xml_text(elementName)
@@ -681,60 +760,72 @@ def isSetElement(elementContainerID: str, elementName: str) -> bool:
     return False
 
 
-def registerCatalogVLNVs(catalogID: str) -> bool:
-    """registerCatalogVLNVs on the specified schema content.
+def registerCatalogVLNVs(catalogID: str) -> bool:  # F.7.60.6
+    """Register the VLNVs of the top-level documents referenced by a catalog.
 
     Section: F.7.60.6.
 
+    Catalog file references are resolved relative to the registered catalog file. Each referenced file must contain
+    a supported 2022 top-level document with the declared VLNV and document type. All references are checked before
+    registration; existing registrations or conflicting references return False.
+
     Args:
-        catalogID: Standard operation input.
+        catalogID: Handle to the registered catalog document.
 
     Returns:
-        The standard operation result.
+        True when registration succeeds; False otherwise.
     """
     return _registry_ops.registerCatalogVLNVs(catalogID)
 
 
-def registerVLNV(fileName: str, replace: bool) -> bool:
-    """registerVLNV on the specified schema content.
+def registerVLNV(fileName: str, replace: bool) -> bool:  # F.7.60.7
+    """Register a single VLNV for a top-level document loaded from a file.
 
     Section: F.7.60.7.
 
+    Accepts a filename and a Boolean replace flag. Only supported IEEE 1685-2022 top-level roots are registered.
+    An existing VLNV returns False unless replace is True; loading or registration failures return False.
+
     Args:
-        fileName: Standard operation input.
-        replace: Standard operation input.
+        fileName: Filename of the top-level IP-XACT document to register.
+        replace: Whether an existing VLNV registration may be replaced.
 
     Returns:
-        The standard operation result.
+        True when registration succeeds; False otherwise.
     """
     return _registry_ops.registerVLNV(fileName, replace)
 
 
-def removePartSelectIndex(indexID: str) -> bool:
-    """removePartSelectIndex on the specified schema content.
+def removePartSelectIndex(indexID: str) -> bool:  # F.7.60.8
+    """Remove an index element from its parent partSelect list.
 
     Section: F.7.60.8.
 
+    Detaches the owned Index, invalidates its handle and removes an empty Indices holder.
+
     Args:
-        indexID: Standard operation input.
+        indexID: Handle to the index element to remove.
 
     Returns:
-        The standard operation result.
+        True when the owned index is removed.
     """
     return _part_select_ops.removePartSelectIndex(indexID)
 
 
-def resolveExpression(expression: str, values: Sequence[str]) -> str:
-    """Evaluate an expression using the supplied constant name/value pairs.
+def resolveExpression(expression: str, values: Sequence[str]) -> str:  # F.7.60.9
+    """Resolve an expression using the supplied constant name/value pairs.
 
     Section: F.7.60.9.
 
+    Each values entry has the form "name = value"; the value must be a self-contained SystemVerilog constant.
+    SvExpressionParser evaluates the expression in that constant environment. Invalid or duplicate pairs raise TgiError.
+
     Args:
-        expression: Standard operation input.
-        values: Standard operation input.
+        expression: SystemVerilog expression to evaluate.
+        values: Constant assignments in "name = value" form.
 
     Returns:
-        The standard operation result.
+        The evaluated constant as a string.
     """
     _xml_text(expression)
     if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
@@ -754,47 +845,51 @@ def resolveExpression(expression: str, values: Sequence[str]) -> str:
     return _evaluated_text(expression, constants)
 
 
-def save() -> bool:
-    """save on the specified schema content.
+def save() -> bool:  # F.7.60.10
+    """Persist current model state to the registered document files after XML validation.
 
     Section: F.7.60.10.
+
+    Uses the project-wide serializer configuration. All registered top-level documents are staged and schema-validated
+    before their files are replaced. File permissions are preserved. Invalid documents, missing source files or
+    persistence failures return False.
 
     Args:
         None.
 
     Returns:
-        The standard operation result.
+        True when persistence succeeds; False otherwise.
     """
     return _registry_ops.save()
 
 
-def setArgumentValue(argumentID: str, value: str) -> bool:
-    """Assign source content while preserving the schema wrapper.
+def setArgumentValue(argumentID: str, value: str) -> bool:  # F.7.60.11
+    """Set argument value while preserving its owned value element.
 
     Section: F.7.60.11.
 
     Args:
-        argumentID: Standard operation input.
-        value: Standard operation input.
+        argumentID: Handle to the argument element.
+        value: Source value to assign.
 
     Returns:
-        The standard operation result.
+        True when the value is assigned successfully.
     """
     _pair(argumentID).value.value = _xml_text(value)
     return True
 
 
-def setBooleanValue(elementID: str, value: bool) -> bool:
-    """Assign an XML Boolean to its owning schema element.
+def setBooleanValue(elementID: str, value: bool) -> bool:  # F.7.60.12
+    """Set boolean value on the given element or its registered owning field.
 
     Section: F.7.60.12.
 
     Args:
-        elementID: Standard operation input.
-        value: Standard operation input.
+        elementID: Handle to the IP-XACT element.
+        value: Boolean value to assign.
 
     Returns:
-        The standard operation result.
+        True when the value is assigned successfully.
     """
     if not isinstance(value, bool):
         raise TgiError("Expected Boolean", TgiFaultCode.INVALID_ARGUMENT)
@@ -814,66 +909,71 @@ def setBooleanValue(elementID: str, value: bool) -> bool:
     return True
 
 
-def setDefineValue(argumentID: str, value: str) -> bool:
-    """Assign source content while preserving the schema wrapper.
+def setDefineValue(argumentID: str, value: str) -> bool:  # F.7.60.13
+    """Set define value while preserving its owned value element.
 
     Section: F.7.60.13.
 
     Args:
-        argumentID: Standard operation input.
-        value: Standard operation input.
+        argumentID: Handle to the define element; Annex F.7.60.13 retains the name argumentID.
+        value: Source value to assign.
 
     Returns:
-        The standard operation result.
+        True when the value is assigned successfully.
     """
     _pair(argumentID).value.value = _xml_text(value)
     return True
 
 
-def setExpressionValue(expressionID: str, value: str) -> bool:
-    """Assign source content while preserving the schema wrapper.
+def setExpressionValue(expressionID: str, value: str) -> bool:  # F.7.60.14
+    """Set expression text while preserving the expression element.
 
     Section: F.7.60.14.
 
+    Malformed constant expressions and known intrinsic/declared bound violations are rejected before mutation.
+    Unresolved identifiers remain source text for later configured evaluation.
+
     Args:
-        expressionID: Standard operation input.
-        value: Standard operation input.
+        expressionID: Handle to the expression element.
+        value: Source value to assign.
 
     Returns:
-        The standard operation result.
+        True when the value is assigned successfully.
     """
     obj = _expression(expressionID)
     obj.value = _expression_source(value, obj)
     return True
 
 
-def setPartSelectRange(partSelectID: str, left: str, right: str) -> bool:
-    """setPartSelectRange on the specified schema content.
+def setPartSelectRange(partSelectID: str, left: str, right: str) -> bool:  # F.7.60.15
+    """Set [left, right] range expressions while preserving existing bound elements.
 
     Section: F.7.60.15.
 
+    Sibling indices and bound metadata are retained. The combined choice follows schema child order, indices then range.
+
     Args:
-        partSelectID: Standard operation input.
-        left: Standard operation input.
-        right: Standard operation input.
+        partSelectID: Handle to the partSelect element.
+        left: Source expression for the left range bound.
+        right: Source expression for the right range bound.
 
     Returns:
-        The standard operation result.
+        True when the value is assigned successfully.
     """
     return _part_select_ops.setPartSelectRange(partSelectID, left, right)
 
 
-def setValue(elementID: str, value: str) -> bool:
-    """Assign source content while preserving the schema wrapper.
+def setValue(elementID: str, value: str) -> bool:  # F.7.60.16
+    """Set generic value simple content.
 
     Section: F.7.60.16.
 
     Args:
-        elementID: Standard operation input.
-        value: Standard operation input.
+        elementID: Handle to the IP-XACT element.
+        value: Source value to assign.
 
     Returns:
-        The standard operation result.
+        True when the value is assigned successfully.
     """
     obj = _require(elementID)
     if isinstance(obj, NameValuePairType):
@@ -885,43 +985,47 @@ def setValue(elementID: str, value: str) -> bool:
     return True
 
 
-def removePartSelectRange(partSelectID: str) -> bool:
-    """removePartSelectRange on the specified schema content.
+def removePartSelectRange(partSelectID: str) -> bool:  # F.7.60.17
+    """Remove range (left/right) elements.
 
     Section: F.7.60.17.
 
+    Invalidates the removed range and its bound handles, while retaining sibling indices.
+
     Args:
-        partSelectID: Standard operation input.
+        partSelectID: Handle to the partSelect element.
 
     Returns:
-        The standard operation result.
+        True when a range is removed; False when no range is defined.
     """
     return _part_select_ops.removePartSelectRange(partSelectID)
 
 
-def unregisterCatalogVLNVs(catalogID: str) -> bool:
-    """unregisterCatalogVLNVs on the specified schema content.
+def unregisterCatalogVLNVs(catalogID: str) -> bool:  # F.7.60.18
+    """Unregister the VLNVs declared by the given catalog.
 
     Section: F.7.60.18.
 
+    Uses the catalog's declared VLNVs; referenced files need not still exist.
+
     Args:
-        catalogID: Standard operation input.
+        catalogID: Handle to the registered catalog document.
 
     Returns:
-        The standard operation result.
+        True when the catalog declarations are processed successfully; False otherwise.
     """
     return _registry_ops.unregisterCatalogVLNVs(catalogID)
 
 
-def unregisterVLNV(VLNV: Sequence[str]) -> bool:
-    """unregisterVLNV on the specified schema content.
+def unregisterVLNV(VLNV: Sequence[str]) -> bool:  # F.7.60.19
+    """Unregister a single VLNV mapping.
 
     Section: F.7.60.19.
 
     Args:
-        VLNV: Standard operation input.
+        VLNV: Four strings identifying vendor, library, name and version.
 
     Returns:
-        The standard operation result.
+        True when the VLNV is unregistered; False when it was not registered or the input is invalid.
     """
     return _registry_ops.unregisterVLNV(VLNV)
