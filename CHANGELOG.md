@@ -45,6 +45,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Power contracts with scoped domain references, typed constraints and instance links, preserved expression metadata, uniqueness checks and owned removal.
 - Complete Port map contracts with typed logical/physical choices, numeric/source getters, schema-valid combined part selects, preserved metadata and owned atomic edits.
 - Complete CPU BASE and EXTENDED contracts with scoped memory-map references, typed regions and executable images, unsigned expressions, atomic edits and handle-preserving ownership.
 - Complete Configurable element definition/default and override contracts with typed XML source mapping, contextual reference/choice/range checks, schema-valid atomic edits and owned removal.
