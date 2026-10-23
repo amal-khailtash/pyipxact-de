@@ -6,28 +6,45 @@ manipulation, argument/define/expression setters, VLNV registry operations
 and administrative calls (init/end/message/save). Only the standard 2022
 API surface (no more, no less) is exported.
 
-Where the underlying schema objects are not explicitly typed in this layer
-(e.g. *argumentValue* wrappers), generic duck-typing against ``value`` /
-``expression`` / ``group`` attributes is used. This mirrors patterns from
-other categories while keeping strict fault code semantics.
+Values and expressions retain their generated schema wrappers and source text.
 """
 
 # ruff: noqa: I001
 from typing import Any
-from collections.abc import Iterable, Sequence
-from types import SimpleNamespace
+from collections.abc import Sequence
+from dataclasses import fields, is_dataclass
+from amal.eda.systemverilog.expression_parser import SvExpressionParser, SvExpressionError
+from org.accellera.ipxact.v1685_2022 import (
+    ComplexBaseExpression,
+    NameValuePairType,
+    Value,
+    UnsignedIntExpression,
+    UnsignedPositiveIntExpression,
+    UnsignedLongintExpression,
+    UnsignedPositiveLongintExpression,
+    UnsignedBitExpression,
+    UnsignedBitVectorExpression,
+    SignedLongintExpression,
+)
+from .port_map import _xml_text
+from . import _miscellaneous_part_select as _part_select_ops
+from . import _miscellaneous_registry as _registry_ops
+import re
+import math
+from enum import Enum
+from decimal import Decimal, InvalidOperation
+from .core import register_parent, get_parent_info
 
 from .core import (
     TgiError,
     TgiFaultCode,
     get_handle,
     resolve_handle,
-    registry,
 )
 from amal.utilities.log import logger
 from amal.eda.ipxact_de.xml_document import XmlDocument
 
-__all__ = [
+__all__: list[str] = [
     # BASE (F.7.59)
     "getArgumentValue",
     "getArgumentValueExpression",
@@ -76,18 +93,14 @@ __all__ = [
 # Helper utilities (non-spec)
 # ---------------------------------------------------------------------------
 
-# Administrative session state for F.3.2 (Init / Message / End).  This is a
-# lightweight in-memory representation sufficient for current DE embedding
-# scenarios. A future transport layer can map these primitives onto actual
-# connection lifecycle management.  We intentionally keep the surface minimal
-# while enforcing ordering constraints required by the standard: Init must be
-# first, End must be last, and Message is only valid between them.
+# Administrative session state for F.3.2 (Init / Message / End).
 _session_started: bool = False
 _session_ended: bool = False
 _session_messages: list[tuple[str, str]] = []  # (severity, message)
 _session_api_version: str | None = None
 _session_failure_mode: str | None = None
 _session_init_message: str | None = None
+
 
 def _require(handle: str) -> Any:
     obj = resolve_handle(handle)
@@ -96,30 +109,133 @@ def _require(handle: str) -> Any:
     return obj
 
 
-def _get_value(obj: Any) -> str | None:
-    val = getattr(obj, "value", None)
-    if val is None:
-        return None
-    # Simple content objects may themselves have a value attribute
-    inner = getattr(val, "value", None)
-    return inner if inner is not None else val
+def _active_session() -> None:
+    if not _session_started or _session_ended:
+        raise TgiError("Call outside active session", TgiFaultCode.INVALID_ARGUMENT)
 
 
-def _get_expression(obj: Any) -> str | None:
-    expr = getattr(obj, "expression", None)
-    if expr is None:
-        return None
-    return getattr(expr, "value", None) if hasattr(expr, "value") else expr
+def _pair(handle: str) -> NameValuePairType:
+    obj = _require(handle)
+    if not isinstance(obj, NameValuePairType) or not isinstance(obj.value, Value):
+        raise TgiError("Expected argument or define", TgiFaultCode.INVALID_ID)
+    return obj
 
 
-def _ensure_list(obj: Any, attr: str) -> list[Any]:
-    lst = getattr(obj, attr, None)
-    if lst is None:
-        lst = []
-        setattr(obj, attr, lst)
-    if not isinstance(lst, list):  # defensive
-        raise TgiError("Attribute is not a list", TgiFaultCode.INTERNAL_ERROR)
-    return lst
+def _expression(handle: str) -> ComplexBaseExpression:
+    obj = _require(handle)
+    if not isinstance(obj, ComplexBaseExpression):
+        raise TgiError("Expected expression element", TgiFaultCode.INVALID_ID)
+    return obj
+
+
+def _text(obj: Any) -> str:
+    if isinstance(obj, NameValuePairType):
+        obj = obj.value
+    value = obj if isinstance(obj, str) else getattr(obj, "value", None)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, Enum):
+        return str(value.value)
+    if isinstance(value, (int, float, Decimal)):
+        return str(value)
+    if not isinstance(value, str):
+        raise TgiError("Expected simple content", TgiFaultCode.INVALID_ID)
+    return value
+
+
+def _set_simple_text(obj: Any, value: str) -> None:
+    _xml_text(value)
+    old = getattr(obj, "value", None)
+    if isinstance(old, str):
+        obj.value = value
+    elif isinstance(old, bool):
+        if value.strip() not in ("true", "false", "1", "0"):
+            raise TgiError("Invalid XML Boolean", TgiFaultCode.INVALID_ARGUMENT)
+        obj.value = value.strip() in ("true", "1")
+    elif isinstance(old, Enum):
+        try:
+            obj.value = type(old)(value)
+        except ValueError as exc:
+            raise TgiError("Invalid enumeration", TgiFaultCode.INVALID_ARGUMENT) from exc
+    elif type(old) in (int, float, Decimal):
+        if not re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", value.strip()):
+            raise TgiError("Invalid numeric content", TgiFaultCode.INVALID_ARGUMENT)
+        try:
+            number = Decimal(value.strip())
+            if type(old) is int and number != number.to_integral_value():
+                raise ValueError("Expected integer")
+            converted = type(old)(number)
+            if isinstance(converted, float) and not math.isfinite(converted):
+                raise ValueError("Expected finite number")
+        except (ValueError, InvalidOperation, OverflowError) as exc:
+            raise TgiError("Invalid numeric content", TgiFaultCode.INVALID_ARGUMENT) from exc
+        obj.value = converted
+    else:
+        raise TgiError("Expected simple content element", TgiFaultCode.INVALID_ID)
+
+
+def _boolean_target(handle: str) -> Any:
+    obj = _require(handle)
+    if isinstance(obj, bool):
+        info = get_parent_info(handle)
+        if info is not None and info.container == "single":
+            owner = _require(info.parent_handle)
+            for attr in info.path:
+                owner = getattr(owner, attr)
+            return owner
+    return obj
+
+
+def _expression_source(value: str, obj: ComplexBaseExpression) -> str:
+    _xml_text(value)
+    try:
+        result = SvExpressionParser().parse(value)
+    except SvExpressionError as exc:
+        diagnostics = re.findall(r"error:\s*(.+)", str(exc))
+        if not diagnostics or not all("use of undeclared identifier" in item for item in diagnostics):
+            raise TgiError("Invalid expression source", TgiFaultCode.INVALID_ARGUMENT) from exc
+        return value
+    bounds: tuple[int, int | None] | None = None
+    if isinstance(obj, (UnsignedPositiveIntExpression, UnsignedIntExpression)):
+        bounds = (1 if isinstance(obj, UnsignedPositiveIntExpression) else 0, (1 << 32) - 1)
+    elif isinstance(obj, (UnsignedPositiveLongintExpression, UnsignedLongintExpression)):
+        bounds = (1 if isinstance(obj, UnsignedPositiveLongintExpression) else 0, (1 << 64) - 1)
+    elif isinstance(obj, UnsignedBitExpression):
+        bounds = (0, 1)
+    elif isinstance(obj, UnsignedBitVectorExpression):
+        bounds = (0, None)
+    elif isinstance(obj, SignedLongintExpression):
+        bounds = (-(1 << 63), (1 << 63) - 1)
+    if bounds is not None:
+        try:
+            number = result.as_python()
+        except SvExpressionError as exc:
+            raise TgiError("Expected known numeric constant", TgiFaultCode.INVALID_ARGUMENT) from exc
+        minimum, maximum = bounds
+        if type(number) is not int or number < minimum or (maximum is not None and number > maximum):
+            raise TgiError("Expression outside schema bounds", TgiFaultCode.INVALID_ARGUMENT)
+        declared_min, declared_max = getattr(obj, "minimum", None), getattr(obj, "maximum", None)
+        if (declared_min is not None and number < declared_min) or (declared_max is not None and number > declared_max):
+            raise TgiError("Expression outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _evaluate(source: str) -> int | float:
+    try:
+        return SvExpressionParser().evaluate(source)
+    except SvExpressionError as exc:
+        raise TgiError("Cannot evaluate constant expression", TgiFaultCode.INVALID_ARGUMENT) from exc
+
+
+def _evaluated_text(source: str, constants: dict[str, str] | None = None) -> str:
+    try:
+        result = SvExpressionParser(constants).parse(source)
+        try:
+            return str(result.as_python())
+        except SvExpressionError:
+            return result.literal
+    except SvExpressionError as exc:
+        raise TgiError("Cannot evaluate constant expression", TgiFaultCode.INVALID_ARGUMENT) from exc
 
 
 def _log_with_severity(severity: str, text: str) -> None:
@@ -150,550 +266,662 @@ def _log_with_severity(severity: str, text: str) -> None:
 # BASE (F.7.59)
 # ---------------------------------------------------------------------------
 
-def getArgumentValue(argumentID: str) -> int | str | None:  # F.7.59.1
-    """Return argument value (simple numeric str/int) or None.
+
+def getArgumentValue(argumentID: str) -> str:
+    """Return the source text of the owned value element.
 
     Section: F.7.59.1.
+
+    Args:
+        argumentID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(argumentID)
-    return _get_value(obj) if obj is not None else None
+    return _text(_pair(argumentID).value)
 
 
-def getArgumentValueExpression(argumentID: str) -> str | None:  # F.7.59.2
-    """Return associated expression string for an argument if present.
+def getArgumentValueExpression(argumentID: str) -> str:
+    """Return the source text of the owned value element.
 
     Section: F.7.59.2.
+
+    Args:
+        argumentID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(argumentID)
-    return _get_expression(obj) if obj is not None else None
+    return _text(_pair(argumentID).value)
 
 
-def getArgumentValueID(argumentID: str) -> str | None:  # F.7.59.3
-    """Return handle to the value element (argument itself).
+def getArgumentValueID(argumentID: str) -> str:
+    """Return the handle of the owned value element.
 
     Section: F.7.59.3.
+
+    Args:
+        argumentID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(argumentID)
-    return get_handle(obj) if obj is not None else None
+    parent = _pair(argumentID)
+    register_parent(parent.value, parent, ("value",), "single")
+    return get_handle(parent.value)
 
 
-def getBooleanValue(booleanID: str) -> bool | None:  # F.7.59.4
-    """Return boolean simple content value.
+def getBooleanValue(elementID: str) -> bool:
+    """Return an XML Schema Boolean value.
 
     Section: F.7.59.4.
+
+    Args:
+        elementID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(booleanID)
-    if obj is None:
-        return None
-    val = _get_value(obj)
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, str):
-        if val.lower() in ("true", "1", "yes"):
-            return True
-        if val.lower() in ("false", "0", "no"):
-            return False
-    return None
+    obj = _boolean_target(elementID)
+    value = obj if isinstance(obj, bool) else getattr(obj, "value", None)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.strip() in ("true", "false", "1", "0"):
+        return value.strip() in ("true", "1")
+    raise TgiError("Invalid XML Boolean", TgiFaultCode.INVALID_ARGUMENT)
 
 
-def getDefineValue(defineID: str) -> str | None:  # F.7.59.5
-    """Return define value string.
+def getDefineValue(defineID: str) -> str:
+    """Return the source text of the owned value element.
 
     Section: F.7.59.5.
+
+    Args:
+        defineID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(defineID)
-    return _get_value(obj) if obj is not None else None
+    return _text(_pair(defineID).value)
 
 
-def getDefineValueExpression(defineID: str) -> str | None:  # F.7.59.6
-    """Return expression for define value.
+def getDefineValueExpression(defineID: str) -> str:
+    """Return the source text of the owned value element.
 
     Section: F.7.59.6.
+
+    Args:
+        defineID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(defineID)
-    return _get_expression(obj) if obj is not None else None
+    return _text(_pair(defineID).value)
 
 
-def getDefineValueID(defineID: str) -> str | None:  # F.7.59.7
-    """Return handle to define value (self handle).
+def getDefineValueID(defineID: str) -> str:
+    """Return the handle of the owned value element.
 
     Section: F.7.59.7.
+
+    Args:
+        defineID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(defineID)
-    return get_handle(obj) if obj is not None else None
+    parent = _pair(defineID)
+    register_parent(parent.value, parent, ("value",), "single")
+    return get_handle(parent.value)
 
 
-def getExpression(expressionID: str) -> str | None:  # F.7.59.8
-    """Return raw expression text.
+def getExpression(expressionID: str) -> str:
+    """Return the specified element content.
 
     Section: F.7.59.8.
+
+    Args:
+        expressionID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(expressionID)
-    return _get_expression(obj) if obj is not None else None
+    return _text(_expression(expressionID))
 
 
-def getExpressionIntValue(expressionID: str) -> int | None:  # F.7.59.9
-    """Attempt to parse the evaluated integer value of an expression.
+def getExpressionIntValue(expressionID: str) -> int:
+    """Return the specified element content.
 
-    Section: F.7.59.9. Simple heuristic: if expression or value parses as int
-    base 0.
+    Section: F.7.59.9.
+
+    Args:
+        expressionID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(expressionID)
-    if obj is None:
-        return None
-    src = _get_value(obj) or _get_expression(obj)
-    if src is None:
-        return None
-    try:
-        return int(str(src), 0)
-    except ValueError:
-        return None
+    value = _evaluate(_text(_expression(expressionID)))
+    if not isinstance(value, int) or not -(1 << 63) <= value < (1 << 63):
+        raise TgiError("Expression is outside TGI Long bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
 
 
-def getExpressionValue(expressionID: str) -> str | None:  # F.7.59.10
-    """Return evaluated value (returns value or expression text fallback).
+def getExpressionValue(expressionID: str) -> str:
+    """Return the specified element content.
 
     Section: F.7.59.10.
+
+    Args:
+        expressionID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(expressionID)
-    if obj is None:
-        return None
-    return _get_value(obj) or _get_expression(obj)
+    return _evaluated_text(_text(_expression(expressionID)))
 
 
-def getGroup(elementID: str) -> str | None:  # F.7.59.11
-    """Return group attribute from element if any.
+def getGroup(groupID: str) -> str:
+    """Return the specified element content.
 
     Section: F.7.59.11.
+
+    Args:
+        groupID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(elementID)
-    return getattr(obj, "group", None) if obj is not None else None
+    return _text(_require(groupID))
 
 
-def getPartSelectIndexIDs(partSelectID: str) -> list[str]:  # F.7.59.12
-    """Return handles of each index element in a partSelect.
+def getPartSelectIndexIDs(partSelectID: str) -> list[str]:
+    """getPartSelectIndexIDs on the specified schema content.
 
-    Section: F.7.59.12. Assumes attribute ``index`` list on object.
+    Section: F.7.59.12.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return []
-    return [get_handle(i) for i in getattr(obj, "index", [])]
+    return _part_select_ops.getPartSelectIndexIDs(partSelectID)
 
 
-def getPartSelectIndices(partSelectID: str) -> list[int]:  # F.7.59.13
-    """Return concrete integer indices for part select (best-effort).
+def getPartSelectIndices(partSelectID: str) -> list[int]:
+    """getPartSelectIndices on the specified schema content.
 
     Section: F.7.59.13.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return []
-    out: list[int] = []
-    for idx in getattr(obj, "index", []):
-        val = _get_value(idx) or _get_expression(idx)
-        try:
-            if val is not None:
-                out.append(int(str(val), 0))
-        except ValueError:
-            continue
-    return out
+    return _part_select_ops.getPartSelectIndices(partSelectID)
 
 
-def getPartSelectIndicesExpression(partSelectID: str) -> list[str]:  # F.7.59.14
-    """Return raw expressions/values for each index.
+def getPartSelectIndicesExpression(partSelectID: str) -> list[str]:
+    """getPartSelectIndicesExpression on the specified schema content.
 
     Section: F.7.59.14.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return []
-    exprs: list[str] = []
-    for idx in getattr(obj, "index", []):
-        exprs.append(str(_get_expression(idx) or _get_value(idx)))
-    return exprs
+    return _part_select_ops.getPartSelectIndicesExpression(partSelectID)
 
 
-def getPartSelectRange(partSelectID: str) -> tuple[int | None, int | None]:  # F.7.59.15
-    """Return (left,right) numeric range if can be parsed.
+def getPartSelectRange(partSelectID: str) -> list[int] | None:
+    """getPartSelectRange on the specified schema content.
 
     Section: F.7.59.15.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The operation result; absent optional schema content returns None.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return (None, None)
-    left = getattr(obj, "left", None)
-    right = getattr(obj, "right", None)
-    def _parse(o: Any) -> int | None:
-        v = _get_value(o) or _get_expression(o)
-        if v is None:
-            return None
-        try:
-            return int(str(v), 0)
-        except ValueError:
-            return None
-    return (_parse(left), _parse(right))
+    return _part_select_ops.getPartSelectRange(partSelectID)
 
 
-def getPartSelectRangeExpression(partSelectID: str) -> tuple[str | None, str | None]:  # F.7.59.16
-    """Return (leftExpr,rightExpr) raw expression/value strings.
+def getPartSelectRangeExpression(partSelectID: str) -> list[str] | None:
+    """getPartSelectRangeExpression on the specified schema content.
 
     Section: F.7.59.16.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The operation result; absent optional schema content returns None.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return (None, None)
-    left = getattr(obj, "left", None)
-    right = getattr(obj, "right", None)
-    def _raw(o: Any) -> str | None:
-        return (_get_expression(o) or _get_value(o)) if o is not None else None
-    return (_raw(left), _raw(right))
+    return _part_select_ops.getPartSelectRangeExpression(partSelectID)
 
 
-def getPartSelectRangeLeftID(partSelectID: str) -> str | None:  # F.7.59.17
-    """Return handle of left expression element if present.
+def getPartSelectRangeLeftID(partSelectID: str) -> str | None:
+    """getPartSelectRangeLeftID on the specified schema content.
 
     Section: F.7.59.17.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The operation result; absent optional schema content returns None.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return None
-    left = getattr(obj, "left", None)
-    return get_handle(left) if left is not None else None
+    return _part_select_ops.getPartSelectRangeLeftID(partSelectID)
 
 
-def getPartSelectRangeRightID(partSelectID: str) -> str | None:  # F.7.59.18
-    """Return handle of right expression element if present.
+def getPartSelectRangeRightID(partSelectID: str) -> str | None:
+    """getPartSelectRangeRightID on the specified schema content.
 
     Section: F.7.59.18.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The operation result; absent optional schema content returns None.
     """
-    obj = resolve_handle(partSelectID)
-    if obj is None:
-        return None
-    right = getattr(obj, "right", None)
-    return get_handle(right) if right is not None else None
+    return _part_select_ops.getPartSelectRangeRightID(partSelectID)
 
 
-def getValue(elementID: str) -> str | None:  # F.7.59.19
-    """Return generic simple content value.
+def getValue(elementID: str) -> str:
+    """Return the specified element content.
 
     Section: F.7.59.19.
+
+    Args:
+        elementID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(elementID)
-    return _get_value(obj) if obj is not None else None
+    return _text(_require(elementID))
 
 
-def getXML(elementID: str) -> str | None:  # F.7.59.20
-    """Serialize an element to XML using xsdata's ``XmlSerializer``.
+def getXML(elementID: str) -> str:
+    """Return the specified element content.
 
-    Section: F.7.59.20. Uses the project-wide serializer configuration
-    (indentation two spaces). If the element cannot be resolved, ``None``
-    is returned. Errors during serialization raise ``TgiError`` with
-    ``INVALID_ARGUMENT``.
+    Section: F.7.59.20.
+
+    Args:
+        elementID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = resolve_handle(elementID)
-    if obj is None:
-        return None
     try:
-        return XmlDocument.serializer().render(obj)
-    except Exception as exc:  # defensive: surface as TGI error
-        raise TgiError(
-            f"Failed to serialize element: {exc}", TgiFaultCode.INVALID_ARGUMENT
-        ) from exc
+        return XmlDocument.serializer().render(_require(elementID))
+    except TgiError:
+        raise
+    except Exception as exc:
+        raise TgiError("Cannot serialize element", TgiFaultCode.INVALID_ARGUMENT) from exc
 
 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.60)
 # ---------------------------------------------------------------------------
 
-def addPartSelectIndex(partSelectID: str, expression: str) -> str:  # F.7.60.1
-    """Add a new index entry to partSelect returning its handle.
+
+def addPartSelectIndex(partSelectID: str, value: str) -> str:
+    """addPartSelectIndex on the specified schema content.
 
     Section: F.7.60.1.
-    """
-    ps = _require(partSelectID)
-    idx = SimpleNamespace(value=expression)
-    _ensure_list(ps, "index").append(idx)
-    return get_handle(idx)
-
-
-def init(apiVersion: str, failureMode: str, init_message: str | None = None) -> bool:  # F.7.60.3
-    """Initialize a new TGI administrative session (Init command).
-
-    Section F.3.2 specifies Init as the required first administrative
-    message from the generator to the DE.  While the standard only
-    mandates a boolean return status, practical service front-ends
-    provide contextual arguments (API version negotiated, desired
-    failure/reporting mode, and an optional initial status message).
 
     Args:
-        apiVersion: API version string requested/advertised by the
-            generator (e.g. "1685-2022"). Stored for later inspection.
-        failureMode: Strategy for fault handling (implementation
-            defined – e.g. "strict", "permissive", "continue"). The
-            value is stored verbatim; no enumeration enforcement is
-            applied here.
-    init_message: Optional initial status line to record (equivalent to a
-            first Message command with informational severity).
-
-    Raises:
-        TgiError: If a session is already active (no intervening End),
-            fault code ``ALREADY_EXISTS``.
+        partSelectID: Standard operation input.
+        value: Standard operation input.
 
     Returns:
-        True when initialization succeeds.
+        The standard operation result.
     """
-    global _session_started
-    global _session_ended
-    global _session_messages
-    global _session_api_version
-    global _session_failure_mode
-    global _session_init_message
+    return _part_select_ops.addPartSelectIndex(partSelectID, value)
+
+
+def init(apiVersion: str, failureMode: str, message: str) -> bool:
+    """Initialize the generator administrative session.
+
+    Section: F.7.60.3.
+
+    Args:
+        apiVersion: Standard operation input.
+        failureMode: Standard operation input.
+        message: Standard operation input.
+
+    Returns:
+        The standard operation result.
+    """
+    global _session_started, _session_ended, _session_api_version, _session_failure_mode, _session_init_message
+    _xml_text(apiVersion)
+    _xml_text(message)
+    if failureMode not in ("fail", "error", "warning"):
+        raise TgiError("Invalid failure mode", TgiFaultCode.INVALID_ARGUMENT)
     if _session_started and not _session_ended:
         raise TgiError("Session already initialized", TgiFaultCode.ALREADY_EXISTS)
-    # Reset state for new lifecycle
-    _session_messages = []
-    _session_started = True
-    _session_ended = False
-    _session_api_version = apiVersion
-    _session_failure_mode = failureMode
-    _session_init_message = init_message
-    # Log initialization summary and optional message
-    logger.info("Initializing IP-XACT Workbench with:")
-    logger.info(f"  API Version  : {apiVersion}")
-    logger.info(f"  Failure Mode : {failureMode}")
-    if init_message:
-        _log_with_severity("INFO", init_message)
+    _session_started, _session_ended = True, False
+    _session_api_version, _session_failure_mode, _session_init_message = apiVersion, failureMode, message
+    _session_messages.clear()
+    _session_messages.append(("info", message))
+    _log_with_severity("info", message)
     return True
 
 
-def end() -> bool:  # F.7.60.2
-        """Terminate the active TGI administrative session.
+def end(genStatus: int, message: str) -> int:
+    """End the session and return zero when the DE accepts the termination.
 
-        Implements the End administrative command defined in section F.3.2.
-        According to the specification this shall be the final message sent
-        from the generator to the DE and conveys that the generator no longer
-        requires the DE to listen for further TGI calls.  The IEEE text also
-        notes that a generator is not strictly required to terminate after
-        sending End; therefore we model this as an idempotent state change.
-
-        Ordering rules enforced:
-            * ``init()`` must have been called successfully first; otherwise a
-                ``TgiError`` is raised with ``INVALID_ARGUMENT``.
-            * Multiple ``end()`` calls after the first succeed and simply
-                return ``True`` (idempotent) so that defensive double-shutdown
-                logic in callers does not produce faults.
-
-        Side effects:
-            * Marks the session as ended.  Additional TGI calls that depend on
-                an open session (currently only ``message``) will raise.
-
-        Returns:
-                True when the session is (now or already) ended.
-        """
-        global _session_started, _session_ended
-        if not _session_started:
-                raise TgiError("End called before Init", TgiFaultCode.INVALID_ARGUMENT)
-        _session_ended = True  # idempotent
-        return True
-
-
-def message(severity: str, text: str) -> bool:  # F.7.60.5
-    """Record a status message (Message command) for the active session.
-
-    Section F.3.2 defines Message as a way for a generator to convey
-    status to the user.  This implementation captures both a required
-    severity tag and the message text, storing them in the session log.
+    Section: F.7.60.2.
 
     Args:
-        severity: Free-form severity level (e.g. ``INFO``, ``WARN``,
-            ``ERROR``). No validation is enforced; callers may adopt any
-            taxonomy.
-        text: Message body. Empty strings are ignored (treated as
-            no-op) but still return True.
-
-    Raises:
-        TgiError: If called before ``init`` or after ``end`` with fault
-            code ``INVALID_ARGUMENT``.
+        genStatus: Standard operation input.
+        message: Standard operation input.
 
     Returns:
-        True if accepted / ignored (empty text).
+        The standard operation result.
     """
-    global _session_started, _session_ended, _session_messages
-    if not _session_started or _session_ended:
-        raise TgiError("Message outside active session", TgiFaultCode.INVALID_ARGUMENT)
-    if text:
-        _log_with_severity(severity, text)
+    global _session_ended
+    _active_session()
+    if isinstance(genStatus, bool) or not isinstance(genStatus, int) or not -(1 << 63) <= genStatus < (1 << 63):
+        raise TgiError("Expected TGI Long status", TgiFaultCode.INVALID_ARGUMENT)
+    _xml_text(message)
+    _session_messages.append(("info", message))
+    _log_with_severity("info", message)
+    _session_ended = True
+    return 0
+
+
+def message(severity: str, message: str) -> bool:
+    """Record a generator status message during an active session.
+
+    Section: F.7.60.5.
+
+    Args:
+        severity: Standard operation input.
+        message: Standard operation input.
+
+    Returns:
+        The standard operation result.
+    """
+    _active_session()
+    _xml_text(severity)
+    _xml_text(message)
+    _session_messages.append((severity, message))
+    _log_with_severity(severity, message)
     return True
 
 
-def isSetElement(elementID: str) -> bool:  # F.7.60.4
-    """Return True if element handle resolves to an object.
+def isSetElement(elementContainerID: str, elementName: str) -> bool:
+    """Return whether the named child element is present.
 
     Section: F.7.60.4.
+
+    Args:
+        elementContainerID: Standard operation input.
+        elementName: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    return resolve_handle(elementID) is not None
+    obj = _require(elementContainerID)
+    _xml_text(elementName)
+    if not is_dataclass(obj):
+        raise TgiError("Expected an element container", TgiFaultCode.INVALID_ID)
+    for field in fields(obj):
+        if field.metadata.get("type") in ("Element", "Elements") and (
+            field.metadata.get("name", field.name) == elementName or field.name == elementName
+        ):
+            value = getattr(obj, field.name)
+            return value is not None and (not isinstance(value, (list, tuple)) or bool(value))
+    return False
 
 
-def registerCatalogVLNVs(vlnvEntries: Iterable[Sequence[str] | str]) -> list[bool]:  # F.7.60.6
-    """Register multiple catalog VLNV entries (no roots known yet).
+def registerCatalogVLNVs(catalogID: str) -> bool:
+    """registerCatalogVLNVs on the specified schema content.
 
-    Section: F.7.60.6. Each entry is a 4-tuple; returns success flags.
-    Root object association is undefined here so a lightweight placeholder
-    object is used.
+    Section: F.7.60.6.
+
+    Args:
+        catalogID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    results: list[bool] = []
-    for spec in vlnvEntries:
-        placeholder = SimpleNamespace()
-        try:
-            results.append(registry.register(placeholder, spec))
-        except TgiError:
-            results.append(False)
-    return results
+    return _registry_ops.registerCatalogVLNVs(catalogID)
 
 
-def registerVLNV(elementID: object, vlnv: Sequence[str] | str) -> bool:  # F.7.60.7
-    """Register a single VLNV for an element.
+def registerVLNV(fileName: str, replace: bool) -> bool:
+    """registerVLNV on the specified schema content.
 
-    Section: F.7.60.7. Accepts either a handle string *or* the object
-    itself (tests pass objects directly). Raises ``TgiError`` if duplicate.
+    Section: F.7.60.7.
+
+    Args:
+        fileName: Standard operation input.
+        replace: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    element = _require(elementID) if isinstance(elementID, str) else elementID
-    return registry.register(element, vlnv)
+    return _registry_ops.registerVLNV(fileName, replace)
 
 
-def removePartSelectIndex(indexID: str) -> bool:  # F.7.60.8
-    """Remove an index element from its parent partSelect list.
+def removePartSelectIndex(indexID: str) -> bool:
+    """removePartSelectIndex on the specified schema content.
 
     Section: F.7.60.8.
+
+    Args:
+        indexID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    # attempt to locate parent by scanning registered objects (lightweight)
-    idx_obj = resolve_handle(indexID)
-    # Without parent tracking we treat removal as successful if handle valid.
-    return idx_obj is not None
+    return _part_select_ops.removePartSelectIndex(indexID)
 
 
-def resolveExpression(expression: str) -> str:  # F.7.60.9
-    """Resolve expression (stub returns input)."""
-    return expression
+def resolveExpression(expression: str, values: Sequence[str]) -> str:
+    """Evaluate an expression using the supplied constant name/value pairs.
+
+    Section: F.7.60.9.
+
+    Args:
+        expression: Standard operation input.
+        values: Standard operation input.
+
+    Returns:
+        The standard operation result.
+    """
+    _xml_text(expression)
+    if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
+        raise TgiError("Expected name/value pairs", TgiFaultCode.INVALID_ARGUMENT)
+    constants: dict[str, str] = {}
+    for pair in values:
+        _xml_text(pair)
+        name, separator, source = pair.partition("=")
+        name = name.strip()
+        if not separator or name in constants:
+            raise TgiError("Invalid or duplicate constant pair", TgiFaultCode.INVALID_ARGUMENT)
+        try:
+            SvExpressionParser().parse(source)
+        except SvExpressionError as exc:
+            raise TgiError("Value must be a constant", TgiFaultCode.INVALID_ARGUMENT) from exc
+        constants[name] = source
+    return _evaluated_text(expression, constants)
 
 
-def save() -> bool:  # F.7.60.10
-    """Persist current model state (no-op True).
+def save() -> bool:
+    """save on the specified schema content.
 
     Section: F.7.60.10.
+
+    Args:
+        None.
+
+    Returns:
+        The standard operation result.
     """
-    return True
+    return _registry_ops.save()
 
 
-def setArgumentValue(argumentID: str, value: str | int | None) -> bool:  # F.7.60.11
-    """Set or clear argument value.
+def setArgumentValue(argumentID: str, value: str) -> bool:
+    """Assign source content while preserving the schema wrapper.
 
     Section: F.7.60.11.
+
+    Args:
+        argumentID: Standard operation input.
+        value: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = _require(argumentID)
-    if value is None:
-        if hasattr(obj, "value"):
-            obj.value = None  # type: ignore[assignment]
-        return True
-    obj.value = value  # type: ignore[assignment]
+    _pair(argumentID).value.value = _xml_text(value)
     return True
 
 
-def setBooleanValue(booleanID: str, value: bool | None) -> bool:  # F.7.60.12
-    """Set or clear boolean value.
+def setBooleanValue(elementID: str, value: bool) -> bool:
+    """Assign an XML Boolean to its owning schema element.
 
     Section: F.7.60.12.
+
+    Args:
+        elementID: Standard operation input.
+        value: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = _require(booleanID)
-    obj.value = value  # type: ignore[assignment]
+    if not isinstance(value, bool):
+        raise TgiError("Expected Boolean", TgiFaultCode.INVALID_ARGUMENT)
+    obj = _boolean_target(elementID)
+    if isinstance(obj, bool):
+        info = get_parent_info(elementID)
+        if info is None or info.container != "single":
+            raise TgiError("Boolean has no owning element", TgiFaultCode.INVALID_ID)
+        owner = _require(info.parent_handle)
+        for attr in info.path[:-1]:
+            owner = getattr(owner, attr)
+        setattr(owner, info.path[-1], value)
+    else:
+        old = getattr(obj, "value", None)
+        getBooleanValue(elementID)
+        obj.value = value if isinstance(old, bool) else ("true" if value else "false")
     return True
 
 
-def setDefineValue(defineID: str, value: str | None) -> bool:  # F.7.60.13
-    """Set or clear define value.
+def setDefineValue(argumentID: str, value: str) -> bool:
+    """Assign source content while preserving the schema wrapper.
 
     Section: F.7.60.13.
+
+    Args:
+        argumentID: Standard operation input.
+        value: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = _require(defineID)
-    obj.value = value  # type: ignore[assignment]
+    _pair(argumentID).value.value = _xml_text(value)
     return True
 
 
-def setExpressionValue(expressionID: str, expression: str | None) -> bool:  # F.7.60.14
-    """Set or clear expression text.
+def setExpressionValue(expressionID: str, value: str) -> bool:
+    """Assign source content while preserving the schema wrapper.
 
     Section: F.7.60.14.
+
+    Args:
+        expressionID: Standard operation input.
+        value: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    obj = _require(expressionID)
-    if expression is None:
-        if hasattr(obj, "expression"):
-            obj.expression = None  # type: ignore[assignment]
-        return True
-    obj.expression = expression  # type: ignore[assignment]
+    obj = _expression(expressionID)
+    obj.value = _expression_source(value, obj)
     return True
 
 
-def setPartSelectRange(partSelectID: str, left: str | None, right: str | None) -> bool:  # F.7.60.15
-    """Set (left,right) range expressions or clear when None.
+def setPartSelectRange(partSelectID: str, left: str, right: str) -> bool:
+    """setPartSelectRange on the specified schema content.
 
     Section: F.7.60.15.
+
+    Args:
+        partSelectID: Standard operation input.
+        left: Standard operation input.
+        right: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    ps = _require(partSelectID)
-    if left is None and right is None:
-        if hasattr(ps, "left"):
-            ps.left = None  # type: ignore[assignment]
-        if hasattr(ps, "right"):
-            ps.right = None  # type: ignore[assignment]
-        return True
-    if left is not None:
-        ps.left = SimpleNamespace(value=left)  # type: ignore[assignment]
-    if right is not None:
-        ps.right = SimpleNamespace(value=right)  # type: ignore[assignment]
-    return True
+    return _part_select_ops.setPartSelectRange(partSelectID, left, right)
 
 
-def setValue(elementID: str, value: str | int | None) -> bool:  # F.7.60.16
-    """Set generic value simple content.
+def setValue(elementID: str, value: str) -> bool:
+    """Assign source content while preserving the schema wrapper.
 
     Section: F.7.60.16.
+
+    Args:
+        elementID: Standard operation input.
+        value: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
     obj = _require(elementID)
-    obj.value = value  # type: ignore[assignment]
+    if isinstance(obj, NameValuePairType):
+        obj = obj.value
+    if isinstance(obj, ComplexBaseExpression):
+        obj.value = _xml_text(value)
+    else:
+        _set_simple_text(obj, value)
     return True
 
 
-def removePartSelectRange(partSelectID: str) -> bool:  # F.7.60.17
-    """Remove range (left/right) elements.
+def removePartSelectRange(partSelectID: str) -> bool:
+    """removePartSelectRange on the specified schema content.
 
     Section: F.7.60.17.
+
+    Args:
+        partSelectID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    ps = _require(partSelectID)
-    if hasattr(ps, "left"):
-        ps.left = None  # type: ignore[assignment]
-    if hasattr(ps, "right"):
-        ps.right = None  # type: ignore[assignment]
-    return True
+    return _part_select_ops.removePartSelectRange(partSelectID)
 
 
-def unregisterCatalogVLNVs(vlnvEntries: Iterable[Sequence[str] | str]) -> list[bool]:  # F.7.60.18
-    """Unregister multiple VLNVs returning success flags.
+def unregisterCatalogVLNVs(catalogID: str) -> bool:
+    """unregisterCatalogVLNVs on the specified schema content.
 
     Section: F.7.60.18.
+
+    Args:
+        catalogID: Standard operation input.
+
+    Returns:
+        The standard operation result.
     """
-    results: list[bool] = []
-    for spec in vlnvEntries:
-        try:
-            results.append(registry.unregister(spec))
-        except TgiError:
-            results.append(False)
-    return results
+    return _registry_ops.unregisterCatalogVLNVs(catalogID)
 
 
-def unregisterVLNV(vlnv: Sequence[str] | str) -> bool:  # F.7.60.19
-    """Unregister a single VLNV mapping.
+def unregisterVLNV(VLNV: Sequence[str]) -> bool:
+    """unregisterVLNV on the specified schema content.
 
     Section: F.7.60.19.
-    """
-    return registry.unregister(vlnv)
 
+    Args:
+        VLNV: Standard operation input.
+
+    Returns:
+        The standard operation result.
+    """
+    return _registry_ops.unregisterVLNV(VLNV)
