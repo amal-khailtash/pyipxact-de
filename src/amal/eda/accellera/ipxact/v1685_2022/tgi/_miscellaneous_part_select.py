@@ -7,6 +7,8 @@ from org.accellera.ipxact.v1685_2022.part_select import PartSelect
 from org.accellera.ipxact.v1685_2022.range import Range
 from org.accellera.ipxact.v1685_2022.right import Right
 
+from ._expressions import _integer, _source
+from ._ranges import _apply_range, _parts, _range_plan
 from .address_space import _register_owned_child
 from .component import _register_graph
 from .core import (
@@ -18,7 +20,6 @@ from .core import (
     register_parent,
     resolve_handle,
 )
-from .port_map import _integer, _parts, _source
 
 __all__: list[str] = [
     "getPartSelectIndexIDs",
@@ -232,15 +233,12 @@ def setPartSelectRange(partSelectID: str, left: str, right: str) -> bool:
     """Set range bounds while keeping existing child wrappers and sibling indices."""
     part_select = _part_select(partSelectID)
     old_range = _range(part_select)
-    left_value = _source(left, old_range.left if old_range is not None else None, _UINT32_MAX)
-    right_value = _source(right, old_range.right if old_range is not None else None, _UINT32_MAX)
+    values = _range_plan([left, right], old_range)
     children = _normalize_choice(part_select)
     if old_range is None:
-        new_range = Range(left=Left(value=left_value), right=Right(value=right_value))
-        children.append(new_range)
+        children.append(_apply_range(None, values))
     else:
-        old_range.left.value = left_value
-        old_range.right.value = right_value
+        _apply_range(old_range, values)
     _compact_choice(part_select, children)
     return True
 

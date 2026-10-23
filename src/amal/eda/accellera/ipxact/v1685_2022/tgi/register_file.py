@@ -37,6 +37,7 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from ._attribute_references import _root_for
+from ._expressions import _integer, _source
 from .address_space import _register_owned_child
 from .component import _list_attr, _register_graph
 from .core import (
@@ -48,7 +49,6 @@ from .core import (
     registry,
     resolve_handle,
 )
-from .port_map import _integer, _source
 from .port_map import _name as _schema_name
 
 __all__ = [

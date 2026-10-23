@@ -24,21 +24,17 @@ from org.accellera.ipxact.v1685_2022.transactional_power_constraint_type import 
 from org.accellera.ipxact.v1685_2022.wire_power_constraint_type import WirePowerConstraintType
 
 from ._attribute_references import _root_for
+from ._expressions import _integer, _source, _xml_text
+from ._ranges import _apply_range, _array, _range_plan
 from .address_space import _register_owned_child
 from .component import _list_attr, _register_graph
 from .core import TgiError, TgiFaultCode, detach_child_by_handle, get_handle, register_parent, resolve_handle
-from .cpu import _xml_text
 from .port_map import (
-    _apply_range,
-    _array,
     _child,
     _child_id,
-    _integer,
     _name,
-    _range_plan,
     _remove_child,
     _require,
-    _source,
 )
 
 __all__ = [

@@ -30,7 +30,7 @@ from org.accellera.ipxact.v1685_2022 import (
     UnsignedBitVectorExpression,
     SignedLongintExpression,
 )
-from .port_map import _xml_text
+from ._expressions import _xml_text
 from . import _miscellaneous_part_select as _part_select_ops
 from . import _miscellaneous_registry as _registry_ops
 import re
@@ -289,7 +289,7 @@ def getArgumentValue(argumentID: str) -> str:  # F.7.59.1
     Returns:
         The value element's source string.
     """
-    return _text(_pair(argumentID).value)
+    return getValue(getArgumentValueID(argumentID))
 
 
 def getArgumentValueExpression(argumentID: str) -> str:  # F.7.59.2
@@ -305,7 +305,7 @@ def getArgumentValueExpression(argumentID: str) -> str:  # F.7.59.2
     Returns:
         The value element's expression source string.
     """
-    return _text(_pair(argumentID).value)
+    return getArgumentValue(argumentID)
 
 
 def getArgumentValueID(argumentID: str) -> str:  # F.7.59.3
@@ -355,7 +355,7 @@ def getDefineValue(defineID: str) -> str:  # F.7.59.5
     Returns:
         The define value string.
     """
-    return _text(_pair(defineID).value)
+    return getValue(getDefineValueID(defineID))
 
 
 def getDefineValueExpression(defineID: str) -> str:  # F.7.59.6
@@ -371,7 +371,7 @@ def getDefineValueExpression(defineID: str) -> str:  # F.7.59.6
     Returns:
         The define value's expression source string.
     """
-    return _text(_pair(defineID).value)
+    return getDefineValue(defineID)
 
 
 def getDefineValueID(defineID: str) -> str:  # F.7.59.7
@@ -385,9 +385,7 @@ def getDefineValueID(defineID: str) -> str:  # F.7.59.7
     Returns:
         Handle to the owned Value element.
     """
-    parent = _pair(defineID)
-    register_parent(parent.value, parent, ("value",), "single")
-    return get_handle(parent.value)
+    return getArgumentValueID(defineID)
 
 
 def getExpression(expressionID: str) -> str:  # F.7.59.8
@@ -418,7 +416,7 @@ def getExpressionIntValue(expressionID: str) -> int:  # F.7.59.9
     Returns:
         The evaluated integer as a TGI Long.
     """
-    value = _evaluate(_text(_expression(expressionID)))
+    value = _evaluate(getExpression(expressionID))
     if not isinstance(value, int) or not -(1 << 63) <= value < (1 << 63):
         raise TgiError("Expression is outside TGI Long bounds", TgiFaultCode.INVALID_ARGUMENT)
     return value
@@ -438,7 +436,7 @@ def getExpressionValue(expressionID: str) -> str:  # F.7.59.10
     Returns:
         The evaluated constant as a string.
     """
-    return _evaluated_text(_text(_expression(expressionID)))
+    return _evaluated_text(getExpression(expressionID))
 
 
 def getGroup(groupID: str) -> str:  # F.7.59.11
@@ -452,7 +450,7 @@ def getGroup(groupID: str) -> str:  # F.7.59.11
     Returns:
         The group name.
     """
-    return _text(_require(groupID))
+    return getValue(groupID)
 
 
 def getPartSelectIndexIDs(partSelectID: str) -> list[str]:  # F.7.59.12
@@ -875,8 +873,7 @@ def setArgumentValue(argumentID: str, value: str) -> bool:  # F.7.60.11
     Returns:
         True when the value is assigned successfully.
     """
-    _pair(argumentID).value.value = _xml_text(value)
-    return True
+    return setValue(getArgumentValueID(argumentID), value)
 
 
 def setBooleanValue(elementID: str, value: bool) -> bool:  # F.7.60.12
@@ -921,8 +918,7 @@ def setDefineValue(argumentID: str, value: str) -> bool:  # F.7.60.13
     Returns:
         True when the value is assigned successfully.
     """
-    _pair(argumentID).value.value = _xml_text(value)
-    return True
+    return setValue(getDefineValueID(argumentID), value)
 
 
 def setExpressionValue(expressionID: str, value: str) -> bool:  # F.7.60.14

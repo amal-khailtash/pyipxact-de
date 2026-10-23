@@ -10,7 +10,6 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
-from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
 from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
 from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
 from org.accellera.ipxact.v1685_2022.index import Index
@@ -21,10 +20,11 @@ from org.accellera.ipxact.v1685_2022.range import Range
 from org.accellera.ipxact.v1685_2022.right import Right
 from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import UnsignedBitVectorExpression
 
+from ._expressions import _integer, _source, _xml_text
+from ._ranges import _apply_range, _array, _parts, _range_plan
 from .address_space import _register_owned_child
 from .component import _list_attr, _register_graph
 from .core import TgiError, TgiFaultCode, detach_child_by_handle, get_handle, register_parent, resolve_handle
-from .cpu import _xml_text
 
 __all__: list[str] = [
     # BASE (F.7.69)
@@ -108,60 +108,6 @@ def _name(value: str, kind: str) -> str:
     return value
 
 
-def _integer(source: str, maximum: int | None, deferred: bool = False) -> int | None:
-    try:
-        stripped = source.strip()
-        value = int(stripped, 10) if re.fullmatch(r"[+-]?[0-9]+", stripped) else SvExpressionParser().evaluate(source)
-    except SvExpressionError as error:
-        diagnostics = re.findall(r"error:\s*(.+)", str(error))
-        if deferred and diagnostics and all("use of undeclared identifier" in item for item in diagnostics):
-            return None
-        raise TgiError("Cannot evaluate integer expression", TgiFaultCode.INVALID_ARGUMENT) from error
-    if type(value) is not int or value < 0 or (maximum is not None and value > maximum):
-        raise TgiError("Expression outside unsigned integer bounds", TgiFaultCode.INVALID_ARGUMENT)
-    return value
-
-
-def _source(value: str, current: Any = None, maximum: int | None = _UINT_MAX) -> str:
-    _xml_text(value)
-    if not value.strip():
-        raise TgiError("Expression must be nonempty", TgiFaultCode.INVALID_ARGUMENT)
-    result = _integer(value, maximum, True)
-    if result is not None and current is not None:
-        minimum = getattr(current, "minimum", None)
-        maximum = getattr(current, "maximum", None)
-        if (minimum is not None and result < minimum) or (maximum is not None and result > maximum):
-            raise TgiError("Expression outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
-    return value
-
-
-def _array(value: Sequence[str], argument: str) -> list[str]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-        raise TgiError(f"{argument} must be a sequence", TgiFaultCode.INVALID_ARGUMENT)
-    return list(value)
-
-
-def _range_plan(value: Sequence[str], current: Range | None) -> tuple[str, str]:
-    values = _array(value, "range")
-    if len(values) != 2:
-        raise TgiError("range must contain left and right", TgiFaultCode.INVALID_ARGUMENT)
-    if current is not None and (
-        not isinstance(current, Range) or not isinstance(current.left, Left) or not isinstance(current.right, Right)
-    ):
-        raise TgiError("Invalid range model", TgiFaultCode.INVALID_ID)
-    return (
-        _source(values[0], current.left if current else None),
-        _source(values[1], current.right if current else None),
-    )
-
-
-def _apply_range(current: Range | None, values: tuple[str, str]) -> Range:
-    if current is None:
-        return Range(left=Left(value=values[0]), right=Right(value=values[1]))
-    current.left.value, current.right.value = values
-    return current
-
-
 def _remove_child(parent: Any, attr: str) -> bool:
     child = getattr(parent, attr)
     if child is None:
@@ -176,22 +122,6 @@ def _replace_choice(parent: Any, value: Any) -> None:
     setattr(parent, _CHOICE, value)
     register_parent(value, parent, (_CHOICE,), "single")
     _register_graph(value)
-
-
-def _parts(part_select: PartSelect | None) -> tuple[Range | None, Indices | None]:
-    if part_select is None:
-        return None, None
-    if not isinstance(part_select, PartSelect):
-        raise TgiError("Invalid partSelect model", TgiFaultCode.INVALID_ID)
-    value = part_select.range_or_indices
-    if value is None:
-        return None, None
-    children = list(value) if isinstance(value, (list, tuple)) else [value]
-    ranges = [item for item in children if isinstance(item, Range)]
-    indices = [item for item in children if isinstance(item, Indices)]
-    if len(ranges) > 1 or len(indices) > 1 or len(ranges) + len(indices) != len(children):
-        raise TgiError("Invalid partSelect children", TgiFaultCode.INVALID_ID)
-    return (ranges[0] if ranges else None, indices[0] if indices else None)
 
 
 def _set_part_select(parent: Any, range: Sequence[str] | None, indices: Sequence[str] | None) -> str:

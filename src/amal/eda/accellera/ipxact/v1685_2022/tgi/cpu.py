@@ -25,7 +25,6 @@ cannot be cleared; optional addressUnitBits has a separate removal operation.
 from typing import Any
 import re
 
-from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
 from org.accellera.ipxact.v1685_2022.executable_image import ExecutableImage
 from . import component as component_api
 from .address_space import _register_owned_child
@@ -37,6 +36,8 @@ from org.accellera.ipxact.v1685_2022.component_type import ComponentType
 from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import UnsignedLongintExpression
 from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import UnsignedPositiveIntExpression
 from org.accellera.ipxact.v1685_2022.unsigned_positive_longint_expression import UnsignedPositiveLongintExpression
+
+from ._expressions import _integer, _xml_text
 
 from .core import (
     TgiError,
@@ -136,18 +137,6 @@ def _int_expr(expr: Any, minimum: int = 0) -> int | None:
     return _numeric(expr.value, minimum, (1 << 64) - 1, False)
 
 
-def _xml_text(value: str) -> str:
-    from lxml import etree
-
-    if not isinstance(value, str):
-        raise TgiError("Expected expression string", TgiFaultCode.INVALID_ARGUMENT)
-    try:
-        etree.Element("text").text = value
-    except (ValueError, TypeError) as error:
-        raise TgiError("Invalid XML text", TgiFaultCode.INVALID_ARGUMENT) from error
-    return value
-
-
 def _name(value: str) -> str:
     from lxml import etree
     from .name_group import _name_schema
@@ -162,16 +151,7 @@ def _name(value: str) -> str:
 
 
 def _numeric(source: str, minimum: int, maximum: int, deferred: bool) -> int | None:
-    try:
-        value = SvExpressionParser().evaluate(source)
-    except SvExpressionError as error:
-        diagnostics = re.findall(r"error:\s*(.+)", str(error))
-        if deferred and diagnostics and all("use of undeclared identifier" in item for item in diagnostics):
-            return None
-        raise TgiError("Cannot evaluate integer expression", TgiFaultCode.INVALID_ARGUMENT) from error
-    if type(value) is not int or not minimum <= value <= maximum:
-        raise TgiError("Expression outside unsigned integer bounds", TgiFaultCode.INVALID_ARGUMENT)
-    return value
+    return _integer(source, maximum, deferred, minimum=minimum, decimal_literals=False)
 
 
 def _source(source: str, minimum: int, maximum: int) -> str:

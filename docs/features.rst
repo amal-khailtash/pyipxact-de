@@ -17,6 +17,7 @@ TGI package organization
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 - ☑ Organize TGI under ``amal/eda/accellera/ipxact/v1685_2022/tgi``, with a matching ``spirit`` namespace for future versions.
+- ☑ Reuse shared XML/expression validation, typed ranges and model traversal beneath category operations, preserving standard API contracts.
 
 XML document identification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

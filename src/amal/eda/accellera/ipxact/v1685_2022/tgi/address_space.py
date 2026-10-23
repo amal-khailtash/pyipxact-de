@@ -15,8 +15,6 @@ Creation / mutation helpers create missing optional container elements where
 allowed by the schema.
 """
 
-from collections.abc import Iterator
-from dataclasses import fields, is_dataclass
 from typing import Any
 from unicodedata import category
 
@@ -38,6 +36,8 @@ from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import (
 from org.accellera.ipxact.v1685_2022.unsigned_positive_longint_expression import (
     UnsignedPositiveLongintExpression,
 )
+
+from ._model import _walk_model
 
 from .core import (
     TgiError,
@@ -102,6 +102,7 @@ __all__ = [  # BASE + EXTENDED exports
 # ----------------------------------------------------------------------------
 # Helpers (non-spec)
 # ----------------------------------------------------------------------------
+
 
 def _resolve_address_space(addressSpaceID: str) -> AddressSpaces.AddressSpace | None:
     """Resolve a handle to an ``addressSpace`` element.
@@ -188,7 +189,7 @@ def _integer_text(value: str) -> int | None:
 
             result = SvExpressionParser().evaluate(value)
             return result if type(result) is int else None
-    except (ImportError, ValueError, TypeError, AttributeError):
+    except ImportError, ValueError, TypeError, AttributeError:
         return None
 
 
@@ -250,30 +251,6 @@ def _set_expression(
     register_parent(current, parent, (attribute,), "single")
 
 
-def _walk_model(root: object) -> Iterator[tuple[object, object | None, str | None, str]]:
-    """Yield each generated dataclass object with its direct owning field."""
-    pending = [(root, None, None, "single")]
-    seen: set[int] = set()
-    while pending:
-        obj, parent, attribute, container = pending.pop()
-        if id(obj) in seen:
-            continue
-        seen.add(id(obj))
-        yield obj, parent, attribute, container
-        if not is_dataclass(obj) or isinstance(obj, type):
-            continue
-        for model_field in fields(obj):
-            value = getattr(obj, model_field.name)
-            if is_dataclass(value) and not isinstance(value, type):
-                pending.append((value, obj, model_field.name, "single"))
-            elif isinstance(value, (list, tuple)):
-                pending.extend(
-                    (child, obj, model_field.name, "list")
-                    for child in value
-                    if is_dataclass(child) and not isinstance(child, type)
-                )
-
-
 def _register_owned_child(child: Any, expected_parent: type | tuple[type, ...] | None = None) -> Any | None:
     """Register and return a child's direct owner from known TGI parent links or roots."""
     info = get_parent_info(get_handle(child))
@@ -311,6 +288,7 @@ def _remove_owned(handle: str, expected: type, parent_type: type, label: str) ->
 # ----------------------------------------------------------------------------
 # BASE (F.7.11)
 # ----------------------------------------------------------------------------
+
 
 def getAddressSpaceAddressUnitBits(addressSpaceID: str) -> int | None:
     """Return the evaluated address unit size (IEEE 1685-2022 F.7.11.1).
@@ -942,6 +920,7 @@ def getSegmentRangeID(segmentID: str) -> str | None:
 # EXTENDED (F.7.12)
 # ----------------------------------------------------------------------------
 
+
 def addAddressSpaceSegment(addressSpaceID: str, name: str, addressOffsetExpr: str, rangeExpr: str) -> str:
     """Append a segment (IEEE 1685-2022 F.7.12.1).
 
@@ -1300,9 +1279,7 @@ def setAddressSpaceRange(addressSpaceID: str, value: int | str) -> bool:
     as_ = _resolve_address_space(addressSpaceID)
     if as_ is None:
         raise TgiError("Invalid addressSpace handle", TgiFaultCode.INVALID_ID)
-    _set_expression(
-        as_, "range", UnsignedPositiveLongintExpression, value, "value", 1, (1 << 64) - 1
-    )
+    _set_expression(as_, "range", UnsignedPositiveLongintExpression, value, "value", 1, (1 << 64) - 1)
     return True
 
 

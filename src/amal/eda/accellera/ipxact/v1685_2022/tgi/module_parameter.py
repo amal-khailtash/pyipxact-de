@@ -9,7 +9,7 @@ in the XML model unchanged.
 
 # ruff: noqa: I001
 from collections.abc import Iterable
-from dataclasses import fields, is_dataclass
+from dataclasses import fields
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
@@ -22,6 +22,8 @@ from org.accellera.ipxact.v1685_2022 import (
 from org.accellera.ipxact.v1685_2022.struct_port_type_defs import StructPortTypeDefs
 from org.accellera.ipxact.v1685_2022.trans_type_def import TransTypeDef
 from org.accellera.ipxact.v1685_2022.type_parameters import ServiceTypeDef, TypeParameters
+
+from ._model import _walk_model
 
 from .core import (
     TgiError,
@@ -134,26 +136,8 @@ def _register_model(owner: Any | None, holder: Any | None, list_field: str) -> N
 
 def _walk(root: Any) -> Iterable[tuple[Any, Any | None, str | None]]:
     """Yield generated model objects with their immediate owning field."""
-    pending: list[tuple[Any, Any | None, str | None]] = [(root, None, None)]
-    seen: set[int] = set()
-    while pending:
-        obj, parent, field_name = pending.pop()
-        if id(obj) in seen:
-            continue
-        seen.add(id(obj))
+    for obj, parent, field_name, _container in _walk_model(root):
         yield obj, parent, field_name
-        if not is_dataclass(obj) or isinstance(obj, type):
-            continue
-        for model_field in fields(obj):
-            value = getattr(obj, model_field.name)
-            if is_dataclass(value) and not isinstance(value, type):
-                pending.append((value, obj, model_field.name))
-            elif isinstance(value, (list, tuple)):
-                pending.extend(
-                    (child, obj, model_field.name)
-                    for child in value
-                    if is_dataclass(child) and not isinstance(child, type)
-                )
 
 
 def _registered_root_parent(target: Any) -> tuple[Any, Any, str] | None:

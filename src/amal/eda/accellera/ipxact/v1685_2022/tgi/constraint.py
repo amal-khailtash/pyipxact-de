@@ -23,8 +23,9 @@ from ._attribute_references import _root_for
 from .address_space import _register_owned_child, _walk_model
 from .component import _list_attr, _register_graph
 from .constraint_set import _timing_value
-from .cpu import _xml_text
-from .port_map import _integer, _name, _remove_child, _source
+from ._expressions import _xml_text
+from ._expressions import _integer, _source
+from .port_map import _name, _remove_child
 
 from org.accellera.ipxact.v1685_2022.cell_specification import CellSpecification
 from org.accellera.ipxact.v1685_2022.constraint_set import ConstraintSet
