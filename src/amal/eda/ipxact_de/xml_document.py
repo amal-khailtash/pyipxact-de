@@ -1,7 +1,8 @@
-"""XML parsing utilities for IP-XACT / SPIRIT documents.
-"""
+"""XML parsing utilities for IP-XACT / SPIRIT documents."""
+
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from lxml import etree
 from rich import print
@@ -11,10 +12,16 @@ from xsdata.formats.dataclass.serializers.config import SerializerConfig
 from xsdata.formats.dataclass.serializers.xml import XmlSerializer
 
 from amal.utilities import ARROW, CHECK
-
+from org.accellera.ipxact.v1685_2022.part_select import PartSelect
 from org.accellera.standard import STANDARDS, Standard
 
 T = TypeVar("T")
+
+
+def _part_select_collection(values: Iterable[Any]) -> Any:
+    """Retain the generated scalar shape for one child and both children for a sequence."""
+    values = list(values)
+    return values[0] if len(values) == 1 else values
 
 
 class IpxactXmlContext(XmlContext):
@@ -23,11 +30,19 @@ class IpxactXmlContext(XmlContext):
     xsdata otherwise reduces an empty anyType alternative to an empty string,
     which cannot identify the selected element when serializing it again.
     Marking these alternatives as wildcard content retains an AnyElement.
+
+    The 2022 partSelect schema also permits indices followed by a range, but
+    its generated compound field is scalar. A scoped collection factory
+    retains both legal children while keeping single-child models unchanged.
     """
 
     def build(self, clazz, parent_ns=None, globalns=None):
         meta = super().build(clazz, parent_ns, globalns)
         for var in meta.get_all_vars():
+            if clazz is PartSelect and var.name == "range_or_indices":
+                for child_var in (var, *var.elements.values()):
+                    child_var.list_element = True
+                    child_var.factory = _part_select_collection
             for choice in var.elements.values():
                 if choice.any_type:
                     choice.is_wildcard = True
@@ -84,8 +99,7 @@ class XmlDocument:
     _XML_CONTEXT: XmlContext = IpxactXmlContext()
     _SCHEMA_LOCATION = Standard.schema_location_for("ipxact", "1685-2022")
     _SERIALIZER: XmlSerializer = XmlSerializer(
-        context=_XML_CONTEXT,
-        config=SerializerConfig(indent="  ", schema_location=_SCHEMA_LOCATION)
+        context=_XML_CONTEXT, config=SerializerConfig(indent="  ", schema_location=_SCHEMA_LOCATION)
     )
     _PARSER: XmlParser = XmlParser(context=_XML_CONTEXT)
 
@@ -131,7 +145,7 @@ class XmlDocument:
         for meta in STANDARDS.values():
             base = f"{meta.schema_root}/{meta.token}/"
             if namespace and namespace.startswith(base):
-                version = namespace[len(base):]
+                version = namespace[len(base) :]
                 Standard.validate(meta.name, version)
                 standard = meta.token
                 break

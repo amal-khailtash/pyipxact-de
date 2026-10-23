@@ -1,28 +1,30 @@
-"""Port map category TGI functions.
+"""Port map operations from IEEE 1685-2022 F.7.69 and F.7.70.
 
-Implements IEEE 1685-2022 Annex F Port map category:
-  * F.7.69 Port map (BASE)
-  * F.7.70 Port map (EXTENDED)
-
-Only the functions defined by the standard are exported (no more, no less).
-BASE functions are tolerant (return None/[] on invalid handles). EXTENDED
-functions raise ``TgiError`` with an appropriate ``TgiFaultCode`` when
-arguments are invalid or an operation cannot be completed.
+Logical and physical getters receive their own child handles. Source expressions
+remain unchanged; numeric getters evaluate self-contained SystemVerilog constants.
+Configured expression environments remain separate work. Edits use generated
+choice fields, preserve wrapper metadata and invalidate removed descendants.
 """
-from collections.abc import Iterable
-from dataclasses import dataclass
-from typing import Any, cast
 
-from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes as _ATModule
-from org.accellera.ipxact.v1685_2022.abstraction_types import Range
+import re
+from collections.abc import Sequence
+from typing import Any
+
+from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
+from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
+from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
+from org.accellera.ipxact.v1685_2022.index import Index
+from org.accellera.ipxact.v1685_2022.indices import Indices
 from org.accellera.ipxact.v1685_2022.left import Left
 from org.accellera.ipxact.v1685_2022.part_select import PartSelect
+from org.accellera.ipxact.v1685_2022.range import Range
 from org.accellera.ipxact.v1685_2022.right import Right
-from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import (
-    UnsignedBitVectorExpression,
-)
+from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import UnsignedBitVectorExpression
 
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
+from .address_space import _register_owned_child
+from .component import _list_attr, _register_graph
+from .core import TgiError, TgiFaultCode, detach_child_by_handle, get_handle, register_parent, resolve_handle
+from .cpu import _xml_text
 
 __all__: list[str] = [
     # BASE (F.7.69)
@@ -54,423 +56,643 @@ __all__: list[str] = [
     "setSubPortMapPartSelect",
 ]
 
+_PortMap = AbstractionTypes.AbstractionType.PortMaps.PortMap
+_LogicalPort = _PortMap.LogicalPort
+_PhysicalPort = _PortMap.PhysicalPort
+_SubPort = _PhysicalPort.SubPort
+_CHOICE = "physical_port_or_logical_tie_off"
+_UINT_MAX = (1 << 32) - 1
+
 
 # ---------------------------------------------------------------------------
-# Helper resolvers
+# Helpers
 # ---------------------------------------------------------------------------
 
-def _resolve_port_map(portMapID: str) -> _ATModule.AbstractionType.PortMaps.PortMap | None:
-    obj = resolve_handle(portMapID)
-    if isinstance(obj, _ATModule.AbstractionType.PortMaps.PortMap):  # type: ignore[attr-defined]
-        return obj
-    return None
+
+def _require(handle: str, cls: type) -> Any:
+    obj = resolve_handle(handle) if isinstance(handle, str) else None
+    if not isinstance(obj, cls):
+        raise TgiError(f"Invalid {cls.__name__} handle", TgiFaultCode.INVALID_ID)
+    return obj
 
 
-def _require_port_map(portMapID: str) -> _ATModule.AbstractionType.PortMaps.PortMap:
-    pm = _resolve_port_map(portMapID)
-    if pm is None:
-        raise TgiError("Invalid portMap handle", TgiFaultCode.INVALID_ID)
-    return pm
-
-
-def _resolve_abstraction_type(absTypeID: str) -> _ATModule.AbstractionType | None:
-    obj = resolve_handle(absTypeID)
-    if isinstance(obj, _ATModule.AbstractionType):  # type: ignore[attr-defined]
-        return obj
-    return None
-
-
-def _require_abstraction_type(absTypeID: str) -> _ATModule.AbstractionType:
-    at = _resolve_abstraction_type(absTypeID)
-    if at is None:
-        raise TgiError("Invalid abstractionType handle", TgiFaultCode.INVALID_ID)
-    return at
-
-
-def _expr(node: Any | None) -> str | None:
-    if node is None:
+def _child(parent: Any, attr: str, cls: type) -> Any | None:
+    child = getattr(parent, attr)
+    if child is None:
         return None
-    return getattr(node, "value", None)
+    if not isinstance(child, cls):
+        if attr == _CHOICE and isinstance(child, (_PhysicalPort, UnsignedBitVectorExpression)):
+            return None
+        raise TgiError(f"Invalid {attr} child", TgiFaultCode.INVALID_ID)
+    register_parent(child, parent, (attr,), "single")
+    _register_graph(child)
+    return child
+
+
+def _child_id(parent: Any, attr: str, cls: type) -> str | None:
+    child = _child(parent, attr, cls)
+    return get_handle(child) if child is not None else None
+
+
+def _name(value: str, kind: str) -> str:
+    from lxml import etree
+
+    from .name_group import _name_schema
+
+    _xml_text(value)
+    value = re.sub(r"[\t\n\r ]+", " ", value).strip(" ")
+    element = etree.Element("name")
+    element.text = value
+    if not _name_schema(kind).validate(element):
+        raise TgiError(f"Invalid {kind}", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _integer(source: str, maximum: int | None, deferred: bool = False) -> int | None:
+    try:
+        stripped = source.strip()
+        value = int(stripped, 10) if re.fullmatch(r"[+-]?[0-9]+", stripped) else SvExpressionParser().evaluate(source)
+    except SvExpressionError as error:
+        diagnostics = re.findall(r"error:\s*(.+)", str(error))
+        if deferred and diagnostics and all("use of undeclared identifier" in item for item in diagnostics):
+            return None
+        raise TgiError("Cannot evaluate integer expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    if type(value) is not int or value < 0 or (maximum is not None and value > maximum):
+        raise TgiError("Expression outside unsigned integer bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _source(value: str, current: Any = None, maximum: int | None = _UINT_MAX) -> str:
+    _xml_text(value)
+    if not value.strip():
+        raise TgiError("Expression must be nonempty", TgiFaultCode.INVALID_ARGUMENT)
+    result = _integer(value, maximum, True)
+    if result is not None and current is not None:
+        minimum = getattr(current, "minimum", None)
+        maximum = getattr(current, "maximum", None)
+        if (minimum is not None and result < minimum) or (maximum is not None and result > maximum):
+            raise TgiError("Expression outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _array(value: Sequence[str], argument: str) -> list[str]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        raise TgiError(f"{argument} must be a sequence", TgiFaultCode.INVALID_ARGUMENT)
+    return list(value)
+
+
+def _range_plan(value: Sequence[str], current: Range | None) -> tuple[str, str]:
+    values = _array(value, "range")
+    if len(values) != 2:
+        raise TgiError("range must contain left and right", TgiFaultCode.INVALID_ARGUMENT)
+    if current is not None and (
+        not isinstance(current, Range) or not isinstance(current.left, Left) or not isinstance(current.right, Right)
+    ):
+        raise TgiError("Invalid range model", TgiFaultCode.INVALID_ID)
+    return (
+        _source(values[0], current.left if current else None),
+        _source(values[1], current.right if current else None),
+    )
+
+
+def _apply_range(current: Range | None, values: tuple[str, str]) -> Range:
+    if current is None:
+        return Range(left=Left(value=values[0]), right=Right(value=values[1]))
+    current.left.value, current.right.value = values
+    return current
+
+
+def _remove_child(parent: Any, attr: str) -> bool:
+    child = getattr(parent, attr)
+    if child is None:
+        return False
+    register_parent(child, parent, (attr,), "single")
+    _register_graph(child)
+    return detach_child_by_handle(get_handle(child))
+
+
+def _replace_choice(parent: Any, value: Any) -> None:
+    _remove_child(parent, _CHOICE)
+    setattr(parent, _CHOICE, value)
+    register_parent(value, parent, (_CHOICE,), "single")
+    _register_graph(value)
+
+
+def _parts(part_select: PartSelect | None) -> tuple[Range | None, Indices | None]:
+    if part_select is None:
+        return None, None
+    if not isinstance(part_select, PartSelect):
+        raise TgiError("Invalid partSelect model", TgiFaultCode.INVALID_ID)
+    value = part_select.range_or_indices
+    if value is None:
+        return None, None
+    children = list(value) if isinstance(value, (list, tuple)) else [value]
+    ranges = [item for item in children if isinstance(item, Range)]
+    indices = [item for item in children if isinstance(item, Indices)]
+    if len(ranges) > 1 or len(indices) > 1 or len(ranges) + len(indices) != len(children):
+        raise TgiError("Invalid partSelect children", TgiFaultCode.INVALID_ID)
+    return (ranges[0] if ranges else None, indices[0] if indices else None)
+
+
+def _set_part_select(parent: Any, range: Sequence[str] | None, indices: Sequence[str] | None) -> str:
+    current = parent.part_select
+    old_range, old_indices = _parts(current)
+    range_values = _range_plan(range, old_range) if range is not None else None
+    index_values = _array(indices, "indices") if indices is not None else []
+    if range_values is None and not index_values:
+        raise TgiError("partSelect requires a range or indices", TgiFaultCode.INVALID_ARGUMENT)
+    old_items = list(old_indices.index) if old_indices else []
+    if any(not isinstance(item, Index) for item in old_items):
+        raise TgiError("Invalid indices model", TgiFaultCode.INVALID_ID)
+    index_values = [
+        _source(value, old_items[i] if i < len(old_items) else None) for i, value in enumerate(index_values)
+    ]
+    if current is None:
+        current = PartSelect()
+        parent.part_select = current
+    register_parent(current, parent, ("part_select",), "single")
+    # Normalize compound storage before removing any obsolete owned child.
+    value = current.range_or_indices
+    if isinstance(value, tuple):
+        current.range_or_indices = list(value)
+    _register_graph(current)
+    for child, keep in [(old_range, range_values is not None), (old_indices, bool(index_values))]:
+        if child is not None and not keep:
+            detach_child_by_handle(get_handle(child))
+    children = []
+    if index_values:
+        holder = old_indices or Indices()
+        holder.index = old_items
+        _register_graph(holder)
+        for item in old_items[len(index_values) :]:
+            detach_child_by_handle(get_handle(item))
+        items = []
+        for i, value in enumerate(index_values):
+            item = old_items[i] if i < len(old_items) else Index(value=value)
+            item.value = value
+            items.append(item)
+        holder.index = items
+        children.append(holder)
+    if range_values is not None:
+        children.append(_apply_range(old_range, range_values))
+    current.range_or_indices = children[0] if len(children) == 1 else children
+    _register_graph(current)
+    return get_handle(current)
 
 
 # ---------------------------------------------------------------------------
 # BASE functions (F.7.69)
 # ---------------------------------------------------------------------------
 
-def getLogicalPortRange(portMapID: str) -> str | None:
-    """Return handle of the logicalPort.range element.
+
+def getLogicalPortRange(logicalPortID: str) -> list[int] | None:
+    """Return evaluated left and right bounds of a logical port.
+
+    Args:
+        logicalPortID: Handle to a logicalPort child.
+
+    Returns:
+        Two evaluated unsigned integers, or None when the range is absent. Unresolved expressions fault.
 
     Section: F.7.69.1.
     """
-    pm = _resolve_port_map(portMapID)
-    rng = getattr(getattr(pm, "logical_port", None), "range", None) if pm else None
-    return get_handle(rng) if rng is not None else None
+    logical = _require(logicalPortID, _LogicalPort)
+    value = _child(logical, "range", Range)
+    if value is None:
+        return None
+    return [_integer(value.left.value, _UINT_MAX), _integer(value.right.value, _UINT_MAX)]
 
 
-def getLogicalPortRangeExpression(portMapID: str) -> str | None:
-    """Return combined expression ("left:right") for logicalPort.range.
+def getLogicalPortRangeExpression(logicalPortID: str) -> list[str] | None:
+    """Return the stored left and right expression sources of a logical port.
+
+    Args:
+        logicalPortID: Handle to a logicalPort child.
+
+    Returns:
+        Two source strings [left, right], or None when the range is absent.
 
     Section: F.7.69.2.
     """
-    pm = _resolve_port_map(portMapID)
-    rng = getattr(getattr(pm, "logical_port", None), "range", None) if pm else None
-    if rng is None:
-        return None
-    left_v = _expr(getattr(rng, "left", None))
-    right_v = _expr(getattr(rng, "right", None))
-    if left_v is None or right_v is None:
-        return None
-    return f"{left_v}:{right_v}"
+    value = _child(_require(logicalPortID, _LogicalPort), "range", Range)
+    return [value.left.value, value.right.value] if value is not None else None
 
 
-def getLogicalPortRangeLeftID(portMapID: str) -> str | None:
-    """Return handle to the left element of logicalPort.range.
+def getLogicalPortRangeLeftID(logicalPortID: str) -> str | None:
+    """Return the stable handle to the logical range left bound.
+
+    Args:
+        logicalPortID: Handle to a logicalPort child.
+
+    Returns:
+        Owned child handle, or None when optional content or the matching choice is absent.
 
     Section: F.7.69.3.
     """
-    pm = _resolve_port_map(portMapID)
-    rng = getattr(getattr(pm, "logical_port", None), "range", None) if pm else None
-    left = getattr(rng, "left", None) if rng else None
-    return get_handle(left) if left is not None else None
+    value = _child(_require(logicalPortID, _LogicalPort), "range", Range)
+    return _child_id(value, "left", Left) if value is not None else None
 
 
-def getLogicalPortRangeRightID(portMapID: str) -> str | None:
-    """Return handle to the right element of logicalPort.range.
+def getLogicalPortRangeRightID(logicalPortID: str) -> str | None:
+    """Return the stable handle to the logical range right bound.
+
+    Args:
+        logicalPortID: Handle to a logicalPort child.
+
+    Returns:
+        Owned child handle, or None when optional content or the matching choice is absent.
 
     Section: F.7.69.4.
     """
-    pm = _resolve_port_map(portMapID)
-    rng = getattr(getattr(pm, "logical_port", None), "range", None) if pm else None
-    right = getattr(rng, "right", None) if rng else None
-    return get_handle(right) if right is not None else None
+    value = _child(_require(logicalPortID, _LogicalPort), "range", Range)
+    return _child_id(value, "right", Right) if value is not None else None
 
 
-def getPhysicalPortPartSelectID(portMapID: str) -> str | None:
-    """Return handle to physicalPort.partSelect.
+def getPhysicalPortPartSelectID(physicalPortID: str) -> str | None:
+    """Return the owned partSelect handle of a physical port.
+
+    Args:
+        physicalPortID: Handle to a physicalPort child.
+
+    Returns:
+        Owned child handle, or None when optional content or the matching choice is absent.
 
     Section: F.7.69.5.
     """
-    pm = _resolve_port_map(portMapID)
-    ps = getattr(getattr(pm, "physical_port", None), "part_select", None) if pm else None
-    return get_handle(ps) if ps is not None else None
+    return _child_id(_require(physicalPortID, _PhysicalPort), "part_select", PartSelect)
 
 
-def getPhysicalPortSubPortIDs(portMapID: str) -> list[str]:
-    """Return handles of physicalPort.subPort elements.
+def getPhysicalPortSubPortIDs(physicalPortID: str) -> list[str]:
+    """Return physical subport handles in hierarchical path order.
+
+    Args:
+        physicalPortID: Handle to a physicalPort child.
+
+    Returns:
+        Handles in source order, including repeated path names; an empty list when absent.
 
     Section: F.7.69.6.
     """
-    pm = _resolve_port_map(portMapID)
-    sub_ports: Iterable[object] = getattr(getattr(pm, "physical_port", None), "sub_port", []) if pm else []
-    return [get_handle(sp) for sp in sub_ports]
+    physical = _require(physicalPortID, _PhysicalPort)
+    _register_graph(physical)
+    return [get_handle(item) for item in physical.sub_port]
 
 
-def getPortMapIsInformative(portMapID: str) -> bool | None:
-    """Return isInformative flag value.
+def getPortMapIsInformative(portMapID: str) -> bool:
+    """Return the isInformative flag, defaulting to False when omitted.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        Stored Boolean, or False when the optional element is absent.
 
     Section: F.7.69.7.
     """
-    pm = _resolve_port_map(portMapID)
-    return getattr(pm, "is_informative", None) if pm else None
+    value = _require(portMapID, _PortMap).is_informative
+    return False if value is None else value
 
 
-def getPortMapLogicalPortID(portMapID: str) -> str | None:
-    """Return handle of logicalPort element.
+def getPortMapLogicalPortID(portMapID: str) -> str:
+    """Return the owned logicalPort handle of a port map.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        Owned logicalPort handle. Missing required content faults INVALID_ID.
 
     Section: F.7.69.8.
     """
-    pm = _resolve_port_map(portMapID)
-    lp = getattr(pm, "logical_port", None) if pm else None
-    return get_handle(lp) if lp is not None else None
+    handle = _child_id(_require(portMapID, _PortMap), "logical_port", _LogicalPort)
+    if handle is None:
+        raise TgiError("Port map lacks required logicalPort", TgiFaultCode.INVALID_ID)
+    return handle
 
 
-def getPortMapLogicalTieOff(portMapID: str) -> str | None:
-    """Return handle of logicalTieOff element.
+def getPortMapLogicalTieOff(portMapID: str) -> int | None:
+    """Return the evaluated unsigned logical tie-off value.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        Unsigned integer within the TGI Long range, or None for a physical mapping.
+        Unresolved expressions and values exceeding signed 64-bit bounds fault.
 
     Section: F.7.69.9.
     """
-    pm = _resolve_port_map(portMapID)
-    lto = getattr(pm, "logical_tie_off", None) if pm else None
-    return get_handle(lto) if lto is not None else None
+    value = _child(_require(portMapID, _PortMap), _CHOICE, UnsignedBitVectorExpression)
+    return _integer(value.value, (1 << 63) - 1) if value is not None else None
 
 
 def getPortMapLogicalTieOffExpression(portMapID: str) -> str | None:
-    """Return expression text of logicalTieOff.
+    """Return the exact logical tie-off expression source.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        Exact stored source, or None for a physical mapping.
 
     Section: F.7.69.10.
     """
-    pm = _resolve_port_map(portMapID)
-    lto = getattr(pm, "logical_tie_off", None) if pm else None
-    return _expr(lto)
+    value = _child(_require(portMapID, _PortMap), _CHOICE, UnsignedBitVectorExpression)
+    return value.value if value is not None else None
 
 
 def getPortMapLogicalTieOffID(portMapID: str) -> str | None:
-    """Alias for getPortMapLogicalTieOff (both return handle).
+    """Return the owned logical tie-off expression handle.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        Owned child handle, or None when optional content or the matching choice is absent.
 
     Section: F.7.69.11.
     """
-    return getPortMapLogicalTieOff(portMapID)
+    return _child_id(_require(portMapID, _PortMap), _CHOICE, UnsignedBitVectorExpression)
 
 
 def getPortMapPhysicalPortID(portMapID: str) -> str | None:
-    """Return handle of physicalPort element.
+    """Return the physicalPort handle when the physical mapping choice is selected.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        Owned child handle, or None when optional content or the matching choice is absent.
 
     Section: F.7.69.12.
     """
-    pm = _resolve_port_map(portMapID)
-    phys = getattr(pm, "physical_port", None) if pm else None
-    return get_handle(phys) if phys is not None else None
+    return _child_id(_require(portMapID, _PortMap), _CHOICE, _PhysicalPort)
 
 
 # ---------------------------------------------------------------------------
 # EXTENDED functions (F.7.70)
 # ---------------------------------------------------------------------------
 
+
 def addPhysicalPortSubPort(physicalPortID: str, name: str) -> str:
-    """Add a subPort to an existing physicalPort.
+    """Append a subport name to the physical port hierarchical path.
+
+    Args:
+        physicalPortID: Handle to a physicalPort child.
+        name: Physical subport portName to append to the hierarchical path.
+
+    Returns:
+        Handle to the owned generated child.
 
     Section: F.7.70.1.
     """
-    phys = resolve_handle(physicalPortID)
-    from org.accellera.ipxact.v1685_2022.abstraction_types import (
-        AbstractionTypes as ATM,
-    )
-    if not isinstance(phys, ATM.AbstractionType.PortMaps.PortMap.PhysicalPort):  # type: ignore[attr-defined]
-        raise TgiError("Invalid physicalPort handle", TgiFaultCode.INVALID_ID)
-    sp = ATM.AbstractionType.PortMaps.PortMap.PhysicalPort.SubPort(name=name)
-    phys.sub_port.append(sp)  # type: ignore[attr-defined]
-    return get_handle(sp)
+    physical = _require(physicalPortID, _PhysicalPort)
+    name = _name(name, "portName")
+    child = _SubPort(name=name)
+    _list_attr(physical, "sub_port").append(child)
+    register_parent(child, physical, ("sub_port",), "list")
+    return get_handle(child)
 
 
 def addPortMapPhysicalPortSubPort(portMapID: str, name: str) -> str:
-    """Convenience: add subPort via portMap physicalPort.
+    """Append a subport through the existing physical mapping choice.
+
+    Args:
+        portMapID: Handle to a portMap element.
+        name: Physical subport portName to append to the hierarchical path.
+
+    Returns:
+        Handle to the owned generated child.
 
     Section: F.7.70.2.
     """
-    pm = _require_port_map(portMapID)
-    phys = getattr(pm, "physical_port", None)
-    if phys is None:
-        from org.accellera.ipxact.v1685_2022.abstraction_types import (
-            AbstractionTypes as ATM,
-        )
-        phys = ATM.AbstractionType.PortMaps.PortMap.PhysicalPort(name="")
-        pm.physical_port = phys
-    return addPhysicalPortSubPort(get_handle(phys), name)
+    physical_id = getPortMapPhysicalPortID(portMapID)
+    if physical_id is None:
+        raise TgiError("Port map has no physicalPort", TgiFaultCode.INVALID_ARGUMENT)
+    return addPhysicalPortSubPort(physical_id, name)
 
 
-def removePhysicalPortPartSelect(physicalPortID: str) -> None:
-    """Remove partSelect from a physicalPort.
+def removePhysicalPortPartSelect(physicalPortID: str) -> bool:
+    """Remove a physical part select and invalidate its descendant handles.
+
+    Args:
+        physicalPortID: Handle to a physicalPort child.
+
+    Returns:
+        True if removed; False if optional content is absent. Invalid or unowned handles fault.
 
     Section: F.7.70.3.
     """
-    phys = resolve_handle(physicalPortID)
-    from org.accellera.ipxact.v1685_2022.abstraction_types import (
-        AbstractionTypes as ATM,
-    )
-    if not isinstance(phys, ATM.AbstractionType.PortMaps.PortMap.PhysicalPort):  # type: ignore[attr-defined]
-        raise TgiError("Invalid physicalPort handle", TgiFaultCode.INVALID_ID)
-    phys.part_select = None
+    return _remove_child(_require(physicalPortID, _PhysicalPort), "part_select")
 
 
-def removePhysicalPortSubPort(subPortID: str) -> None:
-    """Remove a subPort from its parent physicalPort.
+def removePhysicalPortSubPort(subPortID: str) -> bool:
+    """Remove an owned physical subport and invalidate its descendant handles.
 
-    Section: F.7.70.4. Best-effort linear search over known port maps.
+    Args:
+        subPortID: Handle to a subPort of a physicalPort.
+
+    Returns:
+        True if the owned child is removed; False for inconsistent ownership.
+        Invalid or unowned handles fault.
+
+    Section: F.7.70.4.
     """
-    sp = resolve_handle(subPortID)
-    from org.accellera.ipxact.v1685_2022.abstraction_types import (
-        AbstractionTypes as ATM,
-    )
-    if not isinstance(sp, ATM.AbstractionType.PortMaps.PortMap.PhysicalPort.SubPort):  # type: ignore[attr-defined]
-        raise TgiError("Invalid subPort handle", TgiFaultCode.INVALID_ID)
-    # Linear search (cost acceptable for typical sizes)
-    # Walk up by scanning all registered abstraction types roots the user will have handles for.
-    # If not found, raise NOT_FOUND.
-    removed = False
-    # We do not have a registry of all handles by type; rely on parent attribute heuristics.
-    # Give up and signal NOT_FOUND (simplification until parent index exists).
-    if not removed:
-        raise TgiError("Parent physicalPort not found for subPort", TgiFaultCode.NOT_FOUND)
+    child = _require(subPortID, _SubPort)
+    owner = _register_owned_child(child, _PhysicalPort)
+    if owner is None:
+        raise TgiError("Subport has no owning physicalPort", TgiFaultCode.INVALID_ID)
+    _list_attr(owner, "sub_port")
+    _register_graph(owner)
+    return detach_child_by_handle(subPortID)
 
 
-def removePortMapIsInformative(portMapID: str) -> None:
-    """Clear the isInformative element.
+def removePortMapIsInformative(portMapID: str) -> bool:
+    """Remove the explicit isInformative flag, restoring its default.
+
+    Args:
+        portMapID: Handle to a portMap element.
+
+    Returns:
+        True if removed; False if optional content is absent. Invalid or unowned handles fault.
 
     Section: F.7.70.5.
     """
-    pm = _require_port_map(portMapID)
-    pm.is_informative = None
+    port_map = _require(portMapID, _PortMap)
+    if port_map.is_informative is None:
+        return False
+    port_map.is_informative = None
+    return True
 
 
-def setAbstractionTypeAbstractionRef(abstractionTypeID: str, vlnv: str) -> None:
-    """Set abstractionRef VLNV string (vendor:library:name:version).
+def setAbstractionTypeAbstractionRef(abstractionTypeID: str, vlnv: Sequence[str]) -> bool:
+    """Set the typed abstraction reference while preserving overrides and metadata.
+
+    Args:
+        abstractionTypeID: Handle to an abstractionType element.
+        vlnv: Vendor/library XML Names followed by name/version NMTOKENs.
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.6.
     """
-    at = _require_abstraction_type(abstractionTypeID)
-    parts = vlnv.split(":")
-    if len(parts) != 4:
-        raise TgiError("Invalid VLNV format", TgiFaultCode.INVALID_ARGUMENT)
-    vendor, library, name, version = parts
-    # The abstraction_ref type has vendor/library/name/version fields
-    if at.abstraction_ref is None:  # type: ignore[attr-defined]
-    # Use lightweight dataclass; cloning existing generated type not available here.
-        @dataclass
-        class _AR:
-            vendor: str
-            library: str
-            name: str
-            version: str
-
-        at.abstraction_ref = _AR(vendor=vendor, library=library, name=name, version=version)  # type: ignore[attr-defined]
+    abstraction = _require(abstractionTypeID, AbstractionTypes.AbstractionType)
+    values = _array(vlnv, "vlnv")
+    if len(values) != 4:
+        raise TgiError("vlnv requires four attributes", TgiFaultCode.INVALID_ARGUMENT)
+    values = [_name(value, "Name" if i < 2 else "NMTOKEN") for i, value in enumerate(values)]
+    current = abstraction.abstraction_ref
+    if current is not None and not isinstance(current, ConfigurableLibraryRefType):
+        raise TgiError("Invalid abstractionRef model", TgiFaultCode.INVALID_ID)
+    if current is None:
+        current = ConfigurableLibraryRefType(vendor=values[0], library=values[1], name=values[2], version=values[3])
+        abstraction.abstraction_ref = current
     else:
-        ar = at.abstraction_ref  # type: ignore[attr-defined]
-        ar.vendor = vendor
-        ar.library = library
-        ar.name = name
-        ar.version = version
+        current.vendor, current.library, current.name, current.version = values
+    register_parent(current, abstraction, ("abstraction_ref",), "single")
+    _register_graph(current)
+    return True
 
 
-def setLogicalPortRange(portMapID: str, left_expr: str, right_expr: str) -> str:
-    """Create or update logicalPort.range with given left/right expressions.
+def setLogicalPortRange(logicalPortID: str, range: Sequence[str]) -> bool:
+    """Set logical range sources atomically while preserving expression wrappers.
+
+    Args:
+        logicalPortID: Handle to a logicalPort child.
+        range: Exactly two unsigned 32-bit expression sources [left, right].
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.7.
     """
-    pm = _require_port_map(portMapID)
-    lp = pm.logical_port
-    if lp is None:
-        raise TgiError("logicalPort missing", TgiFaultCode.INVALID_ARGUMENT)
-    if lp.range is None:
-        lp.range = Range()
-    if lp.range.left is None:
-        lp.range.left = Left(value=left_expr)  # type: ignore[attr-defined]
-    else:
-        lp.range.left.value = left_expr  # type: ignore[attr-defined]
-    if lp.range.right is None:
-        lp.range.right = Right(value=right_expr)  # type: ignore[attr-defined]
-    else:
-        lp.range.right.value = right_expr  # type: ignore[attr-defined]
-    return get_handle(lp.range)
+    logical = _require(logicalPortID, _LogicalPort)
+    current = logical.range
+    values = _range_plan(range, current)
+    logical.range = _apply_range(current, values)
+    register_parent(logical.range, logical, ("range",), "single")
+    _register_graph(logical.range)
+    return True
 
 
-def setPhysicalPortPartSelect(physicalPortID: str, left_expr: str, right_expr: str) -> str:
-    """Set or update partSelect on a physicalPort.
+def setPhysicalPortPartSelect(physicalPortID: str, range: Sequence[str] | None, indices: Sequence[str] | None) -> bool:
+    """Set a physical part select with a range, indices, or both in schema order.
+
+    Args:
+        physicalPortID: Handle to a physicalPort child.
+        range: Two unsigned 32-bit expression sources [left, right]; None omits the range in a part select.
+        indices: Unsigned 32-bit index expression sources in order; None or an empty sequence omits indices.
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.8.
     """
-    phys = resolve_handle(physicalPortID)
-    from org.accellera.ipxact.v1685_2022.abstraction_types import (
-        AbstractionTypes as ATM,
-    )
-    if not isinstance(phys, ATM.AbstractionType.PortMaps.PortMap.PhysicalPort):  # type: ignore[attr-defined]
-        raise TgiError("Invalid physicalPort handle", TgiFaultCode.INVALID_ID)
-    if phys.part_select is None:
-        phys.part_select = PartSelect()
-    ps = phys.part_select
-    # partSelect.range is a list (max 2). Ensure first two Range items exist with left/right expressions.
-    def _ensure_range(idx: int, l_expr: str, r_expr: str) -> None:
-        rng_list = cast(list[Range], ps.range)
-        while len(rng_list) <= idx:
-            rng_list.append(Range())
-        r = rng_list[idx]
-        if r.left is None:
-            r.left = Left(value=l_expr)  # type: ignore[attr-defined]
-        else:
-            r.left.value = l_expr  # type: ignore[attr-defined]
-        if r.right is None:
-            r.right = Right(value=r_expr)  # type: ignore[attr-defined]
-        else:
-            r.right.value = r_expr  # type: ignore[attr-defined]
-    _ensure_range(0, left_expr, right_expr)
-    return get_handle(ps)
+    _set_part_select(_require(physicalPortID, _PhysicalPort), range, indices)
+    return True
 
 
-def setPortMapIsInformative(portMapID: str, value: bool) -> None:
-    """Set the isInformative flag.
+def setPortMapIsInformative(portMapID: str, value: bool) -> bool:
+    """Set the explicit Boolean isInformative flag.
+
+    Args:
+        portMapID: Handle to a portMap element.
+        value: Boolean isInformative value.
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.9.
     """
-    pm = _require_port_map(portMapID)
-    pm.is_informative = bool(value)
+    port_map = _require(portMapID, _PortMap)
+    if type(value) is not bool:
+        raise TgiError("value must be Boolean", TgiFaultCode.INVALID_ARGUMENT)
+    port_map.is_informative = value
+    return True
 
 
-def setPortMapLogicalPort(portMapID: str, name: str) -> str:
-    """Set the logicalPort name (create logicalPort if absent).
+def setPortMapLogicalPort(portMapID: str, name: str) -> bool:
+    """Set the logical port name while preserving its range and handle.
+
+    Args:
+        portMapID: Handle to a portMap element.
+        name: XML Name of the logical port in the abstraction definition.
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.10.
     """
-    pm = _require_port_map(portMapID)
-    if pm.logical_port is None:
-        from org.accellera.ipxact.v1685_2022.abstraction_types import (
-            AbstractionTypes as ATM,
-        )
-        pm.logical_port = ATM.AbstractionType.PortMaps.PortMap.LogicalPort(name=name)
+    port_map = _require(portMapID, _PortMap)
+    name = _name(name, "Name")
+    current = port_map.logical_port
+    if current is None:
+        port_map.logical_port = _LogicalPort(name=name)
+    elif isinstance(current, _LogicalPort):
+        current.name = name
     else:
-        pm.logical_port.name = name
-    return get_handle(pm.logical_port)
+        raise TgiError("Invalid logicalPort model", TgiFaultCode.INVALID_ID)
+    register_parent(port_map.logical_port, port_map, ("logical_port",), "single")
+    _register_graph(port_map.logical_port)
+    return True
 
 
-def setPortMapLogicalTieOff(portMapID: str, expression: str) -> str:
-    """Create/update logicalTieOff expression.
+def setPortMapLogicalTieOff(portMapID: str, expression: str) -> bool:
+    """Set the logical tie-off source, replacing any physical mapping choice.
+
+    Args:
+        portMapID: Handle to a portMap element.
+        expression: Unsigned bit-vector expression source; symbolic names remain unresolved.
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.11.
     """
-    pm = _require_port_map(portMapID)
-    if pm.logical_tie_off is None:
-        pm.logical_tie_off = UnsignedBitVectorExpression(value=expression)
+    port_map = _require(portMapID, _PortMap)
+    current = _child(port_map, _CHOICE, UnsignedBitVectorExpression)
+    expression = _source(expression, current, None)
+    if current is None:
+        _replace_choice(port_map, UnsignedBitVectorExpression(value=expression))
     else:
-        pm.logical_tie_off.value = expression  # type: ignore[attr-defined]
-    return get_handle(pm.logical_tie_off)
+        current.value = expression
+    return True
 
 
-def setPortMapPhysicalPort(portMapID: str, name: str) -> str:
-    """Set or create physicalPort with provided name.
+def setPortMapPhysicalPort(portMapID: str, name: str) -> bool:
+    """Set the physical port name, replacing any logical tie-off choice.
+
+    Args:
+        portMapID: Handle to a portMap element.
+        name: portName of the physical component port.
+
+    Returns:
+        True on success. Invalid arguments raise INVALID_ARGUMENT before mutation.
 
     Section: F.7.70.12.
     """
-    pm = _require_port_map(portMapID)
-    if pm.physical_port is None:
-        from org.accellera.ipxact.v1685_2022.abstraction_types import (
-            AbstractionTypes as ATM,
-        )
-        pm.physical_port = ATM.AbstractionType.PortMaps.PortMap.PhysicalPort(name=name)
+    port_map = _require(portMapID, _PortMap)
+    name = _name(name, "portName")
+    current = _child(port_map, _CHOICE, _PhysicalPort)
+    if current is None:
+        _replace_choice(port_map, _PhysicalPort(name=name))
     else:
-        pm.physical_port.name = name
-    return get_handle(pm.physical_port)
+        current.name = name
+    return True
 
 
-def setSubPortMapPartSelect(subPortID: str, left_expr: str, right_expr: str) -> str:
-    """Set partSelect on a subPort.
+def setSubPortMapPartSelect(subPortID: str, range: Sequence[str] | None, indices: Sequence[str] | None) -> str:
+    """Set an owned subport part select and return its stable handle.
+
+    Args:
+        subPortID: Handle to a subPort of a physicalPort.
+        range: Two unsigned 32-bit expression sources [left, right]; None omits the range in a part select.
+        indices: Unsigned 32-bit index expression sources in order; None or an empty sequence omits indices.
+
+    Returns:
+        Handle to the owned generated child.
 
     Section: F.7.70.13.
     """
-    sp = resolve_handle(subPortID)
-    from org.accellera.ipxact.v1685_2022.abstraction_types import (
-        AbstractionTypes as ATM,
-    )
-    if not isinstance(sp, ATM.AbstractionType.PortMaps.PortMap.PhysicalPort.SubPort):  # type: ignore[attr-defined]
-        raise TgiError("Invalid subPort handle", TgiFaultCode.INVALID_ID)
-    if sp.part_select is None:
-        sp.part_select = PartSelect()
-    ps = sp.part_select
-    # Ensure partSelect present
-    if sp.part_select is None:
-        sp.part_select = PartSelect()
-    ps = sp.part_select
-    def _ensure_range(idx: int, l_expr: str, r_expr: str) -> None:
-        rng_list = cast(list[Range], ps.range)
-        while len(rng_list) <= idx:
-            rng_list.append(Range())
-        r = rng_list[idx]
-        if r.left is None:
-            r.left = Left(value=l_expr)  # type: ignore[attr-defined]
-        else:
-            r.left.value = l_expr  # type: ignore[attr-defined]
-        if r.right is None:
-            r.right = Right(value=r_expr)  # type: ignore[attr-defined]
-        else:
-            r.right.value = r_expr  # type: ignore[attr-defined]
-    _ensure_range(0, left_expr, right_expr)
-    return get_handle(ps)
-
-
+    return _set_part_select(_require(subPortID, _SubPort), range, indices)
