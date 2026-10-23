@@ -1019,23 +1019,23 @@ Component (EXTENDED)
 Configurable element (BASE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``getConfigurableElementIDs`` (F.7.31.1)
-- ☐ ``getConfigurableElementValue`` (F.7.31.2)
-- ☐ ``getConfigurableElementValueExpression`` (F.7.31.3)
-- ☐ ``getConfigurableElementValueIDs`` (F.7.31.4)
-- ☐ ``getConfigurableElementValueReferenceID`` (F.7.31.5)
-- ☐ ``getConfigurableElementValueValueExpression`` (F.7.31.6)
-- ☐ ``getUnconfiguredID`` (F.7.31.7)
+- ☑ ``getConfigurableElementIDs`` (F.7.31.1)
+- ☑ ``getConfigurableElementValue`` (F.7.31.2)
+- ☑ ``getConfigurableElementValueExpression`` (F.7.31.3)
+- ☑ ``getConfigurableElementValueIDs`` (F.7.31.4)
+- ☑ ``getConfigurableElementValueReferenceID`` (F.7.31.5)
+- ☑ ``getConfigurableElementValueValueExpression`` (F.7.31.6)
+- ☑ ``getUnconfiguredID`` (F.7.31.7)
 
 Configurable element (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addConfigurableElementValue`` (F.7.32.1)
-- ☐ ``addViewConfigurationConfigurableElementValue`` (F.7.32.2)
-- ☐ ``removeConfigurableElementValue`` (F.7.32.3)
-- ☐ ``setConfigurableElementValue`` (F.7.32.4)
-- ☐ ``setConfigurableElementValueReferenceID`` (F.7.32.5)
-- ☐ ``setConfigurableElementValueValue`` (F.7.32.6)
+- ☑ ``addConfigurableElementValue`` (F.7.32.1)
+- ☑ ``addViewConfigurationConfigurableElementValue`` (F.7.32.2)
+- ☑ ``removeConfigurableElementValue`` (F.7.32.3)
+- ☑ ``setConfigurableElementValue`` (F.7.32.4)
+- ☑ ``setConfigurableElementValueReferenceID`` (F.7.32.5)
+- ☑ ``setConfigurableElementValueValue`` (F.7.32.6)
 
 Constraint (BASE)
 ~~~~~~~~~~~~~~~~~

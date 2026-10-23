@@ -1,42 +1,41 @@
-"""Tests for configurable element category TGI functions."""
-from org.accellera.ipxact.v1685_2022 import ConfigurableElementValue, ConfigurableElementValues
+"""Configurable definitions and instance overrides are distinct IP-XACT objects."""
 
-from amal.eda.accellera.ipxact.v1685_2022.tgi import (
-    getConfigurableElementIDs,
-    getConfigurableElementValue,
-    getConfigurableElementValueExpression,
-    getConfigurableElementValueIDs,
-    getConfigurableElementValueReferenceID,
-    getConfigurableElementValueValueExpression,
-    getUnconfiguredID,
-    get_handle,
+from amal.eda.accellera.ipxact.v1685_2022.tgi import configurable_element as api
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import get_handle, registry
+from org.accellera.ipxact.v1685_2022 import (
+    Component,
+    ConfigurableLibraryRefType,
+    Parameter,
+    Parameters,
+    ParameterTypeResolve,
+    Value,
 )
 
 
-def _make_owner():
-    cev1 = ConfigurableElementValue(reference_id="REF1", value="10")
-    cev2 = ConfigurableElementValue(reference_id="REF2", value="WIDTH*2")
-    container = ConfigurableElementValues(configurable_element_value=[cev1, cev2])
-    class Owner:  # simple dynamic owner with attribute
-        def __init__(self, cev):
-            self.configurable_element_values = cev
-    return Owner(container)
-
-
-def test_configurable_element_value_traversal_and_gets():
-    owner = _make_owner()
-    owner_id = get_handle(owner)
-    val_ids = getConfigurableElementValueIDs(owner_id)
-    assert len(val_ids) == 2
-    # element-level IDs identical placeholder mapping
-    # Use category implementation (new module) which mirrors value IDs for now.
-    element_ids = getConfigurableElementIDs(owner_id)
-    assert element_ids == val_ids
-    # check each
-    for vid in val_ids:
-        assert getConfigurableElementValueValueExpression(vid) is not None
-        assert getConfigurableElementValue(vid) == getConfigurableElementValueExpression(vid)
-        ref = getConfigurableElementValueReferenceID(vid)
-        assert ref in {"REF1", "REF2"}
-    # unconfigured mapping identity
-    assert getUnconfiguredID(val_ids[0]) == val_ids[0]
+def test_configurable_definition_defaults_and_instance_override_traversal():
+    parameter = Parameter(
+        name="WIDTH", value=Value(value="10"), parameter_id="width", resolve=ParameterTypeResolve.USER
+    )
+    root = Component(
+        vendor="v", library="l", name="component", version="1", parameters=Parameters(parameter=[parameter])
+    )
+    reference = ConfigurableLibraryRefType(vendor="v", library="l", name="component", version="1")
+    root_id = get_handle(root)
+    reference_id = get_handle(reference)
+    registry.clear()
+    try:
+        registry.register(root, ("v", "l", "component", "1"))
+        definitions = api.getConfigurableElementIDs(root_id)
+        assert definitions == [get_handle(parameter)]
+        assert api.getConfigurableElementValue(definitions[0]) == "10"
+        assert api.getConfigurableElementValueExpression(definitions[0]) == "10"
+        override_id = api.addConfigurableElementValue(reference_id, "width", "WIDTH * 2")
+        assert api.getConfigurableElementValueIDs(reference_id) == [override_id]
+        assert override_id != definitions[0]
+        assert api.getConfigurableElementValueReferenceID(override_id) == "width"
+        assert api.getConfigurableElementValueValueExpression(override_id) == "WIDTH * 2"
+        assert api.getUnconfiguredID(reference_id) == root_id
+        assert api.getUnconfiguredID(override_id) == definitions[0]
+        assert api.getConfigurableElementValue(definitions[0]) == "10"
+    finally:
+        registry.clear()
