@@ -45,6 +45,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Constraint contracts with typed cell choices, effective count defaults, unsigned SV vector/count expressions, preserved wrappers and owned removal.
 - Complete Register file contracts with typed inline/reference choices, scoped external definitions, unsigned expressions, schema-valid factories and owned atomic removal.
 - Use native Python 3.14 annotations in handwritten modules, complete function signatures and model helper types, and preserve standard commentary.
 - Complete Power contracts with scoped domain references, typed constraints and instance links, preserved expression metadata, uniqueness checks and owned removal.
