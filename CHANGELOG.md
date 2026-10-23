@@ -9,10 +9,12 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Exit quietly with status 130 when Ctrl-C interrupts a CLI command.
 - Preserve the saved registry when listing documents or running commands without configured search paths.
 
 ### Features
 
+- Show each document's schema family and edition beside registry listings in tree and flat formats.
 - Register recognized top-level SPIRIT/IP-XACT documents from every available schema edition during scans, catalog discovery and cache restoration; retain IP-XACT 1685-2022 as the supported TGI edition.
 
 ## [0.7.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.6.0...v0.7.0) (2026-10-22)

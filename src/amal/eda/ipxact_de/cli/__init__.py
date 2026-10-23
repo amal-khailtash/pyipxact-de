@@ -836,7 +836,8 @@ def _run_registry_list(args: argparse.Namespace) -> None:
             version_pat = None if version_pat in (None, "*") else version_pat.lower()
     # Build nested dict: vendor -> library -> name -> set(versions)
     tree: dict[str, dict[str, dict[str, set[str]]]] = {}
-    types_by_key: dict[tuple[str, str, str], str] = {}
+    types_by_key: dict[tuple[str, str, str, str], str] = {}
+    editions_by_key: dict[tuple[str, str, str, str], str] = {}
     for handle in registry.iter_documents():
         vlnv = registry.get_vlnv(handle)
         if not vlnv:
@@ -877,10 +878,15 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         names = libs.setdefault(library, {})
         versions = names.setdefault(name, set())
         versions.add(version)
-        # Capture element type per (vendor, library, name)
-        key = (vendor, library, name)
-        if key not in types_by_key:
-            types_by_key[key] = _get_type_for_handle(handle) or ""
+        # Capture document type and schema edition for each complete VLNV.
+        key = (vendor, library, name, version)
+        types_by_key[key] = _get_type_for_handle(handle) or ""
+        info = registry.get_document_info(handle)
+        if info is not None and info.standard and info.schema_version:
+            family = "IP-XACT" if info.standard == "ipxact" else info.standard.upper()
+            editions_by_key[key] = f"{family} {info.schema_version}"
+        else:
+            editions_by_key[key] = "Unknown edition"
 
     # Render
     console.print(Text("Registry:", style="heading"))
@@ -893,7 +899,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
             for library in sorted(tree[vendor], key=lambda s: s.casefold()):
                 for name in sorted(tree[vendor][library], key=lambda s: s.casefold()):
                     for version in sorted(tree[vendor][library][name], key=_natural_key):
-                        tname = types_by_key.get((vendor, library, name), "")
+                        tname = types_by_key.get((vendor, library, name, version), "")
                         lines.append((vendor, library, name, version, tname))
         def _prefix_len(v: str, lib: str, n: str, ver: str) -> int:
             return len(v) + 1 + len(lib) + 1 + len(n) + 1 + len(ver)
@@ -911,7 +917,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                 f"[vlnv.name]{name}[/]"
                 f"[vlnv.sep]:[/]"
                 f"[vlnv.version]{version}[/]"
-                f"{pad}[vlnv.type]{tname}[/]"
+                f"{pad}[vlnv.type]{tname}[/]  [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
             )
     else:
         # Compute global max name and version lengths to align the type column
@@ -943,9 +949,10 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                         if pad_spaces < 1:
                             pad_spaces = 1
                         pad = " " * pad_spaces
-                        tname = types_by_key.get((vendor, library, name), "")
+                        tname = types_by_key.get((vendor, library, name, version), "")
                         console.print(
-                            f"{ver_indent}[vlnv.version]{version}[/]{pad}[vlnv.type]{tname}[/]"
+                            f"{ver_indent}[vlnv.version]{version}[/]{pad}[vlnv.type]{tname}[/] "
+                            f" [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
                         )
 
 
@@ -1028,6 +1035,14 @@ def _run_mcp(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    """Run the CLI, exiting quietly with status 130 when interrupted."""
+    try:
+        _main()
+    except KeyboardInterrupt:
+        raise SystemExit(130) from None
+
+
+def _main() -> None:
     """Main entry point for the IP-XACT CLI."""
 
     # logger.trace("TRACE")

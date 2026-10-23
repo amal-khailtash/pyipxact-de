@@ -205,6 +205,7 @@ def test_cli_lists_older_edition_inventory(tmp_path: Path, monkeypatch: pytest.M
     cli.main()
 
     assert ":".join(vlnv) in output.getvalue()
+    assert "SPIRIT 1.5" in output.getvalue()
 
 
 @pytest.mark.parametrize("flat", [False, True])
@@ -225,6 +226,25 @@ def test_cli_scan_then_list_preserves_cache_between_processes(tmp_path: Path, fl
     listing = subprocess.run(command + arguments, cwd=tmp_path, capture_output=True, text=True, check=False)
     assert listing.returncode == 0, listing.stderr
     assert vlnv[2] in listing.stdout
+    assert "SPIRIT 1.5" in listing.stdout
     if flat:
         assert ":".join(vlnv) in listing.stdout
     assert cache.read_bytes() == saved_cache
+
+
+@pytest.mark.parametrize("flat", [False, True])
+def test_listing_shows_schema_edition_for_each_document_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flat: bool
+) -> None:
+    old_vlnv = ("example.org", "library", "shared_name", "1.0")
+    current_vlnv = ("example.org", "library", "shared_name", "2.0")
+    old = _write_component(tmp_path / "old.xml", "spirit", "1.5", old_vlnv)
+    current = _write_component(tmp_path / "current.xml", "ipxact", "1685-2022", current_vlnv)
+    loader.load_registry_from_paths([str(old), str(current)], cache_dir=tmp_path)
+    output = StringIO()
+    monkeypatch.setattr(cli, "console", Console(file=output, width=160, color_system=None))
+    monkeypatch.setattr(sys, "argv", ["ipxact-de", "registry", "list"] + (["--flat"] if flat else []))
+    cli.main()
+    lines = output.getvalue().splitlines()
+    assert any("1.0" in line and "SPIRIT 1.5" in line for line in lines)
+    assert any("2.0" in line and "IP-XACT 1685-2022" in line for line in lines)
