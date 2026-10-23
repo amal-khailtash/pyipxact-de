@@ -45,6 +45,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete CPU BASE and EXTENDED contracts with scoped memory-map references, typed regions and executable images, unsigned expressions, atomic edits and handle-preserving ownership.
 - Complete Configurable element definition/default and override contracts with typed XML source mapping, contextual reference/choice/range checks, schema-valid atomic edits and owned removal.
 - Complete Parameter BASE and EXTENDED contracts with scoped parameter/file references, owned Value handles, shared numeric/source evaluation and atomic typed edits.
 - Complete Name group source getters, standard setter signatures and absent-content rules, schema-specific names, generated text ownership and atomic registered document renaming.

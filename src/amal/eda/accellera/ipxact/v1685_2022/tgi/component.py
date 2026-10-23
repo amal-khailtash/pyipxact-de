@@ -1079,11 +1079,14 @@ def addComponentCpu(componentID: str, name: str, memoryMapRef: str, range: str, 
     from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import UnsignedPositiveIntExpression
     from org.accellera.ipxact.v1685_2022.unsigned_positive_longint_expression import UnsignedPositiveLongintExpression
 
+    from .cpu import _name, _source
+
     component = _component_only(componentID)
+    name = _name(name)
+    memoryMapRef = _name(memoryMapRef)
+    range = _source(range, 1, (1 << 64) - 1)
+    width = _source(width, 1, (1 << 32) - 1)
     _assert_unique(component, "cpus.cpu", name)
-    _require_text(memoryMapRef, "memoryMapRef")
-    range = _validated_expression(range, "range", 1, (1 << 63) - 1)
-    width = _validated_expression(width, "width", 1, (1 << 32) - 1)
     child = CT.Cpus.Cpu(
         name=name,
         memory_map_ref=memoryMapRef,
