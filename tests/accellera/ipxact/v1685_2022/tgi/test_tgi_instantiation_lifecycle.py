@@ -1,10 +1,11 @@
 """Typed mixed instantiation traversal and removal preserve sibling alternatives."""
 
 import pytest
-from test_tgi_view_targets import document
 
 from amal.eda.accellera.ipxact.v1685_2022.tgi import component, view
 from amal.eda.accellera.ipxact.v1685_2022.tgi.core import TgiError, get_handle, resolve_handle
+
+from .test_tgi_view_targets import document
 
 
 @pytest.mark.parametrize("kind", ["Component", "Design", "DesignConfiguration"])
