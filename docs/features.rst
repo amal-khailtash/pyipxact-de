@@ -68,7 +68,11 @@ Repository cache integrity
 
 - ☑ Validate cache records independently and retain valid records beside malformed entries.
 - ☑ Detect changed files using nanosecond modification/change times and file size.
-- ☑ Discard stale or deleted files during cache-only registry loading and clear empty cached registries.
+- ☑ Discard stale or deleted files during validating cache-only registry loading and clear empty cached registries.
+- ☑ List saved inventory without source-file checks; update inventory through explicit registry scans.
+- ☑ Batch styled registry output and provide aligned, unwrapped plain text for redirected output.
+- ☑ Report registry loading and scan progress with compact XML filename, edition and document-type results.
+- ☑ Discover XML files progressively and support explicit registry listing color modes for pipelines.
 - ☑ Create requested cache directories before persisting scan results.
 - ☑ Replace cache files atomically and preserve existing data when replacement fails.
 

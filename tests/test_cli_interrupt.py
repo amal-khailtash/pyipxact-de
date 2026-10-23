@@ -1,12 +1,15 @@
 """Tests for command-line interruption handling."""
 
+import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
+from rich.console import Console
 
 from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
-from amal.eda.ipxact_de import cli
+from amal.eda.ipxact_de import cli, loader
 from org.accellera.ipxact.v1685_2022 import Component
 
 
@@ -71,6 +74,7 @@ def test_registry_list_interrupt_preserves_registered_inventory(
             "argv",
             ["ipxact-de", "registry", "list", "__cli_interrupt_test__:library:component:1"],
         )
+        monkeypatch.setattr(cli, "console", Console(force_terminal=True))
         original_print = cli.console.print
         printed: list[str] = []
 
@@ -92,3 +96,28 @@ def test_registry_list_interrupt_preserves_registered_inventory(
         assert {handle: registry.get_vlnv(handle) for handle in registry.iter_documents()} == expected
     finally:
         registry.unregister(vlnv)
+
+
+def test_early_pipe_closure_exits_without_traceback(tmp_path: Path) -> None:
+    cache = {}
+    for index in range(3000):
+        path = tmp_path / f"component-{index}.xml"
+        vlnv = ("example.org", "library", f"component-{index}", "1.0")
+        cache[str(path)] = loader.CacheEntry(str(path), 1.0, "component", "ipxact", "1685-2022", vlnv)
+    loader._save_cache(tmp_path / loader.CACHE_BASENAME, cache)
+    process = subprocess.Popen(
+        [sys.executable, "-m", "amal.eda.ipxact_de.cli", "registry", "list", "--flat"],
+        cwd=tmp_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert process.stdout is not None
+    assert "Registry:" in process.stdout.readline()
+    process.stdout.close()
+    assert process.stderr is not None
+    diagnostics = process.stderr.read()
+    status = process.wait(timeout=20)
+    assert status == 0
+    assert "Traceback" not in diagnostics
+    assert "BrokenPipeError" not in diagnostics

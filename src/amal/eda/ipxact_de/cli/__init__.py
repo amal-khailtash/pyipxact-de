@@ -5,8 +5,12 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
+from types import TracebackType
+from typing import Self
 
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
@@ -20,28 +24,26 @@ from ..loader import load_registry_from_cache, load_registry_from_paths
 from .commands import convert_xml, identify_xml, validate_xml
 
 # Global Rich console (single theme) reused for all help rendering.
-console = Console(
-    theme=Theme(
-        {
-            "heading": "bold bright_green",
-            "command": "bright_cyan",
-            "command.bold": "bold bright_cyan",
-            "flag": "bold bright_cyan",
-            "usage.label": "bold bright_green",
-            "usage.prog": "bold bright_cyan",
-            "usage.meta": "cyan",
-            "footer": "dim",
-            # VLNV display styles
-            "vlnv.vendor": "bold bright_green",
-            "vlnv.library": "bright_cyan",
-            "vlnv.name": "bold white",
-            "vlnv.version": "bright_yellow",
-            "vlnv.sep": "dim",
-            "vlnv.type": "bright_magenta",
-        }
-    ),
-    highlight=False,
+_CLI_THEME = Theme(
+    {
+        "heading": "bold bright_green",
+        "command": "bright_cyan",
+        "command.bold": "bold bright_cyan",
+        "flag": "bold bright_cyan",
+        "usage.label": "bold bright_green",
+        "usage.prog": "bold bright_cyan",
+        "usage.meta": "cyan",
+        "footer": "dim",
+        # VLNV display styles
+        "vlnv.vendor": "bold bright_green",
+        "vlnv.library": "bright_cyan",
+        "vlnv.name": "bold white",
+        "vlnv.version": "bright_yellow",
+        "vlnv.sep": "dim",
+        "vlnv.type": "bright_magenta",
+    }
 )
+console = Console(theme=_CLI_THEME, highlight=False)
 
 
 @dataclass(slots=True)
@@ -480,7 +482,7 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         parser_rlist = reg_sub.add_parser(
             "list",
             description=(
-                "List registry entries (tree by default). "
+                "List the inventory saved by the last scan (tree by default). "
                 "Use --flat for single-line Vendor:Library:Name:Version."
             ),
             help="List entries (tree by default)",
@@ -507,6 +509,17 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
             "--flat",
             action="store_true",
             help="Display results as flat lines: vendor:library:name:version",
+        )
+        parser_rlist.add_argument(
+            "--color",
+            choices=["auto", "always", "never"],
+            default="auto",
+            help="Color output: auto (default), always (including pipes), or never; --plain overrides colors",
+        )
+        parser_rlist.add_argument(
+            "--plain",
+            action="store_true",
+            help="Use fast plain text without colors or wrapping (automatic for redirected output)",
         )
         parser_rlist.add_argument(
             "-t",
@@ -732,6 +745,92 @@ def _print_standards(args: argparse.Namespace) -> None:
         console.print(f"  {ARROW} [bright_cyan]{ver}[/bright_cyan]")
 
 
+class _RegistryProgress:
+    """Report loader phases on stderr without contaminating streamed registry output."""
+
+    _LABELS = {
+        "reading_cache": "Reading cache",
+        "loading": "Loading inventory",
+        "discovering": "Finding XML",
+        "scanning": "Indexing XML",
+        "reading_documents": "Reading XML",
+        "completed": "Registry ready",
+    }
+
+    def __init__(
+        self, label: str, enabled: bool = True, paths: tuple[Path, ...] = (), verbose: bool = False
+    ) -> None:
+        self.label = label
+        self.enabled = enabled
+        self.verbose = verbose
+        self.paths = tuple(path.expanduser().absolute() for path in paths)
+        self.target = Console(stderr=True)
+        self.started = monotonic()
+        self.last_report = self.started
+        self.stage = ""
+        self.current = 0
+        self.total = 0
+        self.progress = Progress(
+            SpinnerColumn(), TextColumn("{task.description}"), BarColumn(),
+            TaskProgressColumn(), TimeElapsedColumn(), console=self.target,
+            transient=True, disable=not enabled or not self.target.is_terminal,
+            redirect_stdout=False, redirect_stderr=False,
+        )
+        self.task = self.progress.add_task(label, total=None)
+
+    def __enter__(self) -> Self:
+        if self.enabled:
+            self.progress.start()
+            if not self.target.is_terminal:
+                self.target.print(self.label + "...")
+        return self
+
+    def update(self, stage: str, current: int, total: int) -> None:
+        if not self.enabled:
+            return
+        now = monotonic()
+        changed = stage != self.stage
+        self.stage, self.current, self.total = stage, current, total
+        description = self._LABELS.get(stage, stage)
+        live_description = f"{description} {current:,}" if not total and current else description
+        self.progress.update(self.task, description=live_description, completed=current, total=total or None)
+        if not self.target.is_terminal and (changed or now - self.last_report >= 1):
+            count = f": {current:,}/{total:,}" if total else (f": {current:,} found" if current else "...")
+            self.target.print(description + count)
+            self.last_report = now
+
+    def document(self, path: Path, root: str, standard: str, version: str) -> None:
+        """Show the active XML path and one compact result line per parsed document."""
+        if not self.enabled:
+            return
+        display = str(path)
+        if not self.verbose:
+            for source in self.paths:
+                base = source.parent if source.suffix.lower() == ".xml" else source
+                if path.is_relative_to(base):
+                    display = str(path.relative_to(base))
+                    break
+        if not root:
+            self.progress.update(self.task, description=f"Read {path.name}")
+            return
+        family = "IP-XACT" if standard.lower() == "ipxact" else standard.upper()
+        details = f"{family} {version} {root}"
+        if not self.verbose:
+            width = max(10, self.target.width - len(details) - 2)
+            if len(display) > width:
+                display = "..." + display[-(width - 3):]
+        self.target.print(Text.assemble((display, "cyan"), "  ", (details, "dim")), soft_wrap=True)
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        if self.enabled:
+            self.progress.stop()
+            if exc_type is None:
+                count = f" ({self.current:,}/{self.total:,})"
+                self.target.print(f"{self.label}{count}: {monotonic() - self.started:.2f}s")
+
+
 def _run_scan(args: argparse.Namespace) -> None:
     """Execute the 'scan' command.
 
@@ -747,8 +846,13 @@ def _run_scan(args: argparse.Namespace) -> None:
         subname = " ".join(parts[1:]) if len(parts) > 1 else "registry scan"
         _print_subcommand_help(parent_prog, subname, scan_parser)
         return
-    load_registry_from_paths(paths)
-    console.print("Scan completed.")
+    enabled = not (getattr(args, "quiet", False) or getattr(args, "silent", False))
+    with _RegistryProgress(
+        "Registry scan", enabled, tuple(Path(path) for path in paths), bool(getattr(args, "verbose", False))
+    ) as status:
+        load_registry_from_paths(paths, progress=status.update, document_reporter=status.document)
+    count = sum(1 for _ in registry.iter_documents())
+    console.print(f"Scan completed. {count:,} documents registered.")
 
 
 def _run_validate(args: argparse.Namespace) -> None:
@@ -791,8 +895,35 @@ def _run_convert(args: argparse.Namespace) -> None:
     convert_xml(args)
 
 
+class _RegistryOutput:
+    """Write bounded batches of literal styled rows or unwrapped plain text."""
+
+    def __init__(self, target: Console, plain: bool) -> None:
+        self.target = target
+        self.plain = plain
+        self.lines: list[Text] = []
+
+    def write(self, *parts: tuple[str, str] | str) -> None:
+        line = Text.assemble(*parts)
+        self.lines.append(line)
+        if len(self.lines) >= 256:
+            self.flush()
+
+    def flush(self) -> None:
+        if not self.lines:
+            return
+        if self.plain:
+            self.target.file.write("".join(line.plain + "\n" for line in self.lines))
+            self.target.file.flush()
+        else:
+            self.target.print(Text("\n").join(self.lines), soft_wrap=True)
+        self.lines.clear()
+
+
 def _run_registry_list(args: argparse.Namespace) -> None:
-    """List registry entries as a Vendor:Library:Name:Version tree.
+    """List saved registry entries as a Vendor:Library:Name:Version tree.
+
+    registry scan updates the saved inventory; listing reads metadata without checking source files.
 
     Optional pattern filtering: 'vendor:library:name:version'. Without --regex, uses
     case-insensitive substring matching and allows '*' to match anything for a part.
@@ -800,10 +931,11 @@ def _run_registry_list(args: argparse.Namespace) -> None:
 
     Optional type filtering: use --type to show only entries of a specific IP-XACT element type.
     """
-    # If registry is empty, attempt to load from local cache.
-    any_entries = any(True for _ in registry.iter_documents())
-    if not any_entries:
-        load_registry_from_cache()
+    # Listing reads the saved inventory; registry scan updates its source paths.
+    if not any(True for _ in registry.iter_documents()):
+        enabled = not (getattr(args, "quiet", False) or getattr(args, "silent", False))
+        with _RegistryProgress("Registry loading", enabled) as status:
+            load_registry_from_cache(validate_files=False, progress=status.update)
     pattern = getattr(args, "pattern", None)
     use_regex = bool(getattr(args, "regex", False))
     type_filter = getattr(args, "type", None)
@@ -891,7 +1023,16 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     max_type_width = max((len(name) for name in types_by_key.values()), default=0)
 
     # Render
-    console.print(Text("Registry:", style="heading"))
+    color = getattr(args, "color", "auto")
+    target = console
+    if color == "always":
+        target = Console(
+            file=console.file, theme=_CLI_THEME, force_terminal=True, color_system="standard",
+            no_color=False, highlight=False, width=console.width,
+        )
+    plain = bool(getattr(args, "plain", False)) or color == "never" or not target.is_terminal
+    output = _RegistryOutput(target, plain)
+    output.write(("Registry:", "heading"))
     as_flat = bool(getattr(args, "flat", False))
     # Sort case-insensitively by vendor, then by library, then by name
     if as_flat:
@@ -910,17 +1051,19 @@ def _run_registry_list(args: argparse.Namespace) -> None:
             # Calculate padding so that type starts at same column
             pad_spaces = max_prefix - _prefix_len(vendor, library, name, version) + 1  # at least one space
             pad = " " * pad_spaces
-            console.print(
-                "  "
-                f"[vlnv.vendor]{vendor}[/]"
-                f"[vlnv.sep]:[/]"
-                f"[vlnv.library]{library}[/]"
-                f"[vlnv.sep]:[/]"
-                f"[vlnv.name]{name}[/]"
-                f"[vlnv.sep]:[/]"
-                f"[vlnv.version]{version}[/]"
-                f"{pad}[vlnv.type]{tname:<{max_type_width}}[/] "
-                f" [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
+            output.write(
+                "  ",
+                (vendor, "vlnv.vendor"),
+                (":", "vlnv.sep"),
+                (library, "vlnv.library"),
+                (":", "vlnv.sep"),
+                (name, "vlnv.name"),
+                (":", "vlnv.sep"),
+                (version, "vlnv.version"),
+                pad,
+                (f"{tname:<{max_type_width}}", "vlnv.type"),
+                "  ",
+                (editions_by_key[(vendor, library, name, version)], "dim"),
             )
     else:
         # Compute global max name and version lengths to align the type column
@@ -933,11 +1076,11 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                     for ver in tree[vnd][lib][nm]:
                         max_ver_len_all = max(max_ver_len_all, len(ver))
         for vendor in sorted(tree, key=lambda s: s.casefold()):
-            console.print(f"  [vlnv.vendor]{vendor}[/]")
+            output.write("  ", (vendor, "vlnv.vendor"))
             for library in sorted(tree[vendor], key=lambda s: s.casefold()):
-                console.print(f"    [vlnv.library]{library}[/]")
+                output.write("    ", (library, "vlnv.library"))
                 for name in sorted(tree[vendor][library], key=lambda s: s.casefold()):
-                    console.print(f"      [vlnv.name]{name}[/]")
+                    output.write("      ", (name, "vlnv.name"))
                     # Align types after versions using a global column to the right of both
                     # the longest name and the longest version to avoid visual overlap
                     versions_sorted = sorted(tree[vendor][library][name], key=_natural_key)
@@ -953,10 +1096,15 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                             pad_spaces = 1
                         pad = " " * pad_spaces
                         tname = types_by_key.get((vendor, library, name, version), "")
-                        console.print(
-                            f"{ver_indent}[vlnv.version]{version}[/]{pad}[vlnv.type]{tname:<{max_type_width}}[/] "
-                            f" [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
+                        output.write(
+                            ver_indent,
+                            (version, "vlnv.version"),
+                            pad,
+                            (f"{tname:<{max_type_width}}", "vlnv.type"),
+                            "  ",
+                            (editions_by_key[(vendor, library, name, version)], "dim"),
                         )
+    output.flush()
 
 
 # (Removed legacy registry 'search' subcommand; list now supports filtering and regex.)
@@ -1043,6 +1191,11 @@ def main() -> None:
         _main()
     except KeyboardInterrupt:
         raise SystemExit(130) from None
+    except BrokenPipeError:
+        # Discard buffered output after a downstream consumer closes the pipe.
+        with open(os.devnull, "w") as sink:
+            os.dup2(sink.fileno(), sys.stdout.fileno())
+        raise SystemExit(0) from None
 
 
 def _main() -> None:

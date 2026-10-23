@@ -24,12 +24,15 @@ already used by the project.
 """
 
 # ruff: noqa: I001
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from contextlib import redirect_stdout
 from dataclasses import dataclass
+from io import StringIO
 import json
 import os
 import math
 import re
+import stat
 import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -43,6 +46,8 @@ from org.accellera.standard import STANDARDS
 
 
 CACHE_BASENAME = ".ipxact-de-cache.json"
+type ProgressCallback = Callable[[str, int, int], None]
+type DocumentReporter = Callable[[Path, str, str, str], None]
 TOP_LEVEL_ELEMENTS = frozenset(
     {
         "abstractor",
@@ -183,42 +188,57 @@ def _save_cache(cache_path: Path, cache: dict[str, CacheEntry]) -> None:
             temporary.unlink(missing_ok=True)
 
 
-def _fingerprint(path: Path) -> tuple[int, int, int]:
-    stat = path.stat()
-    return stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+def _fingerprint(path: Path, *, source_stat: os.stat_result | None = None) -> tuple[int, int, int]:
+    metadata = source_stat if source_stat is not None else path.stat()
+    return metadata.st_mtime_ns, metadata.st_ctime_ns, metadata.st_size
 
 
-def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
+def load_registry_from_cache(
+    *, cache_dir: Path | None = None, validate_files: bool = True, progress: ProgressCallback | None = None
+) -> bool:
     """Load the in-memory registry solely from the on-disk cache.
 
-    This does not discover files, but checks cached paths and their fingerprints. It reads the cache file
-    (from the current working directory by default) and re-registers cached
-    entries into the global VLNV registry. Unrecognized editions and non-document roots are
-    skipped. Returns True if any entries were loaded.
+    This does not discover files. By default, it checks cached paths and their fingerprints; when
+    ``validate_files`` is False, it restores the saved recognized-document inventory without checking source
+    files. It reads the cache file (from the current working directory by default) and re-registers cached
+    entries into the global VLNV registry. Unrecognized editions and non-document roots are skipped. Returns
+    True if any entries were loaded.
 
     Args:
         cache_dir: Optional explicit directory containing the cache file.
+        validate_files: Whether cached source files must still exist and match their saved fingerprints.
+        progress: Optional callback receiving a phase name, current count, and total count.
 
     Returns:
         True if at least one cached entry was re-registered; False otherwise.
     """
     cache_base = cache_dir or _default_cache_dir()
     cache_path = cache_base / CACHE_BASENAME
+    if progress is not None:
+        progress("reading_cache", 0, 0)
     cache = _load_cache(cache_path)
     registry.clear()
-    if not cache:
-        return False
     loaded = 0
     seen_vlnvs: set[VLNV] = set()
-    for f, ce in cache.items():
+    total = len(cache)
+    if progress is not None:
+        progress("loading", 0, total)
+    for index, (f, ce) in enumerate(cache.items(), start=1):
+        if progress is not None:
+            progress("loading", index, total)
         if not ce.vlnv:
             continue
         if not _recognized_document(ce.standard, ce.version, ce.element):
             continue
         path = Path(f)
         try:
-            if not path.is_file() or ce.fingerprint != _fingerprint(path):
-                continue
+            if validate_files:
+                source_stat = path.stat()
+                if not stat.S_ISREG(source_stat.st_mode):
+                    continue
+                fingerprint = _fingerprint(path, source_stat=source_stat)
+                if ce.fingerprint != fingerprint:
+                    continue
             if ce.vlnv in seen_vlnvs:
                 logger.warning(f"Duplicate cached VLNV {ce.vlnv}: skipping {f}")
                 continue
@@ -238,6 +258,8 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
             loaded += 1
         except Exception:  # pragma: no cover - defensive
             continue
+    if progress is not None:
+        progress("completed", total, total)
     return loaded > 0
 
 
@@ -245,13 +267,59 @@ def _iter_xml_files(paths: Iterable[Path]) -> Iterable[Path]:
     """Yield XML files under given paths.
 
     Directories are traversed recursively; files are yielded if they have
-    a .xml extension.
+    a .xml extension. Each directory is read and sorted before traversal continues,
+    so earlier files are available without waiting for the rest of the tree.
     """
+
+    def visit(directory: Path) -> Iterable[Path]:
+        try:
+            with os.scandir(directory) as iterator:
+                entries = list(iterator)
+        except OSError as exc:
+            logger.warning(f"Cannot scan directory {directory}: {exc}")
+            return
+
+        ordered: list[tuple[str, os.DirEntry[str], bool, bool]] = []
+        for entry in entries:
+            try:
+                is_directory = entry.is_dir(follow_symlinks=False)
+                is_symlink = entry.is_symlink()
+            except OSError as exc:
+                logger.warning(f"Cannot inspect discovered path {entry.path}: {exc}")
+                continue
+            ordered.append((entry.name, entry, is_directory, is_symlink))
+
+        for _, entry, is_directory, is_symlink in sorted(ordered, key=lambda item: item[0]):
+            path = Path(entry.path)
+            if is_directory:
+                yield from visit(path)
+                continue
+            if path.suffix.lower() != ".xml":
+                continue
+            try:
+                is_file = entry.is_file()
+            except OSError as exc:
+                logger.warning(f"Cannot inspect discovered path {path}: {exc}")
+                continue
+            if is_file:
+                yield path.resolve() if is_symlink else path
+
     for p in paths:
         if p.is_dir():
-            yield from sorted(child for child in p.rglob("*") if child.is_file() and child.suffix.lower() == ".xml")
+            yield from visit(p)
         elif p.is_file() and p.suffix.lower() == ".xml":
-            yield p
+            yield p.resolve() if p.is_symlink() else p
+
+
+def _read_document(path: Path, document_reporter: DocumentReporter | None = None) -> XmlDocument:
+    """Parse a document and optionally report its path and detected schema metadata."""
+    if document_reporter is None:
+        return XmlDocument(path)
+    document_reporter(path, "", "", "")
+    with redirect_stdout(StringIO()):
+        document = XmlDocument(path)
+    document_reporter(path, document.root_name, document.standard, document.version)
+    return document
 
 
 def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
@@ -330,7 +398,11 @@ def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV, str]]:
             yield target, expected, expected_type
 
 
-def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[str, XmlDocument]]:
+def _discover_catalog_dependencies(
+    files: list[str],
+    progress: ProgressCallback | None = None,
+    document_reporter: DocumentReporter | None = None,
+) -> tuple[list[str], dict[str, XmlDocument]]:
     """Expand catalogs with cycle detection; explicit discoveries retain precedence."""
     ordered = dict.fromkeys(files)
     parsed: dict[str, XmlDocument] = {}
@@ -347,7 +419,7 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
         try:
             doc = parsed.get(file_name)
             if doc is None:
-                doc = XmlDocument(Path(file_name))
+                doc = _read_document(Path(file_name), document_reporter)
                 parsed[file_name] = doc
             if doc.tree is None or not _recognized_document(doc.standard, doc.version, doc.root_name):
                 return
@@ -359,7 +431,7 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
                 try:
                     child = parsed.get(target_name)
                     if child is None:
-                        child = XmlDocument(target)
+                        child = _read_document(target, document_reporter)
                         parsed[target_name] = child
                     if child.tree is None:
                         logger.warning(f"Malformed catalog target {target}")
@@ -391,8 +463,14 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
             active.remove(file_name)
             visited.add(file_name)
 
-    for file_name in files:
+    reported_count = len(ordered)
+    for index, file_name in enumerate(files, start=1):
         visit(file_name)
+        if progress is not None:
+            progress("reading_documents", index, len(files))
+        if progress is not None and len(ordered) > reported_count:
+            reported_count = len(ordered)
+            progress("discovering", reported_count, 0)
     return list(ordered), parsed
 
 
@@ -428,12 +506,20 @@ def _register_root(doc: XmlDocument) -> VLNV | None:
     return vlnv
 
 
-def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = None) -> None:
+def load_registry_from_paths(
+    paths: Iterable[str],
+    *,
+    cache_dir: Path | None = None,
+    progress: ProgressCallback | None = None,
+    document_reporter: DocumentReporter | None = None,
+) -> None:
     """Scan paths and IPXACT_XML_PATHS, update the global registry.
 
     Args:
         paths: Iterable of path strings passed on the command line.
         cache_dir: Optional explicit cache directory.
+        progress: Optional callback receiving a phase name, current count, and total count.
+        document_reporter: Optional callback receiving a path before parsing and detected metadata after parsing.
     """
     search_paths: list[Path] = []
     # CLI provided paths
@@ -454,6 +540,10 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
     if not unique_paths:
         registry.clear()
         _save_cache((cache_dir or _default_cache_dir()) / CACHE_BASENAME, {})
+        if progress is not None:
+            progress("discovering", 0, 0)
+            progress("scanning", 0, 0)
+            progress("completed", 0, 0)
         return
 
     cache_base = cache_dir or _default_cache_dir()
@@ -461,8 +551,20 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
     cache = _load_cache(cache_path)
 
     # Compute current file set
-    files = list(dict.fromkeys(str(p.resolve()) for p in _iter_xml_files(unique_paths)))
-    files, parsed_documents = _discover_catalog_dependencies(files)
+    if progress is not None:
+        progress("discovering", 0, 0)
+    files: list[str] = []
+    seen_files: set[str] = set()
+    for path in _iter_xml_files(unique_paths):
+        file_name = str(path)
+        if file_name not in seen_files:
+            seen_files.add(file_name)
+            files.append(file_name)
+            if progress is not None:
+                progress("discovering", len(files), 0)
+    files, parsed_documents = _discover_catalog_dependencies(files, progress, document_reporter)
+    if progress is not None:
+        progress("discovering", len(files), len(files))
 
     # Clear registry; we'll rebuild from current files
     registry.clear()
@@ -477,11 +579,17 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
         registered[vlnv] = file_name
         return True
 
-    for f in files:
+    total = len(files)
+    if progress is not None:
+        progress("scanning", 0, total)
+    for index, f in enumerate(files, start=1):
+        if progress is not None:
+            progress("scanning", index, total)
         path = Path(f)
         try:
-            mtime = path.stat().st_mtime
-            fingerprint = _fingerprint(path)
+            source_stat = path.stat()
+            mtime = source_stat.st_mtime
+            fingerprint = _fingerprint(path, source_stat=source_stat)
         except OSError as exc:
             logger.warning(f"Cannot read discovered XML {path}: {exc}")
             continue
@@ -526,7 +634,7 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
 
         # Parse fresh
         try:
-            doc = parsed_documents.get(f) or XmlDocument(path)
+            doc = parsed_documents.get(f) or _read_document(path, document_reporter)
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(f"{ARROW} Failed parsing '{f}': {exc}")
             continue
@@ -558,3 +666,5 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
 
     # Persist cache for next run
     _save_cache(cache_path, new_cache)
+    if progress is not None:
+        progress("completed", total, total)

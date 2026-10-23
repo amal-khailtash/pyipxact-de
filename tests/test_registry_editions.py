@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
@@ -208,6 +209,29 @@ def test_cli_lists_older_edition_inventory(tmp_path: Path, monkeypatch: pytest.M
     assert "SPIRIT 1.5" in output.getvalue()
 
 
+@pytest.mark.parametrize(
+    ("options", "colored"),
+    [([], False), (["--color=always"], True), (["--color=never"], False),
+     (["--color=always", "--plain"], False)],
+)
+def test_cli_list_color_options_for_redirected_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, options: list[str], colored: bool,
+) -> None:
+    vlnv = _vlnv("spirit", "1.5")
+    source = _write_component(tmp_path / "old.xml", "spirit", "1.5", vlnv)
+    loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
+    output = StringIO()
+    target = Console(file=output, force_terminal=False, color_system=None)
+    monkeypatch.setattr(cli, "console", target)
+    monkeypatch.setattr(sys, "argv", ["ipxact-de", "registry", "list", "--flat", *options])
+
+    cli.main()
+
+    assert ("\x1b[" in output.getvalue()) is colored
+    assert "SPIRIT 1.5" in output.getvalue()
+    assert not target.is_terminal
+
+
 @pytest.mark.parametrize("flat", [False, True])
 def test_cli_scan_then_list_preserves_cache_between_processes(tmp_path: Path, flat: bool) -> None:
     vlnv = _vlnv("spirit", "1.5")
@@ -247,7 +271,8 @@ def test_listing_shows_schema_edition_for_each_document_version(
     output = StringIO()
     monkeypatch.setattr(cli, "console", Console(file=output, width=160, color_system=None))
     monkeypatch.setattr(sys, "argv", ["ipxact-de", "registry", "list"] + (["--flat"] if flat else []))
-    cli.main()
+    with patch.object(cli.console, "input", side_effect=AssertionError("redirected output must not pause")):
+        cli.main()
     lines = output.getvalue().splitlines()
     assert any("1.0" in line and "SPIRIT 1.5" in line for line in lines)
     assert any("2.0" in line and "IP-XACT 1685-2022" in line for line in lines)
@@ -255,3 +280,27 @@ def test_listing_shows_schema_edition_for_each_document_version(
     assert len(entry_lines) == 3
     standard_columns = [line.index("SPIRIT" if "SPIRIT" in line else "IP-XACT") for line in entry_lines]
     assert len(set(standard_columns)) == 1
+
+
+def test_cli_snapshot_changes_only_after_scan(tmp_path: Path) -> None:
+    old_vlnv = ("example.org", "library", "old", "1.0")
+    removed_vlnv = ("example.org", "library", "removed", "1.0")
+    source = _write_component(tmp_path / "old.xml", "spirit", "1.5", old_vlnv)
+    removed = _write_component(tmp_path / "removed.xml", "spirit", "1.5", removed_vlnv)
+    loader.load_registry_from_paths([str(source), str(removed)], cache_dir=tmp_path)
+    new_vlnv = ("example.org", "library", "new", "1.0")
+    _write_component(source, "spirit", "1.5", new_vlnv)
+    removed.unlink()
+    command = [sys.executable, "-m", "amal.eda.ipxact_de.cli", "registry", "list", "--flat"]
+    snapshot = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert snapshot.returncode == 0, snapshot.stderr
+    assert ":".join(old_vlnv) in snapshot.stdout
+    assert ":".join(removed_vlnv) in snapshot.stdout
+    scan_command = [sys.executable, "-m", "amal.eda.ipxact_de.cli", "registry", "scan", str(tmp_path)]
+    scanned = subprocess.run(scan_command, cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert scanned.returncode == 0, scanned.stderr
+    persisted = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert persisted.returncode == 0, persisted.stderr
+    assert ":".join(new_vlnv) in persisted.stdout
+    assert ":".join(old_vlnv) not in persisted.stdout
+    assert ":".join(removed_vlnv) not in persisted.stdout

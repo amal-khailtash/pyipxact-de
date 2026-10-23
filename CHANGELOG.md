@@ -9,11 +9,17 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Retain owned TGI children to prevent stale ownership links after object identity reuse.
+- Exit quietly when a downstream pipe closes during CLI output.
+- Check each cached source file once when validating registry metadata.
 - Exit quietly with status 130 when Ctrl-C interrupts a CLI command.
 - Preserve the saved registry when listing documents or running commands without configured search paths.
 
 ### Features
 
+- Report registry loading and scan progress, discover XML files progressively and print compact file/edition/type scan results.
+- Support `registry list --color=always` for colored pipes, with `auto` and `never` modes.
+- List saved registry snapshots without checking or refreshing sources, batch styled output and provide fast plain output with `--plain`; `registry scan` updates the inventory.
 - Show each document's schema family and edition in an aligned column beside registry listings in tree and flat formats.
 - Register recognized top-level SPIRIT/IP-XACT documents from every available schema edition during scans, catalog discovery and cache restoration; retain IP-XACT 1685-2022 as the supported TGI edition.
 

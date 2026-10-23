@@ -141,6 +141,8 @@ class HandleManager:
 
     def register_parent(self, child: Any, parent: Any, path: tuple[str, ...], container: str) -> None:
         with self._lock:
+            # Retain the child while its ownership relation is indexed by object identity.
+            self.get(child)
             self._parent[id(child)] = _ParentInfo(
                 parent_handle=self.get(parent),
                 path=path,
