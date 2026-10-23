@@ -48,6 +48,7 @@ Repository discovery
 ~~~~~~~~~~~~~~~~~~~~
 
 - ☑ Extract root VLNV values independently of default or arbitrary XML namespace prefixes.
+- ☑ Index top-level documents from all recognized SPIRIT/IP-XACT editions while restricting TGI model operations to 1685-2022.
 - ☑ Discover XML files case-insensitively in recursive repository scans.
 - ☑ Preserve search-path order and scan overlapping files once.
 - ☑ Diagnose duplicate VLNV values and retain the first search-path match on fresh and cached scans.

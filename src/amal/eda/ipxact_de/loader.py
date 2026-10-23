@@ -22,6 +22,7 @@ Design notes:
 This intentionally has no external dependencies beyond lxml and xsdata
 already used by the project.
 """
+
 # ruff: noqa: I001
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -38,11 +39,39 @@ from lxml import etree
 from amal.utilities import ARROW, logger
 from amal.eda.accellera.ipxact.v1685_2022.tgi.core import VLNV, registry
 from .xml_document import XmlDocument
+from org.accellera.standard import STANDARDS
 
 
 CACHE_BASENAME = ".ipxact-de-cache.json"
-SUPPORTED_STANDARD = "ipxact"
-SUPPORTED_VERSION = "1685-2022"
+TOP_LEVEL_ELEMENTS = frozenset(
+    {
+        "abstractor",
+        "abstractionDefinition",
+        "busDefinition",
+        "catalog",
+        "component",
+        "design",
+        "designConfiguration",
+        "generatorChain",
+        "typeDefinitions",
+    }
+)
+
+
+def _recognized_document(standard: str, version: str, element: str) -> bool:
+    meta = STANDARDS.get(standard.lower())
+    return meta is not None and version in meta.versions and element in TOP_LEVEL_ELEMENTS
+
+
+@dataclass(slots=True)
+class _DocumentProxy:
+    """Lightweight inventory record shared by fresh and cached discovery."""
+
+    vendor: str
+    library: str
+    name: str
+    version: str
+    xml_path: str
 
 
 @dataclass(slots=True)
@@ -94,21 +123,26 @@ def _load_cache(cache_path: Path) -> dict[str, CacheEntry]:
                     raise ValueError("invalid modification time")
                 vlnv = v.get("vlnv")
                 if vlnv is not None and (
-                    not isinstance(vlnv, list) or len(vlnv) != 4
+                    not isinstance(vlnv, list)
+                    or len(vlnv) != 4
                     or not all(isinstance(part, str) and part for part in vlnv)
                 ):
                     raise ValueError("invalid VLNV")
                 fingerprint = v.get("fingerprint")
                 if fingerprint is not None and (
-                    not isinstance(fingerprint, list) or len(fingerprint) != 3
+                    not isinstance(fingerprint, list)
+                    or len(fingerprint) != 3
                     or not all(type(part) is int and part >= 0 for part in fingerprint)
                 ):
                     raise ValueError("invalid file fingerprint")
                 if not all(isinstance(v.get(key, ""), str) for key in ("element", "standard", "version")):
                     raise ValueError("invalid document metadata")
                 ce = CacheEntry(
-                    path=v["path"], mtime=mtime, element=v.get("element", ""),
-                    standard=v.get("standard", ""), version=v.get("version", ""),
+                    path=v["path"],
+                    mtime=mtime,
+                    element=v.get("element", ""),
+                    standard=v.get("standard", ""),
+                    version=v.get("version", ""),
                     vlnv=tuple(vlnv) if vlnv is not None else None,
                     fingerprint=tuple(fingerprint) if fingerprint is not None else None,
                 )
@@ -159,7 +193,7 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
 
     This does not discover files, but checks cached paths and their fingerprints. It reads the cache file
     (from the current working directory by default) and re-registers cached
-    entries into the global VLNV registry. Unsupported standards/versions are
+    entries into the global VLNV registry. Unrecognized editions and non-document roots are
     skipped. Returns True if any entries were loaded.
 
     Args:
@@ -179,7 +213,7 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
     for f, ce in cache.items():
         if not ce.vlnv:
             continue
-        if (ce.standard or "").lower() != SUPPORTED_STANDARD or (ce.version or "") != SUPPORTED_VERSION:
+        if not _recognized_document(ce.standard, ce.version, ce.element):
             continue
         path = Path(f)
         try:
@@ -188,13 +222,7 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
             if ce.vlnv in seen_vlnvs:
                 logger.warning(f"Duplicate cached VLNV {ce.vlnv}: skipping {f}")
                 continue
-            class _CachedProxy:
-                """Proxy used for re-registration from cache only."""
-                __slots__ = ("vendor", "library", "name", "version", "xml_path")
-                def __init__(self, v: VLNV, p: Path) -> None:
-                    self.vendor, self.library, self.name, self.version = v
-                    self.xml_path = str(p)
-            proxy = _CachedProxy(ce.vlnv, path)
+            proxy = _DocumentProxy(*ce.vlnv, str(path))
             # Derive element type from cached element local name
             etype = (ce.element[:1].upper() + ce.element[1:]) if ce.element else None
             registry.register(
@@ -203,6 +231,8 @@ def load_registry_from_cache(*, cache_dir: Path | None = None) -> bool:
                 file_name=f,
                 replace=True,
                 element_type=etype,
+                standard=ce.standard,
+                schema_version=ce.version,
             )
             seen_vlnvs.add(ce.vlnv)
             loaded += 1
@@ -234,8 +264,10 @@ def _extract_vlnv_from_root(root: etree._Element) -> VLNV | None:
     ns = etree.QName(root).namespace
     if not ns:
         return None
+
     def _t(tag: str) -> str:
         return f"{{{ns}}}{tag}"
+
     vendor = root.findtext(_t("vendor"))
     library = root.findtext(_t("library"))
     name = root.findtext(_t("name"))
@@ -254,10 +286,15 @@ def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV, str]]:
     if not ns:
         return
     categories = {
-        "catalogs": "catalog", "busDefinitions": "busDefinition",
-        "abstractionDefinitions": "abstractionDefinition", "components": "component",
-        "abstractors": "abstractor", "designs": "design", "designConfigurations": "designConfiguration",
-        "generatorChains": "generatorChain", "typeDefinitions": "typeDefinitions",
+        "catalogs": "catalog",
+        "busDefinitions": "busDefinition",
+        "abstractionDefinitions": "abstractionDefinition",
+        "components": "component",
+        "abstractors": "abstractor",
+        "designs": "design",
+        "designConfigurations": "designConfiguration",
+        "generatorChains": "generatorChain",
+        "typeDefinitions": "typeDefinitions",
     }
     for category, expected_type in categories.items():
         for entry in root.findall(f"{{{ns}}}{category}/{{{ns}}}ipxactFile"):
@@ -272,8 +309,13 @@ def _catalog_references(doc: XmlDocument) -> Iterable[tuple[Path, VLNV, str]]:
                 continue
             try:
                 uri = urlsplit(name.strip())
-                if (uri.scheme not in ("", "file") or uri.netloc not in ("", "localhost")
-                        or uri.query or uri.fragment or not uri.path):
+                if (
+                    uri.scheme not in ("", "file")
+                    or uri.netloc not in ("", "localhost")
+                    or uri.query
+                    or uri.fragment
+                    or not uri.path
+                ):
                     logger.warning(f"Unsupported catalog URI in {doc.path}: {name}")
                     continue
                 if re.search(r"%(?![0-9A-Fa-f]{2})", uri.path):
@@ -307,7 +349,7 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
             if doc is None:
                 doc = XmlDocument(Path(file_name))
                 parsed[file_name] = doc
-            if doc.tree is None or (doc.standard or "").lower() != SUPPORTED_STANDARD or doc.version != SUPPORTED_VERSION:
+            if doc.tree is None or not _recognized_document(doc.standard, doc.version, doc.root_name):
                 return
             root = doc.tree.getroot()
             if etree.QName(root).localname != "catalog":
@@ -322,12 +364,17 @@ def _discover_catalog_dependencies(files: list[str]) -> tuple[list[str], dict[st
                     if child.tree is None:
                         logger.warning(f"Malformed catalog target {target}")
                         continue
-                    if (child.standard or "").lower() != SUPPORTED_STANDARD or child.version != SUPPORTED_VERSION:
-                        logger.warning(f"Unsupported catalog target standard {target}: {child.standard}/{child.version}")
+                    if not _recognized_document(child.standard, child.version, child.root_name):
+                        logger.warning(
+                            f"Unsupported catalog target {target}: {child.standard}/{child.version}, "
+                            f"root {child.root_name}"
+                        )
                         continue
                     actual_type = etree.QName(child.tree.getroot()).localname
                     if actual_type != expected_type:
-                        logger.warning(f"Catalog category mismatch for {target}: expected {expected_type}, got {actual_type}")
+                        logger.warning(
+                            f"Catalog category mismatch for {target}: expected {expected_type}, got {actual_type}"
+                        )
                     actual = _extract_vlnv_from_root(child.tree.getroot())
                     if actual is None:
                         logger.warning(f"Incomplete target VLNV for {target}")
@@ -354,23 +401,15 @@ def _register_root(doc: XmlDocument) -> VLNV | None:
 
     Returns the VLNV used for registration when available.
     """
-    if doc.tree is None:
+    if doc.tree is None or not _recognized_document(doc.standard, doc.version, doc.root_name):
         return None
     root = doc.tree.getroot()
     vlnv = _extract_vlnv_from_root(root)
     if vlnv is None:
         return None
-    # Create a minimal proxy object if the parsed root is not a dataclass
-    # from xsdata. Here we simply attach attributes to the lxml root via a
-    # lightweight wrapper to store vendor/library/name/version and xml_path.
-    class _RootProxy:
-        """Lightweight proxy storing root VLNV and XML path."""
-        __slots__ = ("vendor", "library", "name", "version", "xml_path")
-        def __init__(self, v: VLNV, path: Path) -> None:
-            self.vendor, self.library, self.name, self.version = v
-            self.xml_path = str(path)
-
-    proxy = _RootProxy(vlnv, doc.path)
+    # Store vendor/library/name/version and xml_path in a lightweight wrapper
+    # without hydrating the XML into a generated xsdata model.
+    proxy = _DocumentProxy(*vlnv, str(doc.path))
     # Normalize element type from tag local name (e.g., 'component' -> 'Component')
     try:
         tag_local = etree.QName(root).localname
@@ -383,6 +422,8 @@ def _register_root(doc: XmlDocument) -> VLNV | None:
         file_name=str(doc.path),
         replace=True,
         element_type=element_type,
+        standard=doc.standard,
+        schema_version=doc.version,
     )
     return vlnv
 
@@ -446,24 +487,18 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
             continue
         ce = cache.get(f)
         if ce and ce.fingerprint == fingerprint and ce.vlnv:
-            # Skip unsupported standards/versions even if cached
-            if (ce.standard or "").lower() != SUPPORTED_STANDARD or (ce.version or "") != SUPPORTED_VERSION:
+            # Skip unrecognized editions and non-document roots even if cached
+            if not _recognized_document(ce.standard, ce.version, ce.element):
                 logger.warning(
                     f"{ARROW} Skipping unsupported XML for scan: '{f}' "
-                    f"(detected {ce.standard}/{ce.version}); only {SUPPORTED_STANDARD}/{SUPPORTED_VERSION} is supported"
+                    f"(detected {ce.standard}/{ce.version}, root {ce.element})"
                 )
                 continue
             # unchanged; fast register using cached VLNV
             if not accept(ce.vlnv, f):
                 continue
             try:
-                class _CachedProxy:
-                    """Proxy used for fast re-registration from cache."""
-                    __slots__ = ("vendor", "library", "name", "version", "xml_path")
-                    def __init__(self, v: VLNV, p: Path) -> None:
-                        self.vendor, self.library, self.name, self.version = v
-                        self.xml_path = str(p)
-                proxy = _CachedProxy(ce.vlnv, path)
+                proxy = _DocumentProxy(*ce.vlnv, str(path))
                 # Derive element type from cached element local name
                 etype = (ce.element[:1].upper() + ce.element[1:]) if ce.element else None
                 registry.register(
@@ -472,6 +507,8 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
                     file_name=f,
                     replace=True,
                     element_type=etype,
+                    standard=ce.standard,
+                    schema_version=ce.version,
                 )
                 new_cache[f] = CacheEntry(
                     path=f,
@@ -493,11 +530,11 @@ def load_registry_from_paths(paths: Iterable[str], *, cache_dir: Path | None = N
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(f"{ARROW} Failed parsing '{f}': {exc}")
             continue
-        # Filter to supported standard/version only
-        if (doc.standard or "").lower() != SUPPORTED_STANDARD or (doc.version or "") != SUPPORTED_VERSION:
+        # Filter to recognized standard documents only
+        if not _recognized_document(doc.standard, doc.version, doc.root_name):
             logger.warning(
                 f"{ARROW} Skipping unsupported XML for scan: '{f}' "
-                f"(detected {doc.standard}/{doc.version}); only {SUPPORTED_STANDARD}/{SUPPORTED_VERSION} is supported"
+                f"(detected {doc.standard}/{doc.version}, root {doc.root_name})"
             )
             continue
         if doc.tree is not None:

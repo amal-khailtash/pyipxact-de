@@ -374,7 +374,7 @@ def test_lookup_rejects_other_schema_version_with_same_vlnv():
     reference = ConfigurableLibraryRefType(vendor="v", library="l", name="old", version="1")
     with pytest.raises(TgiError) as exc:
         api.getUnconfiguredID(get_handle(reference))
-    assert exc.value.fault_code == "INVALID_ARGUMENT"
+    assert exc.value.fault_code == "INVALID_ID"
 
 
 @pytest.mark.parametrize("reference_kind", ["absent", "missing", "design"])

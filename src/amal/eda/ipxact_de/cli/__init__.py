@@ -10,12 +10,12 @@ from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
 from amal.utilities import ARROW, logger
 from org.accellera.standard import STANDARDS
 
 from .. import __description__, __version__
 from ..loader import load_registry_from_cache, load_registry_from_paths
-from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
 from .commands import convert_xml, identify_xml, validate_xml
 
 # Global Rich console (single theme) reused for all help rendering.
@@ -800,7 +800,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     Optional type filtering: use --type to show only entries of a specific IP-XACT element type.
     """
     # If registry is empty, attempt to load from local cache.
-    any_entries = any(True for _ in registry.iter_by_predicate(lambda _r: True))
+    any_entries = any(True for _ in registry.iter_documents())
     if not any_entries:
         load_registry_from_cache()
     pattern = getattr(args, "pattern", None)
@@ -836,7 +836,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     # Build nested dict: vendor -> library -> name -> set(versions)
     tree: dict[str, dict[str, dict[str, set[str]]]] = {}
     types_by_key: dict[tuple[str, str, str], str] = {}
-    for handle in registry.iter_by_predicate(lambda _r: True):
+    for handle in registry.iter_documents():
         vlnv = registry.get_vlnv(handle)
         if not vlnv:
             continue
