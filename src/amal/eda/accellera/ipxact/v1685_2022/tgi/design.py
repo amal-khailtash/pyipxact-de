@@ -15,7 +15,6 @@ Created child elements are registered with parent relationships so that
 handle lifecycle & reverse traversal remain coherent inside the DE.
 """
 # ruff: noqa: I001
-from __future__ import annotations
 
 from collections.abc import Iterable
 

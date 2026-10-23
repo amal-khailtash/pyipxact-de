@@ -32,6 +32,8 @@ from .core import (
 )
 from org.accellera.ipxact.v1685_2022.wire import Wire
 from org.accellera.ipxact.v1685_2022 import AbstractionDefinition, Choices
+from org.accellera.ipxact.v1685_2022.port_packet_type import PortPacketType
+from org.accellera.ipxact.v1685_2022.port_packet_field_type import PortPacketFieldType
 
 __all__ = [
     # BASE (F.7.2)
@@ -179,7 +181,7 @@ def _resolve_port(portID: str) -> AbstractionDefinition.Ports.Port | None:
     return None
 
 
-def _ensure_transactional(portID: str):
+def _ensure_transactional(portID: str) -> AbstractionDefinition.Ports.Port.Transactional:
     """Resolve and return the transactional sub-element for a port.
 
     Section: Annex F helper (not a spec TGI function).
@@ -201,7 +203,7 @@ def _ensure_transactional(portID: str):
     return p.transactional
 
 
-def _resolve_packet(packetID: str):  # type: ignore[return-type]
+def _resolve_packet(packetID: str) -> PortPacketType | None:  # type: ignore[return-type]
     """Resolve a handle to a packet element.
 
     Helper (non-spec) used internally by packet-related TGI functions.
@@ -214,11 +216,10 @@ def _resolve_packet(packetID: str):  # type: ignore[return-type]
         packet element.
     """
     obj = resolve_handle(packetID)
-    from org.accellera.ipxact.v1685_2022.port_packet_type import PortPacketType
     return obj if isinstance(obj, PortPacketType) else None
 
 
-def _resolve_packet_field(packetFieldID: str):  # type: ignore[return-type]
+def _resolve_packet_field(packetFieldID: str) -> PortPacketFieldType | None:  # type: ignore[return-type]
     """Resolve a handle to a packetField element.
 
     Helper (non-spec) used internally by packet-related TGI functions.
@@ -231,7 +232,6 @@ def _resolve_packet_field(packetFieldID: str):  # type: ignore[return-type]
         references another type.
     """
     obj = resolve_handle(packetFieldID)
-    from org.accellera.ipxact.v1685_2022.port_packet_field_type import PortPacketFieldType
     return obj if isinstance(obj, PortPacketFieldType) else None
 
 
@@ -1553,7 +1553,7 @@ def removeAbstractionDefPortTransactionalQualifier(portID: str) -> bool:
     return detach_child_by_handle(get_handle(style.qualifier))
 
 
-def _ensure_wire(portID: str):
+def _ensure_wire(portID: str) -> Wire:
     """Resolve and return the wire sub-element for a port.
 
     Helper (non-spec) used by wire set/remove functions.
@@ -1675,7 +1675,14 @@ def removeAbstractionDefPortWireRequiresDriver(portID: str) -> bool:
     return detach_child_by_handle(get_handle(driver))
 
 
-def _resolve_transactional_mode(handle: str):
+def _resolve_transactional_mode(
+    handle: str,
+) -> (
+    AbstractionDefinition.Ports.Port.Transactional.OnInitiator
+    | AbstractionDefinition.Ports.Port.Transactional.OnTarget
+    | AbstractionDefinition.Ports.Port.Transactional.OnSystem
+    | None
+):
     """Resolve one abstraction-definition transactional mode handle."""
     tr = AbstractionDefinition.Ports.Port.Transactional
     obj = resolve_handle(handle)
@@ -2128,7 +2135,9 @@ def _remove_port_locus(portID: str, style_type: type, attr: str) -> bool:
     return detach_child_by_handle(get_handle(mode))
 
 
-def _resolve_logical_system(handle: str):
+def _resolve_logical_system(
+    handle: str,
+) -> Wire.OnSystem | AbstractionDefinition.Ports.Port.Transactional.OnSystem | None:
     obj = resolve_handle(handle)
     return obj if isinstance(obj, (Wire.OnSystem, AbstractionDefinition.Ports.Port.Transactional.OnSystem)) else None
 

@@ -26,12 +26,12 @@ class XmlValidator:
         xmlschema (etree.XMLSchema): Compiled schema (only when ``use_lxml``).
     """
 
-    def __init__(self, xsd_filename: str, use_lxml: bool = True):
+    def __init__(self, xsd_filename: str, use_lxml: bool = True) -> None:
         self.use_lxml = use_lxml
         self.xsd_filename: str = xsd_filename
 
         if use_lxml:
-            tree: etree.ElementTree = etree.parse(xsd_filename)
+            tree: etree._ElementTree = etree.parse(xsd_filename)
             self.xmlschema: etree.XMLSchema = etree.XMLSchema(tree)
 
     def validate_using_lxml(self, xml_filename: str) -> bool:
@@ -43,7 +43,7 @@ class XmlValidator:
         Returns:
             bool: True if the document validates; False otherwise.
         """
-        tree: etree.ElementTree = etree.parse(xml_filename)
+        tree: etree._ElementTree = etree.parse(xml_filename)
         valid = self.xmlschema.validate(tree)  # type: ignore[attr-defined]
         return valid
 

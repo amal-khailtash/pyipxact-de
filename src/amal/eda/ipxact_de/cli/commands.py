@@ -48,7 +48,7 @@ def validate_xml(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
-def get_transformations_paths(from_version: str, to_version: str):
+def get_transformations_paths(from_version: str, to_version: str) -> list[tuple[str, str, str]]:
     print(f"{ARROW} Getting transformation paths from '{from_version}' to '{to_version}' ...")
     paths: list[tuple[str, str, str]] = []
     for start, end, xsls in TRANSFORMATIONS:

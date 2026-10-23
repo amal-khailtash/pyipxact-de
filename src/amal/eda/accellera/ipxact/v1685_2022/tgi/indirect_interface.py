@@ -9,7 +9,6 @@ Error handling: invalid handles raise :class:`TgiError` with
 ``TgiFaultCode.INVALID_ARGUMENT``.
 """
 # ruff: noqa: I001
-from __future__ import annotations
 
 from org.accellera.ipxact.v1685_2022 import IndirectInterface
 from org.accellera.ipxact.v1685_2022.indirect_address_ref import IndirectAddressRef
@@ -130,7 +129,7 @@ def _get_data_ref(iiID: str) -> IndirectDataRef:
     return ii.indirect_data_ref
 
 
-def _safe_name(obj, attr: str) -> str | None:  # helper for attribute-holding refs
+def _safe_name(obj: object | None, attr: str) -> object | None:  # helper for attribute-holding refs
     if obj is None:
         return None
     return getattr(obj, attr, None)
@@ -836,4 +835,3 @@ def removeIndirectDataRefRegisterRef(indirectDataRefID: str) -> bool:
         raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
     dr.register_ref = None
     return True
-

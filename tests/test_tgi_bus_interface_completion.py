@@ -1,6 +1,5 @@
 """Every IEEE 1685-2022 Bus Interface TGI operation executes on typed handles."""
 
-from __future__ import annotations
 
 import pytest
 

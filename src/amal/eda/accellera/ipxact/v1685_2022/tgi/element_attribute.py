@@ -19,7 +19,7 @@ keeps argument, return and Annex section documentation on generated functions.
 """
 
 from collections.abc import Callable
-from dataclasses import MISSING, fields, is_dataclass
+from dataclasses import MISSING, Field, fields, is_dataclass
 from enum import Enum
 from math import isfinite
 from typing import Any, get_args, get_origin, get_type_hints
@@ -485,7 +485,7 @@ def getOtherAttributes(attributeContainerID: str) -> list[str]:
 _define_base_functions()
 
 
-def _attribute_field(obj: Any, xml_name: str):
+def _attribute_field(obj: object, xml_name: str) -> Field[Any] | None:
     """Find the generated field describing an XML attribute."""
     if is_dataclass(obj):
         return next((field for field in fields(obj) if field.metadata.get("type") == "Attribute"
@@ -611,7 +611,7 @@ for subsection, (fname, attr, _kind) in enumerate(_EXTENDED_ATTRIBUTE_FUNCS, 1):
     if fname in {"addConstrainedAttribute", "isSetAttribute", "removeAttribute"}:
         continue
     if fname.startswith("remove") and attr:
-        def _make_remove(a: str, fn: str, section: int):
+        def _make_remove(a: str, fn: str, section: int) -> Callable[[str], bool]:
             def _rem(elementID: str) -> bool:
                 """Remove attribute if present (spec EXTENDED remove function).
 
@@ -628,7 +628,7 @@ for subsection, (fname, attr, _kind) in enumerate(_EXTENDED_ATTRIBUTE_FUNCS, 1):
             return _rem
         globals()[fname] = _make_remove(attr, fname, subsection)
     elif fname.startswith("set") and attr:
-        def _make_set(a: str, fn: str, section: int):
+        def _make_set(a: str, fn: str, section: int) -> Callable[[str, Any], bool]:
             def _set(elementID: str, value: Any) -> bool:
                 """Set (create or replace) attribute value.
 

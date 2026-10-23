@@ -15,6 +15,7 @@ separate configuration-service concern.
 """
 
 import re
+from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
 from typing import Any
 
@@ -133,7 +134,7 @@ def _reference_name(value: str) -> str:
     return normalized
 
 
-def _walk_models(root: Any):
+def _walk_models(root: object) -> Iterator[object]:
     """Walk generated definitions in source order, registering parsed ownership."""
     pending = [(root, None, None, None)]
     seen: set[int] = set()

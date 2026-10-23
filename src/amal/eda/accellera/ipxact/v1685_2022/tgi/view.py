@@ -91,7 +91,7 @@ def _resolve(viewID: str) -> Any | None:
     return None
 
 
-def _ensure(viewID: str):
+def _ensure(viewID: str) -> Any:
     v = _resolve(viewID)
     if v is None:
         raise TgiError("Invalid ID", TgiFaultCode.INVALID_ID)
@@ -106,7 +106,7 @@ def _ensure_list(parent: Any, attr: str) -> list[Any]:
     return lst
 
 
-def _reference_view(viewID: str):
+def _reference_view(viewID: str) -> Any:
     from org.accellera.ipxact.v1685_2022.model_type import ModelType
 
     view = resolve_handle(viewID)
@@ -142,7 +142,7 @@ def _remove_reference(viewID: str, attr: str) -> bool:
     return True
 
 
-def _view_ref(viewRefID: str):
+def _view_ref(viewRefID: str) -> Any:
     from org.accellera.ipxact.v1685_2022.domain_type_def import DomainTypeDef
     from org.accellera.ipxact.v1685_2022.driver_type import DriverType
     from org.accellera.ipxact.v1685_2022.signal_type_def import SignalTypeDef

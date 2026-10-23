@@ -11,10 +11,12 @@ TgiError with INVALID_ID; invalid values raise INVALID_ARGUMENT. Direct fieldAcc
 project extension outside Annex F.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
+
+from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 
 from .core import (
     TgiError,
@@ -187,7 +189,7 @@ def _ids(
     return [_child_handle(obj, parent, path, "list") for obj in iterable]
 
 
-def _model_children(obj: Any):
+def _model_children(obj: object) -> Iterator[tuple[object, tuple[str, ...], Literal["single", "list"]]]:
     """Yield generated model children and their ownership paths."""
     if not is_dataclass(obj) or isinstance(obj, type):
         return
@@ -250,7 +252,7 @@ def _owning_root(element: Any) -> Any:
     return current
 
 
-def _walk_model(root: Any):
+def _walk_model(root: object) -> Iterator[object]:
     pending = [root]
     seen: set[int] = set()
     while pending:
@@ -380,7 +382,7 @@ def _get_write_value_constraint_handle(wvcID: str) -> Any:
     return obj
 
 
-def _field_policy_choice_types():
+def _field_policy_choice_types() -> tuple[type, type, type, type, type, type]:
     from org.accellera.ipxact.v1685_2022.access import Access
     from org.accellera.ipxact.v1685_2022.field_access_policy_definition_ref import FieldAccessPolicyDefinitionRef
     from org.accellera.ipxact.v1685_2022.modified_write_value import ModifiedWriteValue
@@ -499,7 +501,7 @@ def _resolve_parent(handle: str, required: tuple[str, ...], label: str) -> Any:
     return obj
 
 
-def _field_policy_module(policy: Any):
+def _field_policy_module(policy: object) -> type:
     module_name = type(policy).__module__.rsplit(".", 1)[-1]
     if module_name == "field_type":
         from org.accellera.ipxact.v1685_2022.field_type import FieldType
@@ -510,7 +512,7 @@ def _field_policy_module(policy: Any):
     return FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy
 
 
-def _field_policy_model_for_container(container: Any):
+def _field_policy_model_for_container(container: object) -> type:
     if type(container).__module__.rsplit(".", 1)[-1] == "field_type":
         from org.accellera.ipxact.v1685_2022.field_type import FieldType
 
@@ -674,7 +676,7 @@ def _clear_optional(parent: Any, attr: str) -> bool:
     return True
 
 
-def _first(it: Sequence[Any], pred) -> Any | None:
+def _first[T](it: Sequence[T], pred: Callable[[T], bool]) -> T | None:
     for x in it:
         if pred(x):
             return x
@@ -1759,7 +1761,7 @@ def getWriteValueConstraintWriteAsRead(writeValueConstraintID: str) -> bool | No
 # ---------------------------------------------------------------------------
 # F.7.10 EXTENDED – add/remove/set operations
 # ---------------------------------------------------------------------------
-def _append_and_register(parent: Any, list_attr: str, child: Any, path: tuple[str, ...]):
+def _append_and_register(parent: object, list_attr: str, child: object, path: tuple[str, ...]) -> str:
     lst = getattr(parent, list_attr)
     lst.append(child)
     register_parent(child, parent, path, "list")
@@ -1806,9 +1808,7 @@ def addAccessRestrictionModeRef(accessRestrictionID: str, modeRef: str, priority
     return get_handle(mr)
 
 
-def _ensure_access_policies(parent: Any):
-    from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
-
+def _ensure_access_policies(parent: Any) -> AccessPolicies:
     if hasattr(parent, "access_policies"):
         if parent.access_policies is None:
             parent.access_policies = AccessPolicies()  # type: ignore[attr-defined]

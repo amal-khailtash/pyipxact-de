@@ -15,6 +15,7 @@ Creation / mutation helpers create missing optional container elements where
 allowed by the schema.
 """
 
+from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
 from typing import Any
 from unicodedata import category
@@ -249,7 +250,7 @@ def _set_expression(
     register_parent(current, parent, (attribute,), "single")
 
 
-def _walk_model(root: Any):
+def _walk_model(root: object) -> Iterator[tuple[object, object | None, str | None, str]]:
     """Yield each generated dataclass object with its direct owning field."""
     pending = [(root, None, None, "single")]
     seen: set[int] = set()

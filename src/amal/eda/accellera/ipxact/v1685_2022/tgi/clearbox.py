@@ -69,13 +69,13 @@ def _resolve_clearbox_element_ref(refID: str) -> ClearboxElementRefType | None:
     return obj if isinstance(obj, ClearboxElementRefType) else None
 
 
-def _resolve_location(locationID: str):  # return location or None
+def _resolve_location(locationID: str) -> SlicesType | None:  # return location or None
     obj = resolve_handle(locationID)
     # Location is an inner class inside clearboxElementRefLocation? We treat generically.
     return obj
 
 
-def _resolve_ref_location(refLocationID: str):  # generic resolution
+def _resolve_ref_location(refLocationID: str) -> object | None:  # generic resolution
     return resolve_handle(refLocationID)
 
 

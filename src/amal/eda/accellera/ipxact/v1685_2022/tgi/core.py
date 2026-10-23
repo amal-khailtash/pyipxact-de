@@ -4,7 +4,7 @@ Central utilities: handle allocation, handle resolution, VLNV registry, and
 minimal fault/exception scaffolding.  This intentionally avoids dependencies
 outside the standard library.
 """
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, fields, is_dataclass
 from threading import RLock
 from typing import Any
@@ -366,7 +366,7 @@ class VlnvRegistry:
             entry.file_name = path
             return True
 
-    def iter_by_predicate(self, predicate) -> Iterable[str]:  # predicate(root) -> bool
+    def iter_by_predicate(self, predicate: Callable[[object], bool]) -> Iterable[str]:  # predicate(root) -> bool
         """Yield handles whose root object satisfies ``predicate``.
 
         Args:

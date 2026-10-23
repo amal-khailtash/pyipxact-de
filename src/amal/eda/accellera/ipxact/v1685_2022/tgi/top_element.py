@@ -14,7 +14,7 @@ backend needs no checkout to begin editing. Legacy container/name creation
 forms remain available where previously supported; standard creation uses a
 four-part VLNV and returns None for an already registered identity.
 """
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from types import SimpleNamespace
 from typing import Any
 
@@ -138,7 +138,7 @@ def _ensure_collection(top: Any, attr: str) -> list[Any]:
     return existing  # type: ignore[return-value]
 
 
-def _new_or_ns(cls, **kwargs: Any) -> Any:
+def _new_or_ns[T](cls: Callable[..., T], **kwargs: Any) -> T | SimpleNamespace:
     """Instantiate *cls* with kwargs or fall back to ``SimpleNamespace``.
 
     Args:
@@ -154,7 +154,7 @@ def _new_or_ns(cls, **kwargs: Any) -> Any:
         return SimpleNamespace(**kwargs)
 
 
-def _create_registered_root(cls, vlnv: Sequence[str], **kwargs: Any) -> str | None:
+def _create_registered_root(cls: Callable[..., object], vlnv: Sequence[str], **kwargs: Any) -> str | None:
     """Create a generated root and register it; duplicate VLNVs return null."""
     parts = vlnv_to_tuple(vlnv)
     if not all(isinstance(part, str) and part.strip() for part in parts):
@@ -249,7 +249,7 @@ def _getCatalogIDs_noarg() -> list[str]:  # pragma: no cover - thin wrapper
 # Preserve backwards compatibility: if called without argument fall back
 # to registry enumeration. This maintains spec signature while honoring
 # test expectations during development phase.
-def getCatalogIDs(*args, **kwargs):  # type: ignore[override]
+def getCatalogIDs(*args: str, **kwargs: str) -> list[str]:  # type: ignore[override]
     """Hybrid traversal.
 
     Dev-phase convenience: with no arguments enumerate globally
@@ -338,7 +338,7 @@ def getGeneratorChainIDs(topElementID: str | None = None) -> list[str]:  # F.7.7
     return _collect_ids(top, "generator_chains")
 
 
-def getID(elementID):  # F.7.79.9
+def getID(elementID: str | list[str] | tuple[str, str, str, str]) -> str | None:  # F.7.79.9
     """Resolve a registered root by four-part VLNV (F.7.79.9).
 
     A handle argument is retained as a historical identity convenience.
@@ -380,7 +380,7 @@ def getTypeDefinitionsIDs(topElementID: str | None = None) -> list[str]:  # F.7.
     return _collect_ids(top, "type_definitions")
 
 
-def getVLNV(elementID: str):  # F.7.79.11
+def getVLNV(elementID: str) -> tuple[str, str, str, str] | None:  # F.7.79.11
     """Return the registered root VLNV, or None if no association exists (F.7.79.11).
 
     Section: F.7.79.11.

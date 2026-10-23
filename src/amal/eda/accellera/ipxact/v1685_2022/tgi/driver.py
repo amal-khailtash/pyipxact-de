@@ -13,7 +13,6 @@ expression getters return ``None`` when the element does not exist.
 """
 
 # ruff: noqa: I001
-from __future__ import annotations
 
 from org.accellera.ipxact.v1685_2022 import (
     Driver,

@@ -1,12 +1,13 @@
 """XML parsing utilities for IP-XACT / SPIRIT documents."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, TypeVar
 
 from lxml import etree
 from rich import print
 from xsdata.formats.dataclass.context import XmlContext
+from xsdata.formats.dataclass.models.elements import XmlMeta
 from xsdata.formats.dataclass.parsers import XmlParser
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 from xsdata.formats.dataclass.serializers.xml import XmlSerializer
@@ -36,7 +37,12 @@ class IpxactXmlContext(XmlContext):
     retains both legal children while keeping single-child models unchanged.
     """
 
-    def build(self, clazz, parent_ns=None, globalns=None):
+    def build(
+        self,
+        clazz: type,
+        parent_ns: str | None = None,
+        globalns: dict[str, Callable] | None = None,
+    ) -> XmlMeta:
         meta = super().build(clazz, parent_ns, globalns)
         for var in meta.get_all_vars():
             if clazz is PartSelect and var.name == "range_or_indices":

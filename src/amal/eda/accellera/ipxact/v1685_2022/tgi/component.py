@@ -12,7 +12,6 @@ handles or absent optional values, and successful edits preserve generated
 xsdata wrapper and choice objects whenever the schema node already exists.
 """
 
-from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import fields, is_dataclass

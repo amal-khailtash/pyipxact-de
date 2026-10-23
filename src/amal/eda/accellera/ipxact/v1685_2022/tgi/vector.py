@@ -17,7 +17,7 @@ mutation and uses generated bindings rather than handwritten placeholder nodes.
 """
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
-from typing import Any, get_args, get_type_hints
+from typing import cast, get_args, get_type_hints
 
 from org.accellera.ipxact.v1685_2022 import (
     ConstraintSet,
@@ -25,6 +25,7 @@ from org.accellera.ipxact.v1685_2022 import (
     Left,
     ModuleParameterType,
     Right,
+    UnsignedIntExpression,
     Vector,
     Vectors,
 )
@@ -64,33 +65,37 @@ __all__ = [
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _resolve(objID: str):
+type _VectorModel = Vector | ExtendedVectorsType.Vector | ModuleParameterType.Vectors.Vector | ConstraintSet.Vector
+type _VectorContainerModel = Vectors | ExtendedVectorsType | ModuleParameterType.Vectors
+
+
+def _resolve(objID: str) -> object | None:
     return resolve_handle(objID)
 
 
 _VECTOR_TYPES = (Vector, ExtendedVectorsType.Vector, ModuleParameterType.Vectors.Vector, ConstraintSet.Vector)
 
 
-def _resolve_vector(vectorID: str) -> Any | None:
+def _resolve_vector(vectorID: str) -> _VectorModel | None:
     obj = _resolve(vectorID)
     return obj if isinstance(obj, _VECTOR_TYPES) else None
 
 
-def _ensure_vector(vectorID: str):
+def _ensure_vector(vectorID: str) -> _VectorModel:
     vec = _resolve_vector(vectorID)
     if vec is None:
         raise TgiError("Invalid vector handle", TgiFaultCode.INVALID_ID)
     return vec
 
 
-def _make_endpoint(value: str | int | None, expression: str | None = None):
+def _make_endpoint(value: str | int | None, expression: str | None = None) -> str:
     text = expression if expression is not None else value
     if isinstance(text, bool) or not isinstance(text, (str, int)) or not str(text).strip():
         raise TgiError("Endpoint requires a nonempty expression", TgiFaultCode.INVALID_ARGUMENT)
     return str(text)
 
 
-def _get_endpoint_value(ep) -> int | None:
+def _get_endpoint_value(ep: UnsignedIntExpression | None) -> int | None:
     from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
     if ep is None:
         return None
@@ -101,15 +106,15 @@ def _get_endpoint_value(ep) -> int | None:
     return value if type(value) is int else None
 
 
-def _get_endpoint_expr(ep) -> str | None:
+def _get_endpoint_expr(ep: UnsignedIntExpression | None) -> str | None:
     return ep.value if ep is not None else None
 
 
-def _endpoint_type(vec, name):
-    return get_type_hints(type(vec))[name]
+def _endpoint_type(vec: _VectorModel, name: str) -> type[UnsignedIntExpression]:
+    return cast(type[UnsignedIntExpression], get_type_hints(type(vec))[name])
 
 
-def _set_endpoint(vec, name, text):
+def _set_endpoint(vec: _VectorModel, name: str, text: str) -> None:
     child = getattr(vec, name)
     if child is None:
         child = _endpoint_type(vec, name)(value=text)
@@ -119,11 +124,21 @@ def _set_endpoint(vec, name, text):
     register_parent(child, vec, (name,), "single")
 
 
-def _container_type(parent, attr):
+def _container_type(parent: object, attr: str) -> type[_VectorContainerModel] | None:
     annotation = get_type_hints(type(parent)).get(attr)
     candidates = get_args(annotation) or (annotation,)
-    return next((candidate for candidate in candidates if isinstance(candidate, type)
-                 and candidate in (Vectors, ExtendedVectorsType, ModuleParameterType.Vectors)), None)
+    return cast(
+        type[_VectorContainerModel] | None,
+        next(
+            (
+                candidate
+                for candidate in candidates
+                if isinstance(candidate, type)
+                and candidate in (Vectors, ExtendedVectorsType, ModuleParameterType.Vectors)
+            ),
+            None,
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +179,7 @@ def getVectorIDs(vectorContainerID: str) -> list[str]:  # F.7.83.1
 from .element_attribute import getVectorIdAttribute  # noqa: E402 (standard category order)
 
 
-def _owned_endpoint(vec, name):
+def _owned_endpoint(vec: _VectorModel, name: str) -> str | None:
     child = getattr(vec, name)
     if child is None:
         return None
@@ -447,4 +462,3 @@ def setVectorRight(vectorID: str, right: str | int | None) -> bool:  # Compatibi
     vec = _ensure_vector(vectorID)
     _set_endpoint(vec, "right", _make_endpoint(right))
     return True
-

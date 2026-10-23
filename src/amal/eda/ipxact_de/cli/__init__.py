@@ -146,7 +146,7 @@ class _RichSubHelpAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values=None,
+        values: object = None,
         option_string: str | None = None,
     ) -> None:  # type: ignore[override]
         parts = parser.prog.split()
@@ -814,7 +814,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         vendor_pat, library_pat, name_pat, version_pat = parts
         # Normalize wildcards / empties
         if use_regex:
-            def _compile(p: str | None):
+            def _compile(p: str | None) -> re.Pattern[str] | None:
                 if p is None or p == "":
                     return None
                 if p == "*":
@@ -851,7 +851,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         # Filter if needed
         if pattern:
             if use_regex:
-                def ok(rx, val: str) -> bool:
+                def ok(rx: re.Pattern[str] | None, val: str) -> bool:
                     return True if rx is None else bool(rx.search(val))
                 if not ok(rx_vendor, vendor):
                     continue

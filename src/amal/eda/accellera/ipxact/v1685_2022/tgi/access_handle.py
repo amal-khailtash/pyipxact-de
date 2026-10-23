@@ -7,8 +7,8 @@ objects (registers, fields, banks, etc.) inside an optional ``accessHandles``
 container; this module centralizes traversal and mutation logic.
 """
 
-from collections.abc import Iterable
-from typing import Any, get_args, get_type_hints
+from collections.abc import Iterable, Sequence
+from typing import Any, Protocol, get_args, get_type_hints
 
 from org.accellera.ipxact.v1685_2022 import (
     PortAccessHandle,
@@ -27,6 +27,11 @@ from .core import (
 )
 
 AccessHandleType = SimpleAccessHandle | SlicedAccessHandle | PortAccessHandle
+
+
+class _AccessHandlesContainer(Protocol):
+    @property
+    def access_handle(self) -> Sequence[AccessHandleType]: ...
 
 __all__ = [
     # BASE (F.7.7)
@@ -113,7 +118,7 @@ def _ensure_simple(accessHandleID: str) -> SimpleAccessHandle:
     return ah
 
 
-def _ensure_access_handles_container(parentID: str):  # type: ignore[return-type]
+def _ensure_access_handles_container(parentID: str) -> _AccessHandlesContainer:
     """Return/create an ``accessHandles`` container for a parent element.
 
     The parent element types that may own accessHandles share the attribute
@@ -133,7 +138,7 @@ def _ensure_access_handles_container(parentID: str):  # type: ignore[return-type
     return parent.access_handles
 
 
-def _append_and_register(container, element, list_attr: tuple[str, ...]):  # type: ignore[no-untyped-def]
+def _append_and_register(container: object, element: object, list_attr: tuple[str, ...]) -> None:
     """Append element to container list attribute and register parent."""
     getattr(container, list_attr[-1]).append(element)
     register_parent(element, container, list_attr, "list")

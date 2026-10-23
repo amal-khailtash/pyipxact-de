@@ -10,7 +10,7 @@ fault signaling. EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 """
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
@@ -137,11 +137,11 @@ __all__ = [
 # Helpers (internal)
 # ---------------------------------------------------------------------------
 
-def _resolve(handle: str):  # generic resolver
+def _resolve(handle: str) -> Any | None:  # generic resolver
     return resolve_handle(handle)
 
 
-def _invalid_id():  # convenience
+def _invalid_id() -> NoReturn:  # convenience
     raise TgiError("Invalid ID", TgiFaultCode.INVALID_ID)
 
 
@@ -194,7 +194,7 @@ def getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID: str) -> 
     return result
 
 
-def getEnumerationDefinitionWidth(enumerationDefinitionID: str) -> Any | None:  # F.7.81.8
+def getEnumerationDefinitionWidth(enumerationDefinitionID: str) -> str | None:  # F.7.81.8
     ed = _resolve(enumerationDefinitionID)
     if ed is None:
         return None
@@ -239,7 +239,9 @@ def getExternalTypeDefinitionsTypeDefinitionsRefByID(externalTypeDefinitionsID: 
     return get_handle(ref) if ref else None
 
 
-def getExternalTypeDefinitionsTypeDefinitionsRefByVLNV(externalTypeDefinitionsID: str):  # F.7.81.14
+def getExternalTypeDefinitionsTypeDefinitionsRefByVLNV(
+    externalTypeDefinitionsID: str,
+) -> tuple[str | None, str | None, str | None, str | None]:  # F.7.81.14
     etd = _resolve(externalTypeDefinitionsID)
     if etd is None:
         return (None, None, None, None)

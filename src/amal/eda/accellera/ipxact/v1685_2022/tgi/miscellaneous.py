@@ -552,7 +552,7 @@ def registerCatalogVLNVs(vlnvEntries: Iterable[Sequence[str] | str]) -> list[boo
     return results
 
 
-def registerVLNV(elementID: Any, vlnv: Sequence[str] | str) -> bool:  # F.7.60.7
+def registerVLNV(elementID: object, vlnv: Sequence[str] | str) -> bool:  # F.7.60.7
     """Register a single VLNV for an element.
 
     Section: F.7.60.7. Accepts either a handle string *or* the object

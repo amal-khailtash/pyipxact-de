@@ -73,9 +73,9 @@ def test_file_builder_exports_and_public_contract_docstrings():
     }
     for name, parameters in expected_parameters.items():
         assert list(inspect.signature(getattr(api, name)).parameters) == parameters
-    assert inspect.signature(api.setExecutableImageLanguageTools).return_annotation == "bool"
-    assert inspect.signature(api.setFileBuildCommand).return_annotation == "bool"
-    assert inspect.signature(api.setLanguageToolsLinkerCommandFile).return_annotation == "bool"
+    assert inspect.signature(api.setExecutableImageLanguageTools).return_annotation is bool
+    assert inspect.signature(api.setFileBuildCommand).return_annotation is bool
+    assert inspect.signature(api.setLanguageToolsLinkerCommandFile).return_annotation is bool
 
 
 @pytest.mark.parametrize("parsed", [False, True])

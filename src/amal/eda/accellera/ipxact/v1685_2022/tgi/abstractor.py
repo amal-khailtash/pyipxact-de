@@ -6,7 +6,6 @@ standard APIs are exposed here. Functions raise :class:`TgiError` with
 for semantic violations as per the general TGI error model.
 """
 # ruff: noqa: I001
-from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
@@ -22,6 +21,9 @@ from org.accellera.ipxact.v1685_2022 import (
     FileSets,
     IpxactUri,
 )
+from org.accellera.ipxact.v1685_2022.abstractor_port_transactional_type import AbstractorPortTransactionalType
+from org.accellera.ipxact.v1685_2022.abstractor_port_wire_type import AbstractorPortWireType
+from org.accellera.ipxact.v1685_2022.abstractor_sub_port_type import AbstractorPortStructuredType
 from org.accellera.ipxact.v1685_2022.abstractor_type import AbstractorType
 from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
 from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
@@ -352,7 +354,11 @@ def addAbstractorInterfaceAbstractionType(
     return get_handle(item)
 
 
-def _append_model_port(abstractorID: str, name: str, style) -> str:
+def _append_model_port(
+    abstractorID: str,
+    name: str,
+    style: AbstractorPortTransactionalType | AbstractorPortWireType | AbstractorPortStructuredType,
+) -> str:
     """Append a generated port after validating its name and owner."""
     from org.accellera.ipxact.v1685_2022.abstractor_model_type import AbstractorModelType
 

@@ -1,6 +1,5 @@
 """Direct coverage for all IEEE 1685-2022 F.7.11/F.7.12 address-space calls."""
 
-from __future__ import annotations
 
 from uuid import uuid4
 

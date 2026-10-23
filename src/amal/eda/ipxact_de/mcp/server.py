@@ -129,7 +129,7 @@ def main() -> None:
     """Run the MCP server with stdio transport."""
     logger.info("Starting IP-XACT validation MCP server...")
 
-    async def run_server():
+    async def run_server() -> None:
         async with stdio_server() as (read_stream, write_stream):
             from mcp.server.models import InitializationOptions, ServerCapabilities
             await app.run(
