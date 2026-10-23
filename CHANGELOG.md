@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Complete seven design-configuration collection operations with ordered owned handles, scoped endpoint uniqueness, atomic abstractor-group creation and parsed subtree removal.
 - Complete nine design-configuration abstractor-instance operations with registry target resolution, schema-valid names, atomic edits, preserved configurable references and owned removal; align creation arguments with Annex F.
 - Report registry loading and scan progress, discover XML files progressively and print compact file/edition/type scan results.
 - Support `registry list --color=always` for colored pipes, with `auto` and `never` modes.

@@ -1,7 +1,18 @@
 """Generated model traversal with immediate owning fields for TGI handles."""
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import fields, is_dataclass
+
+from .core import get_handle, register_parent
+
+
+def _owned_list_ids(owner: object, children: Iterable[object], attribute: str) -> list[str]:
+    """Return ordered child handles with their immediate list ownership restored."""
+    handles: list[str] = []
+    for child in children:
+        register_parent(child, owner, (attribute,), "list")
+        handles.append(get_handle(child))
+    return handles
 
 
 def _walk_model(root: object) -> Iterator[tuple[object, object | None, str | None, str]]:

@@ -22,12 +22,13 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from ._expressions import _xml_text
-from ._model import _walk_model
+from ._model import _owned_list_ids, _walk_model
 from .address_space import _register_owned_child
 from .instantiation import _registered_reference_target, _validated_vlnv, getAbstractorInstanceAbstractorRefID
 from .name_group import _name_text
 
 from .core import (
+    _HANDLE_MANAGER,
     TgiError,
     TgiFaultCode,
     get_handle,
@@ -241,7 +242,7 @@ def getAbstractorInstancesAbstractorInstanceIDs(abstractorInstancesID: str) -> l
     ai = _resolve_abstractor_instances(abstractorInstancesID)
     if ai is None:
         raise TgiError("Invalid abstractorInstances handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(x) for x in ai.abstractor_instance]
+    return _owned_list_ids(ai, ai.abstractor_instance, "abstractor_instance")
 
 
 def getAbstractorInstancesInterfaceRefIDs(abstractorInstancesID: str) -> list[str]:
@@ -252,7 +253,7 @@ def getAbstractorInstancesInterfaceRefIDs(abstractorInstancesID: str) -> list[st
     ai = _resolve_abstractor_instances(abstractorInstancesID)
     if ai is None:
         raise TgiError("Invalid abstractorInstances handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(x) for x in ai.interface_ref]
+    return _owned_list_ids(ai, ai.interface_ref, "interface_ref")
 
 
 def getDesignConfigurationChoiceIDs(designConfigurationID: str) -> list[str]:
@@ -361,7 +362,7 @@ def getInterconnectionConfigurationAbstractorsInstancesIDs(interconnectionConfig
     ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
     if ic is None:
         raise TgiError("Invalid interconnectionConfiguration handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(ai) for ai in ic.abstractor_instances]
+    return _owned_list_ids(ic, ic.abstractor_instances, "abstractor_instances")
 
 
 def getInterconnectionConfigurationInterconnectionRefByID(interconnectionConfigurationID: str) -> str | None:
@@ -471,10 +472,22 @@ def addAbstractorInstancesInterfaceRef(
     ai = _resolve_abstractor_instances(abstractorInstancesID)
     if ai is None:
         raise TgiError("Invalid abstractorInstances handle", TgiFaultCode.INVALID_ID)
+    component = _abstractor_name(ai, componentRef)
+    bus = _abstractor_name(ai, busRef)
+    scope = _register_owned_child(ai, DesignConfiguration.InterconnectionConfiguration) or ai
+    for child, _, _, _ in _walk_model(scope):
+        if (
+            isinstance(child, DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.InterfaceRef)
+            and (_abstractor_name(child, child.component_ref), _abstractor_name(child, child.bus_ref))
+            == (component, bus)
+        ):
+            raise TgiError(
+                "Interface endpoint already configured for this interconnection", TgiFaultCode.ALREADY_EXISTS
+            )
     ir = DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.InterfaceRef(
-        component_ref=componentRef, bus_ref=busRef
+        component_ref=component, bus_ref=bus
     )
-    ai.interface_ref.append(ir)  # type: ignore[attr-defined]
+    ai.interface_ref = [*ai.interface_ref, ir]
     register_parent(ir, ai, ("interface_ref",), "list")
     return get_handle(ir)
 
@@ -552,18 +565,29 @@ def addDesignConfigurationViewConfiguration(
 
 def addInterconnectionConfigurationAbstractorInstances(
     interconnectionConfigurationID: str,
+    abstractorVLNV: tuple[str, str, str, str],
+    instanceName: str,
+    viewName: str,
 ) -> str:
-    """Append an empty ``abstractorInstances`` grouping.
+    """Append an ``abstractorInstances`` grouping containing the given abstractor.
 
     Section: F.7.40.7.
     """
     ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
     if ic is None:
         raise TgiError("Invalid interconnectionConfiguration handle", TgiFaultCode.INVALID_ID)
+    name = _abstractor_name(ic, instanceName)
+    _unique_abstractor_name(ic, name)
     grp = DesignConfiguration.InterconnectionConfiguration.AbstractorInstances()
-    ic.abstractor_instances.append(grp)  # type: ignore[attr-defined]
+    group_id = get_handle(grp)
+    try:
+        addAbstractorInstancesAbstractorInstance(group_id, abstractorVLNV, name, viewName)
+    except TgiError:
+        _HANDLE_MANAGER.forget(group_id)
+        raise
+    ic.abstractor_instances = [*ic.abstractor_instances, grp]
     register_parent(grp, ic, ("abstractor_instances",), "list")
-    return get_handle(grp)
+    return group_id
 
 
 def removeAbstractorInstancesAbstractorInstance(abstractorInstanceID: str) -> bool:
@@ -588,6 +612,8 @@ def removeAbstractorInstancesInterfaceRef(interfaceRefID: str) -> bool:
     """
     ir = _resolve_interface_ref(interfaceRefID)
     if ir is None:
+        return False
+    if _register_owned_child(ir, DesignConfiguration.InterconnectionConfiguration.AbstractorInstances) is None:
         return False
     return detach_child_by_handle(interfaceRefID)
 
@@ -658,6 +684,8 @@ def removeInterconnectionConfigurationAbstractorInstances(abstractorInstancesID:
     """
     ai = _resolve_abstractor_instances(abstractorInstancesID)
     if ai is None:
+        return False
+    if _register_owned_child(ai, DesignConfiguration.InterconnectionConfiguration) is None:
         return False
     return detach_child_by_handle(abstractorInstancesID)
 
