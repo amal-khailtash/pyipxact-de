@@ -888,6 +888,8 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         else:
             editions_by_key[key] = "Unknown edition"
 
+    max_type_width = max((len(name) for name in types_by_key.values()), default=0)
+
     # Render
     console.print(Text("Registry:", style="heading"))
     as_flat = bool(getattr(args, "flat", False))
@@ -917,7 +919,8 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                 f"[vlnv.name]{name}[/]"
                 f"[vlnv.sep]:[/]"
                 f"[vlnv.version]{version}[/]"
-                f"{pad}[vlnv.type]{tname}[/]  [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
+                f"{pad}[vlnv.type]{tname:<{max_type_width}}[/] "
+                f" [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
             )
     else:
         # Compute global max name and version lengths to align the type column
@@ -951,7 +954,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                         pad = " " * pad_spaces
                         tname = types_by_key.get((vendor, library, name, version), "")
                         console.print(
-                            f"{ver_indent}[vlnv.version]{version}[/]{pad}[vlnv.type]{tname}[/] "
+                            f"{ver_indent}[vlnv.version]{version}[/]{pad}[vlnv.type]{tname:<{max_type_width}}[/] "
                             f" [dim]{editions_by_key[(vendor, library, name, version)]}[/]"
                         )
 

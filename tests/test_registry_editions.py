@@ -240,7 +240,10 @@ def test_listing_shows_schema_edition_for_each_document_version(
     current_vlnv = ("example.org", "library", "shared_name", "2.0")
     old = _write_component(tmp_path / "old.xml", "spirit", "1.5", old_vlnv)
     current = _write_component(tmp_path / "current.xml", "ipxact", "1685-2022", current_vlnv)
-    loader.load_registry_from_paths([str(old), str(current)], cache_dir=tmp_path)
+    bus_vlnv = ("example.org", "library", "bus", "3.0")
+    bus = _write_component(tmp_path / "bus.xml", "spirit", "1.5", bus_vlnv)
+    bus.write_text(bus.read_text().replace("component", "busDefinition"))
+    loader.load_registry_from_paths([str(old), str(current), str(bus)], cache_dir=tmp_path)
     output = StringIO()
     monkeypatch.setattr(cli, "console", Console(file=output, width=160, color_system=None))
     monkeypatch.setattr(sys, "argv", ["ipxact-de", "registry", "list"] + (["--flat"] if flat else []))
@@ -248,3 +251,7 @@ def test_listing_shows_schema_edition_for_each_document_version(
     lines = output.getvalue().splitlines()
     assert any("1.0" in line and "SPIRIT 1.5" in line for line in lines)
     assert any("2.0" in line and "IP-XACT 1685-2022" in line for line in lines)
+    entry_lines = [line for line in lines if "SPIRIT 1.5" in line or "IP-XACT 1685-2022" in line]
+    assert len(entry_lines) == 3
+    standard_columns = [line.index("SPIRIT" if "SPIRIT" in line else "IP-XACT") for line in entry_lines]
+    assert len(set(standard_columns)) == 1
