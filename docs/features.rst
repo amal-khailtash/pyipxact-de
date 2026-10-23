@@ -2232,22 +2232,22 @@ Module parameter (EXTENDED)
 Name group (BASE)
 ~~~~~~~~~~~~~~~~~
 
-- ☐ ``getDescription`` (F.7.63.1)
-- ☐ ``getDisplayName`` (F.7.63.2)
-- ☐ ``getName`` (F.7.63.3)
-- ☐ ``getShortDescription`` (F.7.63.4)
+- ☑ ``getDescription`` (F.7.63.1)
+- ☑ ``getDisplayName`` (F.7.63.2)
+- ☑ ``getName`` (F.7.63.3)
+- ☑ ``getShortDescription`` (F.7.63.4)
 
 Name group (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``removeDescription`` (F.7.64.1)
-- ☐ ``removeDisplayName`` (F.7.64.2)
-- ☐ ``removeName`` (F.7.64.3)
-- ☐ ``removeShortDescription`` (F.7.64.4)
-- ☐ ``setDescription`` (F.7.64.5)
-- ☐ ``setDisplayName`` (F.7.64.6)
-- ☐ ``setName`` (F.7.64.7)
-- ☐ ``setShortDescription`` (F.7.64.8)
+- ☑ ``removeDescription`` (F.7.64.1)
+- ☑ ``removeDisplayName`` (F.7.64.2)
+- ☑ ``removeName`` (F.7.64.3)
+- ☑ ``removeShortDescription`` (F.7.64.4)
+- ☑ ``setDescription`` (F.7.64.5)
+- ☑ ``setDisplayName`` (F.7.64.6)
+- ☑ ``setName`` (F.7.64.7)
+- ☑ ``setShortDescription`` (F.7.64.8)
 
 Parameter (BASE)
 ~~~~~~~~~~~~~~~~

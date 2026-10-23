@@ -45,6 +45,7 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Name group source getters, standard setter signatures and absent-content rules, schema-specific names, generated text ownership and atomic registered document renaming.
 - Complete Module parameter BASE and EXTENDED contracts with generated module/type holders, numeric/source values and owned atomic edits.
 - Complete Constraint Set timing-percentage traversal and atomic additions with clock-name validation and parsed handle ownership.
 - Complete Component traversal, typed required-argument factories, mode expressions, reference edits and owned removal with handle invalidation.

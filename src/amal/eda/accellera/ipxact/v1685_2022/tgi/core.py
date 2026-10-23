@@ -311,6 +311,34 @@ class VlnvRegistry:
         entry = self._by_handle.get(handle)
         return entry.vlnv if entry else None
 
+    def rename(self, handle: str, name: str) -> bool:
+        """Rename a registered document and its VLNV index atomically.
+
+        Args:
+            handle: Registered top-level document handle.
+            name: Schema-validated new document name.
+
+        Returns:
+            True if registered; False for an unregistered handle.
+
+        Raises:
+            TgiError: ALREADY_EXISTS if the new VLNV belongs to another document.
+        """
+        with self._lock:
+            entry = self._by_handle.get(handle)
+            if entry is None:
+                return False
+            previous = entry.vlnv
+            updated = (previous[0], previous[1], name, previous[3])
+            other = self._by_vlnv.get(updated)
+            if other is not None and other is not entry:
+                raise TgiError("VLNV already registered", TgiFaultCode.ALREADY_EXISTS)
+            entry.root.name = name
+            self._by_vlnv.pop(previous)
+            entry.vlnv = updated
+            self._by_vlnv[updated] = entry
+            return True
+
     def get_element_type(self, handle: str) -> str | None:
         """Return the element type name for a registered handle.
 
