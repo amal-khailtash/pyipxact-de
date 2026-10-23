@@ -1088,12 +1088,12 @@ Constraint (EXTENDED)
 Constraint Set (BASE)
 ~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``getConstraintSetTimingConstraints`` (F.7.35.1)
+- ☑ ``getConstraintSetTimingConstraints`` (F.7.35.1)
 
 Constraint Set (EXTENDED)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ☐ ``addConstraintSetTimingConstraint`` (F.7.36.1)
+- ☑ ``addConstraintSetTimingConstraint`` (F.7.36.1)
 
 Design (BASE)
 ~~~~~~~~~~~~~
