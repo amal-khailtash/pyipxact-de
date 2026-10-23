@@ -1,4 +1,5 @@
 import argparse
+import os
 import re
 import sys
 from collections.abc import Callable
@@ -1154,10 +1155,11 @@ def main() -> None:
     args = parser.parse_args()
     # print(vars(args))
 
-    # Trigger repository scan early for all commands except 'registry scan'.
-    # For 'registry scan', the handler will manage scanning and help behavior.
+    # Explicit scans manage their own paths; listing reads the saved inventory.
+    # Other commands discover documents only when search paths are configured.
     is_registry_scan = getattr(args, "subcommand", None) == "registry" and getattr(args, "registry_cmd", None) == "scan"
-    if not is_registry_scan:
+    is_registry_list = getattr(args, "subcommand", None) == "registry" and getattr(args, "registry_cmd", None) == "list"
+    if not is_registry_scan and not is_registry_list and os.environ.get("IPXACT_XML_PATHS", "").strip():
         try:
             load_registry_from_paths([])
         except Exception:  # pragma: no cover - defensive startup

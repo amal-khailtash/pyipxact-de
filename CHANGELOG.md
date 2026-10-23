@@ -7,6 +7,10 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve the saved registry when listing documents or running commands without configured search paths.
+
 ### Features
 
 - Register recognized top-level SPIRIT/IP-XACT documents from every available schema edition during scans, catalog discovery and cache restoration; retain IP-XACT 1685-2022 as the supported TGI edition.

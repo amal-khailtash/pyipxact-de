@@ -1,5 +1,6 @@
 """Cross-edition XML inventory and TGI handle behavior."""
 
+import subprocess
 import sys
 from collections.abc import Iterator
 from io import StringIO
@@ -199,9 +200,31 @@ def test_cli_lists_older_edition_inventory(tmp_path: Path, monkeypatch: pytest.M
     loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
     output = StringIO()
     monkeypatch.setattr(cli, "console", Console(file=output, force_terminal=False, color_system=None))
-    monkeypatch.setattr(cli, "load_registry_from_paths", lambda paths: None)
     monkeypatch.setattr(sys, "argv", ["ipxact-de", "registry", "list", "--flat"])
 
     cli.main()
 
     assert ":".join(vlnv) in output.getvalue()
+
+
+@pytest.mark.parametrize("flat", [False, True])
+def test_cli_scan_then_list_preserves_cache_between_processes(tmp_path: Path, flat: bool) -> None:
+    vlnv = _vlnv("spirit", "1.5")
+    source = _write_component(tmp_path / "old.xml", "spirit", "1.5", vlnv)
+    command = [sys.executable, "-m", "amal.eda.ipxact_de.cli"]
+    scan = subprocess.run(
+        command + ["registry", "scan", str(source)], cwd=tmp_path, capture_output=True, text=True, check=False
+    )
+    assert scan.returncode == 0, scan.stderr
+    cache = tmp_path / loader.CACHE_BASENAME
+    saved_cache = cache.read_bytes()
+    version = subprocess.run(command + ["version"], cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert version.returncode == 0, version.stderr
+    assert cache.read_bytes() == saved_cache
+    arguments = ["registry", "list"] + (["--flat"] if flat else [])
+    listing = subprocess.run(command + arguments, cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert listing.returncode == 0, listing.stderr
+    assert vlnv[2] in listing.stdout
+    if flat:
+        assert ":".join(vlnv) in listing.stdout
+    assert cache.read_bytes() == saved_cache
