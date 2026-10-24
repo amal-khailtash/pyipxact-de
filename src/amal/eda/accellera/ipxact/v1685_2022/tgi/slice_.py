@@ -13,12 +13,11 @@ HDL path and range access uses generated slice, path-segment, range, and
 endpoint models, shared with field reference ranges. Mode port references use
 generated wrappers and part-selects.
 Address-block, field and alternate-register names retain generated wrappers.
-Other field-reference mutations use minimal schema objects or lightweight
-namespaces.
+Mode and field-map reference mutations use generated schema objects with
+shared ownership and removal helpers.
 """
 
 # ruff: noqa: I001
-from types import SimpleNamespace
 from typing import Any, overload
 from collections.abc import Sequence
 
@@ -39,6 +38,7 @@ from org.accellera.ipxact.v1685_2022 import (
     MemoryRemapRef,
     BankRef,
     RegisterFileRef,
+    RegisterRef,
 )
 
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
@@ -82,6 +82,10 @@ __all__ = [
     "getFieldSliceMemoryRemapRefID",
     "getFieldSliceRegisterFileRefByNames",
     "getFieldSliceRegisterFileRefIDs",
+    "getFieldSliceRegisterRefByName",
+    "getFieldSliceRegisterRefID",
+    "getModeFieldSliceIDs",
+    "getModePortSliceIDs",
     "getFieldSliceRange",
     "getFieldSliceRangeLeftID",
     "getFieldSliceRangeRightID",
@@ -277,7 +281,7 @@ def _set_field_choice(
 def _set_field_reference(
     owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice,
     attribute: str,
-    replacement: AddressBlockRef | AlternateRegisterRef | FieldRef,
+    replacement: AddressBlockRef | AlternateRegisterRef | FieldRef | RegisterRef,
 ) -> bool:
     """Attach a missing wrapper or update its source without replacing indices."""
     current = _child(owner, attribute, type(replacement))
@@ -337,11 +341,33 @@ def _maybe(obj: Any, attr: str) -> Any | None:
     return getattr(obj, attr, None) if obj is not None else None
 
 
-def _ensure_slice_parent(sliceID: str) -> Any:
-    sl = _resolve(sliceID)
-    if sl is None:
-        raise TgiError("Invalid slice handle", TgiFaultCode.INVALID_ID)
-    return sl
+def _mode_slice_list[T: ComponentType.Modes.Mode.FieldSlice | ComponentType.Modes.Mode.PortSlice](
+    mode_id: str, attribute: str, model_type: type[T]
+) -> tuple[ComponentType.Modes.Mode, Sequence[T]]:
+    """Validate a mode's generated slice list for traversal and mutation."""
+    owner = resolve_handle(mode_id)
+    if not isinstance(owner, ComponentType.Modes.Mode):
+        raise TgiError("Invalid mode handle", TgiFaultCode.INVALID_ID)
+    children = getattr(owner, attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid mode slice list", TgiFaultCode.INVALID_ID)
+    return owner, children
+
+
+def _remove_mode_slice[T: ComponentType.Modes.Mode.FieldSlice | ComponentType.Modes.Mode.PortSlice](
+    slice_id: str, attribute: str, model_type: type[T]
+) -> bool:
+    """Remove a mode slice and descendants, discovering parsed ownership."""
+    child = resolve_handle(slice_id)
+    if not isinstance(child, model_type):
+        raise TgiError("Invalid mode slice handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, ComponentType.Modes.Mode)
+    if not isinstance(owner, ComponentType.Modes.Mode):
+        raise TgiError("Slice has no owning mode", TgiFaultCode.INVALID_ID)
+    owner, children = _mode_slice_list(get_handle(owner), attribute, model_type)
+    _owned_list_ids(owner, children, attribute)
+    _list_attr(owner, attribute)
+    return _remove_owned(slice_id, model_type, ComponentType.Modes.Mode, "mode slice")
 
 
 # ---------------------------------------------------------------------------
@@ -540,6 +566,16 @@ def getFieldSliceRegisterFileRefIDs(fieldSliceID: str) -> list[str]:  # F.7.77.2
     )
 
 
+def getFieldSliceRegisterRefByName(fieldSliceID: str) -> str | None:  # F.7.77.26
+    """Return the stored referenced register name. Section: F.7.77.26."""
+    return _field_reference_value(getFieldSliceRegisterRefID(fieldSliceID), "registerRef")
+
+
+def getFieldSliceRegisterRefID(fieldSliceID: str) -> str | None:  # F.7.77.27
+    """Return the owned generated registerRef wrapper handle. Section: F.7.77.27."""
+    return _child_id(_field_slice(fieldSliceID), "register_ref", RegisterRef)
+
+
 def getLocationSliceIDs(locationID: str) -> list[str]:  # F.7.77.28
     """Return ordered handles to slices in a location.
 
@@ -551,6 +587,18 @@ def getLocationSliceIDs(locationID: str) -> list[str]:  # F.7.77.28
     if any(not isinstance(child, SliceType) for child in location.slice):
         raise TgiError("Invalid location slice model", TgiFaultCode.INVALID_ID)
     return _owned_list_ids(location, location.slice, "slice")
+
+
+def getModeFieldSliceIDs(modeID: str) -> list[str]:  # F.7.77.29
+    """Return ordered handles to the mode's field slices. Section: F.7.77.29."""
+    owner, children = _mode_slice_list(modeID, "field_slice", ComponentType.Modes.Mode.FieldSlice)
+    return _owned_list_ids(owner, children, "field_slice")
+
+
+def getModePortSliceIDs(modeID: str) -> list[str]:  # F.7.77.30
+    """Return ordered handles to the mode's port slices. Section: F.7.77.30."""
+    owner, children = _mode_slice_list(modeID, "port_slice", _ModePortSlice)
+    return _owned_list_ids(owner, children, "port_slice")
 
 
 def getPortSlicePartSelectID(portSliceID: str) -> str | None:  # F.7.77.31
@@ -647,24 +695,36 @@ def addFieldSliceRegisterFileRef(fieldSliceID: str, registerFileRef: str) -> str
     return _add_field_reference(fieldSliceID, registerFileRef, "register_file_ref", RegisterFileRef)
 
 
-def addModeFieldSlice(modeID: str, fieldSliceID: str) -> bool:  # F.7.78.3
-    mode = _resolve(modeID)
-    sl = _resolve(fieldSliceID)
-    if mode is None or sl is None:
-        raise TgiError("Invalid mode or slice handle", TgiFaultCode.INVALID_ID)
-    mode.field_slice = sl  # type: ignore[attr-defined]
-    register_parent(sl, mode, ("field_slice",), "single")
-    return True
+def addModeFieldSlice(
+    modeID: str, name: str, memoryMapRef: str, addressBlockRef: str, registerRef: str, fieldRef: str
+) -> str:  # F.7.78.3
+    """Build an owned mode field slice with all required named references.
+
+    Section: F.7.78.3; the Annex and WSDL specify the four reference arguments.
+    """
+    owner, _ = _mode_slice_list(modeID, "field_slice", ComponentType.Modes.Mode.FieldSlice)
+    sources = tuple(_name(source, "Name") for source in (name, memoryMapRef, addressBlockRef, registerRef, fieldRef))
+    child = ComponentType.Modes.Mode.FieldSlice(
+        name=sources[0],
+        address_block_ref=AddressBlockRef(address_block_ref=sources[2]),
+        register_ref=RegisterRef(register_ref=sources[3]),
+        field_ref=FieldRef(field_ref=sources[4]),
+    )
+    handle = get_handle(child)
+    setFieldSliceMemoryMapRef(handle, sources[1])
+    _list_attr(owner, "field_slice").append(child)
+    getModeFieldSliceIDs(modeID)
+    return handle
 
 
-def addModePortSlice(modeID: str, portSliceID: str) -> bool:  # F.7.78.4
-    mode = _resolve(modeID)
-    ps = _resolve(portSliceID)
-    if mode is None or ps is None:
-        raise TgiError("Invalid mode or portSlice handle", TgiFaultCode.INVALID_ID)
-    mode.port_slice = ps  # type: ignore[attr-defined]
-    register_parent(ps, mode, ("port_slice",), "single")
-    return True
+def addModePortSlice(modeID: str, name: str, portRef: str) -> str:  # F.7.78.4
+    """Build an owned mode port slice with its required port reference. Section: F.7.78.4."""
+    owner, _ = _mode_slice_list(modeID, "port_slice", _ModePortSlice)
+    source_name, source_ref = (_name(source, "Name") for source in (name, portRef))
+    child = _ModePortSlice(name=source_name, port_ref=_ModePortSlice.PortRef(port_ref=source_ref))
+    _list_attr(owner, "port_slice").append(child)
+    getModePortSliceIDs(modeID)
+    return get_handle(child)
 
 
 def addPortSliceSubPortReference(portSliceID: str, subPortRef: str) -> str:  # F.7.78.5
@@ -764,15 +824,13 @@ def removeLocationSlice(sliceID: str) -> bool:  # F.7.78.12
 
 
 def removeModeFieldSlice(modeFieldSliceID: str) -> bool:  # F.7.78.13
-    if resolve_handle(modeFieldSliceID) is None:
-        raise TgiError("Invalid modeFieldSlice handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(modeFieldSliceID)
+    """Remove an owned mode field slice and its reference descendants. Section: F.7.78.13."""
+    return _remove_mode_slice(modeFieldSliceID, "field_slice", ComponentType.Modes.Mode.FieldSlice)
 
 
 def removeModePortSlice(modePortSliceID: str) -> bool:  # F.7.78.14
-    if resolve_handle(modePortSliceID) is None:
-        raise TgiError("Invalid modePortSlice handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(modePortSliceID)
+    """Remove an owned mode port slice and its descendants. Section: F.7.78.14."""
+    return _remove_mode_slice(modePortSliceID, "port_slice", _ModePortSlice)
 
 
 def removePortSlicePartSelect(portSliceID: str) -> bool:  # F.7.78.15
@@ -913,11 +971,11 @@ def setFieldSliceRange(fieldSliceID: str, range: Sequence[str]) -> bool:  # F.7.
     return _set_range(_field_slice(fieldSliceID), range)
 
 
-def setFieldSliceRegisterRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.26
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.register_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.register_ref, sl, ("register_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceRegisterRef(fieldSliceID: str, registerRef: str) -> bool:  # F.7.78.26
+    """Set a normalized register name while retaining its indices. Section: F.7.78.26."""
+    owner = _field_slice(fieldSliceID)
+    child = RegisterRef(register_ref=_name(registerRef, "Name"))
+    return _set_field_reference(owner, "register_ref", child)
 
 
 def setPortSlicePartSelect(

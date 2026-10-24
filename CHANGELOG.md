@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement nine Slice register-reference and mode-builder operations with complete Annex/WSDL signatures, generated required references, and parsed subtree removal.
 - Implement eight FieldSlice bank/register-file reference-path operations with standard name signatures, generated ordered wrappers, and owned subtree removal.
 - Implement ten FieldSlice address-space/map/remap reference-choice operations with generated wrappers, atomic choice updates, and removed handle invalidation.
 - Implement ten FieldSlice named-reference operations with standard signatures and generated wrappers.
