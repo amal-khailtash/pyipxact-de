@@ -12,6 +12,7 @@ public API surface.
 # ruff: noqa: I001
 
 import re
+from collections.abc import Sequence
 
 from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
@@ -30,13 +31,16 @@ from ._expressions import _xml_text
 from ._model import _owned_list_ids, _walk_model
 from .address_space import _register_owned_child
 from .instantiation import (
-    _registered_reference_target, _validated_vlnv, getAbstractorInstanceAbstractorRefID,
+    _registered_reference_target,
+    _validated_vlnv,
+    getAbstractorInstanceAbstractorRefID,
     _validate_local_reference_name,
     getDesignConfigurationInstantiationDesignConfigurationRefByID,
 )
 from .name_group import _name_text, getName
 from .design import getDesignInterconnectionIDs, getDesignMonitorInterconnectionIDs
-from .configurable_element import getConfigurableElementValueIDs
+from .configurable_element import _holder_for, getConfigurableElementValueIDs, removeConfigurableElementValue
+from .choice import _validated_choice
 
 from .core import (
     _HANDLE_MANAGER,
@@ -102,6 +106,7 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+
 def _resolve(dcID: str) -> DesignConfiguration | None:
     obj = resolve_handle(dcID)
     return obj if isinstance(obj, DesignConfiguration) else None
@@ -128,10 +133,7 @@ def _resolve_abstractor_instances(
 
 def _resolve_abstractor_instance(
     instID: str,
-) -> (
-    DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance
-    | None
-):
+) -> DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance | None:
     obj = resolve_handle(instID)
     return (
         obj
@@ -263,6 +265,7 @@ def _view_reference_text(value: str) -> str:
 # BASE (F.7.39)
 # ---------------------------------------------------------------------------
 
+
 def getAbstractorInstanceAbstractorRefByID(abstractorInstanceID: str) -> str:
     """Return the handle of the abstractor referenced by an abstractorInstance.
 
@@ -340,12 +343,11 @@ def getDesignConfigurationChoiceIDs(designConfigurationID: str) -> list[str]:
 
     Section: F.7.39.7.
     """
-    dc = _resolve(designConfigurationID)
-    if dc is None:
-        raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
+    dc = _configuration_document(designConfigurationID)
     if dc.choices is None:
         return []
-    return [get_handle(c) for c in getattr(dc.choices, "choice", [])]
+    register_parent(dc.choices, dc, ("choices",), "single")
+    return _owned_list_ids(dc.choices, dc.choices.choice, "choice")
 
 
 def getDesignConfigurationDesignRefByID(designConfigurationID: str) -> str:
@@ -542,6 +544,7 @@ def getViewConfigurationViewRefByName(viewConfigurationID: str) -> str | None:
 # EXTENDED (F.7.40)
 # ---------------------------------------------------------------------------
 
+
 def addAbstractorInstancesAbstractorInstance(
     abstractorInstancesID: str,
     abstractorVLNV: tuple[str, str, str, str],
@@ -576,9 +579,7 @@ def addAbstractorInstancesAbstractorInstance(
     return get_handle(inst)
 
 
-def addAbstractorInstancesInterfaceRef(
-    abstractorInstancesID: str, componentRef: str, busRef: str
-) -> str:
+def addAbstractorInstancesInterfaceRef(abstractorInstancesID: str, componentRef: str, busRef: str) -> str:
     """Add an interfaceRef to an abstractorInstances container.
 
     Section: F.7.40.2.
@@ -590,11 +591,10 @@ def addAbstractorInstancesInterfaceRef(
     bus = _abstractor_name(ai, busRef)
     scope = _register_owned_child(ai, DesignConfiguration.InterconnectionConfiguration) or ai
     for child, _, _, _ in _walk_model(scope):
-        if (
-            isinstance(child, DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.InterfaceRef)
-            and (_abstractor_name(child, child.component_ref), _abstractor_name(child, child.bus_ref))
-            == (component, bus)
-        ):
+        if isinstance(child, DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.InterfaceRef) and (
+            _abstractor_name(child, child.component_ref),
+            _abstractor_name(child, child.bus_ref),
+        ) == (component, bus):
             raise TgiError(
                 "Interface endpoint already configured for this interconnection", TgiFaultCode.ALREADY_EXISTS
             )
@@ -606,19 +606,31 @@ def addAbstractorInstancesInterfaceRef(
     return get_handle(ir)
 
 
-def addDesignConfChoice(designConfigurationID: str, name: str) -> str:
+def addDesignConfChoice(designConfID: str, name: str, enumerations: Sequence[str]) -> str:
     """Add a ``choice`` element to the designConfiguration.
+
+    Args:
+        designConfID: Handle to the containing designConfiguration.
+        name: XML Name identifying the choice.
+        enumerations: One or more enumeration expression strings.
+
+    Returns:
+        Handle to the new choice, including its enumeration children.
 
     Section: F.7.40.3.
     """
-    dc = _resolve(designConfigurationID)
-    if dc is None:
-        raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
+    dc = _configuration_document(designConfID)
+    ch = _validated_choice(name, enumerations)
+    ch.name = _name_text(ch, _xml_text(ch.name))
+    for enumeration in ch.enumeration:
+        enumeration.value = _xml_text(enumeration.value)
+    if dc.choices is not None and any(_name_text(c, c.name) == ch.name for c in dc.choices.choice):
+        raise TgiError("Choice name already defined", TgiFaultCode.ALREADY_EXISTS)
     if dc.choices is None:
         dc.choices = Choices(choice=[])
-    ch = Choices.Choice(name=name)
-    dc.choices.choice.append(ch)  # type: ignore[attr-defined]
-    register_parent(ch, dc, ("choices",), "list")
+    dc.choices.choice = [*dc.choices.choice, ch]
+    register_parent(dc.choices, dc, ("choices",), "single")
+    register_parent(ch, dc.choices, ("choice",), "list")
     return get_handle(ch)
 
 
@@ -635,17 +647,18 @@ def addDesignConfigurationGeneratorChainConfiguration(
     parts = _xml_vlnv(vlnv)
     if any((ref.vendor, ref.library, ref.name, ref.version) == parts for ref in dc.generator_chain_configuration):
         raise TgiError("Generator chain reference already configured", TgiFaultCode.ALREADY_EXISTS)
-    ref = ConfigurableLibraryRefType(
-        vendor=parts[0], library=parts[1], name=parts[2], version=parts[3]
-    )
+    ref = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
     dc.generator_chain_configuration = [*dc.generator_chain_configuration, ref]
     register_parent(ref, dc, ("generator_chain_configuration",), "list")
     return get_handle(ref)
 
 
 def addDesignConfigurationInterconnectionConfiguration(
-    designConfigurationID: str, interconnectionRef: str,
-    abstractorVLNV: tuple[str, str, str, str], instanceName: str, viewName: str,
+    designConfigurationID: str,
+    interconnectionRef: str,
+    abstractorVLNV: tuple[str, str, str, str],
+    instanceName: str,
+    viewName: str,
 ) -> str:
     """Create an interconnectionConfiguration with the given ref and abstractor.
 
@@ -656,9 +669,7 @@ def addDesignConfigurationInterconnectionConfiguration(
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
     reference = _abstractor_name(dc, interconnectionRef)
     _unique_interconnection_ref(dc, reference)
-    ic = DesignConfiguration.InterconnectionConfiguration(
-        interconnection_ref=reference
-    )
+    ic = DesignConfiguration.InterconnectionConfiguration(interconnection_ref=reference)
     ic_id = get_handle(ic)
     register_parent(ic, dc, ("interconnection_configuration",), "list")
     try:
@@ -671,7 +682,7 @@ def addDesignConfigurationInterconnectionConfiguration(
 
 
 def addDesignConfigurationViewConfiguration(
-    designConfigurationID: str, instanceName: str, viewRef: str
+    designConfigurationID: str, componentInstanceName: str, viewName: str
 ) -> str:
     """Add a viewConfiguration selecting a viewRef for an instance.
 
@@ -681,12 +692,19 @@ def addDesignConfigurationViewConfiguration(
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
     vc = DesignConfiguration.ViewConfiguration(
-        instance_name=InstanceName(value=instanceName),
-        view=DesignConfiguration.ViewConfiguration.View(view_ref=viewRef),
+        instance_name=InstanceName(value=componentInstanceName),
+        view=DesignConfiguration.ViewConfiguration.View(view_ref=viewName),
     )
-    dc.view_configuration.append(vc)  # type: ignore[attr-defined]
+    vc_id = get_handle(vc)
     register_parent(vc, dc, ("view_configuration",), "list")
-    return get_handle(vc)
+    try:
+        setViewConfigurationInstanceName(vc_id, componentInstanceName)
+        setViewConfigurationView(vc_id, viewName)
+    except TgiError:
+        _HANDLE_MANAGER.forget(vc_id)
+        raise
+    dc.view_configuration = [*dc.view_configuration, vc]
+    return vc_id
 
 
 def addInterconnectionConfigurationAbstractorInstances(
@@ -753,7 +771,17 @@ def removeDesignConfChoice(choiceID: str) -> bool:
     # Validate it is a Choices.Choice instance
     if not isinstance(obj, Choices.Choice):  # type: ignore[attr-defined]
         return False
-    return detach_child_by_handle(choiceID)
+    holder = _register_owned_child(obj, Choices)
+    if not isinstance(holder, Choices):
+        return False
+    dc = _register_owned_child(holder, DesignConfiguration)
+    if not isinstance(dc, DesignConfiguration) or dc.choices is not holder:
+        return False
+    if not detach_child_by_handle(choiceID):
+        return False
+    if not holder.choice:
+        detach_child_by_handle(get_handle(holder))
+    return True
 
 
 def removeDesignConfigurationDesignRef(designConfigurationID: str) -> bool:
@@ -804,6 +832,8 @@ def removeDesignConfigurationViewConfiguration(viewConfigurationID: str) -> bool
     vc = _resolve_view_configuration(viewConfigurationID)
     if vc is None:
         return False
+    if _register_owned_child(vc, DesignConfiguration) is None:
+        return False
     return detach_child_by_handle(viewConfigurationID)
 
 
@@ -828,12 +858,15 @@ def removeViewConfigurationConfigurableElementValue(configurableElementValueID: 
     cev = _resolve_configurable_element_value(configurableElementValueID)
     if cev is None:
         return False
-    return detach_child_by_handle(configurableElementValueID)
+    owner, holder = _holder_for(cev)
+    if holder is None or not isinstance(owner, DesignConfiguration.ViewConfiguration.View):
+        return False
+    if _register_owned_child(owner, DesignConfiguration.ViewConfiguration) is None:
+        return False
+    return removeConfigurableElementValue(configurableElementValueID)
 
 
-def setAbstractorInstanceAbstractorRef(
-    abstractorInstanceID: str, vlnv: tuple[str, str, str, str]
-) -> bool:
+def setAbstractorInstanceAbstractorRef(abstractorInstanceID: str, vlnv: tuple[str, str, str, str]) -> bool:
     """Set the abstractorRef VLNV, preserving its configurable values and handle.
 
     Section: F.7.40.17.
@@ -871,9 +904,7 @@ def setAbstractorInstanceViewName(abstractorInstanceID: str, viewName: str) -> b
     return True
 
 
-def setDesignConfigurationDesignRef(
-    designConfigurationID: str, vlnv: tuple[str, str, str, str]
-) -> bool:
+def setDesignConfigurationDesignRef(designConfigurationID: str, vlnv: tuple[str, str, str, str]) -> bool:
     """Set (or create) the designRef reference.
 
     Section: F.7.40.20.
@@ -886,7 +917,8 @@ def setDesignConfigurationDesignRef(
 
 
 def setInterconnectionConfigurationInterconnectionRef(
-    interconnectionConfigurationID: str, interconnectionRef: str,
+    interconnectionConfigurationID: str,
+    interconnectionRef: str,
 ) -> bool:
     """Set the interconnectionRef XML Name (F.7.40.21)."""
     ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
@@ -906,7 +938,8 @@ def setViewConfigurationInstanceName(viewConfigurationID: str, instanceName: str
     name = _abstractor_name(vc, instanceName)
     scope = _register_owned_child(vc, DesignConfiguration)
     if isinstance(scope, DesignConfiguration) and any(
-        child is not vc and child.instance_name is not None
+        child is not vc
+        and child.instance_name is not None
         and _abstractor_name(child, child.instance_name.value) == name
         for child in scope.view_configuration
     ):

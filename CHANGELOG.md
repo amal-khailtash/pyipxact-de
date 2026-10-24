@@ -20,6 +20,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Complete the six remaining design-configuration choice and View creation/removal operations with required enumerations, unique XML names, shared setters, parsed ownership recovery and optional-holder cleanup.
 - Run tests and combined coverage in parallel, reuse cached Leon2 examples without network checks, and provide an explicit `--refresh-examples` test option.
 - Complete seven design-configuration View operations with owned handles, shared override access, unique instance names, NMTOKEN view references and identity-preserving edits.
 - Complete six design-configuration interconnection operations with registered target lookup, atomic required abstractor creation, reference validation and owned removal; fix the two underlying Design collection getters to read the generated mixed list.
