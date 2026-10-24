@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.8.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.7.0...v0.8.0) (2026-10-24)
+
+
+### Features
+
+* complete standard TGI contracts and align verified release automation ([#27](https://github.com/amal-khailtash/pyipxact-de/issues/27)) ([0e040ba](https://github.com/amal-khailtash/pyipxact-de/commit/0e040ba55ef6d3abc854ebb4b7cb001eddb83a1b))
+
 ## [Unreleased]
 
 ### Fixed
