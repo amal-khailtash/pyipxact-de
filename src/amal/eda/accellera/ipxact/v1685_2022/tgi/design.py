@@ -16,6 +16,8 @@ and shared range/index expression validation, ownership and subtree removal.
 Port-reference lists traverse generated mixed holders; stored names and sub-port
 paths use shared reference mappings and ordered ownership helpers. Ad-hoc
 connection builders reuse endpoint builders and preserve schema reference order.
+Tied values reuse generic expression access and child removal; numeric constants
+resolve through SvExpressionParser and open/default retain their standard meaning.
 
 Created child elements are registered with parent relationships so that
 handle lifecycle & reverse traversal remain coherent inside the DE.
@@ -30,6 +32,7 @@ from .port_map import _child, _child_id, _name, _remove_child, _set_part_select
 from ._attribute_references import _reference_value
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
+from .miscellaneous import _expression_source, getExpression, getExpressionValue, setExpressionValue
 
 from org.accellera.ipxact.v1685_2022 import (
     Design,
@@ -393,15 +396,13 @@ def getAdHocConnectionInternalPortReferenceIDs(adHocConnectionID: str) -> list[s
 def getAdHocConnectionTiedValue(adHocConnectionID: str) -> str | None:
     """Return tiedValue value if present.
 
+    Numeric constants evaluate to unsigned integer text; open/default retain
+    their standard meaning. Unresolved expressions raise INVALID_ARGUMENT.
+
     Section: F.7.37.4.
     """
-    ac = _resolve_ad_hoc(adHocConnectionID)
-    if ac is None:
-        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    tv = getattr(ac, "tied_value", None)
-    if tv is None:
-        return None
-    return getattr(tv, "value", tv)
+    value_id = getAdHocConnectionTiedValueID(adHocConnectionID)
+    return None if value_id is None else getExpressionValue(value_id)
 
 
 def getAdHocConnectionTiedValueExpression(adHocConnectionID: str) -> str | None:
@@ -409,13 +410,8 @@ def getAdHocConnectionTiedValueExpression(adHocConnectionID: str) -> str | None:
 
     Section: F.7.37.5.
     """
-    ac = _resolve_ad_hoc(adHocConnectionID)
-    if ac is None:
-        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    tv = getattr(ac, "tied_value", None)
-    if tv is None:
-        return None
-    return getattr(tv, "value", None)
+    value_id = getAdHocConnectionTiedValueID(adHocConnectionID)
+    return None if value_id is None else getExpression(value_id)
 
 
 def getAdHocConnectionTiedValueID(adHocConnectionID: str) -> str | None:
@@ -426,8 +422,7 @@ def getAdHocConnectionTiedValueID(adHocConnectionID: str) -> str | None:
     ac = _resolve_ad_hoc(adHocConnectionID)
     if ac is None:
         raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    tv = getattr(ac, "tied_value", None)
-    return None if tv is None else get_handle(tv)
+    return _child_id(ac, "tied_value", ComplexTiedValueExpression)
 
 
 def getInternalPortReferenceComponentInstanceRefByName(internalPortReferenceID: str) -> str:
@@ -974,13 +969,12 @@ def removeAdHocConnectionTiedValue(adHocConnectionID: str) -> bool:
 
     Section: F.7.38.16.
     """
+    if getAdHocConnectionTiedValueID(adHocConnectionID) is None:
+        return False
     ac = _resolve_ad_hoc(adHocConnectionID)
     if ac is None:
         raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    if getattr(ac, "tied_value", None) is None:
-        return False
-    ac.tied_value = None
-    return True
+    return _remove_child(ac, "tied_value")
 
 
 def removeDesignAdHocConnection(adHocConnectionID: str) -> bool:
@@ -1123,13 +1117,16 @@ def setAdHocConnectionTiedValue(adHocConnectionID: str, tiedValue: str) -> bool:
 
     Section: F.7.38.29.
     """
+    value_id = getAdHocConnectionTiedValueID(adHocConnectionID)
+    if value_id is not None:
+        return setExpressionValue(value_id, tiedValue)
+    child = ComplexTiedValueExpression()
+    child.value = _expression_source(tiedValue, child)
     ac = _resolve_ad_hoc(adHocConnectionID)
     if ac is None:
         raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    if ac.tied_value is None:
-        ac.tied_value = ComplexTiedValueExpression(value=tiedValue)  # type: ignore[assignment]
-    else:
-        ac.tied_value.value = tiedValue  # type: ignore[attr-defined]
+    ac.tied_value = child
+    register_parent(child, ac, ("tied_value",), "single")
     return True
 
 

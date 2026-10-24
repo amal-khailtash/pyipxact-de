@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement five Design tied-value operations through shared expression and child-lifecycle functions, validating unsigned constants and open/default alternatives while preserving source, bounds and metadata.
 - Implement eight Design ad-hoc connection and endpoint lifecycle operations with shared builders, schema name validation, unique connection names, ordered references and owned subtree removal.
 - Implement nine Design port-reference traversal operations with generated mixed holders, stored names, shared ordered sub-port validation, and strict owner/list membership on removal.
 - Implement six Design internal/external port part-select operations using shared generated models and SV expression validation, preserving metadata and invalidating removed subtree handles.

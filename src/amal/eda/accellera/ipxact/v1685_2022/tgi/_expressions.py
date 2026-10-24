@@ -5,6 +5,7 @@ import re
 
 from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
 from org.accellera.ipxact.v1685_2022.complex_base_expression import ComplexBaseExpression
+from org.accellera.ipxact.v1685_2022.complex_tied_value_expression import ComplexTiedValueExpression
 from org.accellera.ipxact.v1685_2022.real_expression import RealExpression
 
 from .core import TgiError, TgiFaultCode
@@ -134,3 +135,30 @@ def _string_source(source: str) -> str:
         if not _undeclared(error):
             raise TgiError("Cannot resolve string expression", TgiFaultCode.INVALID_ARGUMENT) from error
     return source
+
+
+def _tied_value(source: str, current: ComplexTiedValueExpression, *, deferred: bool = False) -> str | None:
+    """Resolve a tied value to an unsigned integer or the standard open/default strings."""
+    _xml_text(source)
+    minimum, maximum = current.minimum, current.maximum
+    if any(bound is not None and type(bound) is not int for bound in (minimum, maximum)):
+        raise TgiError("Invalid tied-value bounds", TgiFaultCode.INVALID_ARGUMENT)
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise TgiError("Tied-value bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
+    if source.strip() in ("open", "default"):
+        return source.strip()
+    try:
+        result = SvExpressionParser().parse_string(source)
+    except SvExpressionError:
+        result = None
+    if result is not None:
+        value = result.value.value
+        if not isinstance(value, str) or value not in ("open", "default"):
+            raise TgiError("Invalid tied-value string", TgiFaultCode.INVALID_ARGUMENT)
+        return value
+    value = _integer(source, None, deferred, decimal_literals=False)
+    if value is None:
+        return None
+    if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
+        raise TgiError("Tied value outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return str(value)
