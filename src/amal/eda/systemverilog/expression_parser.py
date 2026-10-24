@@ -82,6 +82,17 @@ class SvExpressionParser:
         Raises:
             SvExpressionError: On syntax, binding or constant evaluation errors.
         """
+        return self._parse(expression, "")
+
+    def parse_string(self, expression: str) -> SvExpressionResult:
+        """Resolve an expression in a SystemVerilog string assignment context.
+
+        String literals and compatible expressions follow IEEE 1800 assignment
+        rules; numeric values without an explicit string cast are rejected.
+        """
+        return self._parse(expression, "string ")
+
+    def _parse(self, expression: str, result_type: str) -> SvExpressionResult:
         if not expression.strip():
             raise SvExpressionError("Expression must not be empty")
         declarations = []
@@ -90,7 +101,7 @@ class SvExpressionParser:
                 raise SvExpressionError(f"Invalid constant name: {name!r}")
             declarations.append(f"localparam {name} = ({value});")
         source = "module __ipxact_expression;\n" + "\n".join(declarations)
-        source += f"\nlocalparam __ipxact_result = ({expression});\nendmodule\n"
+        source += f"\nlocalparam {result_type}__ipxact_result = ({expression});\nendmodule\n"
         tree = pyslang.syntax.SyntaxTree.fromText(source, name="sv-expression")
         compilation = pyslang.ast.Compilation()
         compilation.addSyntaxTree(tree)

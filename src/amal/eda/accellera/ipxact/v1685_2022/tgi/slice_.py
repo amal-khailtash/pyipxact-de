@@ -1,14 +1,14 @@
 """Slice category TGI functions (IEEE 1685-2022).
 
 Named ``slice_`` to avoid clashing with Python's built-in ``slice``. Implements
-BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL range
+BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL path and range
 getters reject invalid handles; reference getters retain legacy
 neutral results (``None`` / empty list). EXTENDED mutators raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 
-HDL range access uses generated slice, range, and endpoint models. Legacy
-relationship mutations use minimal schema objects or
+HDL path and range access uses generated slice, path-segment, range, and
+endpoint models. Legacy relationship mutations use minimal schema objects or
 lightweight namespaces.
 """
 
@@ -17,10 +17,22 @@ from types import SimpleNamespace
 from typing import Any
 from collections.abc import Sequence
 
-from org.accellera.ipxact.v1685_2022 import SliceType, PortSliceType, Left, Right
+from org.accellera.ipxact.v1685_2022 import (
+    SliceType,
+    PortSliceType,
+    Left,
+    Right,
+    SlicesType,
+    PathSegmentType,
+    PortPathSegmentType,
+)
 
 from ._ranges import _range_endpoint, _range_value, _remove_range, _set_range
 from .miscellaneous import getExpression
+from ._expressions import _string_source
+from ._model import _owned_list_ids
+from .address_space import _register_owned_child, _remove_owned
+from .component import _list_attr
 
 from .core import (
     TgiError,
@@ -55,6 +67,8 @@ __all__ = [
     "getFieldSliceRange",
     "getFieldSliceRangeLeftID",
     "getFieldSliceRangeRightID",
+    "getLocationSliceIDs",
+    "getSlicePathSegmentIDs",
     "getSliceRange",
     "getSliceRangeExpression",
     "getSliceRangeLeftID",
@@ -97,12 +111,27 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def _range_slice(slice_id: str) -> SliceType | PortSliceType:
+def _hdl_slice(slice_id: str) -> SliceType | PortSliceType:
     """Resolve a generated HDL slice without accepting mode reference slices."""
     owner = resolve_handle(slice_id)
     if not isinstance(owner, (SliceType, PortSliceType)):
         raise TgiError("Invalid HDL slice handle", TgiFaultCode.INVALID_ID)
     return owner
+
+
+def _slice_paths(owner: SliceType | PortSliceType) -> SliceType.PathSegments | PortSliceType.PathSegments | None:
+    """Validate the immediate holder and its version-specific path children."""
+    holder = owner.path_segments
+    if holder is None:
+        return None
+    holder_type = SliceType.PathSegments if isinstance(owner, SliceType) else PortSliceType.PathSegments
+    segment_type = PathSegmentType if isinstance(owner, SliceType) else PortPathSegmentType
+    if not isinstance(holder, holder_type) or not isinstance(holder.path_segment, (list, tuple)):
+        raise TgiError("Invalid pathSegments model", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(child, segment_type) for child in holder.path_segment):
+        raise TgiError("Invalid pathSegment model", TgiFaultCode.INVALID_ID)
+    register_parent(holder, owner, ("path_segments",), "single")
+    return holder
 
 
 def _resolve(objID: str) -> Any | None:
@@ -306,6 +335,28 @@ def getFieldSliceRangeRightID(fieldSliceID: str) -> str | None:  # F.7.77.22
     return None if right is None else get_handle(right)
 
 
+def getLocationSliceIDs(locationID: str) -> list[str]:  # F.7.77.28
+    """Return ordered handles to slices in a location.
+
+    Section: F.7.77.28.
+    """
+    location = resolve_handle(locationID)
+    if not isinstance(location, SlicesType) or not isinstance(location.slice, (list, tuple)):
+        raise TgiError("Invalid location handle", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(child, SliceType) for child in location.slice):
+        raise TgiError("Invalid location slice model", TgiFaultCode.INVALID_ID)
+    return _owned_list_ids(location, location.slice, "slice")
+
+
+def getSlicePathSegmentIDs(sliceID: str) -> list[str]:  # F.7.77.34
+    """Return ordered path-segment handles with immediate ownership.
+
+    Section: F.7.77.34.
+    """
+    holder = _slice_paths(_hdl_slice(sliceID))
+    return [] if holder is None else _owned_list_ids(holder, holder.path_segment, "path_segment")
+
+
 def getSliceRange(sliceID: str) -> tuple[int | None, int | None]:  # F.7.77.35
     """Return evaluated left/right values of an HDL slice range.
 
@@ -328,7 +379,7 @@ def getSliceRangeLeftID(sliceID: str) -> str | None:  # F.7.77.37
 
     Section: F.7.77.37.
     """
-    endpoint = _range_endpoint(_range_slice(sliceID), "left", Left)
+    endpoint = _range_endpoint(_hdl_slice(sliceID), "left", Left)
     return None if endpoint is None else get_handle(endpoint)
 
 
@@ -337,7 +388,7 @@ def getSliceRangeRightID(sliceID: str) -> str | None:  # F.7.77.38
 
     Section: F.7.77.38.
     """
-    endpoint = _range_endpoint(_range_slice(sliceID), "right", Right)
+    endpoint = _range_endpoint(_hdl_slice(sliceID), "right", Right)
     return None if endpoint is None else get_handle(endpoint)
 
 
@@ -396,14 +447,26 @@ def addPortSliceSubPortReference(portSliceID: str, subPortName: str) -> str:  # 
     return get_handle(sub)
 
 
-def addSlicePathSegment(sliceID: str, segment: str) -> str:  # F.7.78.6
-    sl = _ensure_slice_parent(sliceID)
-    seg = SimpleNamespace(value=segment)
-    if getattr(sl, "path_segment", None) is None:
-        sl.path_segment = []  # type: ignore[attr-defined]
-    sl.path_segment.append(seg)  # type: ignore[attr-defined]
-    register_parent(seg, sl, ("path_segment",), "list")
-    return get_handle(seg)
+def addSlicePathSegment(sliceID: str, pathSegmentValue: str) -> str:  # F.7.78.6
+    """Append a generated path segment with its string expression source.
+
+    Section: F.7.78.6.
+    """
+    owner = _hdl_slice(sliceID)
+    holder = _slice_paths(owner)
+    source = _string_source(pathSegmentValue)
+    if isinstance(owner, SliceType):
+        child = PathSegmentType(value=source)
+        if holder is None:
+            holder = SliceType.PathSegments()
+    else:
+        child = PortPathSegmentType(value=source)
+        if holder is None:
+            holder = PortSliceType.PathSegments()
+    _list_attr(holder, "path_segment").append(child)
+    owner.path_segments = holder
+    getSlicePathSegmentIDs(sliceID)
+    return get_handle(child)
 
 
 def removeFieldSliceAlternateRegisterRef(fieldSliceAlternateRegisterRefID: str) -> bool:  # F.7.78.7
@@ -436,10 +499,20 @@ def removeFieldSliceRegisterFileRef(fieldSliceRegisterFileRefID: str) -> bool:  
     return detach_child_by_handle(fieldSliceRegisterFileRefID)
 
 
-def removeLocationSlice(locationSliceID: str) -> bool:  # F.7.78.12
-    if resolve_handle(locationSliceID) is None:
-        raise TgiError("Invalid locationSlice handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(locationSliceID)
+def removeLocationSlice(sliceID: str) -> bool:  # F.7.78.12
+    """Remove an owned location slice and invalidate its descendant handles.
+
+    Section: F.7.78.12.
+    """
+    child = resolve_handle(sliceID)
+    if not isinstance(child, SliceType):
+        raise TgiError("Invalid location slice handle", TgiFaultCode.INVALID_ID)
+    location = _register_owned_child(child, SlicesType)
+    if not isinstance(location, SlicesType):
+        raise TgiError("Slice has no owning location", TgiFaultCode.INVALID_ID)
+    getLocationSliceIDs(get_handle(location))
+    _list_attr(location, "slice")
+    return _remove_owned(sliceID, SliceType, SlicesType, "location slice")
 
 
 def removeModeFieldSlice(modeFieldSliceID: str) -> bool:  # F.7.78.13
@@ -466,10 +539,29 @@ def removePortSliceSubPortReference(portSliceSubPortReferenceID: str) -> bool:  
     return detach_child_by_handle(portSliceSubPortReferenceID)
 
 
-def removeSlicePathSegment(slicePathSegmentID: str) -> bool:  # F.7.78.17
-    if resolve_handle(slicePathSegmentID) is None:
-        raise TgiError("Invalid slicePathSegment handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(slicePathSegmentID)
+def removeSlicePathSegment(pathSegmentID: str) -> bool:  # F.7.78.17
+    """Remove an HDL slice path segment, retaining its required holder.
+
+    Section: F.7.78.17.
+    """
+    child = resolve_handle(pathSegmentID)
+    if isinstance(child, PathSegmentType):
+        holder_type = SliceType.PathSegments
+        owner_type = SliceType
+    elif isinstance(child, PortPathSegmentType):
+        holder_type = PortSliceType.PathSegments
+        owner_type = PortSliceType
+    else:
+        raise TgiError("Invalid pathSegment handle", TgiFaultCode.INVALID_ID)
+    holder = _register_owned_child(child, holder_type)
+    if not isinstance(holder, holder_type):
+        raise TgiError("Path segment has no owning slice holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, owner_type)
+    if not isinstance(owner, owner_type):
+        raise TgiError("Path segment has no owning HDL slice", TgiFaultCode.INVALID_ID)
+    getSlicePathSegmentIDs(get_handle(owner))
+    _list_attr(holder, "path_segment")
+    return _remove_owned(pathSegmentID, type(child), holder_type, "path segment")
 
 
 def removeSliceRange(sliceID: str) -> bool:  # F.7.78.18
@@ -477,7 +569,7 @@ def removeSliceRange(sliceID: str) -> bool:  # F.7.78.18
 
     Section: F.7.78.18.
     """
-    return _remove_range(_range_slice(sliceID))
+    return _remove_range(_hdl_slice(sliceID))
 
 
 def setFieldSliceAddressBlockRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.19
@@ -560,4 +652,4 @@ def setSliceRange(sliceID: str, range: Sequence[str]) -> bool:  # F.7.78.29
 
     Section: F.7.78.29.
     """
-    return _set_range(_range_slice(sliceID), range)
+    return _set_range(_hdl_slice(sliceID), range)

@@ -119,3 +119,14 @@ def _source(value: str, current: ComplexBaseExpression | None = None, maximum: i
         if (minimum is not None and result < minimum) or (maximum is not None and result > maximum):
             raise TgiError("Expression outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
     return value
+
+
+def _string_source(source: str) -> str:
+    """Validate a C.7.5/C.7.6 string expression, deferring undeclared names."""
+    _xml_text(source)
+    try:
+        SvExpressionParser().parse_string(source)
+    except SvExpressionError as error:
+        if not _undeclared(error):
+            raise TgiError("Cannot resolve string expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    return source

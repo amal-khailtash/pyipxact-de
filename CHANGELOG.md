@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement five Slice path/location operations with generated path holders, ordered traversal, and parsed ownership recovery.
+- Validate HDL path string expressions through SvExpressionParser while preserving source text and required containers on removal.
 - Implement six HDL Slice range operations with generated models, preserved expression metadata, and shared Driver range helpers.
 - Correct Slice range setter and remover signatures and validate endpoint changes atomically.
 - Complete Driver choice builders with standard expression arguments, atomic validation, and shared low-level setters.
