@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete Driver choice builders with standard expression arguments, atomic validation, and shared low-level setters.
+- Validate and normalize unique Driver view references using the standard NMTOKEN rules.
 - Correct Driver removal handles, invalidate removed subtrees, and recover parsed view-reference ownership.
 - Preserve Driver range/default expression metadata and validate mutations before changing generated choice or endpoint values.
 - Implement standard string-expression signatures for clock pulse and SingleShotDriver setters, preserving wrapper identity and metadata.
