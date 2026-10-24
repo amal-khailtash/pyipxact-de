@@ -112,6 +112,10 @@ def _source(value: str, current: ComplexBaseExpression | None = None, maximum: i
     _xml_text(value)
     if not value.strip():
         raise TgiError("Expression must be nonempty", TgiFaultCode.INVALID_ARGUMENT)
+    if current is not None:
+        declared_minimum, declared_maximum = getattr(current, "minimum", None), getattr(current, "maximum", None)
+        if declared_minimum is not None and declared_maximum is not None and declared_minimum > declared_maximum:
+            raise TgiError("Expression bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
     result = _integer(value, maximum, True)
     if result is not None and current is not None:
         minimum = getattr(current, "minimum", None)

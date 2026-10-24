@@ -9,6 +9,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement eight mode port-slice reference and part-select operations using generated models and shared atomic setters.
+- Correct Slice reference signatures and name-return contracts, normalize referenced port names, and preserve wrappers and subtree lifetimes.
+- Reject reversed unsigned expression bounds even when constant identifiers remain unresolved.
 - Implement five Slice path/location operations with generated path holders, ordered traversal, and parsed ownership recovery.
 - Validate HDL path string expressions through SvExpressionParser while preserving source text and required containers on removal.
 - Implement six HDL Slice range operations with generated models, preserved expression metadata, and shared Driver range helpers.

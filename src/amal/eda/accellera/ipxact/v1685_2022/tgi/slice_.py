@@ -2,14 +2,15 @@
 
 Named ``slice_`` to avoid clashing with Python's built-in ``slice``. Implements
 BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL path and range
-getters reject invalid handles; reference getters retain legacy
-neutral results (``None`` / empty list). EXTENDED mutators raise
+getters and mode port-reference getters reject invalid handles; field-reference
+getters retain legacy neutral results (``None`` / empty list). EXTENDED mutators raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 
 HDL path and range access uses generated slice, path-segment, range, and
-endpoint models. Legacy relationship mutations use minimal schema objects or
-lightweight namespaces.
+endpoint models. Mode port references use generated wrappers and part-selects.
+Legacy field-reference mutations use minimal schema objects or lightweight
+namespaces.
 """
 
 # ruff: noqa: I001
@@ -25,6 +26,8 @@ from org.accellera.ipxact.v1685_2022 import (
     SlicesType,
     PathSegmentType,
     PortPathSegmentType,
+    ComponentType,
+    SubPortReference,
 )
 
 from ._ranges import _range_endpoint, _range_value, _remove_range, _set_range
@@ -33,6 +36,8 @@ from ._expressions import _string_source
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
+from .port_map import _name, _set_part_select, _remove_child
+from ._miscellaneous_part_select import _part_select
 
 from .core import (
     TgiError,
@@ -68,6 +73,9 @@ __all__ = [
     "getFieldSliceRangeLeftID",
     "getFieldSliceRangeRightID",
     "getLocationSliceIDs",
+    "getPortSlicePartSelectID",
+    "getPortSlicePortRefByName",
+    "getPortSliceSubPortReferenceIDs",
     "getSlicePathSegmentIDs",
     "getSliceRange",
     "getSliceRangeExpression",
@@ -106,6 +114,9 @@ __all__ = [
 ]
 
 
+_ModePortSlice = ComponentType.Modes.Mode.PortSlice
+
+
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
@@ -132,6 +143,24 @@ def _slice_paths(owner: SliceType | PortSliceType) -> SliceType.PathSegments | P
         raise TgiError("Invalid pathSegment model", TgiFaultCode.INVALID_ID)
     register_parent(holder, owner, ("path_segments",), "single")
     return holder
+
+
+def _mode_port_slice(handle: str) -> ComponentType.Modes.Mode.PortSlice:
+    """Resolve a mode port reference slice, excluding HDL access slices."""
+    owner = resolve_handle(handle)
+    if not isinstance(owner, _ModePortSlice):
+        raise TgiError("Invalid mode portSlice handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def _sub_port_references(owner: ComponentType.Modes.Mode.PortSlice) -> Sequence[SubPortReference]:
+    """Validate the ordered sub-port reference path before traversal or mutation."""
+    children = owner.sub_port_reference
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, SubPortReference) for child in children):
+        raise TgiError("Invalid subPortReference model", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(child.sub_port_ref, str) for child in children):
+        raise TgiError("Invalid subPortRef source", TgiFaultCode.INVALID_ID)
+    return children
 
 
 def _resolve(objID: str) -> Any | None:
@@ -348,6 +377,42 @@ def getLocationSliceIDs(locationID: str) -> list[str]:  # F.7.77.28
     return _owned_list_ids(location, location.slice, "slice")
 
 
+def getPortSlicePartSelectID(portSliceID: str) -> str | None:  # F.7.77.31
+    """Return the owned part-select handle, when present.
+
+    Section: F.7.77.31.
+    """
+    owner = _mode_port_slice(portSliceID)
+    if owner.part_select is None:
+        return None
+    child = _part_select(get_handle(owner.part_select))
+    register_parent(child, owner, ("part_select",), "single")
+    return get_handle(child)
+
+
+def getPortSlicePortRefByName(portSliceID: str) -> str:  # F.7.77.32
+    """Return the referenced port name stored on the mode slice.
+
+    Section: F.7.77.32.
+    """
+    owner = _mode_port_slice(portSliceID)
+    if not isinstance(owner.port_ref, _ModePortSlice.PortRef) or not isinstance(owner.port_ref.port_ref, str):
+        raise TgiError("Invalid portRef model", TgiFaultCode.INVALID_ID)
+    register_parent(owner.port_ref, owner, ("port_ref",), "single")
+    return owner.port_ref.port_ref
+
+
+def getPortSliceSubPortReferenceIDs(portSliceID: str) -> list[str]:  # F.7.77.33
+    """Return the ordered referenced sub-port names specified by the Annex.
+
+    Section: F.7.77.33.
+    """
+    owner = _mode_port_slice(portSliceID)
+    children = _sub_port_references(owner)
+    _owned_list_ids(owner, children, "sub_port_reference")
+    return [child.sub_port_ref for child in children]
+
+
 def getSlicePathSegmentIDs(sliceID: str) -> list[str]:  # F.7.77.34
     """Return ordered path-segment handles with immediate ownership.
 
@@ -437,14 +502,18 @@ def addModePortSlice(modeID: str, portSliceID: str) -> bool:  # F.7.78.4
     return True
 
 
-def addPortSliceSubPortReference(portSliceID: str, subPortName: str) -> str:  # F.7.78.5
-    ps = _ensure_slice_parent(portSliceID)
-    sub = SimpleNamespace(name=subPortName)
-    if getattr(ps, "sub_port_reference", None) is None:
-        ps.sub_port_reference = []  # type: ignore[attr-defined]
-    ps.sub_port_reference.append(sub)  # type: ignore[attr-defined]
-    register_parent(sub, ps, ("sub_port_reference",), "list")
-    return get_handle(sub)
+def addPortSliceSubPortReference(portSliceID: str, subPortRef: str) -> str:  # F.7.78.5
+    """Append an owned generated reference to the hierarchical sub-port path.
+
+    Section: F.7.78.5.
+    """
+    owner = _mode_port_slice(portSliceID)
+    _sub_port_references(owner)
+    source = _name(subPortRef, "portName")
+    child = SubPortReference(sub_port_ref=source)
+    _list_attr(owner, "sub_port_reference").append(child)
+    getPortSliceSubPortReferenceIDs(portSliceID)
+    return get_handle(child)
 
 
 def addSlicePathSegment(sliceID: str, pathSegmentValue: str) -> str:  # F.7.78.6
@@ -527,16 +596,31 @@ def removeModePortSlice(modePortSliceID: str) -> bool:  # F.7.78.14
     return detach_child_by_handle(modePortSliceID)
 
 
-def removePortSlicePartSelect(portSlicePartSelectID: str) -> bool:  # F.7.78.15
-    if resolve_handle(portSlicePartSelectID) is None:
-        raise TgiError("Invalid partSelect handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(portSlicePartSelectID)
+def removePortSlicePartSelect(portSliceID: str) -> bool:  # F.7.78.15
+    """Remove a mode port slice's part-select and invalidate its descendants.
+
+    Section: F.7.78.15.
+    """
+    owner = _mode_port_slice(portSliceID)
+    if getPortSlicePartSelectID(portSliceID) is None:
+        return False
+    return _remove_child(owner, "part_select")
 
 
-def removePortSliceSubPortReference(portSliceSubPortReferenceID: str) -> bool:  # F.7.78.16
-    if resolve_handle(portSliceSubPortReferenceID) is None:
+def removePortSliceSubPortReference(subPortReferenceID: str) -> bool:  # F.7.78.16
+    """Remove an owned mode sub-port reference, discovering parsed ownership.
+
+    Section: F.7.78.16.
+    """
+    child = resolve_handle(subPortReferenceID)
+    if not isinstance(child, SubPortReference):
         raise TgiError("Invalid subPortReference handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(portSliceSubPortReferenceID)
+    owner = _register_owned_child(child, _ModePortSlice)
+    if not isinstance(owner, _ModePortSlice):
+        raise TgiError("Sub-port reference has no owning mode port slice", TgiFaultCode.INVALID_ID)
+    getPortSliceSubPortReferenceIDs(get_handle(owner))
+    _list_attr(owner, "sub_port_reference")
+    return _remove_owned(subPortReferenceID, SubPortReference, _ModePortSlice, "sub-port reference")
 
 
 def removeSlicePathSegment(pathSegmentID: str) -> bool:  # F.7.78.17
@@ -630,20 +714,33 @@ def setFieldSliceRegisterRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.26
     return True
 
 
-def setPortSlicePartSelect(portSliceID: str, leftExpression: str, rightExpression: str) -> bool:  # F.7.78.27
-    ps = _ensure_slice_parent(portSliceID)
-    ps.part_select = SimpleNamespace(
-        left=SimpleNamespace(value=leftExpression),
-        right=SimpleNamespace(value=rightExpression),
-    )  # type: ignore[attr-defined]
-    register_parent(ps.part_select, ps, ("part_select",), "single")  # type: ignore[attr-defined]
+def setPortSlicePartSelect(
+    portSliceID: str, range: Sequence[str] | None, indices: Sequence[str] | None
+) -> bool:  # F.7.78.27
+    """Set generated range and index choices through the shared atomic setter.
+
+    Section: F.7.78.27.
+    """
+    owner = _mode_port_slice(portSliceID)
+    _set_part_select(owner, range, indices)
+    getPortSlicePartSelectID(portSliceID)
     return True
 
 
-def setPortSlicePortRef(portSliceID: str, name: str) -> bool:  # F.7.78.28
-    ps = _ensure_slice_parent(portSliceID)
-    ps.port_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(ps.port_ref, ps, ("port_ref",), "single")  # type: ignore[attr-defined]
+def setPortSlicePortRef(portSliceID: str, portRef: str) -> bool:  # F.7.78.28
+    """Set the normalized referenced port name while retaining its wrapper.
+
+    Section: F.7.78.28.
+    """
+    owner = _mode_port_slice(portSliceID)
+    source = _name(portRef, "portName")
+    if owner.port_ref is None:
+        owner.port_ref = _ModePortSlice.PortRef(port_ref=source)
+    elif not isinstance(owner.port_ref, _ModePortSlice.PortRef):
+        raise TgiError("Invalid portRef model", TgiFaultCode.INVALID_ID)
+    else:
+        owner.port_ref.port_ref = source
+    register_parent(owner.port_ref, owner, ("port_ref",), "single")
     return True
 
 
