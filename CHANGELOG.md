@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement ten FieldSlice address-space/map/remap reference-choice operations with generated wrappers, atomic choice updates, and removed handle invalidation.
 - Implement ten FieldSlice named-reference operations with standard signatures and generated wrappers.
 - Normalize referenced XML names while preserving indices, metadata and wrapper identity; remove alternate-register references through their owning slice.
 - Implement five FieldSlice range operations for mode and field-map slices using shared generated range helpers.

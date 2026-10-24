@@ -36,6 +36,7 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressBlockRef,
     AlternateRegisterRef,
     FieldRef,
+    MemoryRemapRef,
 )
 
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
@@ -125,6 +126,12 @@ __all__ = [
 _ModePortSlice = ComponentType.Modes.Mode.PortSlice
 
 
+_FieldAddressSpaceRef = ComponentType.Modes.Mode.FieldSlice.AddressSpaceRef | FieldMap.FieldSlice.AddressSpaceRef
+_FieldMemoryMapRef = ComponentType.Modes.Mode.FieldSlice.MemoryMapRef | FieldMap.FieldSlice.MemoryMapRef
+_FieldChoiceRef = _FieldAddressSpaceRef | _FieldMemoryMapRef | MemoryRemapRef
+_FIELD_CHOICE = "address_space_ref_or_memory_map_ref_or_memory_remap_ref"
+
+
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
@@ -189,6 +196,72 @@ def _field_reference_value(reference_id: str | None, xml_name: str) -> str | Non
     return value
 
 
+def _update_reference[T](current: T | None, replacement: T, attribute: str) -> T:
+    """Preserve an existing named wrapper while updating only its source."""
+    if current is None:
+        return replacement
+    setattr(current, attribute, getattr(replacement, attribute))
+    return current
+
+
+def _field_choice(
+    owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice,
+) -> tuple[_FieldAddressSpaceRef | None, _FieldMemoryMapRef | None, MemoryRemapRef | None]:
+    """Validate the generated address-space or memory-map/remap reference choice."""
+    values = owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref
+    address_type = (
+        ComponentType.Modes.Mode.FieldSlice.AddressSpaceRef
+        if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
+        else FieldMap.FieldSlice.AddressSpaceRef
+    )
+    map_type = (
+        ComponentType.Modes.Mode.FieldSlice.MemoryMapRef
+        if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
+        else FieldMap.FieldSlice.MemoryMapRef
+    )
+    if not isinstance(values, (list, tuple)):
+        raise TgiError("Invalid field reference choice", TgiFaultCode.INVALID_ID)
+    if not values:
+        return None, None, None
+    if len(values) == 1 and isinstance(values[0], address_type):
+        result = (values[0], None, None)
+    elif (
+        len(values) in (1, 2)
+        and isinstance(values[0], map_type)
+        and (len(values) == 1 or isinstance(values[1], MemoryRemapRef))
+    ):
+        result = (None, values[0], values[1] if len(values) == 2 else None)
+    else:
+        raise TgiError("Invalid field reference choice", TgiFaultCode.INVALID_ID)
+    _owned_list_ids(owner, values, _FIELD_CHOICE)
+    return result
+
+
+def _set_field_choice(
+    owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice, replacement: _FieldChoiceRef, attribute: str
+) -> bool:
+    """Update a reference choice, invalidating only alternatives removed from it."""
+    address, memory_map, remap = _field_choice(owner)
+    if attribute == "address_space_ref":
+        kept = [_update_reference(address, replacement, attribute)]
+    elif attribute == "memory_map_ref":
+        kept = [_update_reference(memory_map, replacement, attribute)]
+        if remap is not None:
+            kept.append(remap)
+    else:
+        if memory_map is None:
+            raise TgiError("memoryRemapRef requires a memoryMapRef", TgiFaultCode.INVALID_ARGUMENT)
+        kept = [memory_map, _update_reference(remap, replacement, attribute)]
+    old = list(owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref)
+    owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref = old
+    for child in tuple(old):
+        if not any(child is retained for retained in kept):
+            detach_child_by_handle(get_handle(child))
+    owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref = kept
+    _owned_list_ids(owner, kept, _FIELD_CHOICE)
+    return True
+
+
 def _set_field_reference(
     owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice,
     attribute: str,
@@ -196,11 +269,8 @@ def _set_field_reference(
 ) -> bool:
     """Attach a missing wrapper or update its source without replacing indices."""
     current = _child(owner, attribute, type(replacement))
-    if current is None:
-        current = replacement
-        setattr(owner, attribute, current)
-    else:
-        setattr(current, attribute, getattr(replacement, attribute))
+    current = _update_reference(current, replacement, attribute)
+    setattr(owner, attribute, current)
     register_parent(current, owner, (attribute,), "single")
     return True
 
@@ -257,18 +327,21 @@ def getFieldSliceAddressSpaceRefByID(fieldSliceID: str, addressSpaceID: str) -> 
     return get_handle(asr) if get_handle(asr) == addressSpaceID else None
 
 
-def getFieldSliceAddressSpaceRefByName(fieldSliceID: str, name: str) -> str | None:  # F.7.77.5
-    sl = _resolve(fieldSliceID)
-    asr = _maybe(sl, "address_space_ref")
-    if asr is None:
-        return None
-    return get_handle(asr) if getattr(asr, "name", None) == name else None
+def getFieldSliceAddressSpaceRefByName(fieldSliceID: str) -> str | None:  # F.7.77.5
+    """Return the stored addressSpaceRef name from the generated choice.
+
+    Section: F.7.77.5.
+    """
+    return _field_reference_value(getFieldSliceAddressSpaceRefID(fieldSliceID), "addressSpaceRef")
 
 
 def getFieldSliceAddressSpaceRefID(fieldSliceID: str) -> str | None:  # F.7.77.6
-    sl = _resolve(fieldSliceID)
-    asr = _maybe(sl, "address_space_ref")
-    return None if asr is None else get_handle(asr)
+    """Return the owned addressSpaceRef wrapper handle, when selected.
+
+    Section: F.7.77.6.
+    """
+    child = _field_choice(_field_slice(fieldSliceID))[0]
+    return None if child is None else get_handle(child)
 
 
 def getFieldSliceAlternateRegisterRefByID(fieldSliceID: str, altRegisterID: str) -> str | None:  # F.7.77.7
@@ -346,18 +419,21 @@ def getFieldSliceMemoryMapRefByID(fieldSliceID: str, memoryMapID: str) -> str | 
     return get_handle(mm) if get_handle(mm) == memoryMapID else None
 
 
-def getFieldSliceMemoryMapRefByName(fieldSliceID: str, name: str) -> str | None:  # F.7.77.15
-    sl = _resolve(fieldSliceID)
-    mm = _maybe(sl, "memory_map_ref")
-    if mm is None:
-        return None
-    return get_handle(mm) if getattr(mm, "name", None) == name else None
+def getFieldSliceMemoryMapRefByName(fieldSliceID: str) -> str | None:  # F.7.77.15
+    """Return the stored memoryMapRef name from the generated choice.
+
+    Section: F.7.77.15.
+    """
+    return _field_reference_value(getFieldSliceMemoryMapRefID(fieldSliceID), "memoryMapRef")
 
 
 def getFieldSliceMemoryMapRefID(fieldSliceID: str) -> str | None:  # F.7.77.16
-    sl = _resolve(fieldSliceID)
-    mm = _maybe(sl, "memory_map_ref")
-    return None if mm is None else get_handle(mm)
+    """Return the owned memoryMapRef wrapper handle, when selected.
+
+    Section: F.7.77.16.
+    """
+    child = _field_choice(_field_slice(fieldSliceID))[1]
+    return None if child is None else get_handle(child)
 
 
 def getFieldSliceMemoryRemapRefByID(fieldSliceID: str, memoryRemapID: str) -> str | None:  # F.7.77.17
@@ -368,18 +444,21 @@ def getFieldSliceMemoryRemapRefByID(fieldSliceID: str, memoryRemapID: str) -> st
     return get_handle(mr) if get_handle(mr) == memoryRemapID else None
 
 
-def getFieldSliceMemoryRemapRefByName(fieldSliceID: str, name: str) -> str | None:  # F.7.77.18
-    sl = _resolve(fieldSliceID)
-    mr = _maybe(sl, "memory_remap_ref")
-    if mr is None:
-        return None
-    return get_handle(mr) if getattr(mr, "name", None) == name else None
+def getFieldSliceMemoryRemapRefByName(fieldSliceID: str) -> str | None:  # F.7.77.18
+    """Return the stored memoryRemapRef name from the generated choice.
+
+    Section: F.7.77.18.
+    """
+    return _field_reference_value(getFieldSliceMemoryRemapRefID(fieldSliceID), "memoryRemapRef")
 
 
 def getFieldSliceMemoryRemapRefID(fieldSliceID: str) -> str | None:  # F.7.77.19
-    sl = _resolve(fieldSliceID)
-    mr = _maybe(sl, "memory_remap_ref")
-    return None if mr is None else get_handle(mr)
+    """Return the owned memoryRemapRef wrapper handle, when selected.
+
+    Section: F.7.77.19.
+    """
+    child = _field_choice(_field_slice(fieldSliceID))[2]
+    return None if child is None else get_handle(child)
 
 
 def getFieldSliceRange(fieldSliceID: str) -> tuple[str | None, str | None]:  # F.7.77.20
@@ -598,10 +677,19 @@ def removeFieldSliceBankRef(fieldSliceBankRefID: str) -> bool:  # F.7.78.8
     return detach_child_by_handle(fieldSliceBankRefID)
 
 
-def removeFieldSliceMemoryRemapRef(fieldSliceMemoryRemapRefID: str) -> bool:  # F.7.78.9
-    if resolve_handle(fieldSliceMemoryRemapRefID) is None:
-        raise TgiError("Invalid memoryRemapRef handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(fieldSliceMemoryRemapRefID)
+def removeFieldSliceMemoryRemapRef(fieldSliceID: str) -> bool:  # F.7.78.9
+    """Remove the owner's optional remap reference while retaining its memory map.
+
+    Section: F.7.78.9.
+    """
+    owner = _field_slice(fieldSliceID)
+    remap_id = getFieldSliceMemoryRemapRefID(fieldSliceID)
+    if remap_id is None:
+        return False
+    owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref = list(
+        owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref
+    )
+    return detach_child_by_handle(remap_id)
 
 
 def removeFieldSliceRange(fieldSliceID: str) -> bool:  # F.7.78.10
@@ -716,11 +804,19 @@ def setFieldSliceAddressBlockRef(fieldSliceID: str, addressBlockRef: str) -> boo
     return _set_field_reference(owner, "address_block_ref", child)
 
 
-def setFieldSliceAddressSpaceRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.20
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.address_space_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.address_space_ref, sl, ("address_space_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceAddressSpaceRef(fieldSliceID: str, addressSpaceRef: str) -> bool:  # F.7.78.20
+    """Set the normalized addressSpaceRef while preserving compatible choice wrappers.
+
+    Section: F.7.78.20.
+    """
+    owner = _field_slice(fieldSliceID)
+    model_type = (
+        ComponentType.Modes.Mode.FieldSlice.AddressSpaceRef
+        if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
+        else FieldMap.FieldSlice.AddressSpaceRef
+    )
+    child = model_type(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_field_choice(owner, child, "address_space_ref")
 
 
 def setFieldSliceAlternateRegisterRef(fieldSliceID: str, alternateRegisterRef: str) -> bool:  # F.7.78.21
@@ -743,18 +839,29 @@ def setFieldSliceFieldRef(fieldSliceID: str, fieldRef: str) -> bool:  # F.7.78.2
     return _set_field_reference(owner, "field_ref", child)
 
 
-def setFieldSliceMemoryMapRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.23
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.memory_map_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.memory_map_ref, sl, ("memory_map_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceMemoryMapRef(fieldSliceID: str, memoryMapRef: str) -> bool:  # F.7.78.23
+    """Set the normalized memoryMapRef while preserving compatible choice wrappers.
+
+    Section: F.7.78.23.
+    """
+    owner = _field_slice(fieldSliceID)
+    model_type = (
+        ComponentType.Modes.Mode.FieldSlice.MemoryMapRef
+        if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
+        else FieldMap.FieldSlice.MemoryMapRef
+    )
+    child = model_type(memory_map_ref=_name(memoryMapRef, "Name"))
+    return _set_field_choice(owner, child, "memory_map_ref")
 
 
-def setFieldSliceMemoryRemapRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.24
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.memory_remap_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.memory_remap_ref, sl, ("memory_remap_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceMemoryRemapRef(fieldSliceID: str, memoryRemapRef: str) -> bool:  # F.7.78.24
+    """Set the normalized memoryRemapRef while preserving compatible choice wrappers.
+
+    Section: F.7.78.24.
+    """
+    owner = _field_slice(fieldSliceID)
+    child = MemoryRemapRef(memory_remap_ref=_name(memoryRemapRef, "Name"))
+    return _set_field_choice(owner, child, "memory_remap_ref")
 
 
 def setFieldSliceRange(fieldSliceID: str, range: Sequence[str]) -> bool:  # F.7.78.25
