@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement five FieldSlice range operations for mode and field-map slices using shared generated range helpers.
+- Correct FieldSlice range source-array and owner-based mutation signatures while preserving expression metadata and descendant lifetimes.
 - Implement eight mode port-slice reference and part-select operations using generated models and shared atomic setters.
 - Correct Slice reference signatures and name-return contracts, normalize referenced port names, and preserve wrappers and subtree lifetimes.
 - Reject reversed unsigned expression bounds even when constant identifiers remain unresolved.

@@ -34,6 +34,13 @@ def _range_endpoint[T: (Left, Right)](owner: _RangeOwner, attribute: str, expect
     return endpoint
 
 
+def _range_sources(left_id: str | None, right_id: str | None) -> tuple[str | None, str | None]:
+    """Return stored endpoint sources without evaluating unresolved expressions."""
+    from .miscellaneous import getExpression
+
+    return (None if left_id is None else getExpression(left_id), None if right_id is None else getExpression(right_id))
+
+
 def _range_value(endpoint_id: str | None) -> int | None:
     """Evaluate an unsigned 32-bit range endpoint within declared bounds."""
     from .miscellaneous import getExpressionIntValue

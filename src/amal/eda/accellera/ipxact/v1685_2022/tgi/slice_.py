@@ -2,14 +2,16 @@
 
 Named ``slice_`` to avoid clashing with Python's built-in ``slice``. Implements
 BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL path and range
-getters and mode port-reference getters reject invalid handles; field-reference
-getters retain legacy neutral results (``None`` / empty list). EXTENDED mutators raise
+getters, field-range getters and mode port-reference getters reject invalid
+handles; other field-reference getters retain legacy neutral results
+(``None`` / empty list). EXTENDED mutators raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 
 HDL path and range access uses generated slice, path-segment, range, and
-endpoint models. Mode port references use generated wrappers and part-selects.
-Legacy field-reference mutations use minimal schema objects or lightweight
+endpoint models, shared with field reference ranges. Mode port references use
+generated wrappers and part-selects.
+Other field-reference mutations use minimal schema objects or lightweight
 namespaces.
 """
 
@@ -27,11 +29,11 @@ from org.accellera.ipxact.v1685_2022 import (
     PathSegmentType,
     PortPathSegmentType,
     ComponentType,
+    FieldMap,
     SubPortReference,
 )
 
-from ._ranges import _range_endpoint, _range_value, _remove_range, _set_range
-from .miscellaneous import getExpression
+from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
 from ._expressions import _string_source
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
@@ -163,6 +165,14 @@ def _sub_port_references(owner: ComponentType.Modes.Mode.PortSlice) -> Sequence[
     return children
 
 
+def _field_slice(handle: str) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice:
+    """Resolve generated field reference slices sharing fieldSliceReferenceGroup."""
+    owner = resolve_handle(handle)
+    if not isinstance(owner, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice)):
+        raise TgiError("Invalid fieldSlice handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
 def _resolve(objID: str) -> Any | None:
     return resolve_handle(objID)
 
@@ -176,15 +186,6 @@ def _ensure_slice_parent(sliceID: str) -> Any:
     if sl is None:
         raise TgiError("Invalid slice handle", TgiFaultCode.INVALID_ID)
     return sl
-
-
-def _value_expr(node: Any) -> tuple[Any | None, str | None, str | None]:
-    if node is None:
-        return (None, None, None)
-    v = getattr(node, "value", None)
-    expr = getattr(v, "expression", None) if v is not None else None
-    val = getattr(v, "value", None) if v is not None else None
-    return (val, expr, get_handle(node))
 
 
 # ---------------------------------------------------------------------------
@@ -343,25 +344,30 @@ def getFieldSliceMemoryRemapRefID(fieldSliceID: str) -> str | None:  # F.7.77.19
     return None if mr is None else get_handle(mr)
 
 
-def getFieldSliceRange(fieldSliceID: str) -> int | None:  # F.7.77.20
-    sl = _resolve(fieldSliceID)
-    rng = _maybe(sl, "range")
-    val, _, _ = _value_expr(rng)
-    return val
+def getFieldSliceRange(fieldSliceID: str) -> tuple[str | None, str | None]:  # F.7.77.20
+    """Return the ordered range expression sources required by the String array contract.
+
+    Section: F.7.77.20.
+    """
+    return _range_sources(getFieldSliceRangeLeftID(fieldSliceID), getFieldSliceRangeRightID(fieldSliceID))
 
 
 def getFieldSliceRangeLeftID(fieldSliceID: str) -> str | None:  # F.7.77.21
-    sl = _resolve(fieldSliceID)
-    rng = _maybe(sl, "range")
-    left = getattr(rng, "left", None) if rng is not None else None
-    return None if left is None else get_handle(left)
+    """Return the owned left range endpoint handle, when present.
+
+    Section: F.7.77.21.
+    """
+    endpoint = _range_endpoint(_field_slice(fieldSliceID), "left", Left)
+    return None if endpoint is None else get_handle(endpoint)
 
 
 def getFieldSliceRangeRightID(fieldSliceID: str) -> str | None:  # F.7.77.22
-    sl = _resolve(fieldSliceID)
-    rng = _maybe(sl, "range")
-    right = getattr(rng, "right", None) if rng is not None else None
-    return None if right is None else get_handle(right)
+    """Return the owned right range endpoint handle, when present.
+
+    Section: F.7.77.22.
+    """
+    endpoint = _range_endpoint(_field_slice(fieldSliceID), "right", Right)
+    return None if endpoint is None else get_handle(endpoint)
 
 
 def getLocationSliceIDs(locationID: str) -> list[str]:  # F.7.77.28
@@ -435,8 +441,7 @@ def getSliceRangeExpression(sliceID: str) -> tuple[str | None, str | None]:  # F
 
     Section: F.7.77.36.
     """
-    left_id, right_id = getSliceRangeLeftID(sliceID), getSliceRangeRightID(sliceID)
-    return (None if left_id is None else getExpression(left_id), None if right_id is None else getExpression(right_id))
+    return _range_sources(getSliceRangeLeftID(sliceID), getSliceRangeRightID(sliceID))
 
 
 def getSliceRangeLeftID(sliceID: str) -> str | None:  # F.7.77.37
@@ -556,10 +561,12 @@ def removeFieldSliceMemoryRemapRef(fieldSliceMemoryRemapRefID: str) -> bool:  # 
     return detach_child_by_handle(fieldSliceMemoryRemapRefID)
 
 
-def removeFieldSliceRange(fieldSliceRangeID: str) -> bool:  # F.7.78.10
-    if resolve_handle(fieldSliceRangeID) is None:
-        raise TgiError("Invalid range handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(fieldSliceRangeID)
+def removeFieldSliceRange(fieldSliceID: str) -> bool:  # F.7.78.10
+    """Remove a field slice's range and invalidate its endpoint descendants.
+
+    Section: F.7.78.10.
+    """
+    return _remove_range(_field_slice(fieldSliceID))
 
 
 def removeFieldSliceRegisterFileRef(fieldSliceRegisterFileRefID: str) -> bool:  # F.7.78.11
@@ -698,13 +705,12 @@ def setFieldSliceMemoryRemapRef(fieldSliceID: str, name: str) -> bool:  # F.7.78
     return True
 
 
-def setFieldSliceRange(fieldSliceID: str, value: int | None = None, expression: str | None = None) -> bool:  # F.7.78.25
-    if value is None and expression is None:
-        raise TgiError("value or expression required", TgiFaultCode.INVALID_ARGUMENT)
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.range = SimpleNamespace(value=SimpleNamespace(value=value, expression=expression))  # type: ignore[attr-defined]
-    register_parent(sl.range, sl, ("range",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceRange(fieldSliceID: str, range: Sequence[str]) -> bool:  # F.7.78.25
+    """Set both range expression sources atomically, retaining generated metadata.
+
+    Section: F.7.78.25.
+    """
+    return _set_range(_field_slice(fieldSliceID), range)
 
 
 def setFieldSliceRegisterRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.26
