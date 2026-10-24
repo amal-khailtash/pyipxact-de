@@ -25,6 +25,7 @@ from org.accellera.ipxact.v1685_2022 import (
     DriverType,
     OtherClockDriver,
     RealExpression,
+    UnsignedBitVectorExpression,
 )
 from org.accellera.ipxact.v1685_2022.clock_driver_type import ClockDriverType
 from org.accellera.ipxact.v1685_2022.single_shot_driver import SingleShotDriver as SingleShotDriverClass
@@ -82,6 +83,15 @@ __all__ = [
     "getOtherClockDriverClockPulseOffset",
     "getOtherClockDriverClockPulseOffsetExpression",
     "getOtherClockDriverClockPulseOffsetID",
+    "getSingleShotDriverSingleShotDuration",
+    "getSingleShotDriverSingleShotDurationExpression",
+    "getSingleShotDriverSingleShotDurationID",
+    "getSingleShotDriverSingleShotOffset",
+    "getSingleShotDriverSingleShotOffsetExpression",
+    "getSingleShotDriverSingleShotOffsetID",
+    "getSingleShotDriverSingleShotValue",
+    "getSingleShotDriverSingleShotValueExpression",
+    "getSingleShotDriverSingleShotValueID",
     # EXTENDED (F.7.42)
     "addDriverSingleShotDriver",
     "addDriverViewRef",
@@ -157,36 +167,36 @@ def _resolve_clock_driver(clockDriverID: str) -> ClockDriver | None:
     return obj if isinstance(obj, ClockDriver) else None
 
 
-def _clock_element[T: ComplexBaseExpression](
-    clock_driver_id: str,
+def _driver_expression[T: ComplexBaseExpression](
+    driver_id: str,
     attribute: str,
     expected: type[T],
-    driver_type: type[ClockDriver] | type[OtherClockDriver] = ClockDriver,
+    driver_type: type[ClockDriver] | type[OtherClockDriver] | type[SingleShotDriver] = ClockDriver,
 ) -> T | None:
-    """Resolve a typed clock expression element and retain its immediate owner."""
-    driver = resolve_handle(clock_driver_id)
+    """Resolve a typed driver expression element and retain its immediate owner."""
+    driver = resolve_handle(driver_id)
     if not isinstance(driver, driver_type):
-        raise TgiError("Invalid clock driver handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid driver expression owner handle", TgiFaultCode.INVALID_ID)
     value = getattr(driver, attribute)
     if value is None:
         return None
     if not isinstance(value, expected):
-        raise TgiError("Invalid clock expression element", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid driver expression element", TgiFaultCode.INVALID_ID)
     register_parent(value, driver, (attribute,), "single")
     return value
 
 
-def _clock_timing_value[T: RealExpression](
-    clock_driver_id: str,
+def _driver_timing_value[T: RealExpression](
+    driver_id: str,
     attribute: str,
     expected: type[T],
     source: str | None,
-    driver_type: type[ClockDriver] | type[OtherClockDriver] = ClockDriver,
+    driver_type: type[ClockDriver] | type[OtherClockDriver] | type[SingleShotDriver] = ClockDriver,
 ) -> float | None:
-    """Evaluate clock timing using the source element's real bounds."""
+    """Evaluate driver timing using the source element's real bounds."""
     if source is None:
         return None
-    value = _clock_element(clock_driver_id, attribute, expected, driver_type)
+    value = _driver_expression(driver_id, attribute, expected, driver_type)
     if value is None:
         return None
     return _real(source, minimum=value.minimum, maximum=value.maximum)
@@ -245,7 +255,7 @@ def getClockDriverClockPeriod(clockDriverID: str) -> float | None:
     Section: F.7.41.1.
     """
     source = getClockDriverClockPeriodExpression(clockDriverID)
-    return _clock_timing_value(clockDriverID, "clock_period", ClockDriverType.ClockPeriod, source)
+    return _driver_timing_value(clockDriverID, "clock_period", ClockDriverType.ClockPeriod, source)
 
 
 def getClockDriverClockPeriodExpression(clockDriverID: str) -> str | None:
@@ -253,7 +263,7 @@ def getClockDriverClockPeriodExpression(clockDriverID: str) -> str | None:
 
     Section: F.7.41.2.
     """
-    cp = _clock_element(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
+    cp = _driver_expression(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
     return None if cp is None else _xml_text(cp.value)
 
 
@@ -262,7 +272,7 @@ def getClockDriverClockPeriodID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.3.
     """
-    cp = _clock_element(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
+    cp = _driver_expression(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
     return None if cp is None else get_handle(cp)
 
 
@@ -272,7 +282,7 @@ def getClockDriverClockPulseDuration(clockDriverID: str) -> float | None:
     Section: F.7.41.4.
     """
     source = getClockDriverClockPulseDurationExpression(clockDriverID)
-    return _clock_timing_value(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, source)
+    return _driver_timing_value(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, source)
 
 
 def getClockDriverClockPulseDurationExpression(clockDriverID: str) -> str | None:
@@ -280,7 +290,7 @@ def getClockDriverClockPulseDurationExpression(clockDriverID: str) -> str | None
 
     Section: F.7.41.5.
     """
-    val = _clock_element(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
+    val = _driver_expression(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
     return None if val is None else _xml_text(val.value)
 
 
@@ -289,7 +299,7 @@ def getClockDriverClockPulseDurationID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.6.
     """
-    val = _clock_element(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
+    val = _driver_expression(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
     return None if val is None else get_handle(val)
 
 
@@ -299,7 +309,7 @@ def getClockDriverClockPulseOffset(clockDriverID: str) -> float | None:
     Section: F.7.41.7.
     """
     source = getClockDriverClockPulseOffsetExpression(clockDriverID)
-    return _clock_timing_value(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, source)
+    return _driver_timing_value(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, source)
 
 
 def getClockDriverClockPulseOffsetExpression(clockDriverID: str) -> str | None:
@@ -307,7 +317,7 @@ def getClockDriverClockPulseOffsetExpression(clockDriverID: str) -> str | None:
 
     Section: F.7.41.8.
     """
-    val = _clock_element(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
+    val = _driver_expression(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
     return None if val is None else _xml_text(val.value)
 
 
@@ -316,7 +326,7 @@ def getClockDriverClockPulseOffsetID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.9.
     """
-    val = _clock_element(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
+    val = _driver_expression(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
     return None if val is None else get_handle(val)
 
 
@@ -334,7 +344,7 @@ def getClockDriverClockPulseValueExpression(clockDriverID: str) -> str | None:
 
     Section: F.7.41.11.
     """
-    val = _clock_element(clockDriverID, "clock_pulse_value", UnsignedBitExpression)
+    val = _driver_expression(clockDriverID, "clock_pulse_value", UnsignedBitExpression)
     return None if val is None else _xml_text(val.value)
 
 
@@ -343,7 +353,7 @@ def getClockDriverClockPulseValueID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.12.
     """
-    val = _clock_element(clockDriverID, "clock_pulse_value", UnsignedBitExpression)
+    val = _driver_expression(clockDriverID, "clock_pulse_value", UnsignedBitExpression)
     return None if val is None else get_handle(val)
 
 
@@ -460,7 +470,7 @@ def getOtherClockDriverClockPeriod(otherClockDriverID: str) -> float | None:
     Section: F.7.41.24.
     """
     source = getOtherClockDriverClockPeriodExpression(otherClockDriverID)
-    return _clock_timing_value(
+    return _driver_timing_value(
         otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, source, OtherClockDriver
     )
 
@@ -470,7 +480,7 @@ def getOtherClockDriverClockPeriodExpression(otherClockDriverID: str) -> str | N
 
     Section: F.7.41.25.
     """
-    value = _clock_element(otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, OtherClockDriver)
+    value = _driver_expression(otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, OtherClockDriver)
     return None if value is None else _xml_text(value.value)
 
 
@@ -479,7 +489,7 @@ def getOtherClockDriverClockPeriodID(otherClockDriverID: str) -> str | None:
 
     Section: F.7.41.26.
     """
-    value = _clock_element(otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, OtherClockDriver)
+    value = _driver_expression(otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, OtherClockDriver)
     return None if value is None else get_handle(value)
 
 
@@ -489,7 +499,7 @@ def getOtherClockDriverClockPulseDuration(otherClockDriverID: str) -> float | No
     Section: F.7.41.27.
     """
     source = getOtherClockDriverClockPulseDurationExpression(otherClockDriverID)
-    return _clock_timing_value(
+    return _driver_timing_value(
         otherClockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, source, OtherClockDriver
     )
 
@@ -499,7 +509,7 @@ def getOtherClockDriverClockPulseDurationExpression(otherClockDriverID: str) -> 
 
     Section: F.7.41.28.
     """
-    value = _clock_element(
+    value = _driver_expression(
         otherClockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, OtherClockDriver
     )
     return None if value is None else _xml_text(value.value)
@@ -510,7 +520,7 @@ def getOtherClockDriverClockPulseDurationID(otherClockDriverID: str) -> str | No
 
     Section: F.7.41.29.
     """
-    value = _clock_element(
+    value = _driver_expression(
         otherClockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, OtherClockDriver
     )
     return None if value is None else get_handle(value)
@@ -522,7 +532,7 @@ def getOtherClockDriverClockPulseOffset(otherClockDriverID: str) -> float | None
     Section: F.7.41.30.
     """
     source = getOtherClockDriverClockPulseOffsetExpression(otherClockDriverID)
-    return _clock_timing_value(
+    return _driver_timing_value(
         otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, source, OtherClockDriver
     )
 
@@ -532,7 +542,9 @@ def getOtherClockDriverClockPulseOffsetExpression(otherClockDriverID: str) -> st
 
     Section: F.7.41.31.
     """
-    value = _clock_element(otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, OtherClockDriver)
+    value = _driver_expression(
+        otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, OtherClockDriver
+    )
     return None if value is None else _xml_text(value.value)
 
 
@@ -541,7 +553,103 @@ def getOtherClockDriverClockPulseOffsetID(otherClockDriverID: str) -> str | None
 
     Section: F.7.41.32.
     """
-    value = _clock_element(otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, OtherClockDriver)
+    value = _driver_expression(
+        otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, OtherClockDriver
+    )
+    return None if value is None else get_handle(value)
+
+
+def getSingleShotDriverSingleShotDuration(singleShotDriverID: str) -> float | None:
+    """Return numeric value of ``singleShotDuration``.
+
+    Section: F.7.41.36.
+    """
+    source = getSingleShotDriverSingleShotDurationExpression(singleShotDriverID)
+    return _driver_timing_value(
+        singleShotDriverID, "single_shot_duration", SingleShotDriver.SingleShotDuration, source, SingleShotDriver
+    )
+
+
+def getSingleShotDriverSingleShotDurationExpression(singleShotDriverID: str) -> str | None:
+    """Return source expression of ``singleShotDuration``.
+
+    Section: F.7.41.37.
+    """
+    value_id = getSingleShotDriverSingleShotDurationID(singleShotDriverID)
+    return None if value_id is None else getExpression(value_id)
+
+
+def getSingleShotDriverSingleShotDurationID(singleShotDriverID: str) -> str | None:
+    """Return handle of ``singleShotDuration``.
+
+    Section: F.7.41.38.
+    """
+    value = _driver_expression(
+        singleShotDriverID, "single_shot_duration", SingleShotDriver.SingleShotDuration, SingleShotDriver
+    )
+    return None if value is None else get_handle(value)
+
+
+def getSingleShotDriverSingleShotOffset(singleShotDriverID: str) -> float | None:
+    """Return numeric value of ``singleShotOffset``.
+
+    Section: F.7.41.39.
+    """
+    source = getSingleShotDriverSingleShotOffsetExpression(singleShotDriverID)
+    return _driver_timing_value(
+        singleShotDriverID, "single_shot_offset", SingleShotDriver.SingleShotOffset, source, SingleShotDriver
+    )
+
+
+def getSingleShotDriverSingleShotOffsetExpression(singleShotDriverID: str) -> str | None:
+    """Return source expression of ``singleShotOffset``.
+
+    Section: F.7.41.40.
+    """
+    value_id = getSingleShotDriverSingleShotOffsetID(singleShotDriverID)
+    return None if value_id is None else getExpression(value_id)
+
+
+def getSingleShotDriverSingleShotOffsetID(singleShotDriverID: str) -> str | None:
+    """Return handle of ``singleShotOffset``.
+
+    Section: F.7.41.41.
+    """
+    value = _driver_expression(
+        singleShotDriverID, "single_shot_offset", SingleShotDriver.SingleShotOffset, SingleShotDriver
+    )
+    return None if value is None else get_handle(value)
+
+
+def getSingleShotDriverSingleShotValue(singleShotDriverID: str) -> int | None:
+    """Return the resolved logic value (zero or one).
+
+    Section: F.7.41.42.
+    """
+    value_id = getSingleShotDriverSingleShotValueID(singleShotDriverID)
+    if value_id is None:
+        return None
+    value = getExpressionIntValue(value_id)
+    if value not in (0, 1):
+        raise TgiError("Single-shot value must be zero or one", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def getSingleShotDriverSingleShotValueExpression(singleShotDriverID: str) -> str | None:
+    """Return source expression of ``singleShotValue``.
+
+    Section: F.7.41.43.
+    """
+    value_id = getSingleShotDriverSingleShotValueID(singleShotDriverID)
+    return None if value_id is None else getExpression(value_id)
+
+
+def getSingleShotDriverSingleShotValueID(singleShotDriverID: str) -> str | None:
+    """Return handle of ``singleShotValue``.
+
+    Section: F.7.41.44.
+    """
+    value = _driver_expression(singleShotDriverID, "single_shot_value", UnsignedBitVectorExpression, SingleShotDriver)
     return None if value is None else get_handle(value)
 
 
