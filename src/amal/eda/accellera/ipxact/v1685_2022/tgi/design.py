@@ -221,24 +221,47 @@ def _exclude_ports(
     return owner, holder, children
 
 
-def _interconnection_interfaces[T: ActiveInterface | HierInterfaceType](
+def _interconnection_interfaces[T: ActiveInterface | HierInterfaceType | MonitorInterfaceType](
     connection_id: str, model_type: type[T]
-) -> tuple[Interconnection, str, Sequence[T]]:
-    """Validate one ordered endpoint collection of an interconnection."""
-    owner = _resolve_interconnection(connection_id)
+) -> tuple[Interconnection | MonitorInterconnection, str, Sequence[T]]:
+    """Validate one ordered endpoint collection of an interconnection.
+
+    Monitor connection endpoint lists use the same ownership and storage rules.
+    """
+    if model_type is MonitorInterfaceType:
+        owner = _resolve_monitor_interconnection(connection_id)
+        attribute = "monitor_interface"
+    else:
+        owner = _resolve_interconnection(connection_id)
+        attribute = "active_interface" if model_type is ActiveInterface else "hier_interface"
     if owner is None:
         raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    attribute = "active_interface" if model_type is ActiveInterface else "hier_interface"
     children = getattr(owner, attribute)
     if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
         raise TgiError("Invalid interconnection interface collection", TgiFaultCode.INVALID_ID)
     return owner, attribute, children
 
 
-def _add_interconnection_interface(connection_id: str, child: ActiveInterface | HierInterfaceType) -> str:
+def _build_instance_interface[T: ActiveInterface | MonitorInterfaceType](
+    model_type: type[T], component_instance_ref: str, bus_ref: str
+) -> T:
+    """Build a generated component-instance endpoint with shared schema name validation."""
+    return model_type(component_instance_ref=_name(component_instance_ref, "Name"), bus_ref=_name(bus_ref, "Name"))
+
+
+def _add_interconnection_interface(
+    connection_id: str, child: ActiveInterface | HierInterfaceType | MonitorInterfaceType
+) -> str:
     """Append a validated endpoint using its generated collection and immediate ownership."""
-    model_type = ActiveInterface if isinstance(child, ActiveInterface) else HierInterfaceType
+    model_type = (
+        ActiveInterface
+        if isinstance(child, ActiveInterface)
+        else MonitorInterfaceType
+        if isinstance(child, MonitorInterfaceType)
+        else HierInterfaceType
+    )
     owner, attribute, _ = _interconnection_interfaces(connection_id, model_type)
+    # Ensure list
     items = _list_attr(owner, attribute)
     items.append(child)
     _owned_list_ids(owner, items, attribute)
@@ -266,6 +289,32 @@ def _remove_interconnection_interface[T: ActiveInterface | HierInterfaceType](
     attribute = "active_interface" if model_type is ActiveInterface else "hier_interface"
     _list_attr(owner, attribute)
     return _remove_owned(interface_id, model_type, Interconnection, "interconnection interface")
+
+
+def _replace_first_interconnection_interface(
+    connection_id: str,
+    model_type: type[ActiveInterface] | type[HierInterfaceType],
+    bus_ref: str,
+    component_instance_ref: str | None = None,
+) -> bool:
+    """Replace the first endpoint through the public builders and owned removers."""
+    owner, attribute, children = _interconnection_interfaces(connection_id, model_type)
+    first = children[0] if children else None
+    if model_type is ActiveInterface:
+        if component_instance_ref is None:
+            raise TgiError("Missing component instance reference", TgiFaultCode.INVALID_ARGUMENT)
+        addInterconnectionActiveInterface(connection_id, component_instance_ref, bus_ref)
+    else:
+        addInterconnectionHierInterface(connection_id, bus_ref)
+    if first is not None:
+        # Replace first
+        if model_type is ActiveInterface:
+            removeInterconnectionActiveInterface(get_handle(first))
+        else:
+            removeInterconnectionHierInterface(get_handle(first))
+        items = _list_attr(owner, attribute)
+        items.insert(0, items.pop())
+    return True
 
 
 def _ad_hoc_port_references(
@@ -706,10 +755,8 @@ def getMonitorInterconnectionMonitorInterfaceIDs(monitorInterconnectionID: str) 
 
     Section: F.7.37.26.
     """
-    mi = _resolve_monitor_interconnection(monitorInterconnectionID)
-    if mi is None:
-        raise TgiError("Invalid monitorInterconnection handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(m) for m in getattr(mi, "monitor_interface", [])]
+    owner, attribute, children = _interconnection_interfaces(monitorInterconnectionID, MonitorInterfaceType)
+    return _owned_list_ids(owner, children, attribute)
 
 
 def getMonitorInterconnectionMonitoredActiveInterfaceID(monitorInterconnectionID: str) -> str | None:
@@ -717,11 +764,10 @@ def getMonitorInterconnectionMonitoredActiveInterfaceID(monitorInterconnectionID
 
     Section: F.7.37.27.
     """
-    mi = _resolve_monitor_interconnection(monitorInterconnectionID)
-    if mi is None:
+    owner = _resolve_monitor_interconnection(monitorInterconnectionID)
+    if owner is None:
         raise TgiError("Invalid monitorInterconnection handle", TgiFaultCode.INVALID_ID)
-    mai = getattr(mi, "monitored_active_interface", None)
-    return None if mai is None else get_handle(mai)
+    return _child_id(owner, "monitored_active_interface", MonitorInterfaceType)
 
 
 def getPowerDomainLinkExternalPowerDomainRef(powerDomainLinkID: str) -> str | None:
@@ -958,9 +1004,7 @@ def addInterconnectionActiveInterface(interconnectionID: str, componentInstanceR
 
     Section: F.7.38.10.
     """
-    child = ActiveInterface(
-        component_instance_ref=_name(componentInstanceRef, "Name"), bus_ref=_name(busInterfaceRef, "Name")
-    )
+    child = _build_instance_interface(ActiveInterface, componentInstanceRef, busInterfaceRef)
     return _add_interconnection_interface(interconnectionID, child)
 
 
@@ -982,13 +1026,8 @@ def addMonitorInterconnectionMonitorInterface(
 
     Section: F.7.38.12.
     """
-    mi = _resolve_monitor_interconnection(monitorInterconnectionID)
-    if mi is None:
-        raise TgiError("Invalid monitorInterconnection handle", TgiFaultCode.INVALID_ID)
-    m = MonitorInterfaceType(component_interface_ref=componentInstanceRef, bus_ref=busInterfaceRef)  # type: ignore[call-arg]
-    mi.monitor_interface.append(m)  # type: ignore[attr-defined]
-    register_parent(m, mi, ("monitor_interface",), "list")
-    return get_handle(m)
+    child = _build_instance_interface(MonitorInterfaceType, componentInstanceRef, busInterfaceRef)
+    return _add_interconnection_interface(monitorInterconnectionID, child)
 
 
 def removeActiveInterfaceExcludePort(excludePortID: str) -> bool:
@@ -1165,10 +1204,16 @@ def removeMonitorInterconnectionMonitorInterface(monitorInterfaceID: str) -> boo
 
     Section: F.7.38.28.
     """
-    m = resolve_handle(monitorInterfaceID)
-    if not isinstance(m, MonitorInterfaceType):
+    child = resolve_handle(monitorInterfaceID)
+    if not isinstance(child, MonitorInterfaceType):
         raise TgiError("Invalid monitorInterface handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(monitorInterfaceID)
+    owner = _register_owned_child(child, MonitorInterconnection)
+    if not isinstance(owner, MonitorInterconnection):
+        raise TgiError("Interface has no owning monitorInterconnection", TgiFaultCode.INVALID_ID)
+    if monitorInterfaceID not in getMonitorInterconnectionMonitorInterfaceIDs(get_handle(owner)):
+        raise TgiError("Interface is not in the owning monitor list", TgiFaultCode.INVALID_ID)
+    _list_attr(owner, "monitor_interface")
+    return _remove_owned(monitorInterfaceID, MonitorInterfaceType, MonitorInterconnection, "monitorInterface")
 
 
 def setAdHocConnectionTiedValue(adHocConnectionID: str, tiedValue: str) -> bool:
@@ -1243,22 +1288,7 @@ def setInterconnectionActiveInterface(interconnectionID: str, componentInstanceR
 
     Section: F.7.38.33.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    interfaces = list(getattr(ic, "active_interface", []))
-    new_ai = ActiveInterface(component_interface_ref=componentInstanceRef, bus_ref=busRef)  # type: ignore[call-arg]
-    if interfaces:
-        # Replace first
-        old = interfaces[0]
-        interfaces[0] = new_ai
-        ic.active_interface = interfaces  # type: ignore[assignment]
-        detach_child_by_handle(get_handle(old))
-    else:  # Ensure list
-        interfaces.append(new_ai)
-        ic.active_interface = interfaces  # type: ignore[assignment]
-    register_parent(new_ai, ic, ("active_interface",), "list")
-    return True
+    return _replace_first_interconnection_interface(interconnectionID, ActiveInterface, busRef, componentInstanceRef)
 
 
 def setInterconnectionHierInterface(interconnectionID: str, busRef: str) -> bool:
@@ -1266,21 +1296,7 @@ def setInterconnectionHierInterface(interconnectionID: str, busRef: str) -> bool
 
     Section: F.7.38.34.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    current = list(getattr(ic, "hier_interface", []))
-    hi = HierInterfaceType(bus_ref=busRef)  # type: ignore[call-arg]
-    if current:
-        old = current[0]
-        current[0] = hi
-        ic.hier_interface = current  # type: ignore[assignment]
-        detach_child_by_handle(get_handle(old))
-    else:
-        current.append(hi)
-        ic.hier_interface = current  # type: ignore[assignment]
-    register_parent(hi, ic, ("hier_interface",), "list")
-    return True
+    return _replace_first_interconnection_interface(interconnectionID, HierInterfaceType, busRef)
 
 
 def setMonitorInterconnectionMonitoredActiveInterface(
@@ -1292,12 +1308,14 @@ def setMonitorInterconnectionMonitoredActiveInterface(
 
     Section: F.7.38.35.
     """
-    mi = _resolve_monitor_interconnection(monitorInterconnectionID)
-    if mi is None:
+    getMonitorInterconnectionMonitoredActiveInterfaceID(monitorInterconnectionID)
+    child = _build_instance_interface(MonitorInterfaceType, componentInstanceRef, busRef)
+    owner = _resolve_monitor_interconnection(monitorInterconnectionID)
+    if owner is None:
         raise TgiError("Invalid monitorInterconnection handle", TgiFaultCode.INVALID_ID)
-    mai = MonitorInterfaceType(component_interface_ref=componentInstanceRef, bus_ref=busRef)  # type: ignore[call-arg]
-    mi.monitored_active_interface = mai  # type: ignore[assignment]
-    register_parent(mai, mi, ("monitored_active_interface",), "single")
+    _remove_child(owner, "monitored_active_interface")
+    owner.monitored_active_interface = child
+    register_parent(child, owner, ("monitored_active_interface",), "single")
     return True
 
 
@@ -1306,10 +1324,15 @@ def setMonitoredActiveInterfacePath(monitoredActiveInterfaceID: str, path: str) 
 
     Section: F.7.38.36.
     """
-    mai = resolve_handle(monitoredActiveInterfaceID)
-    if not isinstance(mai, MonitorInterfaceType):
+    child = resolve_handle(monitoredActiveInterfaceID)
+    if not isinstance(child, MonitorInterfaceType):
         raise TgiError("Invalid monitoredActiveInterface handle", TgiFaultCode.INVALID_ID)
-    mai.path = path
+    owner = _register_owned_child(child, MonitorInterconnection)
+    if not isinstance(owner, MonitorInterconnection):
+        raise TgiError("Interface has no owning monitorInterconnection", TgiFaultCode.INVALID_ID)
+    if getMonitorInterconnectionMonitoredActiveInterfaceID(get_handle(owner)) != monitoredActiveInterfaceID:
+        raise TgiError("Interface is not the owning monitored active interface", TgiFaultCode.INVALID_ID)
+    child.path = _name(path, "instancePath")
     return True
 
 
