@@ -18,6 +18,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Complete seven design-configuration View operations with owned handles, shared override access, unique instance names, NMTOKEN view references and identity-preserving edits.
 - Complete six design-configuration interconnection operations with registered target lookup, atomic required abstractor creation, reference validation and owned removal; fix the two underlying Design collection getters to read the generated mixed list.
 - Complete nine design-configuration design/generator reference operations with typed registry lookup, identity-preserving edits, unique generator references and owned subtree removal.
 - Complete seven design-configuration collection operations with ordered owned handles, scoped endpoint uniqueness, atomic abstractor-group creation and parsed subtree removal.

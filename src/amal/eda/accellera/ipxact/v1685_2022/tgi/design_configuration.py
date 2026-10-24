@@ -11,6 +11,8 @@ public API surface.
 """
 # ruff: noqa: I001
 
+import re
+
 from org.accellera.ipxact.v1685_2022 import (
     Abstractor,
     Choices,
@@ -29,10 +31,12 @@ from ._model import _owned_list_ids, _walk_model
 from .address_space import _register_owned_child
 from .instantiation import (
     _registered_reference_target, _validated_vlnv, getAbstractorInstanceAbstractorRefID,
+    _validate_local_reference_name,
     getDesignConfigurationInstantiationDesignConfigurationRefByID,
 )
 from .name_group import _name_text, getName
 from .design import getDesignInterconnectionIDs, getDesignMonitorInterconnectionIDs
+from .configurable_element import getConfigurableElementValueIDs
 
 from .core import (
     _HANDLE_MANAGER,
@@ -66,6 +70,7 @@ __all__ = [
     "getViewConfigurationConfigurableElementValueIDs",
     "getViewConfigurationInstanceName",
     "getViewConfigurationViewID",
+    "getViewConfigurationViewRefByName",
     # EXTENDED (F.7.40)
     "addAbstractorInstancesAbstractorInstance",
     "addAbstractorInstancesInterfaceRef",
@@ -88,6 +93,8 @@ __all__ = [
     "setAbstractorInstanceViewName",
     "setDesignConfigurationDesignRef",
     "setInterconnectionConfigurationInterconnectionRef",
+    "setViewConfigurationInstanceName",
+    "setViewConfigurationView",
 ]
 
 
@@ -246,6 +253,12 @@ def _unique_interconnection_ref(
         raise TgiError("Interconnection reference already configured", TgiFaultCode.ALREADY_EXISTS)
 
 
+def _view_reference_text(value: str) -> str:
+    value = re.sub(r"[\t\r\n ]+", " ", _xml_text(value)).strip(" ")
+    _validate_local_reference_name(value, "NMTOKEN")
+    return value
+
+
 # ---------------------------------------------------------------------------
 # BASE (F.7.39)
 # ---------------------------------------------------------------------------
@@ -395,10 +408,8 @@ def getDesignConfigurationViewConfigurationIDs(designConfigurationID: str) -> li
 
     Section: F.7.39.12.
     """
-    dc = _resolve(designConfigurationID)
-    if dc is None:
-        raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(vc) for vc in dc.view_configuration]
+    dc = _configuration_document(designConfigurationID)
+    return _owned_list_ids(dc, dc.view_configuration, "view_configuration")
 
 
 def getGeneratorChainConfigurationRefByID(generatorChainConfigurationID: str) -> str:
@@ -479,10 +490,9 @@ def getViewConfigurationConfigurableElementValueIDs(viewConfigurationID: str) ->
     vc = _resolve_view_configuration(viewConfigurationID)
     if vc is None:
         raise TgiError("Invalid viewConfiguration handle", TgiFaultCode.INVALID_ID)
-    v = vc.view
-    if v is None or v.configurable_element_values is None:
+    if vc.view is None:
         return []
-    return [get_handle(cev) for cev in getattr(v.configurable_element_values, "configurable_element_value", [])]
+    return getConfigurableElementValueIDs(viewConfigurationID)
 
 
 def getViewConfigurationInstanceName(viewConfigurationID: str) -> str | None:
@@ -494,7 +504,12 @@ def getViewConfigurationInstanceName(viewConfigurationID: str) -> str | None:
     if vc is None:
         raise TgiError("Invalid viewConfiguration handle", TgiFaultCode.INVALID_ID)
     inst = vc.instance_name
-    return None if inst is None else inst.value  # type: ignore[attr-defined]
+    if inst is None:
+        return None
+    if not isinstance(inst, InstanceName):
+        raise TgiError("Invalid instanceName model", TgiFaultCode.INVALID_ID)
+    register_parent(inst, vc, ("instance_name",), "single")
+    return inst.value
 
 
 def getViewConfigurationViewID(viewConfigurationID: str) -> str | None:
@@ -506,7 +521,21 @@ def getViewConfigurationViewID(viewConfigurationID: str) -> str | None:
     if vc is None:
         raise TgiError("Invalid viewConfiguration handle", TgiFaultCode.INVALID_ID)
     view = vc.view
+    if view is not None:
+        if not isinstance(view, DesignConfiguration.ViewConfiguration.View):
+            raise TgiError("Invalid view model", TgiFaultCode.INVALID_ID)
+        register_parent(view, vc, ("view",), "single")
     return None if view is None else get_handle(view)
+
+
+def getViewConfigurationViewRefByName(viewConfigurationID: str) -> str | None:
+    """Return the stored viewRef from a viewConfiguration or view element (F.7.39.21)."""
+    obj = resolve_handle(viewConfigurationID)
+    if isinstance(obj, DesignConfiguration.ViewConfiguration.View):
+        return obj.view_ref
+    view_id = getViewConfigurationViewID(viewConfigurationID)
+    view = resolve_handle(view_id) if view_id is not None else None
+    return view.view_ref if isinstance(view, DesignConfiguration.ViewConfiguration.View) else None
 
 
 # ---------------------------------------------------------------------------
@@ -866,4 +895,47 @@ def setInterconnectionConfigurationInterconnectionRef(
     reference = _abstractor_name(ic, interconnectionRef)
     _unique_interconnection_ref(ic, reference, ic)
     ic.interconnection_ref = reference
+    return True
+
+
+def setViewConfigurationInstanceName(viewConfigurationID: str, instanceName: str) -> bool:
+    """Set the instanceName XML Name, preserving its wrapper (F.7.40.22)."""
+    vc = _resolve_view_configuration(viewConfigurationID)
+    if vc is None:
+        raise TgiError("Invalid viewConfiguration handle", TgiFaultCode.INVALID_ID)
+    name = _abstractor_name(vc, instanceName)
+    scope = _register_owned_child(vc, DesignConfiguration)
+    if isinstance(scope, DesignConfiguration) and any(
+        child is not vc and child.instance_name is not None
+        and _abstractor_name(child, child.instance_name.value) == name
+        for child in scope.view_configuration
+    ):
+        raise TgiError("Component instance already has a view configuration", TgiFaultCode.ALREADY_EXISTS)
+    inst = vc.instance_name
+    if inst is not None and not isinstance(inst, InstanceName):
+        raise TgiError("Invalid instanceName model", TgiFaultCode.INVALID_ID)
+    if inst is None:
+        inst = InstanceName(value=name)
+        vc.instance_name = inst
+    else:
+        inst.value = name
+    register_parent(inst, vc, ("instance_name",), "single")
+    return True
+
+
+def setViewConfigurationView(viewConfigurationID: str, viewRef: str) -> bool:
+    """Set the viewRef NMTOKEN, preserving the view and overrides (F.7.40.23)."""
+    vc = _resolve_view_configuration(viewConfigurationID)
+    if vc is None:
+        raise TgiError("Invalid viewConfiguration handle", TgiFaultCode.INVALID_ID)
+    reference = _view_reference_text(viewRef)
+    view = vc.view
+    if view is not None and not isinstance(view, DesignConfiguration.ViewConfiguration.View):
+        raise TgiError("Invalid view model", TgiFaultCode.INVALID_ID)
+    if view is None:
+        view = DesignConfiguration.ViewConfiguration.View(view_ref=reference)
+        vc.view = view
+    else:
+        view.view_ref = reference
+    register_parent(view, vc, ("view",), "single")
     return True
