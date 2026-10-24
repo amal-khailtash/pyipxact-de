@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Complete nine design-configuration design/generator reference operations with typed registry lookup, identity-preserving edits, unique generator references and owned subtree removal.
 - Complete seven design-configuration collection operations with ordered owned handles, scoped endpoint uniqueness, atomic abstractor-group creation and parsed subtree removal.
 - Complete nine design-configuration abstractor-instance operations with registry target resolution, schema-valid names, atomic edits, preserved configurable references and owned removal; align creation arguments with Annex F.
 - Report registry loading and scan progress, discover XML files progressively and print compact file/edition/type scan results.

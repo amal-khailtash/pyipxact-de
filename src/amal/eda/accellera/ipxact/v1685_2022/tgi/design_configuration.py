@@ -16,7 +16,9 @@ from org.accellera.ipxact.v1685_2022 import (
     Choices,
     ConfigurableElementValue,
     ConfigurableLibraryRefType,
+    Design,
     DesignConfiguration,
+    GeneratorChain,
     InstanceName,
     LibraryRefType,
 )
@@ -180,6 +182,42 @@ def _unique_abstractor_name(owner: object, name: str, current: object | None = N
             raise TgiError("Abstractor instance name already exists", TgiFaultCode.ALREADY_EXISTS)
 
 
+def _xml_vlnv(value: tuple[str, str, str, str]) -> tuple[str, str, str, str]:
+    parts = _validated_vlnv(value)
+    for part in parts:
+        _xml_text(part)
+    return parts
+
+
+def _set_reference[T: (LibraryRefType, ConfigurableLibraryRefType)](
+    owner: object, attribute: str, model_type: type[T], value: tuple[str, str, str, str]
+) -> T:
+    parts = _xml_vlnv(value)
+    ref = getattr(owner, attribute)
+    if ref is not None and not isinstance(ref, model_type):
+        raise TgiError(f"Invalid {attribute} model", TgiFaultCode.INVALID_ID)
+    if ref is None:
+        ref = model_type(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
+        setattr(owner, attribute, ref)
+    else:
+        ref.vendor, ref.library, ref.name, ref.version = parts
+    register_parent(ref, owner, (attribute,), "single")
+    return ref
+
+
+def _generator_reference(handle: str) -> ConfigurableLibraryRefType | None:
+    ref = resolve_handle(handle)
+    if not isinstance(ref, ConfigurableLibraryRefType):
+        return None
+    owner = _register_owned_child(ref, DesignConfiguration)
+    if not isinstance(owner, DesignConfiguration) or not any(
+        child is ref for child in owner.generator_chain_configuration
+    ):
+        return None
+    register_parent(ref, owner, ("generator_chain_configuration",), "list")
+    return ref
+
+
 # ---------------------------------------------------------------------------
 # BASE (F.7.39)
 # ---------------------------------------------------------------------------
@@ -269,16 +307,20 @@ def getDesignConfigurationChoiceIDs(designConfigurationID: str) -> list[str]:
     return [get_handle(c) for c in getattr(dc.choices, "choice", [])]
 
 
-def getDesignConfigurationDesignRefByID(designConfigurationID: str) -> str | None:
-    """Return handle of the ``designRef`` element.
+def getDesignConfigurationDesignRefByID(designConfigurationID: str) -> str:
+    """Return the handle of the design referenced by ``designRef``.
 
-    Section: F.7.39.8.
+    Section: F.7.39.8. Missing or wrong-kind targets raise NOT_FOUND.
     """
     dc = _resolve(designConfigurationID)
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
     dr = dc.design_ref
-    return None if dr is None else get_handle(dr)
+    if dr is not None:
+        if not isinstance(dr, LibraryRefType):
+            raise TgiError("Invalid designRef model", TgiFaultCode.INVALID_ID)
+        register_parent(dr, dc, ("design_ref",), "single")
+    return get_handle(_registered_reference_target(dr, Design, "designRef"))
 
 
 def getDesignConfigurationDesignRefByVLNV(
@@ -294,6 +336,9 @@ def getDesignConfigurationDesignRefByVLNV(
     dr = dc.design_ref
     if dr is None:
         return (None, None, None, None)
+    if not isinstance(dr, LibraryRefType):
+        raise TgiError("Invalid designRef model", TgiFaultCode.INVALID_ID)
+    register_parent(dr, dc, ("design_ref",), "single")
     return (dr.vendor, dr.library, dr.name, dr.version)
 
 
@@ -305,7 +350,7 @@ def getDesignConfigurationGeneratorChainConfigurationIDs(designConfigurationID: 
     dc = _resolve(designConfigurationID)
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(g) for g in dc.generator_chain_configuration]
+    return _owned_list_ids(dc, dc.generator_chain_configuration, "generator_chain_configuration")
 
 
 def getDesignConfigurationInterconnectionConfigurationIDs(designConfigurationID: str) -> list[str]:
@@ -330,15 +375,15 @@ def getDesignConfigurationViewConfigurationIDs(designConfigurationID: str) -> li
     return [get_handle(vc) for vc in dc.view_configuration]
 
 
-def getGeneratorChainConfigurationRefByID(generatorChainConfigurationID: str) -> str | None:
-    """Return handle of a generatorChainConfiguration element (identity pass-through).
+def getGeneratorChainConfigurationRefByID(generatorChainConfigurationID: str) -> str:
+    """Return the handle of the referenced generatorChain object.
 
-    Section: F.7.39.13. Provided for spec completeness – the handle is the object itself.
+    Section: F.7.39.13. Missing or wrong-kind targets raise NOT_FOUND.
     """
-    obj = resolve_handle(generatorChainConfigurationID)
-    if not isinstance(obj, ConfigurableLibraryRefType):
+    obj = _generator_reference(generatorChainConfigurationID)
+    if obj is None:
         raise TgiError("Invalid generatorChainConfiguration handle", TgiFaultCode.INVALID_ID)
-    return get_handle(obj)
+    return get_handle(_registered_reference_target(obj, GeneratorChain, "generatorChainConfiguration"))
 
 
 def getGeneratorChainConfigurationRefByVLNV(
@@ -348,8 +393,8 @@ def getGeneratorChainConfigurationRefByVLNV(
 
     Section: F.7.39.14.
     """
-    obj = resolve_handle(generatorChainConfigurationID)
-    if not isinstance(obj, ConfigurableLibraryRefType):
+    obj = _generator_reference(generatorChainConfigurationID)
+    if obj is None:
         raise TgiError("Invalid generatorChainConfiguration handle", TgiFaultCode.INVALID_ID)
     return (obj.vendor, obj.library, obj.name, obj.version)
 
@@ -442,9 +487,7 @@ def addAbstractorInstancesAbstractorInstance(
         raise TgiError("Invalid abstractorInstances handle", TgiFaultCode.INVALID_ID)
     name = _abstractor_name(ai, instanceName)
     view = _abstractor_name(ai, viewName)
-    parts = _validated_vlnv(abstractorVLNV)
-    for part in parts:
-        _xml_text(part)
+    parts = _xml_vlnv(abstractorVLNV)
     _unique_abstractor_name(ai, name)
     inst = DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance(
         instance_name=name,
@@ -518,10 +561,13 @@ def addDesignConfigurationGeneratorChainConfiguration(
     dc = _resolve(designConfigurationID)
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
+    parts = _xml_vlnv(vlnv)
+    if any((ref.vendor, ref.library, ref.name, ref.version) == parts for ref in dc.generator_chain_configuration):
+        raise TgiError("Generator chain reference already configured", TgiFaultCode.ALREADY_EXISTS)
     ref = ConfigurableLibraryRefType(
-        vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]
+        vendor=parts[0], library=parts[1], name=parts[2], version=parts[3]
     )
-    dc.generator_chain_configuration.append(ref)  # type: ignore[attr-defined]
+    dc.generator_chain_configuration = [*dc.generator_chain_configuration, ref]
     register_parent(ref, dc, ("generator_chain_configuration",), "list")
     return get_handle(ref)
 
@@ -640,8 +686,10 @@ def removeDesignConfigurationDesignRef(designConfigurationID: str) -> bool:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
     if dc.design_ref is None:
         return False
-    dc.design_ref = None
-    return True
+    if not isinstance(dc.design_ref, LibraryRefType):
+        raise TgiError("Invalid designRef model", TgiFaultCode.INVALID_ID)
+    register_parent(dc.design_ref, dc, ("design_ref",), "single")
+    return detach_child_by_handle(get_handle(dc.design_ref))
 
 
 def removeDesignConfigurationGeneratorChainConfiguration(generatorChainConfigurationID: str) -> bool:
@@ -649,8 +697,8 @@ def removeDesignConfigurationGeneratorChainConfiguration(generatorChainConfigura
 
     Section: F.7.40.12.
     """
-    obj = resolve_handle(generatorChainConfigurationID)
-    if not isinstance(obj, ConfigurableLibraryRefType):
+    obj = _generator_reference(generatorChainConfigurationID)
+    if obj is None:
         return False
     return detach_child_by_handle(generatorChainConfigurationID)
 
@@ -711,18 +759,7 @@ def setAbstractorInstanceAbstractorRef(
     inst = _resolve_abstractor_instance(abstractorInstanceID)
     if inst is None:
         raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
-    parts = _validated_vlnv(vlnv)
-    for part in parts:
-        _xml_text(part)
-    ref = inst.abstractor_ref
-    if ref is not None and not isinstance(ref, ConfigurableLibraryRefType):
-        raise TgiError("Invalid abstractorRef model", TgiFaultCode.INVALID_ID)
-    if ref is None:
-        ref = ConfigurableLibraryRefType(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
-        inst.abstractor_ref = ref
-    else:
-        ref.vendor, ref.library, ref.name, ref.version = parts
-    register_parent(ref, inst, ("abstractor_ref",), "single")
+    _set_reference(inst, "abstractor_ref", ConfigurableLibraryRefType, vlnv)
     return True
 
 
@@ -762,7 +799,5 @@ def setDesignConfigurationDesignRef(
     dc = _resolve(designConfigurationID)
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
-    dc.design_ref = LibraryRefType(
-        vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]
-    )
+    _set_reference(dc, "design_ref", LibraryRefType, vlnv)
     return True
