@@ -21,6 +21,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Align feature CI, metadata-only release PRs, reusable distribution builds, verified PyPI publication and draft release/documentation activation with pysystemc.
 - Complete three OtherClockDriver pulse-value getters and six clock timing setters with exact expression-string arguments, shared real validation, atomic edits and preserved metadata/ownership.
 - Complete nine SingleShotDriver timing and value getters with shared expression evaluation, declared real bounds, zero-or-one logic values, source and unit preservation and owned handles.
 - Complete nine OtherClockDriver timing getters with shared SystemVerilog real evaluation, declared bounds, source and unit preservation, owned handles and distinct driver type validation.

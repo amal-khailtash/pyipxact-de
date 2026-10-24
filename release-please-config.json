@@ -6,7 +6,8 @@
       "include-component-in-tag": false,
       "bump-minor-pre-major": false,
       "bump-patch-for-minor-pre-major": false,
-      "extra-files": ["uv.lock"]
+      "draft": true,
+      "force-tag-creation": true
     }
   },
   "bootstrap-sha": "d6efa9a4e6ff1b34da37682d8fd0b21e0565cfa5"
