@@ -33,7 +33,9 @@ from org.accellera.ipxact.v1685_2022.complex_base_expression import ComplexBaseE
 from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
 
 from ._expressions import _bit, _real, _xml_text
-from .miscellaneous import getExpression, getExpressionValue
+from .miscellaneous import getExpression, getExpressionIntValue, getExpressionValue
+from ._model import _owned_list_ids
+from ._attribute_references import resolve_attribute_reference
 
 from .core import (
     TgiError,
@@ -67,6 +69,8 @@ __all__ = [
     "getDriverRangeExpression",
     "getDriverRightID",
     "getDriverSingleShotDriverID",
+    "getDriverViewRefByID",
+    "getDriverViewRefIDs",
     # EXTENDED (F.7.42)
     "addDriverSingleShotDriver",
     "addDriverViewRef",
@@ -99,6 +103,42 @@ __all__ = [
 def _resolve_driver(driverID: str) -> Driver | None:
     obj = resolve_handle(driverID)
     return obj if isinstance(obj, Driver) else None
+
+
+def _range_element[T: (Left, Right)](driver_id: str, attribute: str, expected: type[T]) -> T | None:
+    """Resolve a range endpoint and restore its immediate ownership."""
+    driver = _resolve_driver(driver_id)
+    if driver is None:
+        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
+    if driver.range is None:
+        return None
+    register_parent(driver.range, driver, ("range",), "single")
+    endpoint = getattr(driver.range, attribute)
+    if endpoint is None:
+        return None
+    if not isinstance(endpoint, expected):
+        raise TgiError("Invalid range endpoint", TgiFaultCode.INVALID_ID)
+    register_parent(endpoint, driver.range, (attribute,), "single")
+    return endpoint
+
+
+def _range_value(endpoint_id: str | None) -> int | None:
+    """Evaluate an unsigned 32-bit range endpoint within declared bounds."""
+    if endpoint_id is None:
+        return None
+    value = getExpressionIntValue(endpoint_id)
+    endpoint = resolve_handle(endpoint_id)
+    if not isinstance(endpoint, (Left, Right)):
+        raise TgiError("Invalid range endpoint", TgiFaultCode.INVALID_ID)
+    minimum, maximum = endpoint.minimum, endpoint.maximum
+    if (
+        not 0 <= value < (1 << 32)
+        or (minimum is not None and value < minimum)
+        or (maximum is not None and value > maximum)
+        or (minimum is not None and maximum is not None and minimum > maximum)
+    ):
+        raise TgiError("Range endpoint outside unsigned integer bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
 
 
 def _resolve_clock_driver(clockDriverID: str) -> ClockDriver | None:
@@ -331,29 +371,19 @@ def getDriverLeftID(driverID: str) -> str | None:
 
     Section: F.7.41.17.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    rng = d.range
-    if rng is None or rng.left is None:
-        return None
-    return get_handle(rng.left)
+    endpoint = _range_element(driverID, "left", Left)
+    return None if endpoint is None else get_handle(endpoint)
 
 
 def getDriverRange(driverID: str) -> tuple[int | None, int | None]:
     """Return (leftValue, rightValue) of range.
 
+    Evaluate SystemVerilog constants within unsigned 32-bit and declared bounds.
+    Invalid or unresolved expressions raise INVALID_ARGUMENT; endpoint order is preserved.
+
     Section: F.7.41.18.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    rng = d.range
-    if rng is None:
-        return (None, None)
-    left_v = getattr(rng.left, "value", None) if rng.left is not None else None
-    right_v = getattr(rng.right, "value", None) if rng.right is not None else None
-    return (left_v, right_v)
+    return (_range_value(getDriverLeftID(driverID)), _range_value(getDriverRightID(driverID)))
 
 
 def getDriverRangeExpression(driverID: str) -> tuple[str | None, str | None]:
@@ -361,15 +391,8 @@ def getDriverRangeExpression(driverID: str) -> tuple[str | None, str | None]:
 
     Section: F.7.41.19.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    rng = d.range
-    if rng is None:
-        return (None, None)
-    left_e = getattr(rng.left, "expression", None) if rng.left is not None else None
-    right_e = getattr(rng.right, "expression", None) if rng.right is not None else None
-    return (left_e, right_e)
+    left_id, right_id = getDriverLeftID(driverID), getDriverRightID(driverID)
+    return (None if left_id is None else getExpression(left_id), None if right_id is None else getExpression(right_id))
 
 
 def getDriverRightID(driverID: str) -> str | None:
@@ -377,13 +400,8 @@ def getDriverRightID(driverID: str) -> str | None:
 
     Section: F.7.41.20.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    rng = d.range
-    if rng is None or rng.right is None:
-        return None
-    return get_handle(rng.right)
+    endpoint = _range_element(driverID, "right", Right)
+    return None if endpoint is None else get_handle(endpoint)
 
 
 def getDriverSingleShotDriverID(driverID: str) -> str | None:
@@ -393,6 +411,30 @@ def getDriverSingleShotDriverID(driverID: str) -> str | None:
     """
     value = _driver_choice(driverID, SingleShotDriver)
     return None if value is None else get_handle(value)
+
+
+def getDriverViewRefByID(driverID: str, viewRef: str) -> str:
+    """Return the view targeted by a reference belonging to this driver.
+
+    Section: F.7.41.22.
+    """
+    if viewRef not in getDriverViewRefIDs(driverID):
+        raise TgiError("View reference does not belong to driver", TgiFaultCode.INVALID_ID)
+    target = resolve_attribute_reference(viewRef, "viewRef")
+    if target is None:
+        raise TgiError("Driver view reference has no target", TgiFaultCode.NOT_FOUND)
+    return target
+
+
+def getDriverViewRefIDs(driverID: str) -> list[str]:
+    """Return ordered handles to the driver's viewRef elements.
+
+    Section: F.7.41.23.
+    """
+    driver = _resolve_driver(driverID)
+    if driver is None:
+        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
+    return _owned_list_ids(driver, driver.view_ref, "view_ref")
 
 
 # ---------------------------------------------------------------------------

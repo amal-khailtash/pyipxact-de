@@ -44,7 +44,7 @@ _TARGET_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
     "resetTypeRef": (("component_type", "ResetType"),),
     "segmentRef": (("address_spaces", "Segment"),),
     "subPortRef": (("sub_port_type", "SubPortType"),),
-    "viewRef": (("model_type", "View"),),
+    "viewRef": (("model_type", "View"), ("abstractor_model_type", "View")),
 }
 
 _QUALIFIER_TYPES: dict[str, tuple[tuple[str, str], ...]] = {

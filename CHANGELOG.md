@@ -21,6 +21,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Complete six Driver range and view-reference getters with shared constant evaluation, unsigned bounds, source preservation, owned handles and document-scoped view resolution.
 - Complete eight Driver value and child-handle getters with generated choice routing, SystemVerilog bit casts, shared default-expression evaluation and preserved ownership.
 - Complete nine clock-driver timing getters with SystemVerilog real-expression evaluation, declared bounds, exact source text, preserved units and owned element handles.
 - Complete the six remaining design-configuration choice and View creation/removal operations with required enumerations, unique XML names, shared setters, parsed ownership recovery and optional-holder cleanup.
