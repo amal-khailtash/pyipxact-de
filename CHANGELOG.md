@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement eight FieldSlice bank/register-file reference-path operations with standard name signatures, generated ordered wrappers, and owned subtree removal.
 - Implement ten FieldSlice address-space/map/remap reference-choice operations with generated wrappers, atomic choice updates, and removed handle invalidation.
 - Implement ten FieldSlice named-reference operations with standard signatures and generated wrappers.
 - Normalize referenced XML names while preserving indices, metadata and wrapper identity; remove alternate-register references through their owning slice.

@@ -19,7 +19,7 @@ namespaces.
 
 # ruff: noqa: I001
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, overload
 from collections.abc import Sequence
 
 from org.accellera.ipxact.v1685_2022 import (
@@ -37,6 +37,8 @@ from org.accellera.ipxact.v1685_2022 import (
     AlternateRegisterRef,
     FieldRef,
     MemoryRemapRef,
+    BankRef,
+    RegisterFileRef,
 )
 
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
@@ -78,6 +80,8 @@ __all__ = [
     "getFieldSliceMemoryRemapRefByID",
     "getFieldSliceMemoryRemapRefByName",
     "getFieldSliceMemoryRemapRefID",
+    "getFieldSliceRegisterFileRefByNames",
+    "getFieldSliceRegisterFileRefIDs",
     "getFieldSliceRange",
     "getFieldSliceRangeLeftID",
     "getFieldSliceRangeRightID",
@@ -186,6 +190,14 @@ def _field_slice(handle: str) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.
     return owner
 
 
+@overload
+def _field_reference_value(reference_id: str, xml_name: str) -> str: ...
+
+
+@overload
+def _field_reference_value(reference_id: None, xml_name: str) -> None: ...
+
+
 def _field_reference_value(reference_id: str | None, xml_name: str) -> str | None:
     """Read a typed reference's source through the common attribute mapping."""
     if reference_id is None:
@@ -273,6 +285,48 @@ def _set_field_reference(
     setattr(owner, attribute, current)
     register_parent(current, owner, (attribute,), "single")
     return True
+
+
+def _field_reference_list[T: BankRef | RegisterFileRef](
+    owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice, attribute: str, model_type: type[T]
+) -> Sequence[T]:
+    """Validate an ordered hierarchical reference path before traversal or mutation."""
+    children = getattr(owner, attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid field reference path", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(getattr(child, attribute), str) for child in children):
+        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
+    return children
+
+
+def _add_field_reference[T: BankRef | RegisterFileRef](
+    field_slice_id: str, source: str, attribute: str, model_type: type[T]
+) -> str:
+    """Append a generated named reference to its ordered owned path."""
+    owner = _field_slice(field_slice_id)
+    _field_reference_list(owner, attribute, model_type)
+    child = model_type(**{attribute: _name(source, "Name")})
+    children = _list_attr(owner, attribute)
+    children.append(child)
+    _owned_list_ids(owner, children, attribute)
+    return get_handle(child)
+
+
+def _remove_field_reference[T: BankRef | RegisterFileRef](
+    reference_id: str, attribute: str, model_type: type[T]
+) -> bool:
+    """Remove an owned reference, discovering parsed ownership before detachment."""
+    child = resolve_handle(reference_id)
+    if not isinstance(child, model_type):
+        raise TgiError("Invalid field reference handle", TgiFaultCode.INVALID_ID)
+    owner_type = (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice)
+    owner = _register_owned_child(child, owner_type)
+    if not isinstance(owner, owner_type):
+        raise TgiError("Reference has no owning field slice", TgiFaultCode.INVALID_ID)
+    children = _field_reference_list(owner, attribute, model_type)
+    _owned_list_ids(owner, children, attribute)
+    _list_attr(owner, attribute)
+    return _remove_owned(reference_id, model_type, owner_type, "field reference")
 
 
 def _resolve(objID: str) -> Any | None:
@@ -368,31 +422,15 @@ def getFieldSliceAlternateRegisterRefID(fieldSliceID: str) -> str | None:  # F.7
     return _child_id(_field_slice(fieldSliceID), "alternate_register_ref", AlternateRegisterRef)
 
 
-def getFieldSliceBankRefByNames(
-    fieldSliceID: str,
-    vendor: str,
-    library: str,
-    name: str,
-    version: str,
-) -> str | None:  # F.7.77.10
-    sl = _resolve(fieldSliceID)
-    banks = getattr(sl, "bank_ref", []) if sl is not None else []
-    for b in banks:
-        if (
-            getattr(b, "vendor", None),
-            getattr(b, "library", None),
-            getattr(b, "name", None),
-            getattr(b, "version", None),
-        ) == (vendor, library, name, version):
-            return get_handle(b)
-    return None
+def getFieldSliceBankRefByNames(fieldSliceID: str) -> list[str]:  # F.7.77.10
+    """Return the ordered referenced bank names. Section: F.7.77.10."""
+    return [_field_reference_value(handle, "bankRef") for handle in getFieldSliceBankRefIDs(fieldSliceID)]
 
 
 def getFieldSliceBankRefIDs(fieldSliceID: str) -> list[str]:  # F.7.77.11
-    sl = _resolve(fieldSliceID)
-    if sl is None:
-        return []
-    return [get_handle(b) for b in getattr(sl, "bank_ref", [])]
+    """Return owned handles in hierarchical bank-reference order. Section: F.7.77.11."""
+    owner = _field_slice(fieldSliceID)
+    return _owned_list_ids(owner, _field_reference_list(owner, "bank_ref", BankRef), "bank_ref")
 
 
 def getFieldSliceFieldRefByName(fieldSliceID: str) -> str | None:  # F.7.77.12
@@ -485,6 +523,21 @@ def getFieldSliceRangeRightID(fieldSliceID: str) -> str | None:  # F.7.77.22
     """
     endpoint = _range_endpoint(_field_slice(fieldSliceID), "right", Right)
     return None if endpoint is None else get_handle(endpoint)
+
+
+def getFieldSliceRegisterFileRefByNames(fieldSliceID: str) -> list[str]:  # F.7.77.23
+    """Return the ordered referenced register-file names. Section: F.7.77.23."""
+    return [
+        _field_reference_value(handle, "registerFileRef") for handle in getFieldSliceRegisterFileRefIDs(fieldSliceID)
+    ]
+
+
+def getFieldSliceRegisterFileRefIDs(fieldSliceID: str) -> list[str]:  # F.7.77.24
+    """Return owned handles in register-file-reference order. Section: F.7.77.24."""
+    owner = _field_slice(fieldSliceID)
+    return _owned_list_ids(
+        owner, _field_reference_list(owner, "register_file_ref", RegisterFileRef), "register_file_ref"
+    )
 
 
 def getLocationSliceIDs(locationID: str) -> list[str]:  # F.7.77.28
@@ -584,24 +637,14 @@ def getSliceRangeRightID(sliceID: str) -> str | None:  # F.7.77.38
 # ---------------------------------------------------------------------------
 
 
-def addFieldSliceBankRef(fieldSliceID: str, vlnv: tuple[str, str, str, str]) -> str:  # F.7.78.1
-    sl = _ensure_slice_parent(fieldSliceID)
-    from org.accellera.ipxact.v1685_2022.library_ref_type import LibraryRefType
-
-    if getattr(sl, "bank_ref", None) is None:
-        sl.bank_ref = []  # type: ignore[attr-defined]
-    ref = LibraryRefType(vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3])
-    sl.bank_ref.append(ref)  # type: ignore[attr-defined]
-    register_parent(ref, sl, ("bank_ref",), "list")
-    return get_handle(ref)
+def addFieldSliceBankRef(fieldSliceID: str, bankRef: str) -> str:  # F.7.78.1
+    """Append a normalized generated bank reference. Section: F.7.78.1."""
+    return _add_field_reference(fieldSliceID, bankRef, "bank_ref", BankRef)
 
 
-def addFieldSliceRegisterFileRef(fieldSliceID: str, name: str) -> str:  # F.7.78.2
-    sl = _ensure_slice_parent(fieldSliceID)
-    rfref = SimpleNamespace(name=name)
-    sl.register_file_ref = rfref  # type: ignore[attr-defined]
-    register_parent(rfref, sl, ("register_file_ref",), "single")
-    return get_handle(rfref)
+def addFieldSliceRegisterFileRef(fieldSliceID: str, registerFileRef: str) -> str:  # F.7.78.2
+    """Append a normalized generated register-file reference. Section: F.7.78.2."""
+    return _add_field_reference(fieldSliceID, registerFileRef, "register_file_ref", RegisterFileRef)
 
 
 def addModeFieldSlice(modeID: str, fieldSliceID: str) -> bool:  # F.7.78.3
@@ -672,9 +715,8 @@ def removeFieldSliceAlternateRegisterRef(fieldSliceID: str) -> bool:  # F.7.78.7
 
 
 def removeFieldSliceBankRef(fieldSliceBankRefID: str) -> bool:  # F.7.78.8
-    if resolve_handle(fieldSliceBankRefID) is None:
-        raise TgiError("Invalid bankRef handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(fieldSliceBankRefID)
+    """Remove an owned bank-reference path entry. Section: F.7.78.8."""
+    return _remove_field_reference(fieldSliceBankRefID, "bank_ref", BankRef)
 
 
 def removeFieldSliceMemoryRemapRef(fieldSliceID: str) -> bool:  # F.7.78.9
@@ -701,9 +743,8 @@ def removeFieldSliceRange(fieldSliceID: str) -> bool:  # F.7.78.10
 
 
 def removeFieldSliceRegisterFileRef(fieldSliceRegisterFileRefID: str) -> bool:  # F.7.78.11
-    if resolve_handle(fieldSliceRegisterFileRefID) is None:
-        raise TgiError("Invalid registerFileRef handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(fieldSliceRegisterFileRefID)
+    """Remove an owned register-file reference and its indices. Section: F.7.78.11."""
+    return _remove_field_reference(fieldSliceRegisterFileRefID, "register_file_ref", RegisterFileRef)
 
 
 def removeLocationSlice(sliceID: str) -> bool:  # F.7.78.12
