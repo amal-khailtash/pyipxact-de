@@ -29,8 +29,9 @@ from org.accellera.ipxact.v1685_2022 import (
     UnsignedBitExpression,
     UnsignedBitVectorExpression,
     SignedLongintExpression,
+    RealExpression,
 )
-from ._expressions import _xml_text
+from ._expressions import _real_source, _undeclared, _xml_text
 from . import _miscellaneous_part_select as _part_select_ops
 from . import _miscellaneous_registry as _registry_ops
 import re
@@ -196,12 +197,13 @@ def _boolean_target(handle: str) -> Any:
 
 
 def _expression_source(value: str, obj: ComplexBaseExpression) -> str:
+    if isinstance(obj, RealExpression):
+        return _real_source(value, obj)
     _xml_text(value)
     try:
         result = SvExpressionParser().parse(value)
     except SvExpressionError as exc:
-        diagnostics = re.findall(r"error:\s*(.+)", str(exc))
-        if not diagnostics or not all("use of undeclared identifier" in item for item in diagnostics):
+        if not _undeclared(exc):
             raise TgiError("Invalid expression source", TgiFaultCode.INVALID_ARGUMENT) from exc
         return value
     bounds: tuple[int, int | None] | None = None

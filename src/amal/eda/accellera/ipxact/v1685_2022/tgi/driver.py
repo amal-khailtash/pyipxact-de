@@ -36,7 +36,13 @@ from org.accellera.ipxact.v1685_2022.complex_base_expression import ComplexBaseE
 from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
 
 from ._expressions import _bit, _real, _xml_text
-from .miscellaneous import getExpression, getExpressionIntValue, getExpressionValue
+from .miscellaneous import (
+    _expression_source,
+    getExpression,
+    getExpressionIntValue,
+    getExpressionValue,
+    setExpressionValue,
+)
 from ._model import _owned_list_ids
 from ._attribute_references import resolve_attribute_reference
 
@@ -83,6 +89,9 @@ __all__ = [
     "getOtherClockDriverClockPulseOffset",
     "getOtherClockDriverClockPulseOffsetExpression",
     "getOtherClockDriverClockPulseOffsetID",
+    "getOtherClockDriverClockPulseValue",
+    "getOtherClockDriverClockPulseValueExpression",
+    "getOtherClockDriverClockPulseValueID",
     "getSingleShotDriverSingleShotDuration",
     "getSingleShotDriverSingleShotDurationExpression",
     "getSingleShotDriverSingleShotDurationID",
@@ -200,6 +209,27 @@ def _driver_timing_value[T: RealExpression](
     if value is None:
         return None
     return _real(source, minimum=value.minimum, maximum=value.maximum)
+
+
+def _set_driver_timing[T: RealExpression](
+    driver_id: str,
+    attribute: str,
+    expected: type[T],
+    source: str,
+    driver_type: type[ClockDriver] | type[OtherClockDriver],
+) -> bool:
+    """Set timing source through generic validation, preserving existing wrappers."""
+    current = _driver_expression(driver_id, attribute, expected, driver_type)
+    if current is not None:
+        return setExpressionValue(get_handle(current), source)
+    current = expected(value="")
+    current.value = _expression_source(source, current)
+    driver = resolve_handle(driver_id)
+    if not isinstance(driver, driver_type):
+        raise TgiError("Invalid timing owner handle", TgiFaultCode.INVALID_ID)
+    setattr(driver, attribute, current)
+    register_parent(current, driver, (attribute,), "single")
+    return True
 
 
 def _driver_choice[T: (DefaultValue, ClockDriver, SingleShotDriver)](driver_id: str, expected: type[T]) -> T | None:
@@ -559,6 +589,33 @@ def getOtherClockDriverClockPulseOffsetID(otherClockDriverID: str) -> str | None
     return None if value is None else get_handle(value)
 
 
+def getOtherClockDriverClockPulseValue(otherClockDriverID: str) -> bool | None:
+    """Return resolved bit value of ``clockPulseValue``.
+
+    Section: F.7.41.33.
+    """
+    source = getOtherClockDriverClockPulseValueExpression(otherClockDriverID)
+    return None if source is None else _bit(source)
+
+
+def getOtherClockDriverClockPulseValueExpression(otherClockDriverID: str) -> str | None:
+    """Return source expression of ``clockPulseValue``.
+
+    Section: F.7.41.34.
+    """
+    value_id = getOtherClockDriverClockPulseValueID(otherClockDriverID)
+    return None if value_id is None else getExpression(value_id)
+
+
+def getOtherClockDriverClockPulseValueID(otherClockDriverID: str) -> str | None:
+    """Return handle of ``clockPulseValue``.
+
+    Section: F.7.41.35.
+    """
+    value = _driver_expression(otherClockDriverID, "clock_pulse_value", UnsignedBitExpression, OtherClockDriver)
+    return None if value is None else get_handle(value)
+
+
 def getSingleShotDriverSingleShotDuration(singleShotDriverID: str) -> float | None:
     """Return numeric value of ``singleShotDuration``.
 
@@ -731,52 +788,32 @@ def removeDriverViewRef(viewRefID: str) -> bool:
     return detach_child_by_handle(viewRefID)
 
 
-def setClockDriverClockPeriod(clockDriverID: str, value: float, expression: str | None = None) -> bool:
-    """Set clockPeriod value/expression of an existing clockDriver.
+def setClockDriverClockPeriod(clockDriverID: str, clockPeriod: str) -> bool:
+    """Set ``clockPeriod`` source on an existing clockDriver.
 
     Section: F.7.42.7.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    if cd.clock_period is None:
-        cd.clock_period = ClockDriverType.ClockPeriod()
-    cd.clock_period.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        cd.clock_period.expression = expression  # type: ignore[attr-defined]
-    return True
+    return _set_driver_timing(clockDriverID, "clock_period", ClockDriverType.ClockPeriod, clockPeriod, ClockDriver)
 
 
-def setClockDriverClockPulseDuration(clockDriverID: str, value: float, expression: str | None = None) -> bool:
-    """Set clockPulseDuration fields.
+def setClockDriverClockPulseDuration(clockDriverID: str, clockPulseDuration: str) -> bool:
+    """Set ``clockPulseDuration`` source on an existing clockDriver.
 
     Section: F.7.42.8.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    if cd.clock_pulse_duration is None:
-        cd.clock_pulse_duration = ClockDriverType.ClockPulseDuration()
-    cd.clock_pulse_duration.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        cd.clock_pulse_duration.expression = expression  # type: ignore[attr-defined]
-    return True
+    return _set_driver_timing(
+        clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, clockPulseDuration, ClockDriver
+    )
 
 
-def setClockDriverClockPulseOffset(clockDriverID: str, value: float, expression: str | None = None) -> bool:
-    """Set clockPulseOffset fields.
+def setClockDriverClockPulseOffset(clockDriverID: str, pulseOffset: str) -> bool:
+    """Set ``clockPulseOffset`` source on an existing clockDriver.
 
     Section: F.7.42.9.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    if cd.clock_pulse_offset is None:
-        cd.clock_pulse_offset = ClockDriverType.ClockPulseOffset()
-    cd.clock_pulse_offset.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        cd.clock_pulse_offset.expression = expression  # type: ignore[attr-defined]
-    return True
+    return _set_driver_timing(
+        clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, pulseOffset, ClockDriver
+    )
 
 
 def setClockDriverClockPulseValue(clockDriverID: str, value: int, expression: str | None = None) -> bool:
@@ -876,40 +913,38 @@ def setDriverRange(
     return True
 
 
-def setOtherClockDriverClockPeriod(driverID: str, value: float, expression: str | None = None) -> bool:
-    """Create/ensure clockDriver then set clockPeriod.
+def setOtherClockDriverClockPeriod(otherClockDriverID: str, clockPeriod: str) -> bool:
+    """Set ``clockPeriod`` source on an existing otherClockDriver.
 
     Section: F.7.42.15.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    cd = _ensure_clock(d)
-    return setClockDriverClockPeriod(get_handle(cd), value, expression)
+    return _set_driver_timing(
+        otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, clockPeriod, OtherClockDriver
+    )
 
 
-def setOtherClockDriverClockPulseDuration(driverID: str, value: float, expression: str | None = None) -> bool:
-    """Ensure clockDriver then set clockPulseDuration.
+def setOtherClockDriverClockPulseDuration(otherClockDriverID: str, clockPulseDuration: str) -> bool:
+    """Set ``clockPulseDuration`` source on an existing otherClockDriver.
 
     Section: F.7.42.16.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    cd = _ensure_clock(d)
-    return setClockDriverClockPulseDuration(get_handle(cd), value, expression)
+    return _set_driver_timing(
+        otherClockDriverID,
+        "clock_pulse_duration",
+        ClockDriverType.ClockPulseDuration,
+        clockPulseDuration,
+        OtherClockDriver,
+    )
 
 
-def setOtherClockDriverClockPulseOffset(driverID: str, value: float, expression: str | None = None) -> bool:
-    """Ensure clockDriver then set clockPulseOffset.
+def setOtherClockDriverClockPulseOffset(otherClockDriverID: str, clockPulseOffset: str) -> bool:
+    """Set ``clockPulseOffset`` source on an existing otherClockDriver.
 
     Section: F.7.42.17.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    cd = _ensure_clock(d)
-    return setClockDriverClockPulseOffset(get_handle(cd), value, expression)
+    return _set_driver_timing(
+        otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, clockPulseOffset, OtherClockDriver
+    )
 
 
 def setOtherClockDriverClockPulseValue(driverID: str, value: int, expression: str | None = None) -> bool:
