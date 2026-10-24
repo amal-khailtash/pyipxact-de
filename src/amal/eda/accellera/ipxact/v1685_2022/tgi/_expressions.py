@@ -73,6 +73,15 @@ def _real(source: str, *, minimum: float | None = None, maximum: float | None = 
     return value
 
 
+def _bit(source: str) -> bool:
+    """Resolve an expression with the SystemVerilog one-bit cast required by C.7.9."""
+    _xml_text(source)
+    try:
+        return bool(SvExpressionParser().evaluate(f"bit'({source})"))
+    except SvExpressionError as error:
+        raise TgiError("Cannot cast expression to an unsigned bit", TgiFaultCode.INVALID_ARGUMENT) from error
+
+
 def _source(value: str, current: ComplexBaseExpression | None = None, maximum: int | None = _UINT_MAX) -> str:
     _xml_text(value)
     if not value.strip():
