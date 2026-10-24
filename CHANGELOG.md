@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Include generated `src/org` schema bindings in published Codecov reports.
 - Retain owned TGI children to prevent stale ownership links after object identity reuse.
 - Exit quietly when a downstream pipe closes during CLI output.
 - Check each cached source file once when validating registry metadata.
