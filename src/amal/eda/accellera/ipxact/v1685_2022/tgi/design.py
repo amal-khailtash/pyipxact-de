@@ -197,6 +197,77 @@ def _port_reference_name(
     return value
 
 
+def _active_interface(interface_id: str) -> ActiveInterface:
+    """Resolve the active-interface type used by excluded-port operations."""
+    owner = resolve_handle(interface_id)
+    if not isinstance(owner, ActiveInterface):
+        raise TgiError("Invalid activeInterface handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def _exclude_ports(
+    interface_id: str,
+) -> tuple[ActiveInterface, ActiveInterface.ExcludePorts | None, Sequence[ActiveInterface.ExcludePorts.ExcludePort]]:
+    """Validate the excluded-port holder and its ordered generated children."""
+    owner = _active_interface(interface_id)
+    holder = _child(owner, "exclude_ports", ActiveInterface.ExcludePorts)
+    if holder is None:
+        return owner, None, ()
+    children = holder.exclude_port
+    if not isinstance(children, (list, tuple)) or any(
+        not isinstance(child, ActiveInterface.ExcludePorts.ExcludePort) for child in children
+    ):
+        raise TgiError("Invalid excludePort collection", TgiFaultCode.INVALID_ID)
+    return owner, holder, children
+
+
+def _interconnection_interfaces[T: ActiveInterface | HierInterfaceType](
+    connection_id: str, model_type: type[T]
+) -> tuple[Interconnection, str, Sequence[T]]:
+    """Validate one ordered endpoint collection of an interconnection."""
+    owner = _resolve_interconnection(connection_id)
+    if owner is None:
+        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
+    attribute = "active_interface" if model_type is ActiveInterface else "hier_interface"
+    children = getattr(owner, attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid interconnection interface collection", TgiFaultCode.INVALID_ID)
+    return owner, attribute, children
+
+
+def _add_interconnection_interface(connection_id: str, child: ActiveInterface | HierInterfaceType) -> str:
+    """Append a validated endpoint using its generated collection and immediate ownership."""
+    model_type = ActiveInterface if isinstance(child, ActiveInterface) else HierInterfaceType
+    owner, attribute, _ = _interconnection_interfaces(connection_id, model_type)
+    items = _list_attr(owner, attribute)
+    items.append(child)
+    _owned_list_ids(owner, items, attribute)
+    return get_handle(child)
+
+
+def _remove_interconnection_interface[T: ActiveInterface | HierInterfaceType](
+    interface_id: str, model_type: type[T]
+) -> bool:
+    """Remove an endpoint only from its actual interconnection collection."""
+    child = resolve_handle(interface_id)
+    if not isinstance(child, model_type):
+        raise TgiError("Invalid interconnection interface handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, Interconnection)
+    if not isinstance(owner, Interconnection):
+        raise TgiError("Interface has no owning interconnection", TgiFaultCode.INVALID_ID)
+    owner_id = get_handle(owner)
+    children = (
+        getInterconnectionActiveInterfaceIDs(owner_id)
+        if model_type is ActiveInterface
+        else getInterconnectionHierInterfaceIDs(owner_id)
+    )
+    if interface_id not in children:
+        raise TgiError("Interface is not in the owning endpoint list", TgiFaultCode.INVALID_ID)
+    attribute = "active_interface" if model_type is ActiveInterface else "hier_interface"
+    _list_attr(owner, attribute)
+    return _remove_owned(interface_id, model_type, Interconnection, "interconnection interface")
+
+
 def _ad_hoc_port_references(
     connection_id: str,
 ) -> tuple[
@@ -368,13 +439,8 @@ def getActiveinterfaceExcludePortIDs(activeInterfaceID: str) -> list[str]:
 
     Section: F.7.37.1.
     """
-    obj = resolve_handle(activeInterfaceID)
-    if not isinstance(obj, ActiveInterface):
-        raise TgiError("Invalid activeInterface handle", TgiFaultCode.INVALID_ID)
-    ex = getattr(obj, "exclude_ports", None)
-    if ex is None:
-        return []
-    return [get_handle(ep) for ep in getattr(ex, "exclude_port", [])]
+    _, holder, children = _exclude_ports(activeInterfaceID)
+    return [] if holder is None else _owned_list_ids(holder, children, "exclude_port")
 
 
 def getAdHocConnectionExternalPortReferenceIDs(adHocConnectionID: str) -> list[str]:
@@ -595,10 +661,8 @@ def getInterconnectionActiveInterfaceIDs(interconnectionID: str) -> list[str]:
 
     Section: F.7.37.21.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(ai) for ai in getattr(ic, "active_interface", [])]
+    owner, attribute, children = _interconnection_interfaces(interconnectionID, ActiveInterface)
+    return _owned_list_ids(owner, children, attribute)
 
 
 def getInterconnectionHierInterfaceIDs(interconnectionID: str) -> list[str]:
@@ -606,10 +670,8 @@ def getInterconnectionHierInterfaceIDs(interconnectionID: str) -> list[str]:
 
     Section: F.7.37.22.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(hi) for hi in getattr(ic, "hier_interface", [])]
+    owner, attribute, children = _interconnection_interfaces(interconnectionID, HierInterfaceType)
+    return _owned_list_ids(owner, children, attribute)
 
 
 def getInternalPortReferencePartSelectID(internalPortReferenceID: str) -> str | None:
@@ -733,15 +795,15 @@ def addActiveInterfaceExcludePort(activeInterfaceID: str, excludePort: str) -> s
 
     Section: F.7.38.1.
     """
-    ai = resolve_handle(activeInterfaceID)
-    if not isinstance(ai, ActiveInterface):
-        raise TgiError("Invalid activeInterface handle", TgiFaultCode.INVALID_ID)
-    if ai.exclude_ports is None:
-        ai.exclude_ports = ActiveInterface.ExcludePorts()  # type: ignore[assignment]
-    ep = ActiveInterface.ExcludePorts.ExcludePort(value=excludePort)  # type: ignore[attr-defined]
-    ai.exclude_ports.exclude_port.append(ep)  # type: ignore[attr-defined]
-    register_parent(ep, ai, ("exclude_ports",), "list")
-    return get_handle(ep)
+    owner, holder, _ = _exclude_ports(activeInterfaceID)
+    child = ActiveInterface.ExcludePorts.ExcludePort(value=_name(excludePort, "portName"))
+    if holder is None:
+        holder = ActiveInterface.ExcludePorts()
+        owner.exclude_ports = holder
+        register_parent(holder, owner, ("exclude_ports",), "single")
+    _list_attr(holder, "exclude_port").append(child)
+    getActiveinterfaceExcludePortIDs(activeInterfaceID)
+    return get_handle(child)
 
 
 def addAdHocConnectionExternalPortReference(adHocConnectionID: str, portRef: str) -> str:
@@ -896,13 +958,10 @@ def addInterconnectionActiveInterface(interconnectionID: str, componentInstanceR
 
     Section: F.7.38.10.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    ai = ActiveInterface(component_interface_ref=componentInstanceRef, bus_ref=busInterfaceRef)  # type: ignore[call-arg]
-    ic.active_interface.append(ai)  # type: ignore[attr-defined]
-    register_parent(ai, ic, ("active_interface",), "list")
-    return get_handle(ai)
+    child = ActiveInterface(
+        component_instance_ref=_name(componentInstanceRef, "Name"), bus_ref=_name(busInterfaceRef, "Name")
+    )
+    return _add_interconnection_interface(interconnectionID, child)
 
 
 def addInterconnectionHierInterface(interconnectionID: str, busInterfaceRef: str) -> str:
@@ -910,13 +969,8 @@ def addInterconnectionHierInterface(interconnectionID: str, busInterfaceRef: str
 
     Section: F.7.38.11.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    hi = HierInterfaceType(bus_ref=busInterfaceRef)  # type: ignore[call-arg]
-    ic.hier_interface.append(hi)  # type: ignore[attr-defined]
-    register_parent(hi, ic, ("hier_interface",), "list")
-    return get_handle(hi)
+    child = HierInterfaceType(bus_ref=_name(busInterfaceRef, "Name"))
+    return _add_interconnection_interface(interconnectionID, child)
 
 
 def addMonitorInterconnectionMonitorInterface(
@@ -942,10 +996,21 @@ def removeActiveInterfaceExcludePort(excludePortID: str) -> bool:
 
     Section: F.7.38.13.
     """
-    ep = resolve_handle(excludePortID)
-    if not isinstance(ep, ActiveInterface.ExcludePorts.ExcludePort):  # type: ignore[attr-defined]
+    child = resolve_handle(excludePortID)
+    if not isinstance(child, ActiveInterface.ExcludePorts.ExcludePort):
         raise TgiError("Invalid excludePort handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(excludePortID)
+    holder = _register_owned_child(child, ActiveInterface.ExcludePorts)
+    if not isinstance(holder, ActiveInterface.ExcludePorts):
+        raise TgiError("Port has no owning exclusion holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, ActiveInterface)
+    if not isinstance(owner, ActiveInterface) or owner.exclude_ports is not holder:
+        raise TgiError("Exclusion holder has no owning activeInterface", TgiFaultCode.INVALID_ID)
+    if excludePortID not in getActiveinterfaceExcludePortIDs(get_handle(owner)):
+        raise TgiError("Port is not in the owning exclusion list", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, "exclude_port")
+    return _remove_owned(
+        excludePortID, ActiveInterface.ExcludePorts.ExcludePort, ActiveInterface.ExcludePorts, "excludePort"
+    )
 
 
 def removeAdHocConnectionExternalPortReference(externalPortReferenceID: str) -> bool:
@@ -1065,10 +1130,7 @@ def removeInterconnectionActiveInterface(activeInterfaceID: str) -> bool:
 
     Section: F.7.38.24.
     """
-    ai = resolve_handle(activeInterfaceID)
-    if not isinstance(ai, ActiveInterface):
-        raise TgiError("Invalid activeInterface handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(activeInterfaceID)
+    return _remove_interconnection_interface(activeInterfaceID, ActiveInterface)
 
 
 def removeInterconnectionHierInterface(hierInterfaceID: str) -> bool:
@@ -1076,10 +1138,7 @@ def removeInterconnectionHierInterface(hierInterfaceID: str) -> bool:
 
     Section: F.7.38.25.
     """
-    hi = resolve_handle(hierInterfaceID)
-    if not isinstance(hi, HierInterfaceType):
-        raise TgiError("Invalid hierInterface handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(hierInterfaceID)
+    return _remove_interconnection_interface(hierInterfaceID, HierInterfaceType)
 
 
 def removeInternalPortReferencePartSelect(internalPortReferenceID: str) -> bool:
