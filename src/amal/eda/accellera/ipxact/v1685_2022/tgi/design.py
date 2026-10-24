@@ -13,6 +13,8 @@ Each getter follows the error model used across the TGI layer:
 
 Internal and external ad-hoc port part-select operations reuse generated models
 and shared range/index expression validation, ownership and subtree removal.
+Port-reference lists traverse generated mixed holders; stored names and sub-port
+paths use shared reference mappings and ordered ownership helpers.
 
 Created child elements are registered with parent relationships so that
 handle lifecycle & reverse traversal remain coherent inside the DE.
@@ -21,9 +23,12 @@ handle lifecycle & reverse traversal remain coherent inside the DE.
 
 from collections.abc import Iterable, Sequence
 
-from ._model import _owned_list_ids
+from ._model import _owned_list_ids, _sub_port_references
 from ._miscellaneous_part_select import _part_select
-from .port_map import _child_id, _remove_child, _set_part_select
+from .port_map import _child, _child_id, _remove_child, _set_part_select
+from ._attribute_references import _reference_value
+from .address_space import _register_owned_child, _remove_owned
+from .component import _list_attr
 
 from org.accellera.ipxact.v1685_2022 import (
     Design,
@@ -177,6 +182,62 @@ def _port_reference_part_select_id(
     return handle
 
 
+def _port_reference_name(
+    owner: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference, xml_name: str
+) -> str:
+    """Read a stored reference name through the shared XML attribute mapping."""
+    value = _reference_value(owner, xml_name)
+    if value is None:
+        raise TgiError("Invalid port reference source", TgiFaultCode.INVALID_ID)
+    return value
+
+
+def _ad_hoc_port_reference_ids[T: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference](
+    connection_id: str, model_type: type[T]
+) -> list[str]:
+    """Filter generated mixed references, retaining their immediate holder ownership."""
+    owner = _resolve_ad_hoc(connection_id)
+    if owner is None:
+        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
+    holder = _child(owner, "port_references", AdHocConnection.PortReferences)
+    if holder is None:
+        return []
+    children = holder.internal_port_reference_or_external_port_reference
+    if not isinstance(children, (list, tuple)) or any(
+        not isinstance(child, (ExternalPortReference, AdHocConnection.PortReferences.InternalPortReference))
+        for child in children
+    ):
+        raise TgiError("Invalid ad-hoc port reference collection", TgiFaultCode.INVALID_ID)
+    return _owned_list_ids(
+        holder,
+        (child for child in children if isinstance(child, model_type)),
+        "internal_port_reference_or_external_port_reference",
+    )
+
+
+def _port_sub_reference_ids(
+    owner: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference,
+) -> list[str]:
+    """Return ordered handles to validated sub-port references."""
+    return _owned_list_ids(owner, _sub_port_references(owner), "sub_port_reference")
+
+
+def _remove_port_sub_reference[T: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference](
+    reference_id: str, owner_type: type[T]
+) -> bool:
+    """Remove one sub-port path entry belonging to the required port-reference type."""
+    child = resolve_handle(reference_id)
+    if not isinstance(child, SubPortReference):
+        raise TgiError("Invalid subPortReference handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, owner_type)
+    if not isinstance(owner, owner_type):
+        raise TgiError("Sub-port reference has no owning port reference", TgiFaultCode.INVALID_ID)
+    if get_handle(child) not in _port_sub_reference_ids(owner):
+        raise TgiError("Reference is not in the owning sub-port path", TgiFaultCode.INVALID_ID)
+    _list_attr(owner, "sub_port_reference")
+    return _remove_owned(reference_id, SubPortReference, owner_type, "port sub-reference")
+
+
 def _iter[T](seq: Iterable[T] | None) -> list[T]:
     if seq is None:
         return []
@@ -212,13 +273,7 @@ def getAdHocConnectionExternalPortReferenceIDs(adHocConnectionID: str) -> list[s
 
     Section: F.7.37.2.
     """
-    ac = _resolve_ad_hoc(adHocConnectionID)
-    if ac is None:
-        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    pr = getattr(ac, "port_references", None)
-    if pr is None:
-        return []
-    return [get_handle(r) for r in getattr(pr, "external_port_reference", [])]
+    return _ad_hoc_port_reference_ids(adHocConnectionID, ExternalPortReference)
 
 
 def getAdHocConnectionInternalPortReferenceIDs(adHocConnectionID: str) -> list[str]:
@@ -226,13 +281,7 @@ def getAdHocConnectionInternalPortReferenceIDs(adHocConnectionID: str) -> list[s
 
     Section: F.7.37.3.
     """
-    ac = _resolve_ad_hoc(adHocConnectionID)
-    if ac is None:
-        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    pr = getattr(ac, "port_references", None)
-    if pr is None:
-        return []
-    return [get_handle(r) for r in getattr(pr, "internal_port_reference", [])]
+    return _ad_hoc_port_reference_ids(adHocConnectionID, AdHocConnection.PortReferences.InternalPortReference)
 
 
 def getAdHocConnectionTiedValue(adHocConnectionID: str) -> str | None:
@@ -275,16 +324,14 @@ def getAdHocConnectionTiedValueID(adHocConnectionID: str) -> str | None:
     return None if tv is None else get_handle(tv)
 
 
-def getInternalPortReferenceComponentInstanceRefByName(internalPortReferenceID: str) -> str | None:
+def getInternalPortReferenceComponentInstanceRefByName(internalPortReferenceID: str) -> str:
     """Return componentInstanceRef attribute value.
 
     Section: F.7.37.7.
     """
-    obj = resolve_handle(internalPortReferenceID)
     # internalPortReference is nested dataclass
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    return getattr(obj, "component_instance_ref", None)
+    owner = _port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
+    return _port_reference_name(owner, "componentInstanceRef")
 
 
 def getComponentInstanceComponentRefByID(componentInstanceID: str) -> str | None:
@@ -428,15 +475,13 @@ def getExternalPortReferencePartSelectID(externalPortReferenceID: str) -> str | 
     return _port_reference_part_select_id(owner)
 
 
-def getExternalPortReferencePortRefByName(externalPortReferenceID: str) -> str | None:
+def getExternalPortReferencePortRefByName(externalPortReferenceID: str) -> str:
     """Return portRef attribute of externalPortReference.
 
     Section: F.7.37.19.
     """
-    obj = resolve_handle(externalPortReferenceID)
-    if not isinstance(obj, ExternalPortReference):
-        raise TgiError("Invalid externalPortReference handle", TgiFaultCode.INVALID_ID)
-    return getattr(obj, "port_ref", None)
+    owner = _port_reference(externalPortReferenceID, ExternalPortReference)
+    return _port_reference_name(owner, "portRef")
 
 
 def getExternalPortReferenceSubPortReferenceIDs(externalPortReferenceID: str) -> list[str]:
@@ -444,10 +489,8 @@ def getExternalPortReferenceSubPortReferenceIDs(externalPortReferenceID: str) ->
 
     Section: F.7.37.20.
     """
-    obj = resolve_handle(externalPortReferenceID)
-    if not isinstance(obj, ExternalPortReference):
-        raise TgiError("Invalid externalPortReference handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(sp) for sp in getattr(obj, "sub_port_reference", [])]
+    owner = _port_reference(externalPortReferenceID, ExternalPortReference)
+    return _port_sub_reference_ids(owner)
 
 
 def getInterconnectionActiveInterfaceIDs(interconnectionID: str) -> list[str]:
@@ -481,15 +524,13 @@ def getInternalPortReferencePartSelectID(internalPortReferenceID: str) -> str | 
     return _port_reference_part_select_id(owner)
 
 
-def getInternalPortReferencePortRefByName(internalPortReferenceID: str) -> str | None:
+def getInternalPortReferencePortRefByName(internalPortReferenceID: str) -> str:
     """Return portRef attribute from internalPortReference.
 
     Section: F.7.37.24.
     """
-    obj = resolve_handle(internalPortReferenceID)
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    return getattr(obj, "port_ref", None)
+    owner = _port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
+    return _port_reference_name(owner, "portRef")
 
 
 def getInternalPortReferenceSubPortReferenceIDs(internalPortReferenceID: str) -> list[str]:
@@ -497,10 +538,8 @@ def getInternalPortReferenceSubPortReferenceIDs(internalPortReferenceID: str) ->
 
     Section: F.7.37.25.
     """
-    obj = resolve_handle(internalPortReferenceID)
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(sp) for sp in getattr(obj, "sub_port_reference", [])]
+    owner = _port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
+    return _port_sub_reference_ids(owner)
 
 
 def getMonitorInterconnectionMonitorInterfaceIDs(monitorInterconnectionID: str) -> list[str]:
@@ -965,10 +1004,7 @@ def removeExternalPortReferenceSubPortReference(subPortRefID: str) -> bool:
 
     Section: F.7.38.23.
     """
-    spr = resolve_handle(subPortRefID)
-    if not isinstance(spr, SubPortReference):
-        raise TgiError("Invalid subPortReference handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(subPortRefID)
+    return _remove_port_sub_reference(subPortRefID, ExternalPortReference)
 
 
 def removeInterconnectionActiveInterface(activeInterfaceID: str) -> bool:
@@ -1009,10 +1045,7 @@ def removeInternalPortReferenceSubPortReference(subPortRefID: str) -> bool:
 
     Section: F.7.38.27.
     """
-    spr = resolve_handle(subPortRefID)
-    if not isinstance(spr, SubPortReference):
-        raise TgiError("Invalid subPortReference handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(subPortRefID)
+    return _remove_port_sub_reference(subPortRefID, AdHocConnection.PortReferences.InternalPortReference)
 
 
 def removeMonitorInterconnectionMonitorInterface(monitorInterfaceID: str) -> bool:
