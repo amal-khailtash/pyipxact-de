@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement six Design internal/external port part-select operations using shared generated models and SV expression validation, preserving metadata and invalidating removed subtree handles.
 - Complete all 67 Slice TGI operations with document-local target resolution, selected map/remap context, exact bank/register-file paths, and banked address-block support.
 - Validate mode port-builder references with the standard portName restriction and record a deferred ossschem GUI integration investigation.
 - Implement nine Slice register-reference and mode-builder operations with complete Annex/WSDL signatures, generated required references, and parsed subtree removal.

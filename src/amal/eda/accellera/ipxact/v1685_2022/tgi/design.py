@@ -11,14 +11,19 @@ Each getter follows the error model used across the TGI layer:
 * Mutators return ``True`` on success, ``False`` on semantic no-op (e.g. element
   absent for remove*) and raise ``INVALID_ID`` for bad handles.
 
+Internal and external ad-hoc port part-select operations reuse generated models
+and shared range/index expression validation, ownership and subtree removal.
+
 Created child elements are registered with parent relationships so that
 handle lifecycle & reverse traversal remain coherent inside the DE.
 """
 # ruff: noqa: I001
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from ._model import _owned_list_ids
+from ._miscellaneous_part_select import _part_select
+from .port_map import _child_id, _remove_child, _set_part_select
 
 from org.accellera.ipxact.v1685_2022 import (
     Design,
@@ -126,6 +131,7 @@ __all__ = [
 # Helpers (internal – not exported)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_design(designID: str) -> Design | None:
     obj = resolve_handle(designID)
     return obj if isinstance(obj, Design) else None
@@ -151,7 +157,27 @@ def _resolve_ad_hoc(adHocID: str) -> AdHocConnection | None:
     return obj if isinstance(obj, AdHocConnection) else None
 
 
-def _iter(seq: Iterable | None) -> list:
+def _port_reference[T: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference](
+    handle: str, model_type: type[T]
+) -> T:
+    """Resolve the generated ad-hoc port-reference model required by the operation."""
+    owner = resolve_handle(handle) if isinstance(handle, str) else None
+    if not isinstance(owner, model_type):
+        raise TgiError("Invalid portReference handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def _port_reference_part_select_id(
+    owner: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference,
+) -> str | None:
+    """Validate and register the owner's generated part-select graph."""
+    handle = _child_id(owner, "part_select", PartSelect)
+    if handle is not None:
+        _part_select(handle)
+    return handle
+
+
+def _iter[T](seq: Iterable[T] | None) -> list[T]:
     if seq is None:
         return []
     if isinstance(seq, list):
@@ -165,6 +191,7 @@ def _iter(seq: Iterable | None) -> list:
 # ---------------------------------------------------------------------------
 # BASE (F.7.37)
 # ---------------------------------------------------------------------------
+
 
 def getActiveinterfaceExcludePortIDs(activeInterfaceID: str) -> list[str]:
     """Return handles of excludePort elements of an activeInterface.
@@ -397,11 +424,8 @@ def getExternalPortReferencePartSelectID(externalPortReferenceID: str) -> str | 
 
     Section: F.7.37.18.
     """
-    obj = resolve_handle(externalPortReferenceID)
-    if not isinstance(obj, ExternalPortReference):
-        raise TgiError("Invalid externalPortReference handle", TgiFaultCode.INVALID_ID)
-    ps = getattr(obj, "part_select", None)
-    return None if ps is None else get_handle(ps)
+    owner = _port_reference(externalPortReferenceID, ExternalPortReference)
+    return _port_reference_part_select_id(owner)
 
 
 def getExternalPortReferencePortRefByName(externalPortReferenceID: str) -> str | None:
@@ -453,11 +477,8 @@ def getInternalPortReferencePartSelectID(internalPortReferenceID: str) -> str | 
 
     Section: F.7.37.23.
     """
-    obj = resolve_handle(internalPortReferenceID)
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    ps = getattr(obj, "part_select", None)
-    return None if ps is None else get_handle(ps)
+    owner = _port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
+    return _port_reference_part_select_id(owner)
 
 
 def getInternalPortReferencePortRefByName(internalPortReferenceID: str) -> str | None:
@@ -569,6 +590,7 @@ def getPowerDomainLinkInternalPowerDomainRefs(powerDomainLinkID: str) -> list[st
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.38)
 # ---------------------------------------------------------------------------
+
 
 def addActiveInterfaceExcludePort(activeInterfaceID: str, excludePort: str) -> str:
     """Add an excludePort to an activeInterface.
@@ -932,13 +954,10 @@ def removeExternalPortReferencePartSelect(externalPortReferenceID: str) -> bool:
 
     Section: F.7.38.22.
     """
-    obj = resolve_handle(externalPortReferenceID)
-    if not isinstance(obj, ExternalPortReference):
-        raise TgiError("Invalid externalPortReference handle", TgiFaultCode.INVALID_ID)
-    if getattr(obj, "part_select", None) is None:
+    owner = _port_reference(externalPortReferenceID, ExternalPortReference)
+    if getExternalPortReferencePartSelectID(externalPortReferenceID) is None:
         return False
-    obj.part_select = None
-    return True
+    return _remove_child(owner, "part_select")
 
 
 def removeExternalPortReferenceSubPortReference(subPortRefID: str) -> bool:
@@ -979,13 +998,10 @@ def removeInternalPortReferencePartSelect(internalPortReferenceID: str) -> bool:
 
     Section: F.7.38.26.
     """
-    obj = resolve_handle(internalPortReferenceID)
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    if getattr(obj, "part_select", None) is None:
+    owner = _port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
+    if getInternalPortReferencePartSelectID(internalPortReferenceID) is None:
         return False
-    obj.part_select = None
-    return True
+    return _remove_child(owner, "part_select")
 
 
 def removeInternalPortReferenceSubPortReference(subPortRefID: str) -> bool:
@@ -1046,47 +1062,31 @@ def setComponentInstanceComponentRef(componentInstanceID: str, componentVLNV: tu
 
 def setExternalPortReferencePartSelect(
     externalPortReferenceID: str,
-    range: tuple[str, str] | None,
-    indices: list[str] | None,
+    range: Sequence[str] | None,
+    indices: Sequence[str] | None,
 ) -> bool:
-    """Set partSelect on externalPortReference (replaces existing).
+    """Set partSelect on externalPortReference (preserves compatible nodes).
 
     Section: F.7.38.31.
     """
-    obj = resolve_handle(externalPortReferenceID)
-    if not isinstance(obj, ExternalPortReference):
-        raise TgiError("Invalid externalPortReference handle", TgiFaultCode.INVALID_ID)
-    ps = PartSelect()
-    if range:
-        ps.left = range[0]  # type: ignore[attr-defined]
-        ps.right = range[1]  # type: ignore[attr-defined]
-    if indices:
-        ps.index = list(indices)  # type: ignore[attr-defined]
-    obj.part_select = ps
-    register_parent(ps, obj, ("part_select",), "single")
+    owner = _port_reference(externalPortReferenceID, ExternalPortReference)
+    _set_part_select(owner, range, indices)
+    getExternalPortReferencePartSelectID(externalPortReferenceID)
     return True
 
 
 def setInternalPortReferencePartSelect(
     internalPortReferenceID: str,
-    range: tuple[str, str] | None,
-    indices: list[str] | None,
+    range: Sequence[str] | None,
+    indices: Sequence[str] | None,
 ) -> bool:
     """Set partSelect on internalPortReference.
 
     Section: F.7.38.32.
     """
-    obj = resolve_handle(internalPortReferenceID)
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    ps = PartSelect()
-    if range:
-        ps.left = range[0]  # type: ignore[attr-defined]
-        ps.right = range[1]  # type: ignore[attr-defined]
-    if indices:
-        ps.index = list(indices)  # type: ignore[attr-defined]
-    obj.part_select = ps
-    register_parent(ps, obj, ("part_select",), "single")
+    owner = _port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
+    _set_part_select(owner, range, indices)
+    getInternalPortReferencePartSelectID(internalPortReferenceID)
     return True
 
 
