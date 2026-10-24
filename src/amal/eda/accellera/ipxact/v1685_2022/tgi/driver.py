@@ -43,6 +43,10 @@ from .miscellaneous import (
     getExpressionValue,
     setExpressionValue,
 )
+from collections.abc import Sequence
+
+from .address_space import _register_owned_child, _remove_owned
+from .component import _list_attr
 from ._model import _owned_list_ids
 from ._attribute_references import resolve_attribute_reference
 
@@ -143,6 +147,8 @@ def _range_element[T: (Left, Right)](driver_id: str, attribute: str, expected: t
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
     if driver.range is None:
         return None
+    if not isinstance(driver.range, RangeClass):
+        raise TgiError("Invalid driver range element", TgiFaultCode.INVALID_ID)
     register_parent(driver.range, driver, ("range",), "single")
     endpoint = getattr(driver.range, attribute)
     if endpoint is None:
@@ -745,51 +751,53 @@ def addDriverViewRef(driverID: str, viewRef: str) -> str:
     return get_handle(vr)
 
 
-def removeDriverClockDriver(clockDriverID: str) -> bool:
-    """Remove the clockDriver element.
+def removeDriverClockDriver(driverID: str) -> bool:
+    """Remove the clockDriver choice from the given driver.
 
     Section: F.7.42.3.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        return False
-    return detach_child_by_handle(clockDriverID)
+    clock_id = getDriverClockDriverID(driverID)
+    return False if clock_id is None else detach_child_by_handle(clock_id)
 
 
 def removeDriverRange(driverID: str) -> bool:
-    """Remove the range child of a driver.
+    """Remove the range child of a driver and invalidate its descendant handles.
 
     Section: F.7.42.4.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
+    driver = _resolve_driver(driverID)
+    if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    if d.range is None:
+    if driver.range is None:
         return False
-    d.range = None
-    return True
+    if not isinstance(driver.range, RangeClass):
+        raise TgiError("Invalid driver range element", TgiFaultCode.INVALID_ID)
+    register_parent(driver.range, driver, ("range",), "single")
+    return detach_child_by_handle(get_handle(driver.range))
 
 
-def removeDriverSingleShotDriver(singleShotDriverID: str) -> bool:
-    """Remove the singleShotDriver element.
+def removeDriverSingleShotDriver(driverID: str) -> bool:
+    """Remove the singleShotDriver choice from the given driver.
 
     Section: F.7.42.5.
     """
-    ssd = _resolve_single_shot(singleShotDriverID)
-    if ssd is None:
-        return False
-    return detach_child_by_handle(singleShotDriverID)
+    shot_id = getDriverSingleShotDriverID(driverID)
+    return False if shot_id is None else detach_child_by_handle(shot_id)
 
 
 def removeDriverViewRef(viewRefID: str) -> bool:
-    """Remove a viewRef entry.
+    """Remove a viewRef entry from its containing Driver element.
 
     Section: F.7.42.6.
     """
-    obj = resolve_handle(viewRefID)
-    if not isinstance(obj, DriverType.ViewRef):  # type: ignore[attr-defined]
-        return False
-    return detach_child_by_handle(viewRefID)
+    reference = resolve_handle(viewRefID)
+    if not isinstance(reference, DriverType.ViewRef):
+        raise TgiError("Invalid driver view reference handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(reference, Driver)
+    if owner is None or viewRefID not in getDriverViewRefIDs(get_handle(owner)):
+        raise TgiError("Unowned driver view reference", TgiFaultCode.INVALID_ID)
+    _list_attr(owner, "view_ref")
+    return _remove_owned(viewRefID, DriverType.ViewRef, Driver, "driver view reference")
 
 
 def setClockDriverClockPeriod(clockDriverID: str, clockPeriod: str) -> bool:
@@ -862,54 +870,55 @@ def setDriverSingleShotDriver(driverID: str) -> str:
     return get_handle(ssd)
 
 
-def setDriverDefaultValue(driverID: str, value: int | str, expression: str | None = None) -> bool:
-    """Set defaultValue contents (creating element if missing).
+def setDriverDefaultValue(driverID: str, value: str) -> bool:
+    """Set defaultValue source, replacing another driver choice after validation.
 
     Section: F.7.42.13.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
+    current = _driver_choice(driverID, DefaultValue)
+    if current is not None:
+        return setExpressionValue(get_handle(current), value)
+    default = DefaultValue(value="")
+    default.value = _expression_source(value, default)
+    driver = _resolve_driver(driverID)
+    if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    dv = d.default_value
-    if dv is None:
-        dv = DefaultValue()
-        d.default_value = dv
-        register_parent(dv, d, ("default_value",), "single")
-    dv.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        dv.expression = expression  # type: ignore[attr-defined]
+    previous = driver.default_value_or_clock_driver_or_single_shot_driver
+    if previous is not None and not detach_child_by_handle(get_handle(previous)):
+        raise TgiError("Invalid driver choice ownership", TgiFaultCode.INVALID_ID)
+    driver.default_value_or_clock_driver_or_single_shot_driver = default
+    register_parent(default, driver, ("default_value_or_clock_driver_or_single_shot_driver",), "single")
     return True
 
 
-def setDriverRange(
-    driverID: str,
-    leftValue: int,
-    rightValue: int,
-    leftExpression: str | None = None,
-    rightExpression: str | None = None,
-) -> bool:
-    """Set range bounds creating range if required.
+def setDriverRange(driverID: str, range: Sequence[str]) -> bool:
+    """Set ordered left/right expression sources, validating both before mutation.
 
     Section: F.7.42.14.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
+    driver = _resolve_driver(driverID)
+    if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    rng = d.range
-    if rng is None:
-        rng = RangeClass(left=Left(), right=Right())
-        d.range = rng
-        register_parent(rng, d, ("range",), "single")
-    if rng.left is None:
-        rng.left = Left()
-    if rng.right is None:
-        rng.right = Right()
-    rng.left.value = leftValue  # type: ignore[attr-defined]
-    rng.right.value = rightValue  # type: ignore[attr-defined]
-    if leftExpression is not None:
-        rng.left.expression = leftExpression  # type: ignore[attr-defined]
-    if rightExpression is not None:
-        rng.right.expression = rightExpression  # type: ignore[attr-defined]
+    if not isinstance(range, Sequence) or isinstance(range, (str, bytes)) or len(range) != 2:
+        raise TgiError("Driver range requires two expression strings", TgiFaultCode.INVALID_ARGUMENT)
+    left = _range_element(driverID, "left", Left)
+    right = _range_element(driverID, "right", Right)
+    new_left = left if left is not None else Left(value="")
+    new_right = right if right is not None else Right(value="")
+    for endpoint, source in ((new_left, range[0]), (new_right, range[1])):
+        if endpoint.minimum is not None and endpoint.maximum is not None and endpoint.minimum > endpoint.maximum:
+            raise TgiError("Range endpoint bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
+        _expression_source(source, endpoint)
+    for endpoint, source in ((new_left, range[0]), (new_right, range[1])):
+        setExpressionValue(get_handle(endpoint), source)
+    if driver.range is None:
+        driver.range = RangeClass(left=new_left, right=new_right)
+    else:
+        driver.range.left = new_left
+        driver.range.right = new_right
+    register_parent(driver.range, driver, ("range",), "single")
+    register_parent(new_left, driver.range, ("left",), "single")
+    register_parent(new_right, driver.range, ("right",), "single")
     return True
 
 

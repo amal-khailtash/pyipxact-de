@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Correct Driver removal handles, invalidate removed subtrees, and recover parsed view-reference ownership.
+- Preserve Driver range/default expression metadata and validate mutations before changing generated choice or endpoint values.
 - Implement standard string-expression signatures for clock pulse and SingleShotDriver setters, preserving wrapper identity and metadata.
 - Validate clock pulse expressions using the shared SystemVerilog one-bit cast and enforce binary SingleShotDriver values.
 - Update Codecov main coverage from the immutable release tag after verified PyPI publication.
