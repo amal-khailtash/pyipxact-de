@@ -253,6 +253,7 @@ Older standards and conversion
 Future GUI delivery
 ~~~~~~~~~~~~~~~~~~~
 
+- ☐ Investigate a GUI integration like `ossschem <https://github.com/markusdd/ossschem>`_: architecture, licensing, IP-XACT services and connectivity editing.
 - ☐ Audit existing Qt prototypes; choose Qt model/view architecture and documented service boundaries before expanding them.
 - ☐ Workspace shell: repository tree, document tabs, recent/open/save actions, dirty indicators, global search, dependency navigation, properties, diagnostics and source viewer.
 - ☐ Schema-aware property editor covers every supported declaration, choice/cardinality, ordering, defaults and extensions. Specialized views supplement the complete property editor.
@@ -2826,23 +2827,23 @@ Register file (EXTENDED)
 Slice (BASE)
 ~~~~~~~~~~~~
 
-- ☐ ``getFieldSliceAddressBlockRefByID`` (F.7.77.1)
+- ☑ ``getFieldSliceAddressBlockRefByID`` (F.7.77.1)
 - ☑ ``getFieldSliceAddressBlockRefByName`` (F.7.77.2)
 - ☑ ``getFieldSliceAddressBlockRefID`` (F.7.77.3)
-- ☐ ``getFieldSliceAddressSpaceRefByID`` (F.7.77.4)
+- ☑ ``getFieldSliceAddressSpaceRefByID`` (F.7.77.4)
 - ☑ ``getFieldSliceAddressSpaceRefByName`` (F.7.77.5)
 - ☑ ``getFieldSliceAddressSpaceRefID`` (F.7.77.6)
-- ☐ ``getFieldSliceAlternateRegisterRefByID`` (F.7.77.7)
+- ☑ ``getFieldSliceAlternateRegisterRefByID`` (F.7.77.7)
 - ☑ ``getFieldSliceAlternateRegisterRefByName`` (F.7.77.8)
 - ☑ ``getFieldSliceAlternateRegisterRefID`` (F.7.77.9)
 - ☑ ``getFieldSliceBankRefByNames`` (F.7.77.10)
 - ☑ ``getFieldSliceBankRefIDs`` (F.7.77.11)
 - ☑ ``getFieldSliceFieldRefByName`` (F.7.77.12)
 - ☑ ``getFieldSliceFieldRefID`` (F.7.77.13)
-- ☐ ``getFieldSliceMemoryMapRefByID`` (F.7.77.14)
+- ☑ ``getFieldSliceMemoryMapRefByID`` (F.7.77.14)
 - ☑ ``getFieldSliceMemoryMapRefByName`` (F.7.77.15)
 - ☑ ``getFieldSliceMemoryMapRefID`` (F.7.77.16)
-- ☐ ``getFieldSliceMemoryRemapRefByID`` (F.7.77.17)
+- ☑ ``getFieldSliceMemoryRemapRefByID`` (F.7.77.17)
 - ☑ ``getFieldSliceMemoryRemapRefByName`` (F.7.77.18)
 - ☑ ``getFieldSliceMemoryRemapRefID`` (F.7.77.19)
 - ☑ ``getFieldSliceRange`` (F.7.77.20)
@@ -2850,7 +2851,7 @@ Slice (BASE)
 - ☑ ``getFieldSliceRangeRightID`` (F.7.77.22)
 - ☑ ``getFieldSliceRegisterFileRefByNames`` (F.7.77.23)
 - ☑ ``getFieldSliceRegisterFileRefIDs`` (F.7.77.24)
-- ☐ ``getFieldSliceRegisterRefByID`` (F.7.77.25)
+- ☑ ``getFieldSliceRegisterRefByID`` (F.7.77.25)
 - ☑ ``getFieldSliceRegisterRefByName`` (F.7.77.26)
 - ☑ ``getFieldSliceRegisterRefID`` (F.7.77.27)
 - ☑ ``getLocationSliceIDs`` (F.7.77.28)

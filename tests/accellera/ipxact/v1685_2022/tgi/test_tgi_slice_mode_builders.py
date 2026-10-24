@@ -474,3 +474,11 @@ def test_mode_slice_builder_exports_and_native_signatures_match_annex_contract()
         assert tuple(parameter.annotation for parameter in signature.parameters.values()) == parameter_types
         assert all(not isinstance(parameter.annotation, str) for parameter in signature.parameters.values())
         assert signature.return_annotation == return_type
+
+
+def test_mode_port_slice_builder_uses_port_name_schema() -> None:
+    mode = _Mode(name="active")
+    with pytest.raises(TgiError) as error:
+        api.addModePortSlice(get_handle(mode), "source", "data·i")
+    assert error.value.fault_code == TgiFaultCode.INVALID_ARGUMENT
+    assert mode.port_slice == []

@@ -89,11 +89,13 @@ def test_reference_target_table_covers_all_annex_f_base_by_id_names():
         if function_name.endswith("ByID") and kind == "ref"
     }
     by_id_xml_names = {"memoryRemapRef" if name == "memoryReMapRef" else name for name in by_id_xml_names}
-    assert by_id_xml_names == set(_TARGET_TYPES)
+    assert by_id_xml_names | {"registerRef"} == set(_TARGET_TYPES)
 
 
-def _parsed_component(address_spaces: str = "<ipxact:addressSpace><ipxact:name>fabric</ipxact:name>"
-                      "<ipxact:range>1</ipxact:range><ipxact:width>1</ipxact:width></ipxact:addressSpace>"):
+def _parsed_component(
+    address_spaces: str = "<ipxact:addressSpace><ipxact:name>fabric</ipxact:name>"
+    "<ipxact:range>1</ipxact:range><ipxact:width>1</ipxact:width></ipxact:addressSpace>",
+):
     xml = (
         f'<ipxact:component xmlns:ipxact="{NS}">'
         "<ipxact:vendor>v</ipxact:vendor><ipxact:library>l</ipxact:library>"
@@ -137,9 +139,7 @@ def _design(target_name: str = "leaf") -> tuple[Design, object, object]:
         component_ref=ConfigurableLibraryRefType(vendor="v", library="l", name=target_name, version="1"),
     )
     active = ActiveInterface(component_instance_ref="u0", bus_ref="fabric")
-    internal = AdHocConnection.PortReferences.InternalPortReference(
-        component_instance_ref="u0", port_ref="stream"
-    )
+    internal = AdHocConnection.PortReferences.InternalPortReference(component_instance_ref="u0", port_ref="stream")
     connection = AdHocConnection(
         name="gpio",
         port_references=AdHocConnection.PortReferences(internal_port_reference_or_external_port_reference=[internal]),
@@ -150,9 +150,9 @@ def _design(target_name: str = "leaf") -> tuple[Design, object, object]:
         name="top",
         version="1",
         component_instances=ComponentInstances(component_instance=[instance]),
-        interconnections=Interconnections(interconnection_or_monitor_interconnection=[Interconnection(
-            name="bus", active_interface=[active]
-        )]),
+        interconnections=Interconnections(
+            interconnection_or_monitor_interconnection=[Interconnection(name="bus", active_interface=[active])]
+        ),
         ad_hoc_connections=AdHocConnections(ad_hoc_connection=[connection]),
     )
     registry.register(design, ("v", "l", "top", "1"))
@@ -518,12 +518,8 @@ def test_generated_memory_interface_and_attribute_targets_resolve_by_typed_name(
         bus_interfaces=BusInterfaces(bus_interface=[target_interface, initiator_interface]),
         memory_maps=MemoryMaps(memory_map=[memory_map]),
         indirect_interfaces=IndirectInterfaces(indirect_interface=indirect_items),
-        power_domains=ComponentType.PowerDomains(
-            power_domain=[ComponentType.PowerDomains.PowerDomain(name="domain")]
-        ),
-        reset_types=ComponentType.ResetTypes(
-            reset_type=[ComponentType.ResetTypes.ResetType(name="warm")]
-        ),
+        power_domains=ComponentType.PowerDomains(power_domain=[ComponentType.PowerDomains.PowerDomain(name="domain")]),
+        reset_types=ComponentType.ResetTypes(reset_type=[ComponentType.ResetTypes.ResetType(name="warm")]),
         choices=Choices(choice=[Choices.Choice(name="selection")]),
         parameters=Parameters(parameter=[parameter]),
         model=Model(ports=Model.Ports(port=[port])),

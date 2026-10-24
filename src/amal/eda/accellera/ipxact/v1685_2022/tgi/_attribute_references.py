@@ -3,7 +3,9 @@
 Annex F F.7.43.2, .4, .9, .14, .16, .19, .24, .26, .40, .53, .65, .66,
 .85, .87, .93, .97, .101, .105, and .120 return handles to generated model
 objects. This helper resolves the local IP-XACT reference value inside the
-registered document containing the source element. References to component
+registered document containing the source element. Slice F.7.77 target getters
+reuse this resolution, including registerRef and ordered fieldSlice paths.
+References to component
 ports and interfaces follow the component-instance VLNV through the TGI
 registry; no files are loaded as a side effect.
 """
@@ -12,13 +14,15 @@ from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
 from typing import Any
 
+from org.accellera.ipxact.v1685_2022 import ComponentType, FieldMap
+
 from .core import TgiError, TgiFaultCode, get_handle, register_parent, registry, resolve_handle
 
 # For each XML attribute name, list the generated schema-module and class
 # name which represents its destination element. These predicates deliberately
 # distinguish similarly named generated types such as views and banks.
 _TARGET_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
-    "addressBlockRef": (("address_block", "AddressBlock"),),
+    "addressBlockRef": (("address_block", "AddressBlock"), ("banked_block_type", "BankedBlockType")),
     "addressSpaceRef": (("address_spaces", "AddressSpace"),),
     "alternateRegisterRef": (("alternate_registers", "AlternateRegister"),),
     "bankRef": (
@@ -41,6 +45,12 @@ _TARGET_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
     "portRef": (("port", "Port"),),
     "powerDomainRef": (("component_type", "PowerDomain"),),
     "registerFileRef": (("register_file", "RegisterFile"),),
+    "registerRef": (
+        ("address_block_type", "Register"),
+        ("register_file", "Register"),
+        ("register_file_definitions", "Register"),
+        ("banked_block_type", "Register"),
+    ),
     "resetTypeRef": (("component_type", "ResetType"),),
     "segmentRef": (("address_spaces", "Segment"),),
     "subPortRef": (("sub_port_type", "SubPortType"),),
@@ -58,12 +68,7 @@ _QUALIFIER_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
     "register_file_ref": _TARGET_TYPES["registerFileRef"],
     "reset_type_ref": _TARGET_TYPES["resetTypeRef"],
     "segment_ref": _TARGET_TYPES["segmentRef"],
-    "register_ref": (
-        ("address_block_type", "Register"),
-        ("register_file", "Register"),
-        ("register_file_definitions", "Register"),
-        ("banked_block_type", "Register"),
-    ),
+    "register_ref": _TARGET_TYPES["registerRef"],
 }
 
 _QUALIFIER_XML_NAMES = {
@@ -138,10 +143,7 @@ def _contains(root: Any, wanted: Any) -> bool:
 
 def _root_for(element: Any) -> Any:
     """Find the registered model root containing ``element`` if available."""
-    roots = [
-        resolve_handle(root_id)
-        for root_id in registry.iter_by_predicate(lambda _root: True)
-    ]
+    roots = [resolve_handle(root_id) for root_id in registry.iter_by_predicate(lambda _root: True)]
     containing = [root for root in roots if root is not None and _contains(root, element)]
     if len(containing) == 1:
         return containing[0]
@@ -293,16 +295,48 @@ def _shared_ancestor_score(source_path: tuple[Any, ...], target_path: tuple[Any,
     return score
 
 
-def _reference_qualifiers(source_path: tuple[Any, ...]) -> list[tuple[tuple[tuple[str, str], ...], str]]:
+_FIELD_SLICE_LEVELS: dict[str, int] = {
+    "addressSpaceRef": 0,
+    "memoryMapRef": 0,
+    "memoryRemapRef": 1,
+    "bankRef": 2,
+    "addressBlockRef": 3,
+    "registerFileRef": 4,
+    "registerRef": 5,
+    "alternateRegisterRef": 6,
+    "fieldRef": 7,
+}
+
+
+def _field_slice_context(
+    source_path: tuple[object, ...],
+) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice | None:
+    """Find a generated fieldSlice using fieldSliceReferenceGroup."""
+    return next(
+        (node for node in source_path if isinstance(node, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice))),
+        None,
+    )
+
+
+def _reference_qualifiers(source_path: tuple[Any, ...], xml_name: str) -> list[tuple[tuple[tuple[str, str], ...], str]]:
     """Collect sibling local refs that constrain a hierarchical target path."""
     qualifiers: list[tuple[tuple[tuple[str, str], ...], str]] = []
-    for node in source_path:
+    field_slice = _field_slice_context(source_path)
+    nodes = (field_slice,) if field_slice is not None else source_path
+    for node in nodes:
         for field_name, target_types in _QUALIFIER_TYPES.items():
+            qualifier_name = _QUALIFIER_XML_NAMES[field_name]
+            if field_slice is not None and (
+                qualifier_name not in _FIELD_SLICE_LEVELS
+                or _FIELD_SLICE_LEVELS[qualifier_name] > _FIELD_SLICE_LEVELS.get(xml_name, -1)
+            ):
+                continue
             value = getattr(node, field_name, None)
             values = value if isinstance(value, (list, tuple)) else (value,)
-            xml_name = _QUALIFIER_XML_NAMES[field_name]
+            if field_slice is not None and qualifier_name in {"addressSpaceRef", "memoryMapRef", "memoryRemapRef"}:
+                values = node.address_space_ref_or_memory_map_ref_or_memory_remap_ref
             for item in values:
-                name = item if isinstance(item, str) else _reference_value(item, xml_name)
+                name = item if isinstance(item, str) else _reference_value(item, qualifier_name)
                 if isinstance(name, str) and name.strip():
                     qualifiers.append((target_types, name))
     return qualifiers
@@ -312,15 +346,31 @@ def _matches_reference_context(
     obj: Any,
     ancestors: tuple[Any, ...],
     qualifiers: list[tuple[tuple[tuple[str, str], ...], str]],
+    *,
+    ordered: bool = False,
 ) -> bool:
     lineage = (*ancestors, obj)
+    if ordered:
+        for xml_name in ("bankRef", "registerFileRef"):
+            target_types = _TARGET_TYPES[xml_name]
+            expected = [name for types, name in qualifiers if types == target_types]
+            actual = [_model_name(candidate) for candidate in lineage if _is_qualified_target(candidate, target_types)]
+            if actual != expected:
+                return False
+    positions: dict[tuple[tuple[str, str], ...], int] = {}
     for target_types, name in qualifiers:
-        if any(
-            _is_qualified_target(candidate, target_types) and _model_name(candidate) == name
-            for candidate in lineage
-        ):
-            continue
-        return False
+        start = positions.get(target_types, -1) + 1 if ordered else 0
+        match = next(
+            (
+                index
+                for index in range(start, len(lineage))
+                if _is_qualified_target(lineage[index], target_types) and _model_name(lineage[index]) == name
+            ),
+            None,
+        )
+        if match is None:
+            return False
+        positions[target_types] = match
     return True
 
 
@@ -340,25 +390,19 @@ def _register_target_owner(root: Any, target: Any) -> None:
 
 
 def _segment_candidates(
-    root: Any, source_path: tuple[Any, ...], candidates: list[tuple[Any, tuple[Any, ...]]],
+    root: Any,
+    source_path: tuple[Any, ...],
+    candidates: list[tuple[Any, tuple[Any, ...]]],
 ) -> list[tuple[Any, tuple[Any, ...]]]:
     """Restrict segment refs to the addressSpace named by the bridge initiator."""
     initiator_name = next(
-        (
-            value
-            for node in reversed(source_path)
-            if isinstance((value := getattr(node, "initiator_ref", None)), str)
-        ),
+        (value for node in reversed(source_path) if isinstance((value := getattr(node, "initiator_ref", None)), str)),
         None,
     )
     if initiator_name is None:
         return candidates
     bus = next(
-        (
-            obj
-            for obj, _ in _walk(root)
-            if type(obj).__name__ == "BusInterface" and _model_name(obj) == initiator_name
-        ),
+        (obj for obj, _ in _walk(root) if type(obj).__name__ == "BusInterface" and _model_name(obj) == initiator_name),
         None,
     )
     if bus is None:
@@ -372,9 +416,7 @@ def _segment_candidates(
             TgiFaultCode.NOT_FOUND,
         )
     spaces = [
-        obj
-        for obj, _ in _walk(root)
-        if _is_target(obj, "addressSpaceRef") and _model_name(obj) == address_space_name
+        obj for obj, _ in _walk(root) if _is_target(obj, "addressSpaceRef") and _model_name(obj) == address_space_name
     ]
     if not spaces:
         raise TgiError(f"No addressSpace named {address_space_name!r} was found", TgiFaultCode.NOT_FOUND)
@@ -390,11 +432,7 @@ def _segment_candidates(
 def _sub_port_target(root: Any, source_path: tuple[Any, ...], reference: str) -> Any | None:
     """Resolve one subPortReference along its ordered structured-port path."""
     port_ref = next(
-        (
-            value
-            for node in reversed(source_path)
-            if isinstance((value := getattr(node, "port_ref", None)), str)
-        ),
+        (value for node in reversed(source_path) if isinstance((value := getattr(node, "port_ref", None)), str)),
         None,
     )
     if port_ref is None:
@@ -404,11 +442,7 @@ def _sub_port_target(root: Any, source_path: tuple[Any, ...], reference: str) ->
         if _has_instance_reference_context(source_path):
             raise TgiError("Referenced component instance is unavailable", TgiFaultCode.NOT_FOUND)
         target_root = root
-    ports = [
-        obj
-        for obj, _ in _walk(target_root)
-        if _is_target(obj, "portRef") and _model_name(obj) == port_ref
-    ]
+    ports = [obj for obj, _ in _walk(target_root) if _is_target(obj, "portRef") and _model_name(obj) == port_ref]
     if len(ports) != 1:
         if not ports:
             raise TgiError(f"No port target named {port_ref!r} was found", TgiFaultCode.NOT_FOUND)
@@ -495,9 +529,23 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
     if xml_name == "segmentRef":
         candidates = _segment_candidates(root, source_path, candidates)
 
-    qualifiers = _reference_qualifiers(source_path)
+    field_slice = _field_slice_context(source_path)
+    qualifiers = _reference_qualifiers(source_path, xml_name)
+    if field_slice is not None and _FIELD_SLICE_LEVELS.get(xml_name, -1) > 1:
+        selected_remap = any(
+            _reference_value(item, "memoryRemapRef") is not None
+            for item in field_slice.address_space_ref_or_memory_map_ref_or_memory_remap_ref
+        )
+        if not selected_remap:
+            candidates = [
+                pair for pair in candidates if not any(_is_target(node, "memoryRemapRef") for node in pair[1])
+            ]
     if qualifiers:
-        candidates = [pair for pair in candidates if _matches_reference_context(pair[0], pair[1], qualifiers)]
+        candidates = [
+            pair
+            for pair in candidates
+            if _matches_reference_context(pair[0], pair[1], qualifiers, ordered=field_slice is not None)
+        ]
 
     if not candidates:
         raise TgiError(f"No {xml_name} target named {reference!r} was found", TgiFaultCode.NOT_FOUND)

@@ -3,9 +3,9 @@
 Named ``slice_`` to avoid clashing with Python's built-in ``slice``. Implements
 BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL path and range
 getters, field-range getters and mode port-reference getters reject invalid
-handles; implemented named-reference getters use generated wrappers. Other
-field-reference getters retain legacy neutral results
-(``None`` / empty list). EXTENDED mutators raise
+handles; named-reference getters use generated wrappers and target getters
+resolve the stored hierarchical reference in the containing document. Optional
+absent references return ``None``. EXTENDED mutators raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 
@@ -18,7 +18,7 @@ shared ownership and removal helpers.
 """
 
 # ruff: noqa: I001
-from typing import Any, overload
+from typing import overload
 from collections.abc import Sequence
 
 from org.accellera.ipxact.v1685_2022 import (
@@ -47,7 +47,7 @@ from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
 from .port_map import _child, _child_id, _name, _set_part_select, _remove_child
-from ._attribute_references import _reference_value
+from ._attribute_references import _reference_value, resolve_attribute_reference
 from ._miscellaneous_part_select import _part_select
 
 from .core import (
@@ -80,16 +80,17 @@ __all__ = [
     "getFieldSliceMemoryRemapRefByID",
     "getFieldSliceMemoryRemapRefByName",
     "getFieldSliceMemoryRemapRefID",
-    "getFieldSliceRegisterFileRefByNames",
-    "getFieldSliceRegisterFileRefIDs",
-    "getFieldSliceRegisterRefByName",
-    "getFieldSliceRegisterRefID",
-    "getModeFieldSliceIDs",
-    "getModePortSliceIDs",
     "getFieldSliceRange",
     "getFieldSliceRangeLeftID",
     "getFieldSliceRangeRightID",
+    "getFieldSliceRegisterFileRefByNames",
+    "getFieldSliceRegisterFileRefIDs",
+    "getFieldSliceRegisterRefByID",
+    "getFieldSliceRegisterRefByName",
+    "getFieldSliceRegisterRefID",
     "getLocationSliceIDs",
+    "getModeFieldSliceIDs",
+    "getModePortSliceIDs",
     "getPortSlicePartSelectID",
     "getPortSlicePortRefByName",
     "getPortSliceSubPortReferenceIDs",
@@ -210,6 +211,14 @@ def _field_reference_value(reference_id: str | None, xml_name: str) -> str | Non
     if value is None:
         raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
     return value
+
+
+def _field_reference_target(reference_id: str | None, xml_name: str) -> str | None:
+    """Validate a named wrapper before resolving its referenced generated target."""
+    if reference_id is None:
+        return None
+    _field_reference_value(reference_id, xml_name)
+    return resolve_attribute_reference(reference_id, xml_name)
 
 
 def _update_reference[T](current: T | None, replacement: T, attribute: str) -> T:
@@ -333,14 +342,6 @@ def _remove_field_reference[T: BankRef | RegisterFileRef](
     return _remove_owned(reference_id, model_type, owner_type, "field reference")
 
 
-def _resolve(objID: str) -> Any | None:
-    return resolve_handle(objID)
-
-
-def _maybe(obj: Any, attr: str) -> Any | None:
-    return getattr(obj, attr, None) if obj is not None else None
-
-
 def _mode_slice_list[T: ComponentType.Modes.Mode.FieldSlice | ComponentType.Modes.Mode.PortSlice](
     mode_id: str, attribute: str, model_type: type[T]
 ) -> tuple[ComponentType.Modes.Mode, Sequence[T]]:
@@ -375,12 +376,10 @@ def _remove_mode_slice[T: ComponentType.Modes.Mode.FieldSlice | ComponentType.Mo
 # ---------------------------------------------------------------------------
 
 
-def getFieldSliceAddressBlockRefByID(fieldSliceID: str, addressBlockID: str) -> str | None:  # F.7.77.1
-    sl = _resolve(fieldSliceID)
-    abr = _maybe(sl, "address_block_ref")
-    if abr is None:
-        return None
-    return get_handle(abr) if get_handle(abr) == addressBlockID else None
+def getFieldSliceAddressBlockRefByID(fieldSliceID: str) -> str | None:  # F.7.77.1
+    """Return the referenced addressBlock model handle. Section: F.7.77.1."""
+    reference_id = getFieldSliceAddressBlockRefID(fieldSliceID)
+    return _field_reference_target(reference_id, "addressBlockRef")
 
 
 def getFieldSliceAddressBlockRefByName(fieldSliceID: str) -> str | None:  # F.7.77.2
@@ -399,12 +398,10 @@ def getFieldSliceAddressBlockRefID(fieldSliceID: str) -> str | None:  # F.7.77.3
     return _child_id(_field_slice(fieldSliceID), "address_block_ref", AddressBlockRef)
 
 
-def getFieldSliceAddressSpaceRefByID(fieldSliceID: str, addressSpaceID: str) -> str | None:  # F.7.77.4
-    sl = _resolve(fieldSliceID)
-    asr = _maybe(sl, "address_space_ref")
-    if asr is None:
-        return None
-    return get_handle(asr) if get_handle(asr) == addressSpaceID else None
+def getFieldSliceAddressSpaceRefByID(fieldSliceID: str) -> str | None:  # F.7.77.4
+    """Return the referenced addressSpace model handle. Section: F.7.77.4."""
+    reference_id = getFieldSliceAddressSpaceRefID(fieldSliceID)
+    return _field_reference_target(reference_id, "addressSpaceRef")
 
 
 def getFieldSliceAddressSpaceRefByName(fieldSliceID: str) -> str | None:  # F.7.77.5
@@ -424,12 +421,10 @@ def getFieldSliceAddressSpaceRefID(fieldSliceID: str) -> str | None:  # F.7.77.6
     return None if child is None else get_handle(child)
 
 
-def getFieldSliceAlternateRegisterRefByID(fieldSliceID: str, altRegisterID: str) -> str | None:  # F.7.77.7
-    sl = _resolve(fieldSliceID)
-    arr = _maybe(sl, "alternate_register_ref")
-    if arr is None:
-        return None
-    return get_handle(arr) if get_handle(arr) == altRegisterID else None
+def getFieldSliceAlternateRegisterRefByID(fieldSliceID: str) -> str | None:  # F.7.77.7
+    """Return the referenced alternateRegister model handle. Section: F.7.77.7."""
+    reference_id = getFieldSliceAlternateRegisterRefID(fieldSliceID)
+    return _field_reference_target(reference_id, "alternateRegisterRef")
 
 
 def getFieldSliceAlternateRegisterRefByName(fieldSliceID: str) -> str | None:  # F.7.77.8
@@ -475,12 +470,10 @@ def getFieldSliceFieldRefID(fieldSliceID: str) -> str | None:  # F.7.77.13
     return _child_id(_field_slice(fieldSliceID), "field_ref", FieldRef)
 
 
-def getFieldSliceMemoryMapRefByID(fieldSliceID: str, memoryMapID: str) -> str | None:  # F.7.77.14
-    sl = _resolve(fieldSliceID)
-    mm = _maybe(sl, "memory_map_ref")
-    if mm is None:
-        return None
-    return get_handle(mm) if get_handle(mm) == memoryMapID else None
+def getFieldSliceMemoryMapRefByID(fieldSliceID: str) -> str | None:  # F.7.77.14
+    """Return the referenced memoryMap model handle. Section: F.7.77.14."""
+    reference_id = getFieldSliceMemoryMapRefID(fieldSliceID)
+    return _field_reference_target(reference_id, "memoryMapRef")
 
 
 def getFieldSliceMemoryMapRefByName(fieldSliceID: str) -> str | None:  # F.7.77.15
@@ -500,12 +493,10 @@ def getFieldSliceMemoryMapRefID(fieldSliceID: str) -> str | None:  # F.7.77.16
     return None if child is None else get_handle(child)
 
 
-def getFieldSliceMemoryRemapRefByID(fieldSliceID: str, memoryRemapID: str) -> str | None:  # F.7.77.17
-    sl = _resolve(fieldSliceID)
-    mr = _maybe(sl, "memory_remap_ref")
-    if mr is None:
-        return None
-    return get_handle(mr) if get_handle(mr) == memoryRemapID else None
+def getFieldSliceMemoryRemapRefByID(fieldSliceID: str) -> str | None:  # F.7.77.17
+    """Return the referenced memoryRemap model handle. Section: F.7.77.17."""
+    reference_id = getFieldSliceMemoryRemapRefID(fieldSliceID)
+    return _field_reference_target(reference_id, "memoryRemapRef")
 
 
 def getFieldSliceMemoryRemapRefByName(fieldSliceID: str) -> str | None:  # F.7.77.18
@@ -564,6 +555,12 @@ def getFieldSliceRegisterFileRefIDs(fieldSliceID: str) -> list[str]:  # F.7.77.2
     return _owned_list_ids(
         owner, _field_reference_list(owner, "register_file_ref", RegisterFileRef), "register_file_ref"
     )
+
+
+def getFieldSliceRegisterRefByID(fieldSliceID: str) -> str | None:  # F.7.77.25
+    """Return the referenced register model handle. Section: F.7.77.25."""
+    reference_id = getFieldSliceRegisterRefID(fieldSliceID)
+    return _field_reference_target(reference_id, "registerRef")
 
 
 def getFieldSliceRegisterRefByName(fieldSliceID: str) -> str | None:  # F.7.77.26
@@ -720,7 +717,7 @@ def addModeFieldSlice(
 def addModePortSlice(modeID: str, name: str, portRef: str) -> str:  # F.7.78.4
     """Build an owned mode port slice with its required port reference. Section: F.7.78.4."""
     owner, _ = _mode_slice_list(modeID, "port_slice", _ModePortSlice)
-    source_name, source_ref = (_name(source, "Name") for source in (name, portRef))
+    source_name, source_ref = _name(name, "Name"), _name(portRef, "portName")
     child = _ModePortSlice(name=source_name, port_ref=_ModePortSlice.PortRef(port_ref=source_ref))
     _list_attr(owner, "port_slice").append(child)
     getModePortSliceIDs(modeID)
