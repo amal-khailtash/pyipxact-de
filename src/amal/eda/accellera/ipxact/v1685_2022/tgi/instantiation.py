@@ -31,7 +31,8 @@ invalid setter arguments raise ``INVALID_ARGUMENT``. Optional absent values
 return ``None`` or empty lists as specified by Annex F.
 This module exports only the functions enumerated in F.7.55 and F.7.56.
 """
-from __future__ import annotations
+
+from collections.abc import Sequence
 
 from org.accellera.ipxact.v1685_2022 import (
     ComponentInstance,
@@ -49,6 +50,7 @@ from org.accellera.ipxact.v1685_2022.constraint_set_ref import ConstraintSetRef
 from org.accellera.ipxact.v1685_2022.file_builder_type import FileBuilderType
 from org.accellera.ipxact.v1685_2022.file_set_ref import FileSetRef
 from org.accellera.ipxact.v1685_2022.language_type import LanguageType
+from org.accellera.ipxact.v1685_2022.library_ref_type import LibraryRefType
 
 from .core import (
     TgiError,
@@ -162,7 +164,11 @@ def _resolve_design_config_instantiation(handle: str) -> DesignConfigurationInst
     return obj if isinstance(obj, DesignConfigurationInstantiationType) else None
 
 
-def _registered_reference_target(ref, target_type: type, reference_name: str):
+def _registered_reference_target[T](
+    ref: ConfigurableLibraryRefType | LibraryRefType | None,
+    target_type: type[T],
+    reference_name: str,
+) -> T:
     """Resolve a top-level VLNV reference through the TGI registry."""
     from .core import registry
 
@@ -178,7 +184,7 @@ def _registered_reference_target(ref, target_type: type, reference_name: str):
     return target
 
 
-def _validated_vlnv(value) -> tuple[str, str, str, str]:
+def _validated_vlnv(value: Sequence[str] | str) -> tuple[str, str, str, str]:
     """Normalize a setter VLNV and reject malformed values before mutation."""
     from .core import vlnv_to_tuple
 
@@ -191,7 +197,7 @@ def _validated_vlnv(value) -> tuple[str, str, str, str]:
     return parts
 
 
-def _require(obj, fault=TgiFaultCode.INVALID_ID):  # pragma: no cover - trivial
+def _require[T](obj: T | None, fault: str = TgiFaultCode.INVALID_ID) -> T:  # pragma: no cover - trivial
     # Wrapper to standardize None checking.
     if obj is None:
         raise TgiError("Invalid ID", fault)

@@ -16,10 +16,10 @@ implementation conservative—if an expected container is missing we raise
 returns ``None`` / False.
 """
 
-from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
-from typing import Any
+from typing import Any, Literal
 
 from org.accellera.ipxact.v1685_2022.executable_image import ExecutableImage
 from org.accellera.ipxact.v1685_2022.file_builder_type import FileBuilderType
@@ -132,7 +132,7 @@ __all__ = [
 ]
 
 
-def _require_file_builder(handle: str):
+def _require_file_builder(handle: str) -> FileBuilderType | ExecutableImage.LanguageTools.FileBuilder:
     """Require either generated fileBuilder type used in the standard model."""
     obj = _resolve(handle)
     if not isinstance(obj, FileBuilderType | ExecutableImage.LanguageTools.FileBuilder):
@@ -301,7 +301,10 @@ def _set_lcf_expression(lcf: LinkerCommandFile, field: str, value: str, cls: typ
     return _set_text_child(lcf, field, value, cls, (field,))
 
 
-def _iter_component_tree(root: Any, seen: set[int] | None = None):
+def _iter_component_tree(
+    root: Any,
+    seen: set[int] | None = None,
+) -> Iterator[tuple[Any, Any, tuple[str, ...], Literal["single", "list"]]]:
     """Yield dataclass nodes with their owner field/list location."""
     seen = set() if seen is None else seen
     if id(root) in seen:

@@ -13,5 +13,4 @@ comment:
   layout: diff, flags, files
   require_changes: true
 ignore:
-  - src/org/**
   - PyXB/**

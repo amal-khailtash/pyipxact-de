@@ -1,6 +1,5 @@
 """Focused standard-contract coverage for Bus Definition TGI operations."""
 
-from __future__ import annotations
 
 import inspect
 

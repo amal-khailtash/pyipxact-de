@@ -7,13 +7,15 @@ These tests validate:
 * Traversal enumeration of Catalog IDs.
 * Integration of catalog add/remove/get/set functions using new handle manager.
 """
+
 from collections.abc import Sequence
 
 import pytest
-from org.accellera.ipxact.v1685_2022 import Catalog
+
 from amal.eda.accellera.ipxact.v1685_2022.tgi import (
     TgiError,
     addCatalogComponentsIpxactFile,
+    get_handle,
     getCatalogComponentsIpxactFileIDs,
     getCatalogIDs,
     getID,
@@ -22,30 +24,33 @@ from amal.eda.accellera.ipxact.v1685_2022.tgi import (
     getParameterValue,
     getParameterValueExpression,
     getVLNV,
-    get_handle,
-    registerVLNV,
     setIpxactFileName,
     setParameterValue,
     unregisterVLNV,
 )
+from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
+from org.accellera.ipxact.v1685_2022 import Catalog
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _mk_vlnv(suffix: str) -> Sequence[str]:
     return ("vendor", "lib", f"obj{suffix}", "1.0")
+
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def _create_root_catalog(vlnv: Sequence[str], *, register: bool):
     """Local helper replicating former root createCatalog semantics."""
     cat = Catalog(vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3])
     handle = get_handle(cat)
     if register:
-        registerVLNV(cat, vlnv)
+        registry.register(cat, vlnv)
     return handle, cat
 
 
@@ -60,7 +65,7 @@ def test_register_duplicate_fails():
     handle, cat = _create_root_catalog(_mk_vlnv("B"), register=True)
     # second register of same VLNV should raise
     with pytest.raises(TgiError):
-        registerVLNV(cat, _mk_vlnv("B"))
+        registry.register(cat, _mk_vlnv("B"))
     # still resolves
     assert getID(_mk_vlnv("B")) == handle
 
@@ -129,4 +134,3 @@ def test_parameter_enumeration_and_get_set():
     # modify first
     assert setParameterValue(param_ids[0], "32") is True
     assert getParameterValue(param_ids[0]) == "32"
-

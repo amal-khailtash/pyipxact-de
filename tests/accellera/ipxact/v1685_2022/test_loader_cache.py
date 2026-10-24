@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from amal.eda.ipxact_de import loader
 from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
+from amal.eda.ipxact_de import loader
 
 NS = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 
@@ -207,7 +207,7 @@ def test_cache_read_error_does_not_stop_scan(tmp_path):
     assert any("Failed to load cache" in str(call) for call in warning.call_args_list)
 
 
-def test_unsupported_discovered_document_keeps_valid_sibling(tmp_path):
+def test_older_discovered_document_is_available_with_current_sibling(tmp_path):
     old = tmp_path / "old.xml"
     current = tmp_path / "current.xml"
     write_component(old, "old")
@@ -215,9 +215,9 @@ def test_unsupported_discovered_document_keeps_valid_sibling(tmp_path):
     write_component(current)
     with patch.object(loader.logger, "warning") as warning:
         loader.load_registry_from_paths([str(old), str(current)], cache_dir=tmp_path)
-    assert registry.get_id(("v", "l", "old", "1")) is None
+    assert registry.get_id(("v", "l", "old", "1")) is not None
     assert registry.get_id(("v", "l", "one", "1")) is not None
-    assert any("Skipping unsupported XML" in str(call) for call in warning.call_args_list)
+    assert not any("Skipping unsupported XML" in str(call) for call in warning.call_args_list)
 
 
 def test_same_size_edit_preserving_mtime_invalidates_cache(tmp_path):

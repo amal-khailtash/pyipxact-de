@@ -5,9 +5,9 @@ build:
     python: '3.14'
   jobs:
     post_create_environment:
-      - python -m pip install uv
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
     post_install:
-      - UV_PROJECT_ENVIRONMENT="$READTHEDOCS_VIRTUALENV_PATH" uv sync --locked --all-groups --python "$READTHEDOCS_VIRTUALENV_PATH/bin/python"
+      - UV_PROJECT_ENVIRONMENT="$READTHEDOCS_VIRTUALENV_PATH" $HOME/.local/bin/uv sync --locked --all-groups --python "$READTHEDOCS_VIRTUALENV_PATH/bin/python"
     pre_build:
       - sphinx-apidoc --force --maxdepth 1 --separate --implicit-namespaces --output-dir docs/api/ src/amal/ src/amal/eda/ipxact_de/gui src/amal/eda/ipxact_de/web
       - sphinx-apidoc --force --maxdepth 1 --separate --implicit-namespaces --output-dir docs/api/ src/org/

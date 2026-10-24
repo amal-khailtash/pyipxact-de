@@ -1,51 +1,55 @@
 import argparse
+import os
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
+from types import TracebackType
+from typing import TYPE_CHECKING, Self
 
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 
-from amal.utilities import ARROW, logger
 from org.accellera.standard import STANDARDS
 
 from .. import __description__, __version__
-from ..loader import load_registry_from_cache, load_registry_from_paths
-from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
-from .commands import convert_xml, identify_xml, validate_xml
+from .commands import ARROW, convert_xml, identify_xml, validate_xml
+
+if TYPE_CHECKING:
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import VlnvRegistry
 
 # Global Rich console (single theme) reused for all help rendering.
-console = Console(
-    theme=Theme(
-        {
-            "heading": "bold bright_green",
-            "command": "bright_cyan",
-            "command.bold": "bold bright_cyan",
-            "flag": "bold bright_cyan",
-            "usage.label": "bold bright_green",
-            "usage.prog": "bold bright_cyan",
-            "usage.meta": "cyan",
-            "footer": "dim",
-            # VLNV display styles
-            "vlnv.vendor": "bold bright_green",
-            "vlnv.library": "bright_cyan",
-            "vlnv.name": "bold white",
-            "vlnv.version": "bright_yellow",
-            "vlnv.sep": "dim",
-            "vlnv.type": "bright_magenta",
-        }
-    ),
-    highlight=False,
+_CLI_THEME = Theme(
+    {
+        "heading": "bold bright_green",
+        "command": "bright_cyan",
+        "command.bold": "bold bright_cyan",
+        "flag": "bold bright_cyan",
+        "usage.label": "bold bright_green",
+        "usage.prog": "bold bright_cyan",
+        "usage.meta": "cyan",
+        "footer": "dim",
+        # VLNV display styles
+        "vlnv.vendor": "bold bright_green",
+        "vlnv.library": "bright_cyan",
+        "vlnv.name": "bold white",
+        "vlnv.version": "bright_yellow",
+        "vlnv.sep": "dim",
+        "vlnv.type": "bright_magenta",
+    }
 )
+console = Console(theme=_CLI_THEME, highlight=False)
 
 
 @dataclass(slots=True)
 class HelpSection:
     """Runtime help section (built dynamically)."""
+
     title: str
     rows: list[tuple[str, str]]
     priority: int = 100
@@ -132,8 +136,48 @@ def _natural_key(text: str) -> list[int | str]:
 
 def _get_type_for_handle(handle: str) -> str:
     """Return the registered element type for a handle, or empty string."""
-    t = registry.get_element_type(handle)
+    t = _get_registry().get_element_type(handle)
     return t or ""
+
+
+def _get_registry() -> VlnvRegistry:
+    """Return the shared TGI registry, importing the full API only when needed."""
+    registry = globals().get("registry")
+    if registry is None:
+        from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
+    return registry
+
+
+def __getattr__(name: str) -> VlnvRegistry:
+    """Preserve public registry access without loading the TGI API at CLI startup."""
+    if name == "registry":
+        return _get_registry()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def load_registry_from_cache(
+    *,
+    cache_dir: Path | None = None,
+    validate_files: bool = True,
+    progress: Callable[[str, int, int], None] | None = None,
+) -> bool:
+    """Load the saved registry on demand; retained as a patchable CLI module name."""
+    from ..loader import load_registry_from_cache as load
+
+    return load(cache_dir=cache_dir, validate_files=validate_files, progress=progress)
+
+
+def load_registry_from_paths(
+    paths: Iterable[str],
+    *,
+    cache_dir: Path | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
+    document_reporter: Callable[[Path, str, str, str], None] | None = None,
+) -> None:
+    """Scan registry paths on demand; retained as a patchable CLI module name."""
+    from ..loader import load_registry_from_paths as load
+
+    return load(paths, cache_dir=cache_dir, progress=progress, document_reporter=document_reporter)
 
 
 class _RichSubHelpAction(argparse.Action):
@@ -146,11 +190,11 @@ class _RichSubHelpAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values=None,
+        values: object = None,
         option_string: str | None = None,
     ) -> None:  # type: ignore[override]
         parts = parser.prog.split()
-        parent_prog = parts[0] if parts else 'ipxact-de'
+        parent_prog = parts[0] if parts else "ipxact-de"
         subcmd = parts[-1] if len(parts) > 1 else parser.prog
         _print_subcommand_help(parent_prog, subcmd, parser)
         parser.exit()
@@ -224,33 +268,25 @@ def _print_subcommand_help(parent_prog: str, name: str, subparser: argparse.Argu
             # Determine if value placeholder needed
             needs_value = getattr(action, "nargs", None) not in (0, None) or (
                 getattr(action, "nargs", None) is None
-                and not isinstance(
-                    action, argparse._StoreTrueAction | argparse._StoreFalseAction
-                )
+                and not isinstance(action, argparse._StoreTrueAction | argparse._StoreFalseAction)
             )
-            if not action.option_strings or isinstance(
-                action, argparse._StoreTrueAction | argparse._StoreFalseAction
-            ):
+            if not action.option_strings or isinstance(action, argparse._StoreTrueAction | argparse._StoreFalseAction):
                 needs_value = False
             if needs_value:
-                placeholder = action.metavar or action.dest.upper().replace('-', '_')
+                placeholder = action.metavar or action.dest.upper().replace("-", "_")
                 flags_display = f"{flags} {placeholder}"
             else:
                 flags_display = flags
             options.append((flags_display, help_text))
         else:
             # Positional argument; metavar can be a tuple for multiple values.
-            raw_meta = action.metavar or action.dest.upper().replace('-', '_')
+            raw_meta = action.metavar or action.dest.upper().replace("-", "_")
             placeholder = " ".join(str(m) for m in raw_meta) if isinstance(raw_meta, tuple) else str(raw_meta)
             positional.append((placeholder, help_text))
 
     # Header / description: print top-level description then subcommand description (if any) before usage
     desc = subparser.description or next(
-        (
-            a.help
-            for a in getattr(subparser, "_actions", [])
-            if isinstance(a, argparse._HelpAction)
-        ),
+        (a.help for a in getattr(subparser, "_actions", []) if isinstance(a, argparse._HelpAction)),
         None,
     )
     printed_any = False
@@ -420,11 +456,13 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
             help="Show this message and exit",
         )
         parser_validate.add_argument(
-            "--schema-root", type=Path,
+            "--schema-root",
+            type=Path,
             help="Local Accellera schema tree containing IPXACT and SPIRIT directories",
         )
         parser_validate.add_argument(
-            "--semantic", action="store_true",
+            "--semantic",
+            action="store_true",
             help="Also check implemented IEEE 1685-2022 abstraction and component constraint rules",
         )
         # Use a wrapper to show subcommand help if no files are provided.
@@ -479,7 +517,7 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         parser_rlist = reg_sub.add_parser(
             "list",
             description=(
-                "List registry entries (tree by default). "
+                "List the inventory saved by the last scan (tree by default). "
                 "Use --flat for single-line Vendor:Library:Name:Version."
             ),
             help="List entries (tree by default)",
@@ -506,6 +544,17 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
             "--flat",
             action="store_true",
             help="Display results as flat lines: vendor:library:name:version",
+        )
+        parser_rlist.add_argument(
+            "--color",
+            choices=["auto", "always", "never"],
+            default="auto",
+            help="Color output: auto (default), always (including pipes), or never; --plain overrides colors",
+        )
+        parser_rlist.add_argument(
+            "--plain",
+            action="store_true",
+            help="Use fast plain text without colors or wrapping (automatic for redirected output)",
         )
         parser_rlist.add_argument(
             "-t",
@@ -576,9 +625,7 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         )
         # parser_convert.add_argument("output-file", type=str, help="Output IP-XACT XML file")
         parser_convert.add_argument(
-            "--overwrite",
-            action="store_true",
-            help="Force overwrite of the output file if it exists"
+            "--overwrite", action="store_true", help="Force overwrite of the output file if it exists"
         )
         parser_convert.add_argument(
             "-h",
@@ -720,15 +767,100 @@ def _print_version(args: argparse.Namespace) -> None:
 def _print_standards(args: argparse.Namespace) -> None:
     """Print supported SPIRIT/IP-XACT schema versions."""
     preferred_order = ["spirit", "ipxact"]
-    all_versions = [
-        f"{std}/{ver}"
-        for std in preferred_order
-        if std in STANDARDS
-        for ver in STANDARDS[std].versions
-    ]
+    all_versions = [f"{std}/{ver}" for std in preferred_order if std in STANDARDS for ver in STANDARDS[std].versions]
     console.print(Text("Supported standards:", style="heading"))
     for ver in all_versions:
         console.print(f"  {ARROW} [bright_cyan]{ver}[/bright_cyan]")
+
+
+class _RegistryProgress:
+    """Report loader phases on stderr without contaminating streamed registry output."""
+
+    _LABELS = {
+        "reading_cache": "Reading cache",
+        "loading": "Loading inventory",
+        "discovering": "Finding XML",
+        "scanning": "Indexing XML",
+        "reading_documents": "Reading XML",
+        "completed": "Registry ready",
+    }
+
+    def __init__(self, label: str, enabled: bool = True, paths: tuple[Path, ...] = (), verbose: bool = False) -> None:
+        self.label = label
+        self.enabled = enabled
+        self.verbose = verbose
+        self.paths = tuple(path.expanduser().absolute() for path in paths)
+        self.target = Console(stderr=True)
+        self.started = monotonic()
+        self.last_report = self.started
+        self.stage = ""
+        self.current = 0
+        self.total = 0
+        self.progress = Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=self.target,
+            transient=True,
+            disable=not enabled or not self.target.is_terminal,
+            redirect_stdout=False,
+            redirect_stderr=False,
+        )
+        self.task = self.progress.add_task(label, total=None)
+
+    def __enter__(self) -> Self:
+        if self.enabled:
+            self.progress.start()
+            if not self.target.is_terminal:
+                self.target.print(self.label + "...")
+        return self
+
+    def update(self, stage: str, current: int, total: int) -> None:
+        if not self.enabled:
+            return
+        now = monotonic()
+        changed = stage != self.stage
+        self.stage, self.current, self.total = stage, current, total
+        description = self._LABELS.get(stage, stage)
+        live_description = f"{description} {current:,}" if not total and current else description
+        self.progress.update(self.task, description=live_description, completed=current, total=total or None)
+        if not self.target.is_terminal and (changed or now - self.last_report >= 1):
+            count = f": {current:,}/{total:,}" if total else (f": {current:,} found" if current else "...")
+            self.target.print(description + count)
+            self.last_report = now
+
+    def document(self, path: Path, root: str, standard: str, version: str) -> None:
+        """Show the active XML path and one compact result line per parsed document."""
+        if not self.enabled:
+            return
+        display = str(path)
+        if not self.verbose:
+            for source in self.paths:
+                base = source.parent if source.suffix.lower() == ".xml" else source
+                if path.is_relative_to(base):
+                    display = str(path.relative_to(base))
+                    break
+        if not root:
+            self.progress.update(self.task, description=f"Read {path.name}")
+            return
+        family = "IP-XACT" if standard.lower() == "ipxact" else standard.upper()
+        details = f"{family} {version} {root}"
+        if not self.verbose:
+            width = max(10, self.target.width - len(details) - 2)
+            if len(display) > width:
+                display = "..." + display[-(width - 3) :]
+        self.target.print(Text.assemble((display, "cyan"), "  ", (details, "dim")), soft_wrap=True)
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        if self.enabled:
+            self.progress.stop()
+            if exc_type is None:
+                count = f" ({self.current:,}/{self.total:,})"
+                self.target.print(f"{self.label}{count}: {monotonic() - self.started:.2f}s")
 
 
 def _run_scan(args: argparse.Namespace) -> None:
@@ -746,8 +878,13 @@ def _run_scan(args: argparse.Namespace) -> None:
         subname = " ".join(parts[1:]) if len(parts) > 1 else "registry scan"
         _print_subcommand_help(parent_prog, subname, scan_parser)
         return
-    load_registry_from_paths(paths)
-    console.print("Scan completed.")
+    enabled = not (getattr(args, "quiet", False) or getattr(args, "silent", False))
+    with _RegistryProgress(
+        "Registry scan", enabled, tuple(Path(path) for path in paths), bool(getattr(args, "verbose", False))
+    ) as status:
+        load_registry_from_paths(paths, progress=status.update, document_reporter=status.document)
+    count = sum(1 for _ in _get_registry().iter_documents())
+    console.print(f"Scan completed. {count:,} documents registered.")
 
 
 def _run_validate(args: argparse.Namespace) -> None:
@@ -790,8 +927,35 @@ def _run_convert(args: argparse.Namespace) -> None:
     convert_xml(args)
 
 
+class _RegistryOutput:
+    """Write bounded batches of literal styled rows or unwrapped plain text."""
+
+    def __init__(self, target: Console, plain: bool) -> None:
+        self.target = target
+        self.plain = plain
+        self.lines: list[Text] = []
+
+    def write(self, *parts: tuple[str, str] | str) -> None:
+        line = Text.assemble(*parts)
+        self.lines.append(line)
+        if len(self.lines) >= 256:
+            self.flush()
+
+    def flush(self) -> None:
+        if not self.lines:
+            return
+        if self.plain:
+            self.target.file.write("".join(line.plain + "\n" for line in self.lines))
+            self.target.file.flush()
+        else:
+            self.target.print(Text("\n").join(self.lines), soft_wrap=True)
+        self.lines.clear()
+
+
 def _run_registry_list(args: argparse.Namespace) -> None:
-    """List registry entries as a Vendor:Library:Name:Version tree.
+    """List saved registry entries as a Vendor:Library:Name:Version tree.
+
+    registry scan updates the saved inventory; listing reads metadata without checking source files.
 
     Optional pattern filtering: 'vendor:library:name:version'. Without --regex, uses
     case-insensitive substring matching and allows '*' to match anything for a part.
@@ -799,10 +963,11 @@ def _run_registry_list(args: argparse.Namespace) -> None:
 
     Optional type filtering: use --type to show only entries of a specific IP-XACT element type.
     """
-    # If registry is empty, attempt to load from local cache.
-    any_entries = any(True for _ in registry.iter_by_predicate(lambda _r: True))
-    if not any_entries:
-        load_registry_from_cache()
+    # Listing reads the saved inventory; registry scan updates its source paths.
+    if not any(True for _ in _get_registry().iter_documents()):
+        enabled = not (getattr(args, "quiet", False) or getattr(args, "silent", False))
+        with _RegistryProgress("Registry loading", enabled) as status:
+            load_registry_from_cache(validate_files=False, progress=status.update)
     pattern = getattr(args, "pattern", None)
     use_regex = bool(getattr(args, "regex", False))
     type_filter = getattr(args, "type", None)
@@ -814,12 +979,14 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         vendor_pat, library_pat, name_pat, version_pat = parts
         # Normalize wildcards / empties
         if use_regex:
-            def _compile(p: str | None):
+
+            def _compile(p: str | None) -> re.Pattern[str] | None:
                 if p is None or p == "":
                     return None
                 if p == "*":
                     p = ".*"
                 return re.compile(p)
+
             try:
                 rx_vendor = _compile(vendor_pat)
                 rx_library = _compile(library_pat)
@@ -835,9 +1002,11 @@ def _run_registry_list(args: argparse.Namespace) -> None:
             version_pat = None if version_pat in (None, "*") else version_pat.lower()
     # Build nested dict: vendor -> library -> name -> set(versions)
     tree: dict[str, dict[str, dict[str, set[str]]]] = {}
-    types_by_key: dict[tuple[str, str, str], str] = {}
-    for handle in registry.iter_by_predicate(lambda _r: True):
-        vlnv = registry.get_vlnv(handle)
+    types_by_key: dict[tuple[str, str, str, str], str] = {}
+    editions_by_key: dict[tuple[str, str, str, str], str] = {}
+    registry_api = _get_registry()
+    for handle in registry_api.iter_documents():
+        vlnv = registry_api.get_vlnv(handle)
         if not vlnv:
             continue
         vendor, library, name, version = vlnv
@@ -851,8 +1020,10 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         # Filter if needed
         if pattern:
             if use_regex:
-                def ok(rx, val: str) -> bool:
+
+                def ok(rx: re.Pattern[str] | None, val: str) -> bool:
                     return True if rx is None else bool(rx.search(val))
+
                 if not ok(rx_vendor, vendor):
                     continue
                 if not ok(rx_library, library):
@@ -862,8 +1033,10 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                 if not ok(rx_version, version):
                     continue
             else:
+
                 def ok(p: str | None, val: str) -> bool:
                     return True if p is None else (p in val.lower())
+
                 if not ok(vendor_pat, vendor):
                     continue
                 if not ok(library_pat, library):
@@ -876,13 +1049,34 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         names = libs.setdefault(library, {})
         versions = names.setdefault(name, set())
         versions.add(version)
-        # Capture element type per (vendor, library, name)
-        key = (vendor, library, name)
-        if key not in types_by_key:
-            types_by_key[key] = _get_type_for_handle(handle) or ""
+        # Capture document type and schema edition for each complete VLNV.
+        key = (vendor, library, name, version)
+        types_by_key[key] = _get_type_for_handle(handle) or ""
+        info = registry_api.get_document_info(handle)
+        if info is not None and info.standard and info.schema_version:
+            family = "IP-XACT" if info.standard == "ipxact" else info.standard.upper()
+            editions_by_key[key] = f"{family} {info.schema_version}"
+        else:
+            editions_by_key[key] = "Unknown edition"
+
+    max_type_width = max((len(name) for name in types_by_key.values()), default=0)
 
     # Render
-    console.print(Text("Registry:", style="heading"))
+    color = getattr(args, "color", "auto")
+    target = console
+    if color == "always":
+        target = Console(
+            file=console.file,
+            theme=_CLI_THEME,
+            force_terminal=True,
+            color_system="standard",
+            no_color=False,
+            highlight=False,
+            width=console.width,
+        )
+    plain = bool(getattr(args, "plain", False)) or color == "never" or not target.is_terminal
+    output = _RegistryOutput(target, plain)
+    output.write(("Registry:", "heading"))
     as_flat = bool(getattr(args, "flat", False))
     # Sort case-insensitively by vendor, then by library, then by name
     if as_flat:
@@ -892,25 +1086,30 @@ def _run_registry_list(args: argparse.Namespace) -> None:
             for library in sorted(tree[vendor], key=lambda s: s.casefold()):
                 for name in sorted(tree[vendor][library], key=lambda s: s.casefold()):
                     for version in sorted(tree[vendor][library][name], key=_natural_key):
-                        tname = types_by_key.get((vendor, library, name), "")
+                        tname = types_by_key.get((vendor, library, name, version), "")
                         lines.append((vendor, library, name, version, tname))
+
         def _prefix_len(v: str, lib: str, n: str, ver: str) -> int:
             return len(v) + 1 + len(lib) + 1 + len(n) + 1 + len(ver)
+
         max_prefix = max((_prefix_len(v, lib, n, ver) for v, lib, n, ver, _t in lines), default=0)
         for vendor, library, name, version, tname in lines:
             # Calculate padding so that type starts at same column
             pad_spaces = max_prefix - _prefix_len(vendor, library, name, version) + 1  # at least one space
             pad = " " * pad_spaces
-            console.print(
-                "  "
-                f"[vlnv.vendor]{vendor}[/]"
-                f"[vlnv.sep]:[/]"
-                f"[vlnv.library]{library}[/]"
-                f"[vlnv.sep]:[/]"
-                f"[vlnv.name]{name}[/]"
-                f"[vlnv.sep]:[/]"
-                f"[vlnv.version]{version}[/]"
-                f"{pad}[vlnv.type]{tname}[/]"
+            output.write(
+                "  ",
+                (vendor, "vlnv.vendor"),
+                (":", "vlnv.sep"),
+                (library, "vlnv.library"),
+                (":", "vlnv.sep"),
+                (name, "vlnv.name"),
+                (":", "vlnv.sep"),
+                (version, "vlnv.version"),
+                pad,
+                (f"{tname:<{max_type_width}}", "vlnv.type"),
+                "  ",
+                (editions_by_key[(vendor, library, name, version)], "dim"),
             )
     else:
         # Compute global max name and version lengths to align the type column
@@ -923,11 +1122,11 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                     for ver in tree[vnd][lib][nm]:
                         max_ver_len_all = max(max_ver_len_all, len(ver))
         for vendor in sorted(tree, key=lambda s: s.casefold()):
-            console.print(f"  [vlnv.vendor]{vendor}[/]")
+            output.write("  ", (vendor, "vlnv.vendor"))
             for library in sorted(tree[vendor], key=lambda s: s.casefold()):
-                console.print(f"    [vlnv.library]{library}[/]")
+                output.write("    ", (library, "vlnv.library"))
                 for name in sorted(tree[vendor][library], key=lambda s: s.casefold()):
-                    console.print(f"      [vlnv.name]{name}[/]")
+                    output.write("      ", (name, "vlnv.name"))
                     # Align types after versions using a global column to the right of both
                     # the longest name and the longest version to avoid visual overlap
                     versions_sorted = sorted(tree[vendor][library][name], key=_natural_key)
@@ -942,10 +1141,16 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                         if pad_spaces < 1:
                             pad_spaces = 1
                         pad = " " * pad_spaces
-                        tname = types_by_key.get((vendor, library, name), "")
-                        console.print(
-                            f"{ver_indent}[vlnv.version]{version}[/]{pad}[vlnv.type]{tname}[/]"
+                        tname = types_by_key.get((vendor, library, name, version), "")
+                        output.write(
+                            ver_indent,
+                            (version, "vlnv.version"),
+                            pad,
+                            (f"{tname:<{max_type_width}}", "vlnv.type"),
+                            "  ",
+                            (editions_by_key[(vendor, library, name, version)], "dim"),
                         )
+    output.flush()
 
 
 # (Removed legacy registry 'search' subcommand; list now supports filtering and regex.)
@@ -974,9 +1179,7 @@ def _run_web(args: argparse.Namespace) -> None:
     try:
         import uvicorn  # type: ignore[import-not-found]
     except Exception:
-        console.print(
-            "Uvicorn is not installed. Install it via 'uv add uvicorn' or 'pip install uvicorn' and retry."
-        )
+        console.print("Uvicorn is not installed. Install it via 'uv add uvicorn' or 'pip install uvicorn' and retry.")
         return
     # Use module path to the ASGI app to avoid import cycles.
     uvicorn.run(
@@ -1004,6 +1207,7 @@ def _run_gui(args: argparse.Namespace) -> None:
     #     console.print(f"Details: {ex}")
     #     return
     from amal.eda.ipxact_de.gui import main as gui_main  # type: ignore
+
     gui_main()
 
 
@@ -1017,16 +1221,26 @@ def _run_mcp(args: argparse.Namespace) -> None:
         # Import lazily to avoid dependencies unless requested
         from amal.eda.ipxact_de.mcp.server import main as mcp_main  # type: ignore
     except Exception as ex:  # pragma: no cover - environment dependent
-        console.print(
-            "MCP dependencies are not installed. Install them via 'uv add mcp' "
-            "or 'pip install mcp'."
-        )
+        console.print("MCP dependencies are not installed. Install them via 'uv add mcp' or 'pip install mcp'.")
         console.print(f"Details: {ex}")
         return
     mcp_main()
 
 
 def main() -> None:
+    """Run the CLI, exiting quietly with status 130 when interrupted."""
+    try:
+        _main()
+    except KeyboardInterrupt:
+        raise SystemExit(130) from None
+    except BrokenPipeError:
+        # Discard buffered output after a downstream consumer closes the pipe.
+        with open(os.devnull, "w") as sink:
+            os.dup2(sink.fileno(), sys.stdout.fileno())
+        raise SystemExit(0) from None
+
+
+def _main() -> None:
     """Main entry point for the IP-XACT CLI."""
 
     # logger.trace("TRACE")
@@ -1065,12 +1279,7 @@ def main() -> None:
 
     # Build versions list (shared) once
     preferred_order = ["spirit", "ipxact"]
-    all_versions = [
-        f"{std}/{ver}"
-        for std in preferred_order
-        if std in STANDARDS
-        for ver in STANDARDS[std].versions
-    ]
+    all_versions = [f"{std}/{ver}" for std in preferred_order if std in STANDARDS for ver in STANDARDS[std].versions]
 
     # Register primary command specs
     specs = _build_command_specs(all_versions)
@@ -1154,13 +1363,16 @@ def main() -> None:
     args = parser.parse_args()
     # print(vars(args))
 
-    # Trigger repository scan early for all commands except 'registry scan'.
-    # For 'registry scan', the handler will manage scanning and help behavior.
+    # Explicit scans manage their own paths; listing reads the saved inventory.
+    # Other commands discover documents only when search paths are configured.
     is_registry_scan = getattr(args, "subcommand", None) == "registry" and getattr(args, "registry_cmd", None) == "scan"
-    if not is_registry_scan:
+    is_registry_list = getattr(args, "subcommand", None) == "registry" and getattr(args, "registry_cmd", None) == "list"
+    if not is_registry_scan and not is_registry_list and os.environ.get("IPXACT_XML_PATHS", "").strip():
         try:
             load_registry_from_paths([])
         except Exception:  # pragma: no cover - defensive startup
+            from amal.utilities import logger
+
             logger.exception("Registry scan failed")
 
     # Subcommand help via generic -h on parent (only when subcommand chosen and it's not 'help').

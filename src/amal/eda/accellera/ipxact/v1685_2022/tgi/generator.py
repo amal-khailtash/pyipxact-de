@@ -89,13 +89,13 @@ def _resolve_transport_methods(handle: str) -> GeneratorType.TransportMethods | 
     return obj if isinstance(obj, GeneratorType.TransportMethods) else None
 
 
-def _text(value, label):
+def _text(value: object, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise TgiError(f"{label} requires a nonempty string", TgiFaultCode.INVALID_ARGUMENT)
     return value
 
 
-def _remove_child(parent, name):
+def _remove_child(parent: object, name: str) -> bool:
     child = getattr(parent, name)
     if child is None:
         return True
@@ -103,7 +103,10 @@ def _remove_child(parent, name):
     return detach_child_by_handle(get_handle(child))
 
 
-def _remove_group(groupID, parent_type):
+def _remove_group(
+    groupID: str,
+    parent_type: type[AbstractorGenerator] | type[ComponentGenerator],
+) -> bool:
     from .core import get_parent_info, registry
     group = resolve_handle(groupID)
     if not isinstance(group, InstanceGeneratorType.Group):

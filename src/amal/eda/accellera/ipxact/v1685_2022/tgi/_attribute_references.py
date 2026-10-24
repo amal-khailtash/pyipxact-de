@@ -7,8 +7,8 @@ registered document containing the source element. References to component
 ports and interfaces follow the component-instance VLNV through the TGI
 registry; no files are loaded as a side effect.
 """
-from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
 from typing import Any
 
@@ -44,7 +44,7 @@ _TARGET_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
     "resetTypeRef": (("component_type", "ResetType"),),
     "segmentRef": (("address_spaces", "Segment"),),
     "subPortRef": (("sub_port_type", "SubPortType"),),
-    "viewRef": (("model_type", "View"),),
+    "viewRef": (("model_type", "View"), ("abstractor_model_type", "View")),
 }
 
 _QUALIFIER_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
@@ -107,7 +107,7 @@ _VALUE_FIELDS: dict[str, tuple[str, ...]] = {
 }
 
 
-def _children(obj: Any):
+def _children(obj: object) -> Iterator[object]:
     """Yield generated-model children without descending into scalar values."""
     if not is_dataclass(obj) or isinstance(obj, type):
         return
@@ -119,7 +119,7 @@ def _children(obj: Any):
             yield from (child for child in value if is_dataclass(child) and not isinstance(child, type))
 
 
-def _walk(root: Any):
+def _walk(root: object) -> Iterator[tuple[object, tuple[object, ...]]]:
     """Yield (object, ancestor path) for each generated dataclass once."""
     pending = [(root, ())]
     seen: set[int] = set()
@@ -339,7 +339,9 @@ def _register_target_owner(root: Any, target: Any) -> None:
                 return
 
 
-def _segment_candidates(root: Any, source_path: tuple[Any, ...], candidates: list[tuple[Any, tuple[Any, ...]]]):
+def _segment_candidates(
+    root: Any, source_path: tuple[Any, ...], candidates: list[tuple[Any, tuple[Any, ...]]],
+) -> list[tuple[Any, tuple[Any, ...]]]:
     """Restrict segment refs to the addressSpace named by the bridge initiator."""
     initiator_name = next(
         (

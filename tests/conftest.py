@@ -8,6 +8,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import pytest
+from filelock import FileLock
 
 FILE_PATH = Path(__file__).parent
 
@@ -23,27 +24,32 @@ def _cache_base_dir() -> Path:
     return base
 
 
-def _download_if_newer(url: str, dest: Path) -> bool:
-    """Download a URL to a destination file only if the remote is newer.
+def _download_if_newer(url: str, dest: Path, *, refresh: bool = False, head_timeout: float = 10.0) -> bool:
+    """Download a missing archive, or refresh an existing one when requested.
 
-    Behavior is similar to `wget --timestamping` using the If-Modified-Since
-    request header. If the destination file does not exist, it will be
-    downloaded. If it exists, a conditional request is issued; if the server
-    responds with 304 Not Modified, the download is skipped.
+    Existing archives are trusted by default and cause no network request. With
+    ``refresh=True``, a timed HEAD request checks the remote Last-Modified date;
+    the archive is downloaded only when the remote date is newer. If the server
+    has no usable Last-Modified date, an existing archive is retained.
 
     Args:
         url: The URL to download.
         dest: The destination file path under the cache directory.
+        refresh: Whether to check an existing archive for a newer remote copy.
+        head_timeout: Maximum number of seconds to wait for the refresh HEAD request.
 
     Returns:
         bool: True if a fresh download occurred, False if skipped.
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
 
+    if dest.exists() and not refresh:
+        return False
+
     # Use unverified SSL context as in existing flow (server cert may be self-signed)
     ssl._create_default_https_context = ssl._create_unverified_context  # noqa: SLF001
 
-    remote_ts = _remote_last_modified(url)
+    remote_ts = _remote_last_modified(url, timeout=head_timeout) if dest.exists() else None
     if dest.exists() and remote_ts is not None and dest.stat().st_mtime >= remote_ts:
         return False
 
@@ -57,7 +63,7 @@ def _download_if_newer(url: str, dest: Path) -> bool:
     return True
 
 
-def _remote_last_modified(url: str) -> float | None:
+def _remote_last_modified(url: str, *, timeout: float = 10.0) -> float | None:
     """Return the remote resource Last-Modified timestamp (epoch seconds).
 
     Performs a HEAD request. If the server doesn't provide the
@@ -65,13 +71,14 @@ def _remote_last_modified(url: str) -> float | None:
 
     Args:
         url: The URL to query.
+        timeout: Maximum number of seconds to wait for the HEAD request.
 
     Returns:
         float | None: POSIX timestamp if available, else None.
     """
     try:
         req = urllib.request.Request(url, method="HEAD")
-        with urllib.request.urlopen(req) as resp:  # noqa: S310 - trusted host
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - trusted host
             last_mod = resp.headers.get("Last-Modified")
             if not last_mod:
                 return None
@@ -127,8 +134,77 @@ def _extract_zip(zip_path: Path, extract_dir: Path) -> None:
     marker.write_text(str(zip_path.stat().st_mtime))
 
 
-def pytest_make_parametrize_id(config, val, argname):
+def pytest_make_parametrize_id(config: pytest.Config, val: object, argname: str) -> str | None:
+    if val is None:
+        return None
+    if callable(val):
+        module = getattr(val, "__module__", type(val).__module__)
+        qualname = getattr(val, "__qualname__", type(val).__qualname__)
+        return f"{argname}={module}.{qualname}"
+    if type(val) is object:
+        return f"{argname}=object"
     return f"{argname}={val}"
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--refresh-examples",
+        action="store_true",
+        default=False,
+        help="Check cached Leon2 example ZIPs for newer versions before testing.",
+    )
+
+
+def _prepare_leon2_examples(
+    cache_dir: Path,
+    leon2_zips: list[tuple[str, str, str]],
+    *,
+    refresh: bool,
+) -> list[tuple[Path, str]]:
+    """Prepare cached Leon2 archives and return their XML files by module."""
+    xml_files_with_module: list[tuple[Path, str]] = []
+    lock_path = cache_dir / ".prepare.lock"
+
+    # xdist workers may all enter pytest_generate_tests during collection.
+    # Keep archive download, extraction, and file discovery in one critical section.
+    with FileLock(lock_path):
+        for zip_url, module_suffix, folder_name in leon2_zips:
+            zip_filename = Path(zip_url).name
+            zip_path = cache_dir / zip_filename
+            extract_dir = cache_dir / folder_name
+
+            try:
+                # Download the ZIP file if needed
+                downloaded = _download_if_newer(zip_url, zip_path, refresh=refresh)
+                if downloaded:
+                    print(f"    • Downloaded to '{zip_path}'")
+                else:
+                    print(f"    • Using cached ZIP at '{zip_path}'")
+            except Exception as exc:
+                raise RuntimeError(f"Failed to download ZIP file '{zip_filename}': {exc}") from exc
+
+            try:
+                # Extract the ZIP file
+                if _should_extract(zip_path, extract_dir):
+                    print(f"  ➤ Extracting '{zip_filename}' to '{extract_dir}'…")
+                    _extract_zip(zip_path, extract_dir)
+                    print(f"      • Extracted to '{extract_dir}'")
+                else:
+                    print(f"      • Using existing extracted directory: '{extract_dir}'")
+            except zipfile.BadZipFile as exc:
+                raise RuntimeError(f"Bad ZIP file '{zip_filename}'.") from exc
+            except Exception as exc:
+                raise RuntimeError(f"Failed to extract ZIP file '{zip_filename}': {exc}") from exc
+
+            # Collect all XML files and associate them with the module suffix
+            xml_files = sorted(extract_dir.rglob("*.xml"))
+            if not xml_files:
+                raise RuntimeError(f"No XML files found in ZIP file '{zip_filename}'.")
+
+            xml_files_with_module.extend((xml_file, module_suffix) for xml_file in xml_files)
+            print(f"      • Found {len(xml_files)} XML files in '{zip_filename}'.")
+
+    return xml_files_with_module
 
 
 # def pytest_sessionstart(session):
@@ -155,11 +231,10 @@ def pytest_make_parametrize_id(config, val, argname):
 #     print(session.__CACHE)
 
 
-
 # Global variables to store download directory and XML files
-DOWNLOAD_DIR = None
+DOWNLOAD_DIR: str | None = None
 # XML_FILES_LIST = []
-XML_FILES_WITH_MODULE = []
+XML_FILES_WITH_MODULE: list[tuple[Path, str]] = []
 
 # def pytest_generate_tests(metafunc):
 #     """
@@ -214,18 +289,14 @@ XML_FILES_WITH_MODULE = []
 #         )
 
 
-
-
-
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     """Parametrize tests dynamically based on available XML files,
     only for test_deserialize.py.
     """
 
     # Check if the test function requires 'xml_file' and 'module_name'
-    if (
-        {"xml_file", "module_name"}.issubset(metafunc.fixturenames)
-        and metafunc.function.__module__.endswith("test_deserialize")
+    if {"xml_file", "module_name"}.issubset(metafunc.fixturenames) and metafunc.function.__module__.endswith(
+        "test_deserialize"
     ):
         global DOWNLOAD_DIR, XML_FILES_WITH_MODULE
 
@@ -247,81 +318,36 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
             # Use shared cache directory under /tmp
             cache_dir = _cache_base_dir()
             DOWNLOAD_DIR = str(cache_dir)
-            print(
-                f" ➤ Ensuring Leon2 ZIPs exist and are extracted under cache: {cache_dir}"
-            )
+            print(f" ➤ Ensuring Leon2 ZIPs exist and are extracted under cache: {cache_dir}")
 
             # Disable SSL verification for the download (use with caution)
             ssl._create_default_https_context = ssl._create_unverified_context
-
-            for zip_url, module_suffix, folder_name in leon2_zips:
-                zip_filename = Path(zip_url).name
-                zip_path = cache_dir / zip_filename
-                extract_dir = cache_dir / folder_name
-
-                try:
-                    # Download the ZIP file if needed
-                    print(f"  ➤ Checking '{zip_filename}' for updates…")
-                    downloaded = _download_if_newer(zip_url, zip_path)
-                    if downloaded:
-                        print(f"    • Downloaded to '{zip_path}'")
-                    else:
-                        print(f"    • Using cached ZIP at '{zip_path}'")
-                except Exception as e:
-                    pytest.exit(
-                        f"Failed to download ZIP file '{zip_filename}': {e}"
+            try:
+                XML_FILES_WITH_MODULE.extend(
+                    _prepare_leon2_examples(
+                        cache_dir,
+                        leon2_zips,
+                        refresh=metafunc.config.getoption("--refresh-examples"),
                     )
-
-                try:
-                    # Extract the ZIP file
-                    if _should_extract(zip_path, extract_dir):
-                        print(
-                            f"  ➤ Extracting '{zip_filename}' to '{extract_dir}'…"
-                        )
-                        _extract_zip(zip_path, extract_dir)
-                        print(f"      • Extracted to '{extract_dir}'")
-                    else:
-                        print(
-                            f"      • Using existing extracted directory: '{extract_dir}'"
-                        )
-                except zipfile.BadZipFile:
-                    pytest.exit(f"Bad ZIP file '{zip_filename}'.")
-                except Exception as e:
-                    pytest.exit(
-                        f"Failed to extract ZIP file '{zip_filename}': {e}"
-                    )
-
-                # Collect all XML files and associate them with the module suffix
-                xml_files = list(extract_dir.rglob("*.xml"))
-                if not xml_files:
-                    pytest.exit(f"No XML files found in ZIP file '{zip_filename}'.")
-
-                for xml_file in xml_files:
-                    XML_FILES_WITH_MODULE.append((xml_file, module_suffix))
-                print(f"      • Found {len(xml_files)} XML files in '{zip_filename}'.")
+                )
+            except RuntimeError as exc:
+                pytest.exit(str(exc))
 
         if not XML_FILES_WITH_MODULE:
             pytest.exit("No XML files available for testing.")
 
         # Generate test case IDs with module information
         ids = [
-            f"{xml_file.relative_to(DOWNLOAD_DIR)} ({module_name})"
-            for xml_file, module_name in XML_FILES_WITH_MODULE
+            f"{xml_file.relative_to(DOWNLOAD_DIR)} ({module_name})" for xml_file, module_name in XML_FILES_WITH_MODULE
         ]
 
         # Parametrize 'xml_file' and 'module_name' together
-        metafunc.parametrize(
-            ("xml_file", "module_name"),
-            XML_FILES_WITH_MODULE,
-            ids=ids
-        )
+        metafunc.parametrize(("xml_file", "module_name"), XML_FILES_WITH_MODULE, ids=ids)
 
     # Check if the test function requires 'xml_file' and 'standard', "version"
-    if (
-        {"standard", "version", "xml_file"}.issubset(metafunc.fixturenames)
-        and metafunc.function.__module__.endswith("test_xml")
+    if {"standard", "version", "xml_file"}.issubset(metafunc.fixturenames) and metafunc.function.__module__.endswith(
+        "test_xml"
     ):
-
         xml_dir_path = FILE_PATH / "xml"
         xml_files = list(xml_dir_path.rglob("*.xml"))
 
@@ -340,14 +366,10 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
             for standard, version, xml_file in param_values
         ]
 
-        metafunc.parametrize(
-            ("standard", "version", "xml_file"),
-            param_values,
-            ids=ids
-        )
+        metafunc.parametrize(("standard", "version", "xml_file"), param_values, ids=ids)
 
 
-def pytest_sessionfinish(session, exitstatus):
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """
     Notify the user of the download directory location after tests complete.
     """

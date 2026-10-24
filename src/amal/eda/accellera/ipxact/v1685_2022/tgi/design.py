@@ -15,9 +15,10 @@ Created child elements are registered with parent relationships so that
 handle lifecycle & reverse traversal remain coherent inside the DE.
 """
 # ruff: noqa: I001
-from __future__ import annotations
 
 from collections.abc import Iterable
+
+from ._model import _owned_list_ids
 
 from org.accellera.ipxact.v1685_2022 import (
     Design,
@@ -357,6 +358,18 @@ def getDesignID(top: bool) -> str | None:
     return None
 
 
+def _connection_ids(design: Design, model_type: type[Interconnection | MonitorInterconnection]) -> list[str]:
+    holder = design.interconnections
+    if holder is None:
+        return []
+    register_parent(holder, design, ("interconnections",), "single")
+    return _owned_list_ids(
+        holder,
+        (child for child in holder.interconnection_or_monitor_interconnection if isinstance(child, model_type)),
+        "interconnection_or_monitor_interconnection",
+    )
+
+
 def getDesignInterconnectionIDs(designID: str) -> list[str]:
     """Return handles of interconnection elements.
 
@@ -365,9 +378,7 @@ def getDesignInterconnectionIDs(designID: str) -> list[str]:
     d = _resolve_design(designID)
     if d is None:
         raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.interconnections is None:
-        return []
-    return [get_handle(i) for i in getattr(d.interconnections, "interconnection", [])]
+    return _connection_ids(d, Interconnection)
 
 
 def getDesignMonitorInterconnectionIDs(designID: str) -> list[str]:
@@ -378,9 +389,7 @@ def getDesignMonitorInterconnectionIDs(designID: str) -> list[str]:
     d = _resolve_design(designID)
     if d is None:
         raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.interconnections is None:
-        return []
-    return [get_handle(mi) for mi in getattr(d.interconnections, "monitor_interconnection", [])]
+    return _connection_ids(d, MonitorInterconnection)
 
 
 def getExternalPortReferencePartSelectID(externalPortReferenceID: str) -> str | None:
@@ -1168,4 +1177,3 @@ def setPowerDomainLinkExternalPowerDomainRef(powerDomainLinkID: str, expression:
 
     link.external_power_domain_reference = StringExpression(value=expression)  # type: ignore[assignment]
     return True
-

@@ -18,6 +18,7 @@ else
 endif
 
 run     := uv run
+TEST_WORKERS ?= 4
 python  := $(run) python
 lint    := $(run) pylint
 test    := $(run) pytest
@@ -276,7 +277,7 @@ generate-app:
 # ----------------------------------------------------------------------------------------------------------------------
 .PHONY: test
 test:
-	$(run) --locked pytest -q
+	$(run) --locked pytest -q -n $(TEST_WORKERS) --dist=worksteal
 #	$(run) pytest -v tests/test_versions.py
 #	$(run) pytest -v tests/test_xml.py
 #	$(run) pytest -v tests/test_xml_validator.py
@@ -287,7 +288,7 @@ test:
 # ----------------------------------------------------------------------------------------------------------------------
 .PHONY: coverage
 coverage:
-	$(run) --locked pytest --cov=amal --cov=org --cov-report=term-missing --cov-report=xml:build/coverage/coverage.xml --cov-report=html:build/coverage/html
+	$(run) --locked pytest -n $(TEST_WORKERS) --dist=worksteal --cov=amal --cov=org --cov-report=term-missing --cov-report=xml:build/coverage/coverage.xml --cov-report=html:build/coverage/html
 
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

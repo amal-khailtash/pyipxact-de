@@ -16,7 +16,6 @@ the owning Component. Legacy convenience operations from the earlier partial
 module remain exported after the numbered standard functions.
 """
 
-from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass

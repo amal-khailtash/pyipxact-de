@@ -4,7 +4,8 @@ Central utilities: handle allocation, handle resolution, VLNV registry, and
 minimal fault/exception scaffolding.  This intentionally avoids dependencies
 outside the standard library.
 """
-from collections.abc import Iterable, Sequence
+
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, fields, is_dataclass
 from threading import RLock
 from typing import Any
@@ -53,6 +54,7 @@ class _ParentInfo:
 
 class HandleManager:
     """Allocate & resolve opaque handles for Python objects."""
+
     def __init__(self) -> None:
         """Initialize internal maps and locking primitives."""
         self._lock = RLock()
@@ -60,6 +62,7 @@ class HandleManager:
         self._handle_to_obj: dict[str, Any] = {}
         self._obj_to_handle: dict[int, str] = {}
         self._parent: dict[int, _ParentInfo] = {}
+        self._editions: dict[str, tuple[str, str]] = {}
 
     def get(self, obj: Any) -> str:
         oid = id(obj)
@@ -75,6 +78,32 @@ class HandleManager:
 
     def resolve(self, handle: str) -> Any | None:
         return self._handle_to_obj.get(handle)
+
+    def resolve_tgi(self, handle: str) -> Any | None:
+        """Resolve a model handle within the supported document edition."""
+        obj = self.resolve(handle)
+        current = handle
+        visited: set[str] = set()
+        while current not in visited:
+            visited.add(current)
+            candidate = self.resolve(current)
+            edition = self._editions.get(current)
+            module = type(candidate).__module__
+            older_model = module.startswith("org.accellera.spirit.") or (
+                module.startswith("org.accellera.ipxact.") and not module.startswith("org.accellera.ipxact.v1685_2022.")
+            )
+            if older_model or (edition is not None and edition != ("ipxact", "1685-2022")):
+                raise TgiError("TGI operations require IP-XACT 1685-2022", TgiFaultCode.INVALID_ID)
+            parent = self.get_parent_info(current)
+            if parent is None:
+                break
+            current = parent.parent_handle
+        return obj
+
+    def set_edition(self, handle: str, standard: str, version: str) -> None:
+        """Retain document edition for the lifetime of its handle."""
+        with self._lock:
+            self._editions[handle] = (standard, version)
 
     def forget(self, handle: str) -> bool:
         """Invalidate the object and descendants, including unregistered model children."""
@@ -105,12 +134,15 @@ class HandleManager:
                 # Scalars can be shared/interned and are not owned model children.
                 if child_handle is not None and (obj is root or is_dataclass(obj)):
                     self._handle_to_obj.pop(child_handle, None)
+                    self._editions.pop(child_handle, None)
                     self._obj_to_handle.pop(oid, None)
                     self._parent.pop(oid, None)
             return True
 
     def register_parent(self, child: Any, parent: Any, path: tuple[str, ...], container: str) -> None:
         with self._lock:
+            # Retain the child while its ownership relation is indexed by object identity.
+            self.get(child)
             self._parent[id(child)] = _ParentInfo(
                 parent_handle=self.get(parent),
                 path=path,
@@ -168,8 +200,8 @@ def get_handle(obj: Any) -> str:
 
 
 def resolve_handle(handle: str) -> Any | None:
-    """Return underlying object or ``None`` if unknown."""
-    return _HANDLE_MANAGER.resolve(handle)
+    """Resolve a TGI object, rejecting known older editions; return None if unknown."""
+    return _HANDLE_MANAGER.resolve_tgi(handle)
 
 
 def register_parent(child: Any, parent: Any, path: tuple[str, ...], container: str) -> None:
@@ -226,6 +258,13 @@ class RegisteredElement:
     root: Any
     file_name: str | None = None
     element_type: str | None = None
+    standard: str | None = None
+    schema_version: str | None = None
+
+    @property
+    def tgi_supported(self) -> bool:
+        """Whether the document edition is supported by this TGI implementation."""
+        return (self.standard, self.schema_version) == ("ipxact", "1685-2022")
 
 
 class VlnvRegistry:
@@ -255,8 +294,10 @@ class VlnvRegistry:
         vlnv_like: Sequence[str] | str,
         file_name: str | None = None,
         replace: bool = False,
-    *,
-    element_type: str | None = None,
+        *,
+        element_type: str | None = None,
+        standard: str | None = None,
+        schema_version: str | None = None,
     ) -> bool:
         """Register (or optionally replace) the VLNV mapping for an element.
 
@@ -266,19 +307,34 @@ class VlnvRegistry:
                 or a single string delimited by ';' or ':'.
             file_name: Optional file name the object originated from.
             replace: If True, replace existing entry silently.
+            element_type: Top-level XML element type.
+            standard: Schema family, inferred for generated model objects.
+            schema_version: Schema edition, distinct from the VLNV version.
 
         Returns:
             True on success.
         """
         vlnv = vlnv_to_tuple(vlnv_like)
         handle = get_handle(element)
+        module = type(element).__module__.split(".")
+        if standard is None and len(module) > 3 and module[:2] == ["org", "accellera"]:
+            standard = module[2]
+            schema_version = module[3].removeprefix("v").replace("_", "-" if "1685" in module[3] else ".")
+        standard = standard.lower() if standard else None
         with self._lock:
             exists = vlnv in self._by_vlnv
             if exists and not replace:
                 raise TgiError("VLNV already registered", TgiFaultCode.ALREADY_EXISTS)
             entry = RegisteredElement(
-                vlnv=vlnv, root=element, file_name=file_name, element_type=element_type
+                vlnv=vlnv,
+                root=element,
+                file_name=file_name,
+                element_type=element_type,
+                standard=standard,
+                schema_version=schema_version,
             )
+            if standard is not None and schema_version is not None:
+                _HANDLE_MANAGER.set_edition(handle, standard, schema_version)
             self._by_vlnv[vlnv] = entry
             self._by_handle[handle] = entry
             return True
@@ -311,6 +367,34 @@ class VlnvRegistry:
         entry = self._by_handle.get(handle)
         return entry.vlnv if entry else None
 
+    def rename(self, handle: str, name: str) -> bool:
+        """Rename a registered document and its VLNV index atomically.
+
+        Args:
+            handle: Registered top-level document handle.
+            name: Schema-validated new document name.
+
+        Returns:
+            True if registered; False for an unregistered handle.
+
+        Raises:
+            TgiError: ALREADY_EXISTS if the new VLNV belongs to another document.
+        """
+        with self._lock:
+            entry = self._by_handle.get(handle)
+            if entry is None:
+                return False
+            previous = entry.vlnv
+            updated = (previous[0], previous[1], name, previous[3])
+            other = self._by_vlnv.get(updated)
+            if other is not None and other is not entry:
+                raise TgiError("VLNV already registered", TgiFaultCode.ALREADY_EXISTS)
+            entry.root.name = name
+            self._by_vlnv.pop(previous)
+            entry.vlnv = updated
+            self._by_vlnv[updated] = entry
+            return True
+
     def get_element_type(self, handle: str) -> str | None:
         """Return the element type name for a registered handle.
 
@@ -338,8 +422,17 @@ class VlnvRegistry:
             entry.file_name = path
             return True
 
-    def iter_by_predicate(self, predicate) -> Iterable[str]:  # predicate(root) -> bool
-        """Yield handles whose root object satisfies ``predicate``.
+    def get_document_info(self, handle: str) -> RegisteredElement | None:
+        """Return inventory metadata independently of TGI edition support."""
+        return self._by_handle.get(handle)
+
+    def iter_documents(self) -> Iterable[str]:
+        """Yield all available document handles, including older editions."""
+        with self._lock:
+            yield from tuple(get_handle(entry.root) for entry in self._by_vlnv.values())
+
+    def iter_by_predicate(self, predicate: Callable[[object], bool]) -> Iterable[str]:  # predicate(root) -> bool
+        """Yield TGI-compatible handles whose root object satisfies ``predicate``.
 
         Args:
             predicate: Callable taking the root object and returning bool.
@@ -350,6 +443,8 @@ class VlnvRegistry:
         with self._lock:
             for entry in self._by_vlnv.values():
                 try:
+                    if entry.standard is not None and not entry.tgi_supported:
+                        continue
                     if predicate(entry.root):
                         yield get_handle(entry.root)
                 except Exception:  # pragma: no cover

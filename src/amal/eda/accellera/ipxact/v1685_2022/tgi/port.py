@@ -18,7 +18,6 @@ Error model:
     invalid handle and ``TgiFaultCode.INVALID_ARGUMENT`` for semantic problems
     (e.g. duplicates). All add* return a handle (string) of the new element.
 """
-from __future__ import annotations
 
 from collections.abc import Iterable
 from types import SimpleNamespace

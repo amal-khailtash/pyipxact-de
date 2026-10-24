@@ -5,7 +5,6 @@ This module provides a small, typed wrapper around the lower-level
 (CLI, web APIs, and MCP servers) without duplicating logic.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path

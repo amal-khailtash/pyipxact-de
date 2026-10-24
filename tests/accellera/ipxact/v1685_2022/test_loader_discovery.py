@@ -5,8 +5,8 @@ from unittest.mock import patch
 import pytest
 from lxml import etree
 
-from amal.eda.ipxact_de import loader
 from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry, resolve_handle
+from amal.eda.ipxact_de import loader
 
 NS = "http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
 VLNV = ("vendor", "library", "component", "1.0")
@@ -226,14 +226,14 @@ def test_invalid_encoded_path_keeps_valid_sibling(tmp_path, uri):
     assert any("Invalid catalog URI" in str(call) for call in warning.call_args_list)
 
 
-def test_unsupported_referenced_version_is_not_registered(tmp_path):
+def test_older_referenced_version_is_available(tmp_path):
     target = document(tmp_path / "old.xml")
     target.write_text(target.read_text().replace("1685-2022", "1685-2014"))
     source = catalog(tmp_path / "root.xml", [("old.xml", VLNV)])
     with patch.object(loader.logger, "warning") as warning:
         loader.load_registry_from_paths([str(source)], cache_dir=tmp_path)
-    assert registry.get_id(VLNV) is None
-    assert any("Unsupported catalog target standard" in str(call) for call in warning.call_args_list)
+    assert registry.get_id(VLNV) is not None
+    assert not any("Unsupported catalog target" in str(call) for call in warning.call_args_list)
 
 
 def test_referenced_incomplete_root_vlnv_is_not_cached(tmp_path):

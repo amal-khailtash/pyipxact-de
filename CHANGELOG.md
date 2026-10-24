@@ -5,6 +5,42 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [Unreleased]
+
+### Fixed
+
+- Preserve design-configuration choice references by refusing to remove a choice while parameters still reference it.
+- Defer XML and TGI imports for lightweight CLI commands to reduce startup overhead.
+- Make parallel test collection deterministic and protect shared example-cache preparation.
+- Include generated `src/org` schema bindings in published Codecov reports.
+- Retain owned TGI children to prevent stale ownership links after object identity reuse.
+- Exit quietly when a downstream pipe closes during CLI output.
+- Check each cached source file once when validating registry metadata.
+- Exit quietly with status 130 when Ctrl-C interrupts a CLI command.
+- Preserve the saved registry when listing documents or running commands without configured search paths.
+
+### Features
+
+- Align feature CI, metadata-only release PRs, reusable distribution builds, verified PyPI publication and draft release/documentation activation with pysystemc.
+- Complete three OtherClockDriver pulse-value getters and six clock timing setters with exact expression-string arguments, shared real validation, atomic edits and preserved metadata/ownership.
+- Complete nine SingleShotDriver timing and value getters with shared expression evaluation, declared real bounds, zero-or-one logic values, source and unit preservation and owned handles.
+- Complete nine OtherClockDriver timing getters with shared SystemVerilog real evaluation, declared bounds, source and unit preservation, owned handles and distinct driver type validation.
+- Complete six Driver range and view-reference getters with shared constant evaluation, unsigned bounds, source preservation, owned handles and document-scoped view resolution.
+- Complete eight Driver value and child-handle getters with generated choice routing, SystemVerilog bit casts, shared default-expression evaluation and preserved ownership.
+- Complete nine clock-driver timing getters with SystemVerilog real-expression evaluation, declared bounds, exact source text, preserved units and owned element handles.
+- Complete the six remaining design-configuration choice and View creation/removal operations with required enumerations, unique XML names, shared setters, parsed ownership recovery and optional-holder cleanup.
+- Run tests and combined coverage in parallel, reuse cached Leon2 examples without network checks, and provide an explicit `--refresh-examples` test option.
+- Complete seven design-configuration View operations with owned handles, shared override access, unique instance names, NMTOKEN view references and identity-preserving edits.
+- Complete six design-configuration interconnection operations with registered target lookup, atomic required abstractor creation, reference validation and owned removal; fix the two underlying Design collection getters to read the generated mixed list.
+- Complete nine design-configuration design/generator reference operations with typed registry lookup, identity-preserving edits, unique generator references and owned subtree removal.
+- Complete seven design-configuration collection operations with ordered owned handles, scoped endpoint uniqueness, atomic abstractor-group creation and parsed subtree removal.
+- Complete nine design-configuration abstractor-instance operations with registry target resolution, schema-valid names, atomic edits, preserved configurable references and owned removal; align creation arguments with Annex F.
+- Report registry loading and scan progress, discover XML files progressively and print compact file/edition/type scan results.
+- Support `registry list --color=always` for colored pipes, with `auto` and `never` modes.
+- List saved registry snapshots without checking or refreshing sources, batch styled output and provide fast plain output with `--plain`; `registry scan` updates the inventory.
+- Show each document's schema family and edition in an aligned column beside registry listings in tree and flat formats.
+- Register recognized top-level SPIRIT/IP-XACT documents from every available schema edition during scans, catalog discovery and cache restoration; retain IP-XACT 1685-2022 as the supported TGI edition.
+
 ## [0.7.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.6.0...v0.7.0) (2026-10-22)
 
 
@@ -45,6 +81,18 @@ This document lists notable changes for each release and follows:
 
 ### Added
 
+- Complete Miscellaneous contracts with owned argument/define values, SV expression resolution, typed part selects, filename/catalog registration, validated document persistence and administrative status calls.
+- Complete Constraint contracts with typed cell choices, effective count defaults, unsigned SV vector/count expressions, preserved wrappers and owned removal.
+- Complete Register file contracts with typed inline/reference choices, scoped external definitions, unsigned expressions, schema-valid factories and owned atomic removal.
+- Use native Python 3.14 annotations in handwritten modules, complete function signatures and model helper types, and preserve standard commentary.
+- Complete Power contracts with scoped domain references, typed constraints and instance links, preserved expression metadata, uniqueness checks and owned removal.
+- Complete Port map contracts with typed logical/physical choices, numeric/source getters, schema-valid combined part selects, preserved metadata and owned atomic edits.
+- Complete CPU BASE and EXTENDED contracts with scoped memory-map references, typed regions and executable images, unsigned expressions, atomic edits and handle-preserving ownership.
+- Complete Configurable element definition/default and override contracts with typed XML source mapping, contextual reference/choice/range checks, schema-valid atomic edits and owned removal.
+- Complete Parameter BASE and EXTENDED contracts with scoped parameter/file references, owned Value handles, shared numeric/source evaluation and atomic typed edits.
+- Complete Name group source getters, standard setter signatures and absent-content rules, schema-specific names, generated text ownership and atomic registered document renaming.
+- Complete Module parameter BASE and EXTENDED contracts with generated module/type holders, numeric/source values and owned atomic edits.
+- Complete Constraint Set timing-percentage traversal and atomic additions with clock-name validation and parsed handle ownership.
 - Complete Component traversal, typed required-argument factories, mode expressions, reference edits and owned removal with handle invalidation.
 - Complete Catalog category traversal and typed entry edits, cross-category name/VLNV uniqueness, and owned removal with handle invalidation.
 - Complete Bus interface modes, typed abstraction and local references, SV numeric/source values, remapping, channels and owned atomic edits.
@@ -138,6 +186,9 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Organize IEEE 1685-2022 tests under a standard/version hierarchy, preserve common test modules and isolate XML context caches between version-specific tests.
+- Consolidate shared TGI expression, range and model traversal implementations, and delegate higher-level value operations to existing standard functions while preserving domain policies and commentary.
+- Restore Miscellaneous standard commentary and inline Annex references, correcting stale behavior descriptions and documenting actual argument and return contracts.
 - Correct logical port style setters to use the generated exclusive choice while preserving port and packet content.
 - Implement timing constraint lifecycle with generated models, ownership and scoped validation.
 - Implement drive and load constraint traversal with generated models, ownership and scoped validation.
