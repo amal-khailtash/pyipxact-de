@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Defer XML and TGI imports for lightweight CLI commands to reduce startup overhead.
+- Make parallel test collection deterministic and protect shared example-cache preparation.
 - Include generated `src/org` schema bindings in published Codecov reports.
 - Retain owned TGI children to prevent stale ownership links after object identity reuse.
 - Exit quietly when a downstream pipe closes during CLI output.
@@ -18,6 +20,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Run tests and combined coverage in parallel, reuse cached Leon2 examples without network checks, and provide an explicit `--refresh-examples` test option.
 - Complete seven design-configuration View operations with owned handles, shared override access, unique instance names, NMTOKEN view references and identity-preserving edits.
 - Complete six design-configuration interconnection operations with registered target lookup, atomic required abstractor creation, reference validation and owned removal; fix the two underlying Design collection getters to read the generated mixed list.
 - Complete nine design-configuration design/generator reference operations with typed registry lookup, identity-preserving edits, unique generator references and owned subtree removal.

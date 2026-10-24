@@ -2,12 +2,12 @@ import argparse
 import os
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
 from types import TracebackType
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
@@ -15,13 +15,13 @@ from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 
-from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
-from amal.utilities import ARROW, logger
 from org.accellera.standard import STANDARDS
 
 from .. import __description__, __version__
-from ..loader import load_registry_from_cache, load_registry_from_paths
-from .commands import convert_xml, identify_xml, validate_xml
+from .commands import ARROW, convert_xml, identify_xml, validate_xml
+
+if TYPE_CHECKING:
+    from amal.eda.accellera.ipxact.v1685_2022.tgi.core import VlnvRegistry
 
 # Global Rich console (single theme) reused for all help rendering.
 _CLI_THEME = Theme(
@@ -49,6 +49,7 @@ console = Console(theme=_CLI_THEME, highlight=False)
 @dataclass(slots=True)
 class HelpSection:
     """Runtime help section (built dynamically)."""
+
     title: str
     rows: list[tuple[str, str]]
     priority: int = 100
@@ -135,8 +136,48 @@ def _natural_key(text: str) -> list[int | str]:
 
 def _get_type_for_handle(handle: str) -> str:
     """Return the registered element type for a handle, or empty string."""
-    t = registry.get_element_type(handle)
+    t = _get_registry().get_element_type(handle)
     return t or ""
+
+
+def _get_registry() -> VlnvRegistry:
+    """Return the shared TGI registry, importing the full API only when needed."""
+    registry = globals().get("registry")
+    if registry is None:
+        from amal.eda.accellera.ipxact.v1685_2022.tgi.core import registry
+    return registry
+
+
+def __getattr__(name: str) -> VlnvRegistry:
+    """Preserve public registry access without loading the TGI API at CLI startup."""
+    if name == "registry":
+        return _get_registry()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def load_registry_from_cache(
+    *,
+    cache_dir: Path | None = None,
+    validate_files: bool = True,
+    progress: Callable[[str, int, int], None] | None = None,
+) -> bool:
+    """Load the saved registry on demand; retained as a patchable CLI module name."""
+    from ..loader import load_registry_from_cache as load
+
+    return load(cache_dir=cache_dir, validate_files=validate_files, progress=progress)
+
+
+def load_registry_from_paths(
+    paths: Iterable[str],
+    *,
+    cache_dir: Path | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
+    document_reporter: Callable[[Path, str, str, str], None] | None = None,
+) -> None:
+    """Scan registry paths on demand; retained as a patchable CLI module name."""
+    from ..loader import load_registry_from_paths as load
+
+    return load(paths, cache_dir=cache_dir, progress=progress, document_reporter=document_reporter)
 
 
 class _RichSubHelpAction(argparse.Action):
@@ -153,7 +194,7 @@ class _RichSubHelpAction(argparse.Action):
         option_string: str | None = None,
     ) -> None:  # type: ignore[override]
         parts = parser.prog.split()
-        parent_prog = parts[0] if parts else 'ipxact-de'
+        parent_prog = parts[0] if parts else "ipxact-de"
         subcmd = parts[-1] if len(parts) > 1 else parser.prog
         _print_subcommand_help(parent_prog, subcmd, parser)
         parser.exit()
@@ -227,33 +268,25 @@ def _print_subcommand_help(parent_prog: str, name: str, subparser: argparse.Argu
             # Determine if value placeholder needed
             needs_value = getattr(action, "nargs", None) not in (0, None) or (
                 getattr(action, "nargs", None) is None
-                and not isinstance(
-                    action, argparse._StoreTrueAction | argparse._StoreFalseAction
-                )
+                and not isinstance(action, argparse._StoreTrueAction | argparse._StoreFalseAction)
             )
-            if not action.option_strings or isinstance(
-                action, argparse._StoreTrueAction | argparse._StoreFalseAction
-            ):
+            if not action.option_strings or isinstance(action, argparse._StoreTrueAction | argparse._StoreFalseAction):
                 needs_value = False
             if needs_value:
-                placeholder = action.metavar or action.dest.upper().replace('-', '_')
+                placeholder = action.metavar or action.dest.upper().replace("-", "_")
                 flags_display = f"{flags} {placeholder}"
             else:
                 flags_display = flags
             options.append((flags_display, help_text))
         else:
             # Positional argument; metavar can be a tuple for multiple values.
-            raw_meta = action.metavar or action.dest.upper().replace('-', '_')
+            raw_meta = action.metavar or action.dest.upper().replace("-", "_")
             placeholder = " ".join(str(m) for m in raw_meta) if isinstance(raw_meta, tuple) else str(raw_meta)
             positional.append((placeholder, help_text))
 
     # Header / description: print top-level description then subcommand description (if any) before usage
     desc = subparser.description or next(
-        (
-            a.help
-            for a in getattr(subparser, "_actions", [])
-            if isinstance(a, argparse._HelpAction)
-        ),
+        (a.help for a in getattr(subparser, "_actions", []) if isinstance(a, argparse._HelpAction)),
         None,
     )
     printed_any = False
@@ -423,11 +456,13 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
             help="Show this message and exit",
         )
         parser_validate.add_argument(
-            "--schema-root", type=Path,
+            "--schema-root",
+            type=Path,
             help="Local Accellera schema tree containing IPXACT and SPIRIT directories",
         )
         parser_validate.add_argument(
-            "--semantic", action="store_true",
+            "--semantic",
+            action="store_true",
             help="Also check implemented IEEE 1685-2022 abstraction and component constraint rules",
         )
         # Use a wrapper to show subcommand help if no files are provided.
@@ -590,9 +625,7 @@ def _build_command_specs(all_versions: list[str]) -> list[CommandSpec]:
         )
         # parser_convert.add_argument("output-file", type=str, help="Output IP-XACT XML file")
         parser_convert.add_argument(
-            "--overwrite",
-            action="store_true",
-            help="Force overwrite of the output file if it exists"
+            "--overwrite", action="store_true", help="Force overwrite of the output file if it exists"
         )
         parser_convert.add_argument(
             "-h",
@@ -734,12 +767,7 @@ def _print_version(args: argparse.Namespace) -> None:
 def _print_standards(args: argparse.Namespace) -> None:
     """Print supported SPIRIT/IP-XACT schema versions."""
     preferred_order = ["spirit", "ipxact"]
-    all_versions = [
-        f"{std}/{ver}"
-        for std in preferred_order
-        if std in STANDARDS
-        for ver in STANDARDS[std].versions
-    ]
+    all_versions = [f"{std}/{ver}" for std in preferred_order if std in STANDARDS for ver in STANDARDS[std].versions]
     console.print(Text("Supported standards:", style="heading"))
     for ver in all_versions:
         console.print(f"  {ARROW} [bright_cyan]{ver}[/bright_cyan]")
@@ -757,9 +785,7 @@ class _RegistryProgress:
         "completed": "Registry ready",
     }
 
-    def __init__(
-        self, label: str, enabled: bool = True, paths: tuple[Path, ...] = (), verbose: bool = False
-    ) -> None:
+    def __init__(self, label: str, enabled: bool = True, paths: tuple[Path, ...] = (), verbose: bool = False) -> None:
         self.label = label
         self.enabled = enabled
         self.verbose = verbose
@@ -771,10 +797,16 @@ class _RegistryProgress:
         self.current = 0
         self.total = 0
         self.progress = Progress(
-            SpinnerColumn(), TextColumn("{task.description}"), BarColumn(),
-            TaskProgressColumn(), TimeElapsedColumn(), console=self.target,
-            transient=True, disable=not enabled or not self.target.is_terminal,
-            redirect_stdout=False, redirect_stderr=False,
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=self.target,
+            transient=True,
+            disable=not enabled or not self.target.is_terminal,
+            redirect_stdout=False,
+            redirect_stderr=False,
         )
         self.task = self.progress.add_task(label, total=None)
 
@@ -818,7 +850,7 @@ class _RegistryProgress:
         if not self.verbose:
             width = max(10, self.target.width - len(details) - 2)
             if len(display) > width:
-                display = "..." + display[-(width - 3):]
+                display = "..." + display[-(width - 3) :]
         self.target.print(Text.assemble((display, "cyan"), "  ", (details, "dim")), soft_wrap=True)
 
     def __exit__(
@@ -851,7 +883,7 @@ def _run_scan(args: argparse.Namespace) -> None:
         "Registry scan", enabled, tuple(Path(path) for path in paths), bool(getattr(args, "verbose", False))
     ) as status:
         load_registry_from_paths(paths, progress=status.update, document_reporter=status.document)
-    count = sum(1 for _ in registry.iter_documents())
+    count = sum(1 for _ in _get_registry().iter_documents())
     console.print(f"Scan completed. {count:,} documents registered.")
 
 
@@ -932,7 +964,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     Optional type filtering: use --type to show only entries of a specific IP-XACT element type.
     """
     # Listing reads the saved inventory; registry scan updates its source paths.
-    if not any(True for _ in registry.iter_documents()):
+    if not any(True for _ in _get_registry().iter_documents()):
         enabled = not (getattr(args, "quiet", False) or getattr(args, "silent", False))
         with _RegistryProgress("Registry loading", enabled) as status:
             load_registry_from_cache(validate_files=False, progress=status.update)
@@ -947,12 +979,14 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         vendor_pat, library_pat, name_pat, version_pat = parts
         # Normalize wildcards / empties
         if use_regex:
+
             def _compile(p: str | None) -> re.Pattern[str] | None:
                 if p is None or p == "":
                     return None
                 if p == "*":
                     p = ".*"
                 return re.compile(p)
+
             try:
                 rx_vendor = _compile(vendor_pat)
                 rx_library = _compile(library_pat)
@@ -970,8 +1004,9 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     tree: dict[str, dict[str, dict[str, set[str]]]] = {}
     types_by_key: dict[tuple[str, str, str, str], str] = {}
     editions_by_key: dict[tuple[str, str, str, str], str] = {}
-    for handle in registry.iter_documents():
-        vlnv = registry.get_vlnv(handle)
+    registry_api = _get_registry()
+    for handle in registry_api.iter_documents():
+        vlnv = registry_api.get_vlnv(handle)
         if not vlnv:
             continue
         vendor, library, name, version = vlnv
@@ -985,8 +1020,10 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         # Filter if needed
         if pattern:
             if use_regex:
+
                 def ok(rx: re.Pattern[str] | None, val: str) -> bool:
                     return True if rx is None else bool(rx.search(val))
+
                 if not ok(rx_vendor, vendor):
                     continue
                 if not ok(rx_library, library):
@@ -996,8 +1033,10 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                 if not ok(rx_version, version):
                     continue
             else:
+
                 def ok(p: str | None, val: str) -> bool:
                     return True if p is None else (p in val.lower())
+
                 if not ok(vendor_pat, vendor):
                     continue
                 if not ok(library_pat, library):
@@ -1013,7 +1052,7 @@ def _run_registry_list(args: argparse.Namespace) -> None:
         # Capture document type and schema edition for each complete VLNV.
         key = (vendor, library, name, version)
         types_by_key[key] = _get_type_for_handle(handle) or ""
-        info = registry.get_document_info(handle)
+        info = registry_api.get_document_info(handle)
         if info is not None and info.standard and info.schema_version:
             family = "IP-XACT" if info.standard == "ipxact" else info.standard.upper()
             editions_by_key[key] = f"{family} {info.schema_version}"
@@ -1027,8 +1066,13 @@ def _run_registry_list(args: argparse.Namespace) -> None:
     target = console
     if color == "always":
         target = Console(
-            file=console.file, theme=_CLI_THEME, force_terminal=True, color_system="standard",
-            no_color=False, highlight=False, width=console.width,
+            file=console.file,
+            theme=_CLI_THEME,
+            force_terminal=True,
+            color_system="standard",
+            no_color=False,
+            highlight=False,
+            width=console.width,
         )
     plain = bool(getattr(args, "plain", False)) or color == "never" or not target.is_terminal
     output = _RegistryOutput(target, plain)
@@ -1044,8 +1088,10 @@ def _run_registry_list(args: argparse.Namespace) -> None:
                     for version in sorted(tree[vendor][library][name], key=_natural_key):
                         tname = types_by_key.get((vendor, library, name, version), "")
                         lines.append((vendor, library, name, version, tname))
+
         def _prefix_len(v: str, lib: str, n: str, ver: str) -> int:
             return len(v) + 1 + len(lib) + 1 + len(n) + 1 + len(ver)
+
         max_prefix = max((_prefix_len(v, lib, n, ver) for v, lib, n, ver, _t in lines), default=0)
         for vendor, library, name, version, tname in lines:
             # Calculate padding so that type starts at same column
@@ -1133,9 +1179,7 @@ def _run_web(args: argparse.Namespace) -> None:
     try:
         import uvicorn  # type: ignore[import-not-found]
     except Exception:
-        console.print(
-            "Uvicorn is not installed. Install it via 'uv add uvicorn' or 'pip install uvicorn' and retry."
-        )
+        console.print("Uvicorn is not installed. Install it via 'uv add uvicorn' or 'pip install uvicorn' and retry.")
         return
     # Use module path to the ASGI app to avoid import cycles.
     uvicorn.run(
@@ -1163,6 +1207,7 @@ def _run_gui(args: argparse.Namespace) -> None:
     #     console.print(f"Details: {ex}")
     #     return
     from amal.eda.ipxact_de.gui import main as gui_main  # type: ignore
+
     gui_main()
 
 
@@ -1176,10 +1221,7 @@ def _run_mcp(args: argparse.Namespace) -> None:
         # Import lazily to avoid dependencies unless requested
         from amal.eda.ipxact_de.mcp.server import main as mcp_main  # type: ignore
     except Exception as ex:  # pragma: no cover - environment dependent
-        console.print(
-            "MCP dependencies are not installed. Install them via 'uv add mcp' "
-            "or 'pip install mcp'."
-        )
+        console.print("MCP dependencies are not installed. Install them via 'uv add mcp' or 'pip install mcp'.")
         console.print(f"Details: {ex}")
         return
     mcp_main()
@@ -1237,12 +1279,7 @@ def _main() -> None:
 
     # Build versions list (shared) once
     preferred_order = ["spirit", "ipxact"]
-    all_versions = [
-        f"{std}/{ver}"
-        for std in preferred_order
-        if std in STANDARDS
-        for ver in STANDARDS[std].versions
-    ]
+    all_versions = [f"{std}/{ver}" for std in preferred_order if std in STANDARDS for ver in STANDARDS[std].versions]
 
     # Register primary command specs
     specs = _build_command_specs(all_versions)
@@ -1334,6 +1371,8 @@ def _main() -> None:
         try:
             load_registry_from_paths([])
         except Exception:  # pragma: no cover - defensive startup
+            from amal.utilities import logger
+
             logger.exception("Registry scan failed")
 
     # Subcommand help via generic -h on parent (only when subcommand chosen and it's not 'help').

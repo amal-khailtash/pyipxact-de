@@ -2,12 +2,64 @@ import argparse
 import os
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal, cast, overload
 
 from rich import print
 
-from amal.eda.ipxact_de.xml_document import XmlDocument
-from amal.utilities import ARROW, XmlTranslator
-from org.accellera import TRANSFORMATIONS
+ARROW = "➤"
+
+if TYPE_CHECKING:
+    from amal.eda.ipxact_de.xml_document import XmlDocument
+    from amal.utilities.xml_translator import XmlTranslator
+
+
+@overload
+def _get_dependency(name: Literal["XmlDocument"]) -> type[XmlDocument]: ...
+
+
+@overload
+def _get_dependency(name: Literal["XmlTranslator"]) -> type[XmlTranslator]: ...
+
+
+@overload
+def _get_dependency(name: Literal["TRANSFORMATIONS"]) -> list[tuple[str, str, tuple[str, ...]]]: ...
+
+
+@overload
+def _get_dependency(
+    name: str,
+) -> type[XmlDocument] | type[XmlTranslator] | list[tuple[str, str, tuple[str, ...]]]: ...
+
+
+def _get_dependency(
+    name: str,
+) -> type[XmlDocument] | type[XmlTranslator] | list[tuple[str, str, tuple[str, ...]]]:
+    """Resolve command-only XML dependencies while honoring module-level patches."""
+    dependency = globals().get(name)
+    if dependency is not None:
+        return cast(type[XmlDocument] | type[XmlTranslator] | list[tuple[str, str, tuple[str, ...]]], dependency)
+    if name == "XmlDocument":
+        from amal.eda.ipxact_de.xml_document import XmlDocument as _XmlDocument
+
+        return _XmlDocument
+    if name == "XmlTranslator":
+        from amal.utilities import XmlTranslator as _XmlTranslator
+
+        return _XmlTranslator
+    if name == "TRANSFORMATIONS":
+        from org.accellera import TRANSFORMATIONS
+
+        return TRANSFORMATIONS
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __getattr__(
+    name: str,
+) -> type[XmlDocument] | type[XmlTranslator] | list[tuple[str, str, tuple[str, ...]]]:
+    """Keep the former module-level dependency names available to callers."""
+    if name in {"XmlDocument", "XmlTranslator", "TRANSFORMATIONS"}:
+        return _get_dependency(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def identify_xml(args: argparse.Namespace) -> None:
@@ -16,7 +68,7 @@ def identify_xml(args: argparse.Namespace) -> None:
     xml_files = getattr(args, "xml-files")
     for xml_file in xml_files:
         print(f"{ARROW} Identifying XML file: {xml_file.name} ...")
-        _doc = XmlDocument(Path(xml_file.name))
+        _doc = _get_dependency("XmlDocument")(Path(xml_file.name))
         print("  " + "-" * 80)
 
     print("=" * 120)
@@ -32,7 +84,8 @@ def validate_xml(args: argparse.Namespace) -> None:
     failed = False
     for xml_file in getattr(args, "xml-files"):
         result = validate_ipxact_xml(
-            Path(xml_file.name), schema_root=getattr(args, "schema_root", None),
+            Path(xml_file.name),
+            schema_root=getattr(args, "schema_root", None),
             semantic=getattr(args, "semantic", False),
         )
         console.print(f"{xml_file.name}: {'valid' if result.ok else 'invalid'}", markup=False)
@@ -51,7 +104,7 @@ def validate_xml(args: argparse.Namespace) -> None:
 def get_transformations_paths(from_version: str, to_version: str) -> list[tuple[str, str, str]]:
     print(f"{ARROW} Getting transformation paths from '{from_version}' to '{to_version}' ...")
     paths: list[tuple[str, str, str]] = []
-    for start, end, xsls in TRANSFORMATIONS:
+    for start, end, xsls in _get_dependency("TRANSFORMATIONS"):
         # print(f"  {ARROW} {start:10} ➜ {end:20} : {xsls}")
         if start == from_version:
             for xsl in xsls:
@@ -71,7 +124,7 @@ def run_transformation(input_file: str, output_file: str, xsl_file: str) -> None
     # newdom = transform(dom)
     # print(ET.tostring(newdom, pretty_print=True))
 
-    xml_translator = XmlTranslator(xsl_file, use_lxml=False)
+    xml_translator = _get_dependency("XmlTranslator")(xsl_file, use_lxml=False)
 
     xml_translator.transform(input_file, output_file, xsl_file)
 
@@ -123,7 +176,7 @@ def convert_xml(args: argparse.Namespace) -> None:
         print("{ARROW} Converting XML file ...")
         print(f"    : '{xml_filename_in}'")
         print(f"    ➜ '{xml_filename_out}'")
-        doc = XmlDocument(Path(xml_filename_in))
+        doc = _get_dependency("XmlDocument")(Path(xml_filename_in))
         # doc.version holds bare version (e.g. "1685-2022") after parsing
         version_from = doc.version or ""
         print(f"{ARROW} To Version: '{version_to}'")

@@ -74,6 +74,7 @@ jobs:
       - name: Run semantic tests and coverage
         env:
           COVERAGE_SOURCE: ${{ github.event.repository.name == 'pysystemc' && 'amal.eda.systemc' || 'src' }}
+          PYTEST_ADDOPTS: ${{ github.event.repository.name == 'pyipxact-de' && '-n 4 --dist=worksteal' || '' }}
         run: uv run --locked pytest --cov="$COVERAGE_SOURCE" --cov-report=term-missing --cov-report=xml:build/coverage/coverage.xml --cov-report=html:build/coverage/html
       - name: Save coverage reports
         if: always()
