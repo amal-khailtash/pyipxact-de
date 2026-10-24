@@ -23,6 +23,8 @@ from org.accellera.ipxact.v1685_2022 import (
     SingleShotDriver,
     DefaultValue,
     DriverType,
+    OtherClockDriver,
+    RealExpression,
 )
 from org.accellera.ipxact.v1685_2022.clock_driver_type import ClockDriverType
 from org.accellera.ipxact.v1685_2022.single_shot_driver import SingleShotDriver as SingleShotDriverClass
@@ -71,6 +73,15 @@ __all__ = [
     "getDriverSingleShotDriverID",
     "getDriverViewRefByID",
     "getDriverViewRefIDs",
+    "getOtherClockDriverClockPeriod",
+    "getOtherClockDriverClockPeriodExpression",
+    "getOtherClockDriverClockPeriodID",
+    "getOtherClockDriverClockPulseDuration",
+    "getOtherClockDriverClockPulseDurationExpression",
+    "getOtherClockDriverClockPulseDurationID",
+    "getOtherClockDriverClockPulseOffset",
+    "getOtherClockDriverClockPulseOffsetExpression",
+    "getOtherClockDriverClockPulseOffsetID",
     # EXTENDED (F.7.42)
     "addDriverSingleShotDriver",
     "addDriverViewRef",
@@ -146,11 +157,16 @@ def _resolve_clock_driver(clockDriverID: str) -> ClockDriver | None:
     return obj if isinstance(obj, ClockDriver) else None
 
 
-def _clock_element[T: ComplexBaseExpression](clock_driver_id: str, attribute: str, expected: type[T]) -> T | None:
+def _clock_element[T: ComplexBaseExpression](
+    clock_driver_id: str,
+    attribute: str,
+    expected: type[T],
+    driver_type: type[ClockDriver] | type[OtherClockDriver] = ClockDriver,
+) -> T | None:
     """Resolve a typed clock expression element and retain its immediate owner."""
-    driver = _resolve_clock_driver(clock_driver_id)
-    if driver is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
+    driver = resolve_handle(clock_driver_id)
+    if not isinstance(driver, driver_type):
+        raise TgiError("Invalid clock driver handle", TgiFaultCode.INVALID_ID)
     value = getattr(driver, attribute)
     if value is None:
         return None
@@ -158,6 +174,22 @@ def _clock_element[T: ComplexBaseExpression](clock_driver_id: str, attribute: st
         raise TgiError("Invalid clock expression element", TgiFaultCode.INVALID_ID)
     register_parent(value, driver, (attribute,), "single")
     return value
+
+
+def _clock_timing_value[T: RealExpression](
+    clock_driver_id: str,
+    attribute: str,
+    expected: type[T],
+    source: str | None,
+    driver_type: type[ClockDriver] | type[OtherClockDriver] = ClockDriver,
+) -> float | None:
+    """Evaluate clock timing using the source element's real bounds."""
+    if source is None:
+        return None
+    value = _clock_element(clock_driver_id, attribute, expected, driver_type)
+    if value is None:
+        return None
+    return _real(source, minimum=value.minimum, maximum=value.maximum)
 
 
 def _driver_choice[T: (DefaultValue, ClockDriver, SingleShotDriver)](driver_id: str, expected: type[T]) -> T | None:
@@ -213,12 +245,7 @@ def getClockDriverClockPeriod(clockDriverID: str) -> float | None:
     Section: F.7.41.1.
     """
     source = getClockDriverClockPeriodExpression(clockDriverID)
-    if source is None:
-        return None
-    value = _clock_element(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
-    if value is None:
-        return None
-    return _real(source, minimum=value.minimum, maximum=value.maximum)
+    return _clock_timing_value(clockDriverID, "clock_period", ClockDriverType.ClockPeriod, source)
 
 
 def getClockDriverClockPeriodExpression(clockDriverID: str) -> str | None:
@@ -245,12 +272,7 @@ def getClockDriverClockPulseDuration(clockDriverID: str) -> float | None:
     Section: F.7.41.4.
     """
     source = getClockDriverClockPulseDurationExpression(clockDriverID)
-    if source is None:
-        return None
-    value = _clock_element(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
-    if value is None:
-        return None
-    return _real(source, minimum=value.minimum, maximum=value.maximum)
+    return _clock_timing_value(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, source)
 
 
 def getClockDriverClockPulseDurationExpression(clockDriverID: str) -> str | None:
@@ -277,12 +299,7 @@ def getClockDriverClockPulseOffset(clockDriverID: str) -> float | None:
     Section: F.7.41.7.
     """
     source = getClockDriverClockPulseOffsetExpression(clockDriverID)
-    if source is None:
-        return None
-    value = _clock_element(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
-    if value is None:
-        return None
-    return _real(source, minimum=value.minimum, maximum=value.maximum)
+    return _clock_timing_value(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, source)
 
 
 def getClockDriverClockPulseOffsetExpression(clockDriverID: str) -> str | None:
@@ -435,6 +452,97 @@ def getDriverViewRefIDs(driverID: str) -> list[str]:
     if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
     return _owned_list_ids(driver, driver.view_ref, "view_ref")
+
+
+def getOtherClockDriverClockPeriod(otherClockDriverID: str) -> float | None:
+    """Return numeric value of ``clockPeriod`` on an otherClockDriver.
+
+    Section: F.7.41.24.
+    """
+    source = getOtherClockDriverClockPeriodExpression(otherClockDriverID)
+    return _clock_timing_value(
+        otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, source, OtherClockDriver
+    )
+
+
+def getOtherClockDriverClockPeriodExpression(otherClockDriverID: str) -> str | None:
+    """Return expression string of ``clockPeriod`` on an otherClockDriver.
+
+    Section: F.7.41.25.
+    """
+    value = _clock_element(otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, OtherClockDriver)
+    return None if value is None else _xml_text(value.value)
+
+
+def getOtherClockDriverClockPeriodID(otherClockDriverID: str) -> str | None:
+    """Return handle of ``clockPeriod`` on an otherClockDriver.
+
+    Section: F.7.41.26.
+    """
+    value = _clock_element(otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, OtherClockDriver)
+    return None if value is None else get_handle(value)
+
+
+def getOtherClockDriverClockPulseDuration(otherClockDriverID: str) -> float | None:
+    """Return numeric value of ``clockPulseDuration`` on an otherClockDriver.
+
+    Section: F.7.41.27.
+    """
+    source = getOtherClockDriverClockPulseDurationExpression(otherClockDriverID)
+    return _clock_timing_value(
+        otherClockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, source, OtherClockDriver
+    )
+
+
+def getOtherClockDriverClockPulseDurationExpression(otherClockDriverID: str) -> str | None:
+    """Return expression string of ``clockPulseDuration`` on an otherClockDriver.
+
+    Section: F.7.41.28.
+    """
+    value = _clock_element(
+        otherClockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, OtherClockDriver
+    )
+    return None if value is None else _xml_text(value.value)
+
+
+def getOtherClockDriverClockPulseDurationID(otherClockDriverID: str) -> str | None:
+    """Return handle of ``clockPulseDuration`` on an otherClockDriver.
+
+    Section: F.7.41.29.
+    """
+    value = _clock_element(
+        otherClockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, OtherClockDriver
+    )
+    return None if value is None else get_handle(value)
+
+
+def getOtherClockDriverClockPulseOffset(otherClockDriverID: str) -> float | None:
+    """Return numeric value of ``clockPulseOffset`` on an otherClockDriver.
+
+    Section: F.7.41.30.
+    """
+    source = getOtherClockDriverClockPulseOffsetExpression(otherClockDriverID)
+    return _clock_timing_value(
+        otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, source, OtherClockDriver
+    )
+
+
+def getOtherClockDriverClockPulseOffsetExpression(otherClockDriverID: str) -> str | None:
+    """Return expression string of ``clockPulseOffset`` on an otherClockDriver.
+
+    Section: F.7.41.31.
+    """
+    value = _clock_element(otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, OtherClockDriver)
+    return None if value is None else _xml_text(value.value)
+
+
+def getOtherClockDriverClockPulseOffsetID(otherClockDriverID: str) -> str | None:
+    """Return handle of ``clockPulseOffset`` on an otherClockDriver.
+
+    Section: F.7.41.32.
+    """
+    value = _clock_element(otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, OtherClockDriver)
+    return None if value is None else get_handle(value)
 
 
 # ---------------------------------------------------------------------------
