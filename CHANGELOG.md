@@ -17,6 +17,7 @@ This document lists notable changes for each release and follows:
 
 ### Features
 
+- Complete six design-configuration interconnection operations with registered target lookup, atomic required abstractor creation, reference validation and owned removal; fix the two underlying Design collection getters to read the generated mixed list.
 - Complete nine design-configuration design/generator reference operations with typed registry lookup, identity-preserving edits, unique generator references and owned subtree removal.
 - Complete seven design-configuration collection operations with ordered owned handles, scoped endpoint uniqueness, atomic abstractor-group creation and parsed subtree removal.
 - Complete nine design-configuration abstractor-instance operations with registry target resolution, schema-valid names, atomic edits, preserved configurable references and owned removal; align creation arguments with Annex F.

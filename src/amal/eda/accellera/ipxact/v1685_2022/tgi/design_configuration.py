@@ -18,6 +18,7 @@ from org.accellera.ipxact.v1685_2022 import (
     ConfigurableLibraryRefType,
     Design,
     DesignConfiguration,
+    DesignConfigurationInstantiationType,
     GeneratorChain,
     InstanceName,
     LibraryRefType,
@@ -26,8 +27,12 @@ from org.accellera.ipxact.v1685_2022 import (
 from ._expressions import _xml_text
 from ._model import _owned_list_ids, _walk_model
 from .address_space import _register_owned_child
-from .instantiation import _registered_reference_target, _validated_vlnv, getAbstractorInstanceAbstractorRefID
-from .name_group import _name_text
+from .instantiation import (
+    _registered_reference_target, _validated_vlnv, getAbstractorInstanceAbstractorRefID,
+    getDesignConfigurationInstantiationDesignConfigurationRefByID,
+)
+from .name_group import _name_text, getName
+from .design import getDesignInterconnectionIDs, getDesignMonitorInterconnectionIDs
 
 from .core import (
     _HANDLE_MANAGER,
@@ -82,6 +87,7 @@ __all__ = [
     "setAbstractorInstanceInstanceName",
     "setAbstractorInstanceViewName",
     "setDesignConfigurationDesignRef",
+    "setInterconnectionConfigurationInterconnectionRef",
 ]
 
 
@@ -216,6 +222,28 @@ def _generator_reference(handle: str) -> ConfigurableLibraryRefType | None:
         return None
     register_parent(ref, owner, ("generator_chain_configuration",), "list")
     return ref
+
+
+def _configuration_document(handle: str) -> DesignConfiguration:
+    obj = resolve_handle(handle)
+    if isinstance(obj, DesignConfigurationInstantiationType):
+        obj = resolve_handle(getDesignConfigurationInstantiationDesignConfigurationRefByID(handle))
+    if not isinstance(obj, DesignConfiguration):
+        raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
+    return obj
+
+
+def _unique_interconnection_ref(
+    owner: DesignConfiguration | DesignConfiguration.InterconnectionConfiguration,
+    reference: str,
+    current: DesignConfiguration.InterconnectionConfiguration | None = None,
+) -> None:
+    scope = owner if isinstance(owner, DesignConfiguration) else _register_owned_child(owner, DesignConfiguration)
+    if isinstance(scope, DesignConfiguration) and any(
+        child is not current and _abstractor_name(child, child.interconnection_ref) == reference
+        for child in scope.interconnection_configuration
+    ):
+        raise TgiError("Interconnection reference already configured", TgiFaultCode.ALREADY_EXISTS)
 
 
 # ---------------------------------------------------------------------------
@@ -358,10 +386,8 @@ def getDesignConfigurationInterconnectionConfigurationIDs(designConfigurationID:
 
     Section: F.7.39.11.
     """
-    dc = _resolve(designConfigurationID)
-    if dc is None:
-        raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(ic) for ic in dc.interconnection_configuration]
+    dc = _configuration_document(designConfigurationID)
+    return _owned_list_ids(dc, dc.interconnection_configuration, "interconnection_configuration")
 
 
 def getDesignConfigurationViewConfigurationIDs(designConfigurationID: str) -> list[str]:
@@ -410,23 +436,39 @@ def getInterconnectionConfigurationAbstractorsInstancesIDs(interconnectionConfig
     return _owned_list_ids(ic, ic.abstractor_instances, "abstractor_instances")
 
 
-def getInterconnectionConfigurationInterconnectionRefByID(interconnectionConfigurationID: str) -> str | None:
-    """Return the interconnectionRef as a string (ID form).
+def getInterconnectionConfigurationInterconnectionRefByID(interconnectionConfigurationID: str) -> str:
+    """Return the handle of the referenced design interconnection.
 
-    Section: F.7.39.16. The reference is a name string, so we return it directly.
+    Section: F.7.39.16. Missing or ambiguous names raise NOT_FOUND.
+    """
+    ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
+    if ic is None:
+        raise TgiError("Invalid interconnectionConfiguration handle", TgiFaultCode.INVALID_ID)
+    dc = _register_owned_child(ic, DesignConfiguration)
+    if not isinstance(dc, DesignConfiguration):
+        raise TgiError("Interconnection configuration has no owning designConfiguration", TgiFaultCode.NOT_FOUND)
+    design_id = getDesignConfigurationDesignRefByID(get_handle(dc))
+    name = _abstractor_name(ic, ic.interconnection_ref)
+    candidates = [
+        child_id
+        for child_id in [*getDesignInterconnectionIDs(design_id), *getDesignMonitorInterconnectionIDs(design_id)]
+        if (child_name := getName(child_id)) is not None
+        and _abstractor_name(resolve_handle(child_id), child_name) == name
+    ]
+    if len(candidates) != 1:
+        raise TgiError("Referenced interconnection is missing or ambiguous", TgiFaultCode.NOT_FOUND)
+    return candidates[0]
+
+
+def getInterconnectionConfigurationInterconnectionRefByName(interconnectionConfigurationID: str) -> str | None:
+    """Return the stored interconnectionRef name.
+
+    Section: F.7.39.17.
     """
     ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
     if ic is None:
         raise TgiError("Invalid interconnectionConfiguration handle", TgiFaultCode.INVALID_ID)
     return ic.interconnection_ref
-
-
-def getInterconnectionConfigurationInterconnectionRefByName(interconnectionConfigurationID: str) -> str | None:
-    """Alias of F.7.39.16 per spec naming – returns the interconnectionRef name.
-
-    Section: F.7.39.17.
-    """
-    return getInterconnectionConfigurationInterconnectionRefByID(interconnectionConfigurationID)
 
 
 def getViewConfigurationConfigurableElementValueIDs(viewConfigurationID: str) -> list[str]:
@@ -573,21 +615,30 @@ def addDesignConfigurationGeneratorChainConfiguration(
 
 
 def addDesignConfigurationInterconnectionConfiguration(
-    designConfigurationID: str, interconnectionRef: str
+    designConfigurationID: str, interconnectionRef: str,
+    abstractorVLNV: tuple[str, str, str, str], instanceName: str, viewName: str,
 ) -> str:
-    """Create and append an interconnectionConfiguration with the given ref.
+    """Create an interconnectionConfiguration with the given ref and abstractor.
 
     Section: F.7.40.5.
     """
     dc = _resolve(designConfigurationID)
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
+    reference = _abstractor_name(dc, interconnectionRef)
+    _unique_interconnection_ref(dc, reference)
     ic = DesignConfiguration.InterconnectionConfiguration(
-        interconnection_ref=interconnectionRef
+        interconnection_ref=reference
     )
-    dc.interconnection_configuration.append(ic)  # type: ignore[attr-defined]
+    ic_id = get_handle(ic)
     register_parent(ic, dc, ("interconnection_configuration",), "list")
-    return get_handle(ic)
+    try:
+        addInterconnectionConfigurationAbstractorInstances(ic_id, abstractorVLNV, instanceName, viewName)
+    except TgiError:
+        _HANDLE_MANAGER.forget(ic_id)
+        raise
+    dc.interconnection_configuration = [*dc.interconnection_configuration, ic]
+    return ic_id
 
 
 def addDesignConfigurationViewConfiguration(
@@ -711,6 +762,8 @@ def removeDesignConfigurationInterconnectionConfiguration(interconnectionConfigu
     ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
     if ic is None:
         return False
+    if _register_owned_child(ic, DesignConfiguration) is None:
+        return False
     return detach_child_by_handle(interconnectionConfigurationID)
 
 
@@ -800,4 +853,17 @@ def setDesignConfigurationDesignRef(
     if dc is None:
         raise TgiError("Invalid designConfiguration handle", TgiFaultCode.INVALID_ID)
     _set_reference(dc, "design_ref", LibraryRefType, vlnv)
+    return True
+
+
+def setInterconnectionConfigurationInterconnectionRef(
+    interconnectionConfigurationID: str, interconnectionRef: str,
+) -> bool:
+    """Set the interconnectionRef XML Name (F.7.40.21)."""
+    ic = _resolve_interconnection_configuration(interconnectionConfigurationID)
+    if ic is None:
+        raise TgiError("Invalid interconnectionConfiguration handle", TgiFaultCode.INVALID_ID)
+    reference = _abstractor_name(ic, interconnectionRef)
+    _unique_interconnection_ref(ic, reference, ic)
+    ic.interconnection_ref = reference
     return True
