@@ -14,7 +14,8 @@ Each getter follows the error model used across the TGI layer:
 Internal and external ad-hoc port part-select operations reuse generated models
 and shared range/index expression validation, ownership and subtree removal.
 Port-reference lists traverse generated mixed holders; stored names and sub-port
-paths use shared reference mappings and ordered ownership helpers.
+paths use shared reference mappings and ordered ownership helpers. Ad-hoc
+connection builders reuse endpoint builders and preserve schema reference order.
 
 Created child elements are registered with parent relationships so that
 handle lifecycle & reverse traversal remain coherent inside the DE.
@@ -25,13 +26,14 @@ from collections.abc import Iterable, Sequence
 
 from ._model import _owned_list_ids, _sub_port_references
 from ._miscellaneous_part_select import _part_select
-from .port_map import _child, _child_id, _remove_child, _set_part_select
+from .port_map import _child, _child_id, _name, _remove_child, _set_part_select
 from ._attribute_references import _reference_value
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
 
 from org.accellera.ipxact.v1685_2022 import (
     Design,
+    AdHocConnections,
     Interconnection,
     MonitorInterconnection,
 )
@@ -192,27 +194,131 @@ def _port_reference_name(
     return value
 
 
-def _ad_hoc_port_reference_ids[T: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference](
-    connection_id: str, model_type: type[T]
-) -> list[str]:
-    """Filter generated mixed references, retaining their immediate holder ownership."""
+def _ad_hoc_port_references(
+    connection_id: str,
+) -> tuple[
+    AdHocConnection,
+    AdHocConnection.PortReferences | None,
+    Sequence[ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference],
+]:
+    """Validate the generated mixed reference holder without normalizing its storage."""
     owner = _resolve_ad_hoc(connection_id)
     if owner is None:
         raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
     holder = _child(owner, "port_references", AdHocConnection.PortReferences)
     if holder is None:
-        return []
+        return owner, None, ()
     children = holder.internal_port_reference_or_external_port_reference
     if not isinstance(children, (list, tuple)) or any(
         not isinstance(child, (ExternalPortReference, AdHocConnection.PortReferences.InternalPortReference))
         for child in children
     ):
         raise TgiError("Invalid ad-hoc port reference collection", TgiFaultCode.INVALID_ID)
-    return _owned_list_ids(
-        holder,
-        (child for child in children if isinstance(child, model_type)),
-        "internal_port_reference_or_external_port_reference",
+    return owner, holder, children
+
+
+def _ad_hoc_port_reference_ids[T: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference](
+    connection_id: str, model_type: type[T]
+) -> list[str]:
+    """Filter generated mixed references, retaining their immediate holder ownership."""
+    _, holder, children = _ad_hoc_port_references(connection_id)
+    return (
+        []
+        if holder is None
+        else _owned_list_ids(
+            holder,
+            (child for child in children if isinstance(child, model_type)),
+            "internal_port_reference_or_external_port_reference",
+        )
     )
+
+
+def _insert_ad_hoc_port_reference(
+    connection_id: str, child: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference
+) -> str:
+    """Insert a named endpoint while preserving the schema's internal-before-external order."""
+    owner, holder, children = _ad_hoc_port_references(connection_id)
+    external_seen = False
+    for current in children:
+        if isinstance(current, ExternalPortReference):
+            external_seen = True
+        elif external_seen:
+            raise TgiError("Invalid ad-hoc port reference order", TgiFaultCode.INVALID_ID)
+    if holder is None:
+        holder = AdHocConnection.PortReferences()
+        owner.port_references = holder
+        register_parent(holder, owner, ("port_references",), "single")
+    items = _list_attr(holder, "internal_port_reference_or_external_port_reference")
+    index = len(items)
+    if isinstance(child, AdHocConnection.PortReferences.InternalPortReference):
+        index = next((i for i, current in enumerate(items) if isinstance(current, ExternalPortReference)), len(items))
+    items.insert(index, child)
+    _owned_list_ids(holder, items, "internal_port_reference_or_external_port_reference")
+    return get_handle(child)
+
+
+def _remove_ad_hoc_port_reference[T: ExternalPortReference | AdHocConnection.PortReferences.InternalPortReference](
+    reference_id: str, model_type: type[T]
+) -> bool:
+    """Remove an endpoint belonging to the actual mixed holder of an ad-hoc connection."""
+    child = _port_reference(reference_id, model_type)
+    holder = _register_owned_child(child, AdHocConnection.PortReferences)
+    if not isinstance(holder, AdHocConnection.PortReferences):
+        raise TgiError("Reference has no owning ad-hoc holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, AdHocConnection)
+    if not isinstance(owner, AdHocConnection) or owner.port_references is not holder:
+        raise TgiError("Holder has no owning ad-hoc connection", TgiFaultCode.INVALID_ID)
+    _, _, children = _ad_hoc_port_references(get_handle(owner))
+    if not any(current is child for current in children):
+        raise TgiError("Reference is not in the owning endpoint list", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, "internal_port_reference_or_external_port_reference")
+    return _remove_owned(reference_id, model_type, AdHocConnection.PortReferences, "ad-hoc port reference")
+
+
+def _design_ad_hoc_connections(
+    design_id: str,
+) -> tuple[Design, AdHocConnections | None, Sequence[AdHocConnection]]:
+    """Validate the Design's ad-hoc connection holder and ordered child collection."""
+    owner = _resolve_design(design_id)
+    if owner is None:
+        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
+    holder = _child(owner, "ad_hoc_connections", AdHocConnections)
+    if holder is None:
+        return owner, None, ()
+    children = holder.ad_hoc_connection
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, AdHocConnection) for child in children):
+        raise TgiError("Invalid ad-hoc connection collection", TgiFaultCode.INVALID_ID)
+    return owner, holder, children
+
+
+def _build_design_ad_hoc_connection(
+    design_id: str, name: str, port_ref: str, component_instance_ref: str | None = None
+) -> str:
+    """Build a connection through the public endpoint builders, then attach it to the Design."""
+    owner, holder, children = _design_ad_hoc_connections(design_id)
+    source_name, source_port = _name(name, "portName"), _name(port_ref, "portName")
+    source_instance = None if component_instance_ref is None else _name(component_instance_ref, "Name")
+    for current in children:
+        try:
+            current_name = _name(current.name, "portName")
+        except TgiError as error:
+            raise TgiError("Invalid existing ad-hoc connection name", TgiFaultCode.INVALID_ID) from error
+        if current_name == source_name:
+            raise TgiError("Duplicate ad-hoc connection name", TgiFaultCode.INVALID_ARGUMENT)
+    # init port_references
+    child = AdHocConnection(name=source_name, port_references=AdHocConnection.PortReferences())
+    handle = get_handle(child)
+    if source_instance is None:
+        addAdHocConnectionExternalPortReference(handle, source_port)
+    else:
+        addAdHocConnectionInternalPortReference(handle, source_instance, source_port)
+    if holder is None:
+        holder = AdHocConnections()
+        owner.ad_hoc_connections = holder
+        register_parent(holder, owner, ("ad_hoc_connections",), "single")
+    _list_attr(holder, "ad_hoc_connection").append(child)
+    getDesignAdHocConnectionIDs(design_id)
+    return handle
 
 
 def _port_sub_reference_ids(
@@ -389,12 +495,8 @@ def getDesignAdHocConnectionIDs(designID: str) -> list[str]:
 
     Section: F.7.37.12.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.ad_hoc_connections is None:
-        return []
-    return [get_handle(a) for a in getattr(d.ad_hoc_connections, "ad_hoc_connection", [])]
+    _, holder, children = _design_ad_hoc_connections(designID)
+    return [] if holder is None else _owned_list_ids(holder, children, "ad_hoc_connection")
 
 
 def getDesignChoiceIDs(designID: str) -> list[str]:
@@ -652,15 +754,8 @@ def addAdHocConnectionExternalPortReference(adHocConnectionID: str, portRef: str
 
     Section: F.7.38.2.
     """
-    ac = _resolve_ad_hoc(adHocConnectionID)
-    if ac is None:
-        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    if ac.port_references is None:
-        ac.port_references = AdHocConnection.PortReferences()  # type: ignore[assignment]
-    epr = ExternalPortReference(port_ref=portRef)
-    ac.port_references.external_port_reference.append(epr)  # type: ignore[attr-defined]
-    register_parent(epr, ac, ("port_references",), "list")
-    return get_handle(epr)
+    child = ExternalPortReference(port_ref=_name(portRef, "portName"))
+    return _insert_ad_hoc_port_reference(adHocConnectionID, child)
 
 
 def addAdHocConnectionInternalPortReference(adHocConnectionID: str, componentInstanceRef: str, portRef: str) -> str:
@@ -668,18 +763,10 @@ def addAdHocConnectionInternalPortReference(adHocConnectionID: str, componentIns
 
     Section: F.7.38.3.
     """
-    ac = _resolve_ad_hoc(adHocConnectionID)
-    if ac is None:
-        raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    if ac.port_references is None:
-        ac.port_references = AdHocConnection.PortReferences()  # type: ignore[assignment]
-    ipr = AdHocConnection.PortReferences.InternalPortReference(  # type: ignore[attr-defined]
-        component_instance_ref=componentInstanceRef,
-        port_ref=portRef,
+    child = AdHocConnection.PortReferences.InternalPortReference(
+        component_instance_ref=_name(componentInstanceRef, "Name"), port_ref=_name(portRef, "portName")
     )
-    ac.port_references.internal_port_reference.append(ipr)  # type: ignore[attr-defined]
-    register_parent(ipr, ac, ("port_references",), "list")
-    return get_handle(ipr)
+    return _insert_ad_hoc_port_reference(adHocConnectionID, child)
 
 
 def addDesignAdHocConnection(designID: str, name: str, componentInstanceRef: str, portRef: str) -> str:
@@ -687,25 +774,8 @@ def addDesignAdHocConnection(designID: str, name: str, componentInstanceRef: str
 
     Section: F.7.38.4.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.ad_hoc_connections is None:
-        from org.accellera.ipxact.v1685_2022.ad_hoc_connections import AdHocConnections
-
-        d.ad_hoc_connections = AdHocConnections()  # type: ignore[assignment]
-    ac = AdHocConnection(name=name)
-    # init port_references
-    ac.port_references = AdHocConnection.PortReferences()  # type: ignore[assignment]
-    ipr = AdHocConnection.PortReferences.InternalPortReference(  # type: ignore[attr-defined]
-        component_instance_ref=componentInstanceRef,
-        port_ref=portRef,
-    )
-    ac.port_references.internal_port_reference.append(ipr)  # type: ignore[attr-defined]
-    d.ad_hoc_connections.ad_hoc_connection.append(ac)  # type: ignore[attr-defined]
-    register_parent(ac, d, ("ad_hoc_connections",), "list")
-    register_parent(ipr, ac, ("port_references",), "list")
-    return get_handle(ac)
+    source_instance = _name(componentInstanceRef, "Name")
+    return _build_design_ad_hoc_connection(designID, name, portRef, source_instance)
 
 
 def addDesignChoice(designID: str, name: str, enumerations: list[str] | None = None) -> str:
@@ -762,21 +832,7 @@ def addDesignExternalAdHocConnection(designID: str, name: str, portRef: str) -> 
 
     Section: F.7.38.7.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.ad_hoc_connections is None:
-        from org.accellera.ipxact.v1685_2022.ad_hoc_connections import AdHocConnections
-
-        d.ad_hoc_connections = AdHocConnections()  # type: ignore[assignment]
-    ac = AdHocConnection(name=name)
-    ac.port_references = AdHocConnection.PortReferences()  # type: ignore[assignment]
-    epr = ExternalPortReference(port_ref=portRef)
-    ac.port_references.external_port_reference.append(epr)  # type: ignore[attr-defined]
-    d.ad_hoc_connections.ad_hoc_connection.append(ac)  # type: ignore[attr-defined]
-    register_parent(ac, d, ("ad_hoc_connections",), "list")
-    register_parent(epr, ac, ("port_references",), "list")
-    return get_handle(ac)
+    return _build_design_ad_hoc_connection(designID, name, portRef)
 
 
 def addDesignInterconnection(
@@ -902,10 +958,7 @@ def removeAdHocConnectionExternalPortReference(externalPortReferenceID: str) -> 
 
     Section: F.7.38.14.
     """
-    obj = resolve_handle(externalPortReferenceID)
-    if not isinstance(obj, ExternalPortReference):
-        raise TgiError("Invalid externalPortReference handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(externalPortReferenceID)
+    return _remove_ad_hoc_port_reference(externalPortReferenceID, ExternalPortReference)
 
 
 def removeAdHocConnectionInternalPortReference(internalPortReferenceID: str) -> bool:
@@ -913,10 +966,7 @@ def removeAdHocConnectionInternalPortReference(internalPortReferenceID: str) -> 
 
     Section: F.7.38.15.
     """
-    obj = resolve_handle(internalPortReferenceID)
-    if not isinstance(obj, AdHocConnection.PortReferences.InternalPortReference):  # type: ignore[attr-defined]
-        raise TgiError("Invalid internalPortReference handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(internalPortReferenceID)
+    return _remove_ad_hoc_port_reference(internalPortReferenceID, AdHocConnection.PortReferences.InternalPortReference)
 
 
 def removeAdHocConnectionTiedValue(adHocConnectionID: str) -> bool:
@@ -938,10 +988,19 @@ def removeDesignAdHocConnection(adHocConnectionID: str) -> bool:
 
     Section: F.7.38.17.
     """
-    obj = resolve_handle(adHocConnectionID)
-    if not isinstance(obj, AdHocConnection):
+    child = _resolve_ad_hoc(adHocConnectionID)
+    if child is None:
         raise TgiError("Invalid adHocConnection handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(adHocConnectionID)
+    holder = _register_owned_child(child, AdHocConnections)
+    if not isinstance(holder, AdHocConnections):
+        raise TgiError("Connection has no owning ad-hoc holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, Design)
+    if not isinstance(owner, Design) or owner.ad_hoc_connections is not holder:
+        raise TgiError("Holder has no owning Design", TgiFaultCode.INVALID_ID)
+    if get_handle(child) not in getDesignAdHocConnectionIDs(get_handle(owner)):
+        raise TgiError("Connection is not in the owning collection", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, "ad_hoc_connection")
+    return _remove_owned(adHocConnectionID, AdHocConnection, AdHocConnections, "ad-hoc connection")
 
 
 def removeDesignChoice(choiceID: str) -> bool:
