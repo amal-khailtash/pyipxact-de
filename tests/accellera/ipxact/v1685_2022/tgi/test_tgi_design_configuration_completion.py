@@ -29,6 +29,9 @@ from org.accellera.ipxact.v1685_2022 import (
     DesignConfiguration,
     DesignConfigurationInstantiationType,
     InstanceName,
+    Parameter,
+    Parameters,
+    Value,
 )
 
 _SCHEMA = etree.XMLSchema(
@@ -147,6 +150,33 @@ def test_duplicate_choice_name_is_rejected_without_changing_holder() -> None:
     assert error.value.fault_code == TgiFaultCode.ALREADY_EXISTS
     assert root.choices is holder
     assert XmlDocument.serializer().render(root) == before
+
+
+@pytest.mark.parametrize("parsed", [False, True])
+def test_referenced_choice_cannot_be_removed_until_parameter_reference_is_cleared(parsed: bool) -> None:
+    root = _document(parsed=True)
+    root.parameters = Parameters(parameter=[Parameter(name="WIDTH", choice_ref="widths", value=Value(value="4"))])
+    if parsed:
+        root = XmlDocument.parser().from_string(XmlDocument.serializer().render(root), DesignConfiguration)
+        registry.clear()
+        registry.register(root, ("v", "l", "configuration", "1"))
+    _round_trip(root)
+    holder = root.choices
+    selected = holder.choice[0]
+    selected_id = get_handle(selected)
+    descendant_ids = choice.getChoiceEnumerationIDs(selected_id)
+    before = XmlDocument.serializer().render(root)
+    assert not api.removeDesignConfChoice(selected_id)
+    assert root.choices is holder
+    assert resolve_handle(selected_id) is selected
+    assert all(resolve_handle(handle) is not None for handle in descendant_ids)
+    assert XmlDocument.serializer().render(root) == before
+    _round_trip(root)
+    root.parameters.parameter[0].choice_ref = None
+    assert api.removeDesignConfChoice(selected_id)
+    assert root.choices is None
+    assert all(resolve_handle(handle) is None for handle in [selected_id, *descendant_ids])
+    _round_trip(root)
 
 
 def test_choice_getter_routes_configuration_instantiation_reference() -> None:

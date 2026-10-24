@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Preserve design-configuration choice references by refusing to remove a choice while parameters still reference it.
 - Defer XML and TGI imports for lightweight CLI commands to reduce startup overhead.
 - Make parallel test collection deterministic and protect shared example-cache preparation.
 - Include generated `src/org` schema bindings in published Codecov reports.

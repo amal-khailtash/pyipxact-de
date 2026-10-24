@@ -765,6 +765,9 @@ def removeAbstractorInstancesInterfaceRef(interfaceRefID: str) -> bool:
 def removeDesignConfChoice(choiceID: str) -> bool:
     """Remove a design configuration choice.
 
+    Return False while a parameter still references the choice, preserving
+    the designConfigChoiceRef schema key reference.
+
     Section: F.7.40.10.
     """
     obj = resolve_handle(choiceID)
@@ -776,6 +779,12 @@ def removeDesignConfChoice(choiceID: str) -> bool:
         return False
     dc = _register_owned_child(holder, DesignConfiguration)
     if not isinstance(dc, DesignConfiguration) or dc.choices is not holder:
+        return False
+    name = _abstractor_name(obj, obj.name)
+    if dc.parameters is not None and any(
+        parameter.choice_ref is not None and _abstractor_name(obj, parameter.choice_ref) == name
+        for parameter in dc.parameters.parameter
+    ):
         return False
     if not detach_child_by_handle(choiceID):
         return False
