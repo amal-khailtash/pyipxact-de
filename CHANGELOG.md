@@ -7,6 +7,10 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Fixed
+
+- Update Codecov main coverage from the immutable release tag after verified PyPI publication.
+
 ## [0.8.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.7.0...v0.8.0) (2026-10-24)
 
 
