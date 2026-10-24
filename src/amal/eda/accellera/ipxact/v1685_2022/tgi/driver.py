@@ -35,7 +35,7 @@ from org.accellera.ipxact.v1685_2022.right import Right
 from org.accellera.ipxact.v1685_2022.complex_base_expression import ComplexBaseExpression
 from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
 
-from ._expressions import _bit, _real, _xml_text
+from ._expressions import _bit, _integer, _real, _xml_text
 from .miscellaneous import (
     _expression_source,
     getExpression,
@@ -122,6 +122,7 @@ __all__ = [
     "setOtherClockDriverClockPulseValue",
     "setSingleShotDriverSingleShotDuration",
     "setSingleShotDriverSingleShotOffset",
+    "setSingleShotDriverSingleShotValue",
 ]
 
 
@@ -211,22 +212,25 @@ def _driver_timing_value[T: RealExpression](
     return _real(source, minimum=value.minimum, maximum=value.maximum)
 
 
-def _set_driver_timing[T: RealExpression](
+def _set_driver_expression[T: ComplexBaseExpression](
     driver_id: str,
     attribute: str,
     expected: type[T],
     source: str,
-    driver_type: type[ClockDriver] | type[OtherClockDriver],
+    driver_type: type[ClockDriver] | type[OtherClockDriver] | type[SingleShotDriver],
 ) -> bool:
-    """Set timing source through generic validation, preserving existing wrappers."""
+    """Set driver source through generic validation, preserving existing wrappers."""
     current = _driver_expression(driver_id, attribute, expected, driver_type)
+    if expected is UnsignedBitVectorExpression and driver_type is SingleShotDriver:
+        _xml_text(source)
+        _integer(source, 1, deferred=True, decimal_literals=False)
     if current is not None:
         return setExpressionValue(get_handle(current), source)
     current = expected(value="")
     current.value = _expression_source(source, current)
     driver = resolve_handle(driver_id)
     if not isinstance(driver, driver_type):
-        raise TgiError("Invalid timing owner handle", TgiFaultCode.INVALID_ID)
+        raise TgiError("Invalid driver expression owner handle", TgiFaultCode.INVALID_ID)
     setattr(driver, attribute, current)
     register_parent(current, driver, (attribute,), "single")
     return True
@@ -793,7 +797,7 @@ def setClockDriverClockPeriod(clockDriverID: str, clockPeriod: str) -> bool:
 
     Section: F.7.42.7.
     """
-    return _set_driver_timing(clockDriverID, "clock_period", ClockDriverType.ClockPeriod, clockPeriod, ClockDriver)
+    return _set_driver_expression(clockDriverID, "clock_period", ClockDriverType.ClockPeriod, clockPeriod, ClockDriver)
 
 
 def setClockDriverClockPulseDuration(clockDriverID: str, clockPulseDuration: str) -> bool:
@@ -801,7 +805,7 @@ def setClockDriverClockPulseDuration(clockDriverID: str, clockPulseDuration: str
 
     Section: F.7.42.8.
     """
-    return _set_driver_timing(
+    return _set_driver_expression(
         clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration, clockPulseDuration, ClockDriver
     )
 
@@ -811,31 +815,27 @@ def setClockDriverClockPulseOffset(clockDriverID: str, pulseOffset: str) -> bool
 
     Section: F.7.42.9.
     """
-    return _set_driver_timing(
+    return _set_driver_expression(
         clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, pulseOffset, ClockDriver
     )
 
 
-def setClockDriverClockPulseValue(clockDriverID: str, value: int, expression: str | None = None) -> bool:
-    """Set clockPulseValue fields.
+def setClockDriverClockPulseValue(clockDriverID: str, clockPulseValue: str) -> bool:
+    """Set ``clockPulseValue`` source on an existing clockDriver.
+
+    Args:
+        clockDriverID: Handle to the owning clockDriver element.
+        clockPulseValue: Constant expression source.
+
+    Returns:
+        True when the expression is updated.
 
     Section: F.7.42.10.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    # UnsignedBitExpression imported inside to avoid circular imports if any
-    from org.accellera.ipxact.v1685_2022.unsigned_bit_expression import UnsignedBitExpression
-
-    ub = cd.clock_pulse_value
-    if ub is None:
-        ub = UnsignedBitExpression()
-        cd.clock_pulse_value = ub
-        register_parent(ub, cd, ("clock_pulse_value",), "single")
-    ub.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        ub.expression = expression  # type: ignore[attr-defined]
-    return True
+    # UnsignedBitExpression shares the standard one-bit cast with its numeric getter.
+    return _set_driver_expression(
+        clockDriverID, "clock_pulse_value", UnsignedBitExpression, clockPulseValue, ClockDriver
+    )
 
 
 def setDriverClockDriver(driverID: str) -> str:
@@ -918,7 +918,7 @@ def setOtherClockDriverClockPeriod(otherClockDriverID: str, clockPeriod: str) ->
 
     Section: F.7.42.15.
     """
-    return _set_driver_timing(
+    return _set_driver_expression(
         otherClockDriverID, "clock_period", ClockDriverType.ClockPeriod, clockPeriod, OtherClockDriver
     )
 
@@ -928,7 +928,7 @@ def setOtherClockDriverClockPulseDuration(otherClockDriverID: str, clockPulseDur
 
     Section: F.7.42.16.
     """
-    return _set_driver_timing(
+    return _set_driver_expression(
         otherClockDriverID,
         "clock_pulse_duration",
         ClockDriverType.ClockPulseDuration,
@@ -942,50 +942,78 @@ def setOtherClockDriverClockPulseOffset(otherClockDriverID: str, clockPulseOffse
 
     Section: F.7.42.17.
     """
-    return _set_driver_timing(
+    return _set_driver_expression(
         otherClockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset, clockPulseOffset, OtherClockDriver
     )
 
 
-def setOtherClockDriverClockPulseValue(driverID: str, value: int, expression: str | None = None) -> bool:
-    """Ensure clockDriver then set clockPulseValue.
+def setOtherClockDriverClockPulseValue(otherClockDriverID: str, clockPulseValue: str) -> bool:
+    """Set ``clockPulseValue`` source on an existing otherClockDriver.
+
+    Args:
+        otherClockDriverID: Handle to the owning otherClockDriver element.
+        clockPulseValue: Constant expression source.
+
+    Returns:
+        True when the expression is updated.
 
     Section: F.7.42.18.
     """
-    d = _resolve_driver(driverID)
-    if d is None:
-        raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    cd = _ensure_clock(d)
-    return setClockDriverClockPulseValue(get_handle(cd), value, expression)
+    return _set_driver_expression(
+        otherClockDriverID, "clock_pulse_value", UnsignedBitExpression, clockPulseValue, OtherClockDriver
+    )
 
 
-def setSingleShotDriverSingleShotDuration(singleShotDriverID: str, value: float, expression: str | None = None) -> bool:
-    """Set duration field of an existing singleShotDriver.
+def setSingleShotDriverSingleShotDuration(singleShotDriverID: str, singleShotDuration: str) -> bool:
+    """Set ``singleShotDuration`` source on an existing singleShotDriver.
+
+    Args:
+        singleShotDriverID: Handle to the owning singleShotDriver element.
+        singleShotDuration: Constant expression source.
+
+    Returns:
+        True when the expression is updated.
 
     Section: F.7.42.19.
     """
-    ssd = _resolve_single_shot(singleShotDriverID)
-    if ssd is None:
-        raise TgiError("Invalid singleShotDriver handle", TgiFaultCode.INVALID_ID)
-    if ssd.single_shot_duration is None:
-        ssd.single_shot_duration = SingleShotDriverClass.SingleShotDuration()
-    ssd.single_shot_duration.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        ssd.single_shot_duration.expression = expression  # type: ignore[attr-defined]
-    return True
+    return _set_driver_expression(
+        singleShotDriverID,
+        "single_shot_duration",
+        SingleShotDriver.SingleShotDuration,
+        singleShotDuration,
+        SingleShotDriver,
+    )
 
 
-def setSingleShotDriverSingleShotOffset(singleShotDriverID: str, value: float, expression: str | None = None) -> bool:
-    """Set offset field of an existing singleShotDriver.
+def setSingleShotDriverSingleShotOffset(singleShotDriverID: str, singleShotOffset: str) -> bool:
+    """Set ``singleShotOffset`` source on an existing singleShotDriver.
+
+    Args:
+        singleShotDriverID: Handle to the owning singleShotDriver element.
+        singleShotOffset: Constant expression source.
+
+    Returns:
+        True when the expression is updated.
 
     Section: F.7.42.20.
     """
-    ssd = _resolve_single_shot(singleShotDriverID)
-    if ssd is None:
-        raise TgiError("Invalid singleShotDriver handle", TgiFaultCode.INVALID_ID)
-    if ssd.single_shot_offset is None:
-        ssd.single_shot_offset = SingleShotDriverClass.SingleShotOffset()
-    ssd.single_shot_offset.value = value  # type: ignore[attr-defined]
-    if expression is not None:
-        ssd.single_shot_offset.expression = expression  # type: ignore[attr-defined]
-    return True
+    return _set_driver_expression(
+        singleShotDriverID, "single_shot_offset", SingleShotDriver.SingleShotOffset, singleShotOffset, SingleShotDriver
+    )
+
+
+def setSingleShotDriverSingleShotValue(singleShotDriverID: str, singleShotValue: str) -> bool:
+    """Set ``singleShotValue`` source on an existing singleShotDriver.
+
+    Args:
+        singleShotDriverID: Handle to the owning singleShotDriver element.
+        singleShotValue: Constant expression source.
+
+    Returns:
+        True when the expression is updated.
+
+    Section: F.7.42.21.
+    """
+    return _set_driver_expression(
+        singleShotDriverID, "single_shot_value", UnsignedBitVectorExpression, singleShotValue, SingleShotDriver
+    )

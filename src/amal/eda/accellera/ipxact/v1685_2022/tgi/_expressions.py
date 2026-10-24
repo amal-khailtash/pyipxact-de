@@ -94,12 +94,17 @@ def _real_source(value: str, current: RealExpression) -> str:
     return value
 
 
-def _bit(source: str) -> bool:
-    """Resolve an expression with the SystemVerilog one-bit cast required by C.7.9."""
+def _bit(source: str, *, deferred: bool = False) -> bool | None:
+    """Resolve an expression with the SystemVerilog one-bit cast required by C.7.9.
+
+    Deferred evaluation retains only expressions with undeclared identifiers.
+    """
     _xml_text(source)
     try:
         return bool(SvExpressionParser().evaluate(f"bit'({source})"))
     except SvExpressionError as error:
+        if deferred and _undeclared(error):
+            return None
         raise TgiError("Cannot cast expression to an unsigned bit", TgiFaultCode.INVALID_ARGUMENT) from error
 
 

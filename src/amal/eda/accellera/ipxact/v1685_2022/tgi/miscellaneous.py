@@ -31,7 +31,7 @@ from org.accellera.ipxact.v1685_2022 import (
     SignedLongintExpression,
     RealExpression,
 )
-from ._expressions import _real_source, _undeclared, _xml_text
+from ._expressions import _bit, _real_source, _undeclared, _xml_text
 from . import _miscellaneous_part_select as _part_select_ops
 from . import _miscellaneous_registry as _registry_ops
 import re
@@ -200,6 +200,9 @@ def _expression_source(value: str, obj: ComplexBaseExpression) -> str:
     if isinstance(obj, RealExpression):
         return _real_source(value, obj)
     _xml_text(value)
+    if isinstance(obj, UnsignedBitExpression):
+        _bit(value, deferred=True)
+        return value
     try:
         result = SvExpressionParser().parse(value)
     except SvExpressionError as exc:
@@ -211,8 +214,6 @@ def _expression_source(value: str, obj: ComplexBaseExpression) -> str:
         bounds = (1 if isinstance(obj, UnsignedPositiveIntExpression) else 0, (1 << 32) - 1)
     elif isinstance(obj, (UnsignedPositiveLongintExpression, UnsignedLongintExpression)):
         bounds = (1 if isinstance(obj, UnsignedPositiveLongintExpression) else 0, (1 << 64) - 1)
-    elif isinstance(obj, UnsignedBitExpression):
-        bounds = (0, 1)
     elif isinstance(obj, UnsignedBitVectorExpression):
         bounds = (0, None)
     elif isinstance(obj, SignedLongintExpression):
