@@ -7,6 +7,13 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.7.0...v0.8.0) (2026-10-24)
+
+
+### Features
+
+* complete standard TGI contracts and align verified release automation ([#27](https://github.com/amal-khailtash/pyipxact-de/issues/27)) ([0e040ba](https://github.com/amal-khailtash/pyipxact-de/commit/0e040ba55ef6d3abc854ebb4b7cb001eddb83a1b))
+
 ### Fixed
 
 - Preserve design-configuration choice references by refusing to remove a choice while parameters still reference it.
@@ -77,7 +84,7 @@ This document lists notable changes for each release and follows:
 * complete abstraction contracts and consolidate depot updates ([#18](https://github.com/amal-khailtash/pyipxact-de/issues/18)) ([7586431](https://github.com/amal-khailtash/pyipxact-de/commit/7586431ab172e014755a1cb6cf9f9e59144a0f3e))
 * synchronize and activate Read the Docs release versions ([#16](https://github.com/amal-khailtash/pyipxact-de/issues/16)) ([c5f7821](https://github.com/amal-khailtash/pyipxact-de/commit/c5f7821da356d3bd5ce65260464f9adf37655825))
 
-## [Unreleased]
+### Detailed changes
 
 ### Added
 
@@ -299,7 +306,6 @@ This document lists notable changes for each release and follows:
 - automate verified releases and complete documentation builds
   ([#11](https://github.com/amal-khailtash/pyipxact-de/issues/11))
   ([39da93f](https://github.com/amal-khailtash/pyipxact-de/commit/39da93fa9b0b9fb93b7cca779996ff6d8e61f166))
-
 
 ## [0.3.0] - 2026-10-19
 
