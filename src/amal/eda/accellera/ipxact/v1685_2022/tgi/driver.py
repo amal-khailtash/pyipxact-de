@@ -10,6 +10,9 @@ Mutator functions return ``True`` on success; remove* functions return ``False``
 when the target element/attribute was absent. All functions raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles. Value/
 expression getters return ``None`` when the element does not exist.
+Clock timing getters evaluate finite real constants within declared bounds;
+invalid or unresolved expressions raise ``TgiFaultCode.INVALID_ARGUMENT``.
+Timing values retain the units declared on their source elements.
 """
 
 # ruff: noqa: I001
@@ -26,6 +29,9 @@ from org.accellera.ipxact.v1685_2022.single_shot_driver import SingleShotDriver 
 from org.accellera.ipxact.v1685_2022.range import Range as RangeClass
 from org.accellera.ipxact.v1685_2022.left import Left
 from org.accellera.ipxact.v1685_2022.right import Right
+from org.accellera.ipxact.v1685_2022.real_expression import RealExpression
+
+from ._expressions import _real, _xml_text
 
 from .core import (
     TgiError,
@@ -86,6 +92,7 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_driver(driverID: str) -> Driver | None:
     obj = resolve_handle(driverID)
     return obj if isinstance(obj, Driver) else None
@@ -94,6 +101,20 @@ def _resolve_driver(driverID: str) -> Driver | None:
 def _resolve_clock_driver(clockDriverID: str) -> ClockDriver | None:
     obj = resolve_handle(clockDriverID)
     return obj if isinstance(obj, ClockDriver) else None
+
+
+def _clock_timing(clock_driver_id: str, attribute: str, expected: type[RealExpression]) -> RealExpression | None:
+    """Resolve a typed clock timing element and retain its immediate owner."""
+    driver = _resolve_clock_driver(clock_driver_id)
+    if driver is None:
+        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
+    value = getattr(driver, attribute)
+    if value is None:
+        return None
+    if not isinstance(value, expected):
+        raise TgiError("Invalid clock timing element", TgiFaultCode.INVALID_ID)
+    register_parent(value, driver, (attribute,), "single")
+    return value
 
 
 def _resolve_single_shot(singleShotDriverID: str) -> SingleShotDriver | None:
@@ -128,16 +149,19 @@ def _ensure_single_shot(driver: Driver) -> SingleShotDriver:
 # BASE (F.7.41)
 # ---------------------------------------------------------------------------
 
+
 def getClockDriverClockPeriod(clockDriverID: str) -> float | None:
     """Return numeric value of ``clockPeriod``.
 
     Section: F.7.41.1.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    cp = cd.clock_period
-    return None if cp is None else getattr(cp, "value", None)
+    source = getClockDriverClockPeriodExpression(clockDriverID)
+    if source is None:
+        return None
+    value = _clock_timing(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
+    if value is None:
+        return None
+    return _real(source, minimum=value.minimum, maximum=value.maximum)
 
 
 def getClockDriverClockPeriodExpression(clockDriverID: str) -> str | None:
@@ -145,11 +169,8 @@ def getClockDriverClockPeriodExpression(clockDriverID: str) -> str | None:
 
     Section: F.7.41.2.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    cp = cd.clock_period
-    return None if cp is None else getattr(cp, "expression", None)
+    cp = _clock_timing(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
+    return None if cp is None else _xml_text(cp.value)
 
 
 def getClockDriverClockPeriodID(clockDriverID: str) -> str | None:
@@ -157,10 +178,7 @@ def getClockDriverClockPeriodID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.3.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    cp = cd.clock_period
+    cp = _clock_timing(clockDriverID, "clock_period", ClockDriverType.ClockPeriod)
     return None if cp is None else get_handle(cp)
 
 
@@ -169,11 +187,13 @@ def getClockDriverClockPulseDuration(clockDriverID: str) -> float | None:
 
     Section: F.7.41.4.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    val = cd.clock_pulse_duration
-    return None if val is None else getattr(val, "value", None)
+    source = getClockDriverClockPulseDurationExpression(clockDriverID)
+    if source is None:
+        return None
+    value = _clock_timing(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
+    if value is None:
+        return None
+    return _real(source, minimum=value.minimum, maximum=value.maximum)
 
 
 def getClockDriverClockPulseDurationExpression(clockDriverID: str) -> str | None:
@@ -181,11 +201,8 @@ def getClockDriverClockPulseDurationExpression(clockDriverID: str) -> str | None
 
     Section: F.7.41.5.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    val = cd.clock_pulse_duration
-    return None if val is None else getattr(val, "expression", None)
+    val = _clock_timing(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
+    return None if val is None else _xml_text(val.value)
 
 
 def getClockDriverClockPulseDurationID(clockDriverID: str) -> str | None:
@@ -193,10 +210,7 @@ def getClockDriverClockPulseDurationID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.6.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    val = cd.clock_pulse_duration
+    val = _clock_timing(clockDriverID, "clock_pulse_duration", ClockDriverType.ClockPulseDuration)
     return None if val is None else get_handle(val)
 
 
@@ -205,11 +219,13 @@ def getClockDriverClockPulseOffset(clockDriverID: str) -> float | None:
 
     Section: F.7.41.7.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    val = cd.clock_pulse_offset
-    return None if val is None else getattr(val, "value", None)
+    source = getClockDriverClockPulseOffsetExpression(clockDriverID)
+    if source is None:
+        return None
+    value = _clock_timing(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
+    if value is None:
+        return None
+    return _real(source, minimum=value.minimum, maximum=value.maximum)
 
 
 def getClockDriverClockPulseOffsetExpression(clockDriverID: str) -> str | None:
@@ -217,11 +233,8 @@ def getClockDriverClockPulseOffsetExpression(clockDriverID: str) -> str | None:
 
     Section: F.7.41.8.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    val = cd.clock_pulse_offset
-    return None if val is None else getattr(val, "expression", None)
+    val = _clock_timing(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
+    return None if val is None else _xml_text(val.value)
 
 
 def getClockDriverClockPulseOffsetID(clockDriverID: str) -> str | None:
@@ -229,10 +242,7 @@ def getClockDriverClockPulseOffsetID(clockDriverID: str) -> str | None:
 
     Section: F.7.41.9.
     """
-    cd = _resolve_clock_driver(clockDriverID)
-    if cd is None:
-        raise TgiError("Invalid clockDriver handle", TgiFaultCode.INVALID_ID)
-    val = cd.clock_pulse_offset
+    val = _clock_timing(clockDriverID, "clock_pulse_offset", ClockDriverType.ClockPulseOffset)
     return None if val is None else get_handle(val)
 
 
@@ -383,6 +393,7 @@ def getDriverRightID(driverID: str) -> str | None:
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.42)
 # ---------------------------------------------------------------------------
+
 
 def addDriverSingleShotDriver(driverID: str) -> str:
     """Create singleShotDriver (empty skeleton) if absent and return handle.
@@ -680,4 +691,3 @@ def setSingleShotDriverSingleShotOffset(singleShotDriverID: str, value: float, e
     if expression is not None:
         ssd.single_shot_offset.expression = expression  # type: ignore[attr-defined]
     return True
-

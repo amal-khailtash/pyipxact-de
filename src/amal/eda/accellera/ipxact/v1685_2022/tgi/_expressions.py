@@ -1,5 +1,6 @@
-"""XML source and unsigned constant-expression validation for TGI models."""
+"""XML source, unsigned and real constant-expression validation for TGI models."""
 
+import math
 import re
 
 from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
@@ -50,6 +51,25 @@ def _integer(
         raise TgiError("Cannot evaluate integer expression", TgiFaultCode.INVALID_ARGUMENT) from error
     if type(value) is not int or value < minimum or (maximum is not None and value > maximum):
         raise TgiError("Expression outside unsigned integer bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _real(source: str, *, minimum: float | None = None, maximum: float | None = None) -> float:
+    """Evaluate a finite real constant within optional inclusive bounds (C.7.3)."""
+    _xml_text(source)
+    try:
+        value = float(SvExpressionParser().evaluate(source))
+    except (SvExpressionError, OverflowError, ValueError) as error:
+        raise TgiError("Cannot evaluate real expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    if not math.isfinite(value):
+        raise TgiError("Real expression must be finite", TgiFaultCode.INVALID_ARGUMENT)
+    for bound in (minimum, maximum):
+        if bound is not None and (type(bound) not in (int, float) or (isinstance(bound, float) and math.isnan(bound))):
+            raise TgiError("Invalid real expression bound", TgiFaultCode.INVALID_ARGUMENT)
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise TgiError("Real expression bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
+    if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
+        raise TgiError("Real expression outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
     return value
 
 
