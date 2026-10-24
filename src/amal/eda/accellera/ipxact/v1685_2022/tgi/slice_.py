@@ -3,7 +3,8 @@
 Named ``slice_`` to avoid clashing with Python's built-in ``slice``. Implements
 BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL path and range
 getters, field-range getters and mode port-reference getters reject invalid
-handles; other field-reference getters retain legacy neutral results
+handles; implemented named-reference getters use generated wrappers. Other
+field-reference getters retain legacy neutral results
 (``None`` / empty list). EXTENDED mutators raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
@@ -11,6 +12,7 @@ handles; other field-reference getters retain legacy neutral results
 HDL path and range access uses generated slice, path-segment, range, and
 endpoint models, shared with field reference ranges. Mode port references use
 generated wrappers and part-selects.
+Address-block, field and alternate-register names retain generated wrappers.
 Other field-reference mutations use minimal schema objects or lightweight
 namespaces.
 """
@@ -31,6 +33,9 @@ from org.accellera.ipxact.v1685_2022 import (
     ComponentType,
     FieldMap,
     SubPortReference,
+    AddressBlockRef,
+    AlternateRegisterRef,
+    FieldRef,
 )
 
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
@@ -38,7 +43,8 @@ from ._expressions import _string_source
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
-from .port_map import _name, _set_part_select, _remove_child
+from .port_map import _child, _child_id, _name, _set_part_select, _remove_child
+from ._attribute_references import _reference_value
 from ._miscellaneous_part_select import _part_select
 
 from .core import (
@@ -173,6 +179,32 @@ def _field_slice(handle: str) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.
     return owner
 
 
+def _field_reference_value(reference_id: str | None, xml_name: str) -> str | None:
+    """Read a typed reference's source through the common attribute mapping."""
+    if reference_id is None:
+        return None
+    value = _reference_value(resolve_handle(reference_id), xml_name)
+    if value is None:
+        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
+    return value
+
+
+def _set_field_reference(
+    owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice,
+    attribute: str,
+    replacement: AddressBlockRef | AlternateRegisterRef | FieldRef,
+) -> bool:
+    """Attach a missing wrapper or update its source without replacing indices."""
+    current = _child(owner, attribute, type(replacement))
+    if current is None:
+        current = replacement
+        setattr(owner, attribute, current)
+    else:
+        setattr(current, attribute, getattr(replacement, attribute))
+    register_parent(current, owner, (attribute,), "single")
+    return True
+
+
 def _resolve(objID: str) -> Any | None:
     return resolve_handle(objID)
 
@@ -201,18 +233,20 @@ def getFieldSliceAddressBlockRefByID(fieldSliceID: str, addressBlockID: str) -> 
     return get_handle(abr) if get_handle(abr) == addressBlockID else None
 
 
-def getFieldSliceAddressBlockRefByName(fieldSliceID: str, name: str) -> str | None:  # F.7.77.2
-    sl = _resolve(fieldSliceID)
-    abr = _maybe(sl, "address_block_ref")
-    if abr is None:
-        return None
-    return get_handle(abr) if getattr(abr, "name", None) == name else None
+def getFieldSliceAddressBlockRefByName(fieldSliceID: str) -> str | None:  # F.7.77.2
+    """Return the stored referenced address-block name.
+
+    Section: F.7.77.2.
+    """
+    return _field_reference_value(getFieldSliceAddressBlockRefID(fieldSliceID), "addressBlockRef")
 
 
 def getFieldSliceAddressBlockRefID(fieldSliceID: str) -> str | None:  # F.7.77.3
-    sl = _resolve(fieldSliceID)
-    abr = _maybe(sl, "address_block_ref")
-    return None if abr is None else get_handle(abr)
+    """Return the owned generated addressBlockRef handle, when present.
+
+    Section: F.7.77.3.
+    """
+    return _child_id(_field_slice(fieldSliceID), "address_block_ref", AddressBlockRef)
 
 
 def getFieldSliceAddressSpaceRefByID(fieldSliceID: str, addressSpaceID: str) -> str | None:  # F.7.77.4
@@ -245,18 +279,20 @@ def getFieldSliceAlternateRegisterRefByID(fieldSliceID: str, altRegisterID: str)
     return get_handle(arr) if get_handle(arr) == altRegisterID else None
 
 
-def getFieldSliceAlternateRegisterRefByName(fieldSliceID: str, name: str) -> str | None:  # F.7.77.8
-    sl = _resolve(fieldSliceID)
-    arr = _maybe(sl, "alternate_register_ref")
-    if arr is None:
-        return None
-    return get_handle(arr) if getattr(arr, "name", None) == name else None
+def getFieldSliceAlternateRegisterRefByName(fieldSliceID: str) -> str | None:  # F.7.77.8
+    """Return the stored referenced alternate-register name.
+
+    Section: F.7.77.8.
+    """
+    return _field_reference_value(getFieldSliceAlternateRegisterRefID(fieldSliceID), "alternateRegisterRef")
 
 
 def getFieldSliceAlternateRegisterRefID(fieldSliceID: str) -> str | None:  # F.7.77.9
-    sl = _resolve(fieldSliceID)
-    arr = _maybe(sl, "alternate_register_ref")
-    return None if arr is None else get_handle(arr)
+    """Return the owned alternateRegisterRef handle, when present.
+
+    Section: F.7.77.9.
+    """
+    return _child_id(_field_slice(fieldSliceID), "alternate_register_ref", AlternateRegisterRef)
 
 
 def getFieldSliceBankRefByNames(
@@ -286,18 +322,20 @@ def getFieldSliceBankRefIDs(fieldSliceID: str) -> list[str]:  # F.7.77.11
     return [get_handle(b) for b in getattr(sl, "bank_ref", [])]
 
 
-def getFieldSliceFieldRefByName(fieldSliceID: str, name: str) -> str | None:  # F.7.77.12
-    sl = _resolve(fieldSliceID)
-    fr = _maybe(sl, "field_ref")
-    if fr is None:
-        return None
-    return get_handle(fr) if getattr(fr, "name", None) == name else None
+def getFieldSliceFieldRefByName(fieldSliceID: str) -> str | None:  # F.7.77.12
+    """Return the stored referenced field name.
+
+    Section: F.7.77.12.
+    """
+    return _field_reference_value(getFieldSliceFieldRefID(fieldSliceID), "fieldRef")
 
 
 def getFieldSliceFieldRefID(fieldSliceID: str) -> str | None:  # F.7.77.13
-    sl = _resolve(fieldSliceID)
-    fr = _maybe(sl, "field_ref")
-    return None if fr is None else get_handle(fr)
+    """Return the owned generated fieldRef handle, when present.
+
+    Section: F.7.77.13.
+    """
+    return _child_id(_field_slice(fieldSliceID), "field_ref", FieldRef)
 
 
 def getFieldSliceMemoryMapRefByID(fieldSliceID: str, memoryMapID: str) -> str | None:  # F.7.77.14
@@ -543,10 +581,15 @@ def addSlicePathSegment(sliceID: str, pathSegmentValue: str) -> str:  # F.7.78.6
     return get_handle(child)
 
 
-def removeFieldSliceAlternateRegisterRef(fieldSliceAlternateRegisterRefID: str) -> bool:  # F.7.78.7
-    if resolve_handle(fieldSliceAlternateRegisterRefID) is None:
-        raise TgiError("Invalid alternateRegisterRef", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(fieldSliceAlternateRegisterRefID)
+def removeFieldSliceAlternateRegisterRef(fieldSliceID: str) -> bool:  # F.7.78.7
+    """Remove the owner's optional alternate-register wrapper.
+
+    Section: F.7.78.7.
+    """
+    owner = _field_slice(fieldSliceID)
+    if getFieldSliceAlternateRegisterRefID(fieldSliceID) is None:
+        return False
+    return _remove_child(owner, "alternate_register_ref")
 
 
 def removeFieldSliceBankRef(fieldSliceBankRefID: str) -> bool:  # F.7.78.8
@@ -663,11 +706,14 @@ def removeSliceRange(sliceID: str) -> bool:  # F.7.78.18
     return _remove_range(_hdl_slice(sliceID))
 
 
-def setFieldSliceAddressBlockRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.19
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.address_block_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.address_block_ref, sl, ("address_block_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceAddressBlockRef(fieldSliceID: str, addressBlockRef: str) -> bool:  # F.7.78.19
+    """Set a normalized address-block name while retaining its reference indices.
+
+    Section: F.7.78.19.
+    """
+    owner = _field_slice(fieldSliceID)
+    child = AddressBlockRef(address_block_ref=_name(addressBlockRef, "Name"))
+    return _set_field_reference(owner, "address_block_ref", child)
 
 
 def setFieldSliceAddressSpaceRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.20
@@ -677,18 +723,24 @@ def setFieldSliceAddressSpaceRef(fieldSliceID: str, name: str) -> bool:  # F.7.7
     return True
 
 
-def setFieldSliceAlternateRegisterRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.21
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.alternate_register_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.alternate_register_ref, sl, ("alternate_register_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceAlternateRegisterRef(fieldSliceID: str, alternateRegisterRef: str) -> bool:  # F.7.78.21
+    """Set the normalized alternate-register name, preserving an existing wrapper.
+
+    Section: F.7.78.21.
+    """
+    owner = _field_slice(fieldSliceID)
+    child = AlternateRegisterRef(alternate_register_ref=_name(alternateRegisterRef, "Name"))
+    return _set_field_reference(owner, "alternate_register_ref", child)
 
 
-def setFieldSliceFieldRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.22
-    sl = _ensure_slice_parent(fieldSliceID)
-    sl.field_ref = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    register_parent(sl.field_ref, sl, ("field_ref",), "single")  # type: ignore[attr-defined]
-    return True
+def setFieldSliceFieldRef(fieldSliceID: str, fieldRef: str) -> bool:  # F.7.78.22
+    """Set a normalized field name while retaining its reference indices.
+
+    Section: F.7.78.22.
+    """
+    owner = _field_slice(fieldSliceID)
+    child = FieldRef(field_ref=_name(fieldRef, "Name"))
+    return _set_field_reference(owner, "field_ref", child)
 
 
 def setFieldSliceMemoryMapRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.23

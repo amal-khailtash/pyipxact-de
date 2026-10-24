@@ -76,7 +76,7 @@ def _require(handle: str, cls: type) -> Any:
     return obj
 
 
-def _child(parent: Any, attr: str, cls: type) -> Any | None:
+def _child[T](parent: object, attr: str, cls: type[T]) -> T | None:
     child = getattr(parent, attr)
     if child is None:
         return None
@@ -89,7 +89,7 @@ def _child(parent: Any, attr: str, cls: type) -> Any | None:
     return child
 
 
-def _child_id(parent: Any, attr: str, cls: type) -> str | None:
+def _child_id[T](parent: object, attr: str, cls: type[T]) -> str | None:
     child = _child(parent, attr, cls)
     return get_handle(child) if child is not None else None
 

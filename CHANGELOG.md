@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement ten FieldSlice named-reference operations with standard signatures and generated wrappers.
+- Normalize referenced XML names while preserving indices, metadata and wrapper identity; remove alternate-register references through their owning slice.
 - Implement five FieldSlice range operations for mode and field-map slices using shared generated range helpers.
 - Correct FieldSlice range source-array and owner-based mutation signatures while preserving expression metadata and descendant lifetimes.
 - Implement eight mode port-slice reference and part-select operations using generated models and shared atomic setters.
