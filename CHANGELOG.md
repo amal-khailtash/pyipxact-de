@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement six HDL Slice range operations with generated models, preserved expression metadata, and shared Driver range helpers.
+- Correct Slice range setter and remover signatures and validate endpoint changes atomically.
 - Complete Driver choice builders with standard expression arguments, atomic validation, and shared low-level setters.
 - Validate and normalize unique Driver view references using the standard NMTOKEN rules.
 - Correct Driver removal handles, invalidate removed subtrees, and recover parsed view-reference ownership.

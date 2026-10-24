@@ -28,7 +28,6 @@ from org.accellera.ipxact.v1685_2022 import (
     UnsignedBitVectorExpression,
 )
 from org.accellera.ipxact.v1685_2022.clock_driver_type import ClockDriverType
-from org.accellera.ipxact.v1685_2022.range import Range as RangeClass
 from org.accellera.ipxact.v1685_2022.left import Left
 from org.accellera.ipxact.v1685_2022.right import Right
 from org.accellera.ipxact.v1685_2022.complex_base_expression import ComplexBaseExpression
@@ -47,6 +46,7 @@ from collections.abc import Callable, Sequence
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
 from .port_map import _name
+from ._ranges import _range_endpoint, _range_value, _remove_range, _set_range
 from ._model import _owned_list_ids
 from ._attribute_references import resolve_attribute_reference
 
@@ -145,37 +145,7 @@ def _range_element[T: (Left, Right)](driver_id: str, attribute: str, expected: t
     driver = _resolve_driver(driver_id)
     if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    if driver.range is None:
-        return None
-    if not isinstance(driver.range, RangeClass):
-        raise TgiError("Invalid driver range element", TgiFaultCode.INVALID_ID)
-    register_parent(driver.range, driver, ("range",), "single")
-    endpoint = getattr(driver.range, attribute)
-    if endpoint is None:
-        return None
-    if not isinstance(endpoint, expected):
-        raise TgiError("Invalid range endpoint", TgiFaultCode.INVALID_ID)
-    register_parent(endpoint, driver.range, (attribute,), "single")
-    return endpoint
-
-
-def _range_value(endpoint_id: str | None) -> int | None:
-    """Evaluate an unsigned 32-bit range endpoint within declared bounds."""
-    if endpoint_id is None:
-        return None
-    value = getExpressionIntValue(endpoint_id)
-    endpoint = resolve_handle(endpoint_id)
-    if not isinstance(endpoint, (Left, Right)):
-        raise TgiError("Invalid range endpoint", TgiFaultCode.INVALID_ID)
-    minimum, maximum = endpoint.minimum, endpoint.maximum
-    if (
-        not 0 <= value < (1 << 32)
-        or (minimum is not None and value < minimum)
-        or (maximum is not None and value > maximum)
-        or (minimum is not None and maximum is not None and minimum > maximum)
-    ):
-        raise TgiError("Range endpoint outside unsigned integer bounds", TgiFaultCode.INVALID_ARGUMENT)
-    return value
+    return _range_endpoint(driver, attribute, expected)
 
 
 def _driver_expression[T: ComplexBaseExpression](
@@ -793,12 +763,7 @@ def removeDriverRange(driverID: str) -> bool:
     driver = _resolve_driver(driverID)
     if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    if driver.range is None:
-        return False
-    if not isinstance(driver.range, RangeClass):
-        raise TgiError("Invalid driver range element", TgiFaultCode.INVALID_ID)
-    register_parent(driver.range, driver, ("range",), "single")
-    return detach_child_by_handle(get_handle(driver.range))
+    return _remove_range(driver)
 
 
 def removeDriverSingleShotDriver(driverID: str) -> bool:
@@ -959,27 +924,7 @@ def setDriverRange(driverID: str, range: Sequence[str]) -> bool:
     driver = _resolve_driver(driverID)
     if driver is None:
         raise TgiError("Invalid driver handle", TgiFaultCode.INVALID_ID)
-    if not isinstance(range, Sequence) or isinstance(range, (str, bytes)) or len(range) != 2:
-        raise TgiError("Driver range requires two expression strings", TgiFaultCode.INVALID_ARGUMENT)
-    left = _range_element(driverID, "left", Left)
-    right = _range_element(driverID, "right", Right)
-    new_left = left if left is not None else Left(value="")
-    new_right = right if right is not None else Right(value="")
-    for endpoint, source in ((new_left, range[0]), (new_right, range[1])):
-        if endpoint.minimum is not None and endpoint.maximum is not None and endpoint.minimum > endpoint.maximum:
-            raise TgiError("Range endpoint bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
-        _expression_source(source, endpoint)
-    for endpoint, source in ((new_left, range[0]), (new_right, range[1])):
-        setExpressionValue(get_handle(endpoint), source)
-    if driver.range is None:
-        driver.range = RangeClass(left=new_left, right=new_right)
-    else:
-        driver.range.left = new_left
-        driver.range.right = new_right
-    register_parent(driver.range, driver, ("range",), "single")
-    register_parent(new_left, driver.range, ("left",), "single")
-    register_parent(new_right, driver.range, ("right",), "single")
-    return True
+    return _set_range(driver, range)
 
 
 def setOtherClockDriverClockPeriod(otherClockDriverID: str, clockPeriod: str) -> bool:

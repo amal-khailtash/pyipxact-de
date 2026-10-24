@@ -1,19 +1,26 @@
 """Slice category TGI functions (IEEE 1685-2022).
 
 Named ``slice_`` to avoid clashing with Python's built-in ``slice``. Implements
-BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. BASE getters are tolerant:
-invalid handles produce neutral results (``None`` / empty list) rather than
-raising, consistent with other category modules. EXTENDED mutators raise
+BASE (F.7.77) and EXTENDED (F.7.78) Slice functions. Implemented HDL range
+getters reject invalid handles; reference getters retain legacy
+neutral results (``None`` / empty list). EXTENDED mutators raise
 ``TgiError`` with ``TgiFaultCode.INVALID_ID`` for invalid handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 
-The underlying schema objects for slice relationships (e.g. fieldSlice,
-portSlice, memoryMapRef, etc.) are represented minimally using existing schema
-objects when available or lightweight namespaces when not yet present.
+HDL range access uses generated slice, range, and endpoint models. Legacy
+relationship mutations use minimal schema objects or
+lightweight namespaces.
 """
+
 # ruff: noqa: I001
 from types import SimpleNamespace
 from typing import Any
+from collections.abc import Sequence
+
+from org.accellera.ipxact.v1685_2022 import SliceType, PortSliceType, Left, Right
+
+from ._ranges import _range_endpoint, _range_value, _remove_range, _set_range
+from .miscellaneous import getExpression
 
 from .core import (
     TgiError,
@@ -48,6 +55,10 @@ __all__ = [
     "getFieldSliceRange",
     "getFieldSliceRangeLeftID",
     "getFieldSliceRangeRightID",
+    "getSliceRange",
+    "getSliceRangeExpression",
+    "getSliceRangeLeftID",
+    "getSliceRangeRightID",
     # EXTENDED (F.7.78)
     "addFieldSliceBankRef",
     "addFieldSliceRegisterFileRef",
@@ -85,6 +96,15 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+
+def _range_slice(slice_id: str) -> SliceType | PortSliceType:
+    """Resolve a generated HDL slice without accepting mode reference slices."""
+    owner = resolve_handle(slice_id)
+    if not isinstance(owner, (SliceType, PortSliceType)):
+        raise TgiError("Invalid HDL slice handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
 def _resolve(objID: str) -> Any | None:
     return resolve_handle(objID)
 
@@ -112,6 +132,7 @@ def _value_expr(node: Any) -> tuple[Any | None, str | None, str | None]:
 # ---------------------------------------------------------------------------
 # BASE (F.7.77)
 # ---------------------------------------------------------------------------
+
 
 def getFieldSliceAddressBlockRefByID(fieldSliceID: str, addressBlockID: str) -> str | None:  # F.7.77.1
     sl = _resolve(fieldSliceID)
@@ -285,9 +306,45 @@ def getFieldSliceRangeRightID(fieldSliceID: str) -> str | None:  # F.7.77.22
     return None if right is None else get_handle(right)
 
 
+def getSliceRange(sliceID: str) -> tuple[int | None, int | None]:  # F.7.77.35
+    """Return evaluated left/right values of an HDL slice range.
+
+    Section: F.7.77.35.
+    """
+    return (_range_value(getSliceRangeLeftID(sliceID)), _range_value(getSliceRangeRightID(sliceID)))
+
+
+def getSliceRangeExpression(sliceID: str) -> tuple[str | None, str | None]:  # F.7.77.36
+    """Return the original ordered endpoint expression sources.
+
+    Section: F.7.77.36.
+    """
+    left_id, right_id = getSliceRangeLeftID(sliceID), getSliceRangeRightID(sliceID)
+    return (None if left_id is None else getExpression(left_id), None if right_id is None else getExpression(right_id))
+
+
+def getSliceRangeLeftID(sliceID: str) -> str | None:  # F.7.77.37
+    """Return the owned left endpoint handle, if present.
+
+    Section: F.7.77.37.
+    """
+    endpoint = _range_endpoint(_range_slice(sliceID), "left", Left)
+    return None if endpoint is None else get_handle(endpoint)
+
+
+def getSliceRangeRightID(sliceID: str) -> str | None:  # F.7.77.38
+    """Return the owned right endpoint handle, if present.
+
+    Section: F.7.77.38.
+    """
+    endpoint = _range_endpoint(_range_slice(sliceID), "right", Right)
+    return None if endpoint is None else get_handle(endpoint)
+
+
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.78)
 # ---------------------------------------------------------------------------
+
 
 def addFieldSliceBankRef(fieldSliceID: str, vlnv: tuple[str, str, str, str]) -> str:  # F.7.78.1
     sl = _ensure_slice_parent(fieldSliceID)
@@ -295,9 +352,7 @@ def addFieldSliceBankRef(fieldSliceID: str, vlnv: tuple[str, str, str, str]) -> 
 
     if getattr(sl, "bank_ref", None) is None:
         sl.bank_ref = []  # type: ignore[attr-defined]
-    ref = LibraryRefType(
-        vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]
-    )
+    ref = LibraryRefType(vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3])
     sl.bank_ref.append(ref)  # type: ignore[attr-defined]
     register_parent(ref, sl, ("bank_ref",), "list")
     return get_handle(ref)
@@ -417,10 +472,12 @@ def removeSlicePathSegment(slicePathSegmentID: str) -> bool:  # F.7.78.17
     return detach_child_by_handle(slicePathSegmentID)
 
 
-def removeSliceRange(sliceRangeID: str) -> bool:  # F.7.78.18
-    if resolve_handle(sliceRangeID) is None:
-        raise TgiError("Invalid sliceRange handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(sliceRangeID)
+def removeSliceRange(sliceID: str) -> bool:  # F.7.78.18
+    """Remove an HDL slice range and invalidate its descendant handles.
+
+    Section: F.7.78.18.
+    """
+    return _remove_range(_range_slice(sliceID))
 
 
 def setFieldSliceAddressBlockRef(fieldSliceID: str, name: str) -> bool:  # F.7.78.19
@@ -498,10 +555,9 @@ def setPortSlicePortRef(portSliceID: str, name: str) -> bool:  # F.7.78.28
     return True
 
 
-def setSliceRange(sliceID: str, leftExpression: str, rightExpression: str) -> bool:  # F.7.78.29
-    sl = _ensure_slice_parent(sliceID)
-    sl.left = SimpleNamespace(value=leftExpression)  # type: ignore[attr-defined]
-    sl.right = SimpleNamespace(value=rightExpression)  # type: ignore[attr-defined]
-    # parent registration for left/right not strictly necessary if slice object already registered
-    return True
+def setSliceRange(sliceID: str, range: Sequence[str]) -> bool:  # F.7.78.29
+    """Set two HDL slice endpoint sources atomically, retaining existing metadata.
 
+    Section: F.7.78.29.
+    """
+    return _set_range(_range_slice(sliceID), range)
