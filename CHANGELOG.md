@@ -11,6 +11,7 @@ This document lists notable changes for each release and follows:
 
 - Implement standard string-expression signatures for clock pulse and SingleShotDriver setters, preserving wrapper identity and metadata.
 - Validate clock pulse expressions using the shared SystemVerilog one-bit cast and enforce binary SingleShotDriver values.
+- Update Codecov main coverage from the immutable release tag after verified PyPI publication.
 
 ## [0.8.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.7.0...v0.8.0) (2026-10-24)
 
