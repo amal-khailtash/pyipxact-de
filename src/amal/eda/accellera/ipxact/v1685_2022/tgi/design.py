@@ -7,7 +7,7 @@ spec list ("no more, no less").
 Each getter follows the error model used across the TGI layer:
 * Invalid handle -> ``TgiError`` with ``TgiFaultCode.INVALID_ID`` where the
   spec implies the input must be a valid handle. Where the spec permits an
-  empty result, invalid child collections yield empty lists / None instead.
+  empty result, absent optional child collections yield empty lists / None instead.
 * Mutators return ``True`` on success, ``False`` on semantic no-op (e.g. element
   absent for remove*) and raise ``INVALID_ID`` for bad handles.
 
@@ -32,6 +32,8 @@ from .port_map import _child, _child_id, _name, _remove_child, _set_part_select
 from ._attribute_references import _reference_value
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
+from .choice import _validated_choice
+from ._generator_context import _design_context_id
 from ._library_reference import _set_reference, _xml_vlnv
 from .instantiation import _registered_reference_target, getComponentInstanceComponentRefID
 from .power import _external_power_domain_target, _instance_power_domain_link_ids, _internal_names
@@ -47,6 +49,9 @@ from org.accellera.ipxact.v1685_2022 import (
     AdHocConnections,
     Interconnection,
     MonitorInterconnection,
+    Interconnections,
+    Parameters,
+    ParameterType,
 )
 from org.accellera.ipxact.v1685_2022.active_interface import ActiveInterface
 from org.accellera.ipxact.v1685_2022.hier_interface_type import HierInterfaceType
@@ -221,16 +226,86 @@ def _design_component_instances(
     design_id: str,
 ) -> tuple[Design, ComponentInstances | None, Sequence[ComponentInstance]]:
     """Validate the Design's component-instance holder and ordered generated collection."""
+    return _design_children(
+        design_id, "component_instances", ComponentInstances, "component_instance", ComponentInstance
+    )
+
+
+def _design_children[H, T](
+    design_id: str,
+    attribute: str,
+    holder_type: type[H],
+    child_attribute: str,
+    child_types: type[T] | tuple[type[T], ...],
+) -> tuple[Design, H | None, Sequence[T]]:
+    """Validate a Design collection and register the actual schema holder ownership."""
     owner = _resolve_design(design_id)
     if owner is None:
         raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    holder = _child(owner, "component_instances", ComponentInstances)
+    holder = _child(owner, attribute, holder_type)
     if holder is None:
         return owner, None, ()
-    children = holder.component_instance
-    if not isinstance(children, (list, tuple)) or any(not isinstance(child, ComponentInstance) for child in children):
-        raise TgiError("Invalid componentInstance collection", TgiFaultCode.INVALID_ID)
+    children = getattr(holder, child_attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, child_types) for child in children):
+        raise TgiError(f"Invalid {child_attribute} collection", TgiFaultCode.INVALID_ID)
     return owner, holder, children
+
+
+def _design_connections(
+    design_id: str,
+) -> tuple[Design, Interconnections | None, Sequence[Interconnection | MonitorInterconnection]]:
+    """Traverse the ordered mixed interconnection collection."""
+    return _design_children(
+        design_id,
+        "interconnections",
+        Interconnections,
+        "interconnection_or_monitor_interconnection",
+        (Interconnection, MonitorInterconnection),
+    )
+
+
+def _insert_design_connection(design_id: str, child: Interconnection | MonitorInterconnection) -> str:
+    """Attach a fully validated connection after checking the shared name namespace."""
+    owner, holder, children = _design_connections(design_id)
+    name = _name(child.name, "Name")
+    for current in children:
+        try:
+            current_name = _name(current.name, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid existing connection name", TgiFaultCode.INVALID_ID) from error
+        if current_name == name:
+            raise TgiError("Duplicate connection name", TgiFaultCode.ALREADY_EXISTS)
+    if holder is None:
+        holder = Interconnections()
+        owner.interconnections = holder
+        register_parent(holder, owner, ("interconnections",), "single")
+    _list_attr(holder, "interconnection_or_monitor_interconnection").append(child)
+    _owned_list_ids(
+        holder, holder.interconnection_or_monitor_interconnection, "interconnection_or_monitor_interconnection"
+    )
+    return get_handle(child)
+
+
+def _remove_design_connection[T: Interconnection | MonitorInterconnection](
+    connection_id: str, model_type: type[T]
+) -> bool:
+    """Remove only a member of its owning Design's mixed connection collection."""
+    child = resolve_handle(connection_id)
+    if not isinstance(child, model_type):
+        raise TgiError("Invalid connection handle", TgiFaultCode.INVALID_ID)
+    holder = _register_owned_child(child, Interconnections)
+    owner = _register_owned_child(holder, Design) if isinstance(holder, Interconnections) else None
+    if not isinstance(owner, Design) or owner.interconnections is not holder:
+        raise TgiError("Connection has no owning Design", TgiFaultCode.INVALID_ID)
+    _, _, children = _design_connections(get_handle(owner))
+    if not any(item is child for item in children):
+        raise TgiError("Connection is not in the owning collection", TgiFaultCode.INVALID_ID)
+    _owned_list_ids(holder, children, "interconnection_or_monitor_interconnection")
+    _list_attr(holder, "interconnection_or_monitor_interconnection")
+    result = _remove_owned(connection_id, model_type, Interconnections, "connection")
+    if not holder.interconnection_or_monitor_interconnection:
+        detach_child_by_handle(get_handle(holder))
+    return result
 
 
 def _active_interface(interface_id: str) -> ActiveInterface:
@@ -438,16 +513,7 @@ def _design_ad_hoc_connections(
     design_id: str,
 ) -> tuple[Design, AdHocConnections | None, Sequence[AdHocConnection]]:
     """Validate the Design's ad-hoc connection holder and ordered child collection."""
-    owner = _resolve_design(design_id)
-    if owner is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    holder = _child(owner, "ad_hoc_connections", AdHocConnections)
-    if holder is None:
-        return owner, None, ()
-    children = holder.ad_hoc_connection
-    if not isinstance(children, (list, tuple)) or any(not isinstance(child, AdHocConnection) for child in children):
-        raise TgiError("Invalid ad-hoc connection collection", TgiFaultCode.INVALID_ID)
-    return owner, holder, children
+    return _design_children(design_id, "ad_hoc_connections", AdHocConnections, "ad_hoc_connection", AdHocConnection)
 
 
 def _build_design_ad_hoc_connection(
@@ -650,12 +716,8 @@ def getDesignChoiceIDs(designID: str) -> list[str]:
 
     Section: F.7.37.13.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.choices is None:
-        return []
-    return [get_handle(c) for c in getattr(d.choices, "choice", [])]
+    _, holder, children = _design_children(designID, "choices", Choices, "choice", Choices.Choice)
+    return [] if holder is None else _owned_list_ids(holder, children, "choice")
 
 
 def getDesignComponentInstanceIDs(designID: str) -> list[str]:
@@ -670,21 +732,21 @@ def getDesignComponentInstanceIDs(designID: str) -> list[str]:
 def getDesignID(top: bool) -> str | None:
     """Return handle to current or top design.
 
-    Section: F.7.37.15. (Current DE context not tracked; return None.)
+    Section: F.7.37.15. The host supplies scoped generator context; absent context returns None.
     """
-    # Without a session manager context we cannot distinguish; placeholder None.
-    return None
+    return _design_context_id(top)
 
 
 def _connection_ids(design: Design, model_type: type[Interconnection | MonitorInterconnection]) -> list[str]:
-    holder = design.interconnections
-    if holder is None:
-        return []
-    register_parent(holder, design, ("interconnections",), "single")
-    return _owned_list_ids(
-        holder,
-        (child for child in holder.interconnection_or_monitor_interconnection if isinstance(child, model_type)),
-        "interconnection_or_monitor_interconnection",
+    _, holder, children = _design_connections(get_handle(design))
+    return (
+        []
+        if holder is None
+        else _owned_list_ids(
+            holder,
+            (child for child in children if isinstance(child, model_type)),
+            "interconnection_or_monitor_interconnection",
+        )
     )
 
 
@@ -912,22 +974,31 @@ def addDesignAdHocConnection(designID: str, name: str, componentInstanceRef: str
     return _build_design_ad_hoc_connection(designID, name, portRef, source_instance)
 
 
-def addDesignChoice(designID: str, name: str, enumerations: list[str] | None = None) -> str:
+def addDesignChoice(designID: str, name: str, enumerations: Sequence[str]) -> str:
     """Add choice with name and enumerations.
 
     Section: F.7.38.5.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.choices is None:
-        d.choices = Choices()  # type: ignore[assignment]
-    choice = Choices.Choice(name=name)  # type: ignore[attr-defined]
-    if enumerations:
-        choice.enumeration = list(enumerations)  # type: ignore[attr-defined]
-    d.choices.choice.append(choice)  # type: ignore[attr-defined]
-    register_parent(choice, d, ("choices",), "list")
-    return get_handle(choice)
+    owner, holder, children = _design_children(designID, "choices", Choices, "choice", Choices.Choice)
+    child = _validated_choice(name, enumerations)
+    child.name = _name(child.name, "Name")
+    for enumeration in child.enumeration:
+        enumeration.value = _expression_source(enumeration.value, enumeration)
+    for current in children:
+        try:
+            current_name = _name(current.name, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid existing choice name", TgiFaultCode.INVALID_ID) from error
+        if current_name == child.name:
+            raise TgiError("Choice name already defined", TgiFaultCode.ALREADY_EXISTS)
+    if holder is None:
+        holder = Choices()
+        owner.choices = holder
+        register_parent(holder, owner, ("choices",), "single")
+    _list_attr(holder, "choice").append(child)
+    getDesignChoiceIDs(designID)
+    _owned_list_ids(child, child.enumeration, "enumeration")
+    return get_handle(child)
 
 
 def addDesignComponentInstance(
@@ -988,22 +1059,14 @@ def addDesignInterconnection(
 
     Section: F.7.38.8.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.interconnections is None:
-        from org.accellera.ipxact.v1685_2022.interconnections import Interconnections as InterconnectionsContainer
-
-        d.interconnections = InterconnectionsContainer()  # type: ignore[assignment]
-    ic = Interconnection(name=name)
-    ai1 = ActiveInterface(component_interface_ref=componentInstanceRef1, bus_ref=busInterfaceRef1)  # type: ignore[call-arg]
-    ai2 = ActiveInterface(component_interface_ref=componentInstanceRef2, bus_ref=busInterfaceRef2)  # type: ignore[call-arg]
-    ic.active_interface.extend([ai1, ai2])  # type: ignore[attr-defined]
-    d.interconnections.interconnection.append(ic)  # type: ignore[attr-defined]
-    register_parent(ic, d, ("interconnections",), "list")
-    register_parent(ai1, ic, ("active_interface",), "list")
-    register_parent(ai2, ic, ("active_interface",), "list")
-    return get_handle(ic)
+    _design_connections(designID)
+    child = Interconnection(name=_name(name, "Name"))
+    first_instance, first_bus = _name(componentInstanceRef1, "Name"), _name(busInterfaceRef1, "Name")
+    second_instance, second_bus = _name(componentInstanceRef2, "Name"), _name(busInterfaceRef2, "Name")
+    child_id = get_handle(child)
+    addInterconnectionActiveInterface(child_id, first_instance, first_bus)
+    addInterconnectionActiveInterface(child_id, second_instance, second_bus)
+    return _insert_design_connection(designID, child)
 
 
 def addDesignMonitorInterconnection(
@@ -1018,23 +1081,16 @@ def addDesignMonitorInterconnection(
 
     Section: F.7.38.9.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.interconnections is None:
-        from org.accellera.ipxact.v1685_2022.interconnections import Interconnections as InterconnectionsContainer
-
-        d.interconnections = InterconnectionsContainer()  # type: ignore[assignment]
-    mi = MonitorInterconnection(name=name)
-    mai = MonitorInterfaceType(component_interface_ref=componentInstanceRef1, bus_ref=activeInterfaceBusInterfaceRef)  # type: ignore[call-arg]
-    mon = MonitorInterfaceType(component_interface_ref=componentInstanceRef2, bus_ref=interfaceBusInterfaceRef)  # type: ignore[call-arg]
-    mi.monitored_active_interface = mai  # type: ignore[assignment]
-    mi.monitor_interface.append(mon)  # type: ignore[attr-defined]
-    d.interconnections.monitor_interconnection.append(mi)  # type: ignore[attr-defined]
-    register_parent(mi, d, ("interconnections",), "list")
-    register_parent(mai, mi, ("monitored_active_interface",), "single")
-    register_parent(mon, mi, ("monitor_interface",), "list")
-    return get_handle(mi)
+    _design_connections(designID)
+    source_name = _name(name, "Name")
+    first_instance, first_bus = _name(componentInstanceRef1, "Name"), _name(activeInterfaceBusInterfaceRef, "Name")
+    second_instance, second_bus = _name(componentInstanceRef2, "Name"), _name(interfaceBusInterfaceRef, "Name")
+    first = _build_instance_interface(MonitorInterfaceType, first_instance, first_bus)
+    child = MonitorInterconnection(name=source_name, monitored_active_interface=first)
+    child_id = get_handle(child)
+    register_parent(first, child, ("monitored_active_interface",), "single")
+    addMonitorInterconnectionMonitorInterface(child_id, second_instance, second_bus)
+    return _insert_design_connection(designID, child)
 
 
 def addInterconnectionActiveInterface(interconnectionID: str, componentInstanceRef: str, busInterfaceRef: str) -> str:
@@ -1142,12 +1198,35 @@ def removeDesignAdHocConnection(adHocConnectionID: str) -> bool:
 def removeDesignChoice(choiceID: str) -> bool:
     """Remove choice element.
 
+    Return False while a direct Design parameter references the choice, preserving designChoiceRef.
+
     Section: F.7.38.18.
     """
-    ch = resolve_handle(choiceID)
-    if not isinstance(ch, Choices.Choice):  # type: ignore[attr-defined]
+    child = resolve_handle(choiceID)
+    if not isinstance(child, Choices.Choice):
         raise TgiError("Invalid choice handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(choiceID)
+    holder = _register_owned_child(child, Choices)
+    owner = _register_owned_child(holder, Design) if isinstance(holder, Choices) else None
+    if not isinstance(owner, Design) or owner.choices is not holder:
+        raise TgiError("Choice has no owning Design", TgiFaultCode.INVALID_ID)
+    if choiceID not in getDesignChoiceIDs(get_handle(owner)):
+        raise TgiError("Choice is not in the owning collection", TgiFaultCode.INVALID_ID)
+    parameters = _child(owner, "parameters", Parameters)
+    if parameters is not None:
+        if not isinstance(parameters.parameter, (list, tuple)) or any(
+            not isinstance(item, ParameterType) for item in parameters.parameter
+        ):
+            raise TgiError("Invalid parameter collection", TgiFaultCode.INVALID_ID)
+        if any(
+            item.choice_ref is not None and _name(item.choice_ref, "Name") == _name(child.name, "Name")
+            for item in parameters.parameter
+        ):
+            return False
+    _list_attr(holder, "choice")
+    result = _remove_owned(choiceID, Choices.Choice, Choices, "choice")
+    if not holder.choice:
+        detach_child_by_handle(get_handle(holder))
+    return result
 
 
 def removeDesignComponentInstance(componentInstanceID: str) -> bool:
@@ -1175,10 +1254,7 @@ def removeDesignInterconnection(interconnectionID: str) -> bool:
 
     Section: F.7.38.20.
     """
-    ic = _resolve_interconnection(interconnectionID)
-    if ic is None:
-        raise TgiError("Invalid interconnection handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(interconnectionID)
+    return _remove_design_connection(interconnectionID, Interconnection)
 
 
 def removeDesignMonitorConnection(monitorInterconnectionID: str) -> bool:
@@ -1186,10 +1262,7 @@ def removeDesignMonitorConnection(monitorInterconnectionID: str) -> bool:
 
     Section: F.7.38.21.
     """
-    mi = _resolve_monitor_interconnection(monitorInterconnectionID)
-    if mi is None:
-        raise TgiError("Invalid monitorInterconnection handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(monitorInterconnectionID)
+    return _remove_design_connection(monitorInterconnectionID, MonitorInterconnection)
 
 
 def removeExternalPortReferencePartSelect(externalPortReferenceID: str) -> bool:
