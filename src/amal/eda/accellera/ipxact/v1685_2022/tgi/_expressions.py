@@ -134,6 +134,8 @@ def _string_source(source: str) -> str:
     except SvExpressionError as error:
         if not _undeclared(error):
             raise TgiError("Cannot resolve string expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    except UnicodeError as error:
+        raise TgiError("String expression contains invalid Unicode", TgiFaultCode.INVALID_ARGUMENT) from error
     return source
 
 
@@ -162,3 +164,17 @@ def _tied_value(source: str, current: ComplexTiedValueExpression, *, deferred: b
     if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
         raise TgiError("Tied value outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
     return str(value)
+
+
+def _string_value(source: str) -> str:
+    """Evaluate a C.7.5 string expression in a SystemVerilog string assignment context."""
+    _xml_text(source)
+    try:
+        value = SvExpressionParser().parse_string(source).value.value
+    except SvExpressionError as error:
+        raise TgiError("Cannot evaluate string expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    except UnicodeError as error:
+        raise TgiError("String expression contains invalid Unicode", TgiFaultCode.INVALID_ARGUMENT) from error
+    if not isinstance(value, str):
+        raise TgiError("Expected string expression value", TgiFaultCode.INVALID_ARGUMENT)
+    return value

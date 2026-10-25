@@ -177,6 +177,8 @@ def _registered_reference_target[T](
 
     if ref is None:
         raise TgiError(f"{reference_name} is absent", TgiFaultCode.NOT_FOUND)
+    if not isinstance(ref, (ConfigurableLibraryRefType, LibraryRefType)):
+        raise TgiError(f"Invalid {reference_name} model", TgiFaultCode.INVALID_ID)
     vlnv = (ref.vendor, ref.library, ref.name, ref.version)
     if any(not isinstance(part, str) or not part for part in vlnv):
         raise TgiError(f"{reference_name} has an incomplete VLNV", TgiFaultCode.NOT_FOUND)

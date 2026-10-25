@@ -24,11 +24,12 @@ from org.accellera.ipxact.v1685_2022.transactional_power_constraint_type import 
 from org.accellera.ipxact.v1685_2022.wire_power_constraint_type import WirePowerConstraintType
 
 from ._attribute_references import _root_for
-from ._expressions import _integer, _source, _xml_text
+from ._expressions import _integer, _source, _string_source
+from ._model import _owned_list_ids, _walk_model
 from ._ranges import _apply_range, _array, _range_plan
 from .address_space import _register_owned_child
 from .component import _list_attr, _register_graph
-from .core import TgiError, TgiFaultCode, detach_child_by_handle, get_handle, register_parent, resolve_handle
+from .core import TgiError, TgiFaultCode, detach_child_by_handle, get_handle, register_parent, registry, resolve_handle
 from .port_map import (
     _child,
     _child_id,
@@ -91,12 +92,20 @@ def _range(constraint: Any) -> Range | None:
     return _child(constraint, "range", Range) if isinstance(constraint, WirePowerConstraintType) else None
 
 
-def _target(source: Any, name: str | None) -> str | None:
+def _target(source: object, name: str | None) -> str | None:
     root = _root_for(source)
-    if name is None or not isinstance(root, ComponentType) or root.power_domains is None:
+    if name is None or not isinstance(root, ComponentType):
         return None
+    holder = _child(root, "power_domains", ComponentType.PowerDomains)
+    if holder is None:
+        return None
+    children = holder.power_domain
+    if not isinstance(children, (list, tuple)) or any(not isinstance(domain, _PowerDomain) for domain in children):
+        raise TgiError("Invalid powerDomain collection", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(domain.name, str) for domain in children):
+        raise TgiError("Invalid powerDomain name", TgiFaultCode.INVALID_ID)
     name = _name(name, "Name")
-    matches = [domain for domain in root.power_domains.power_domain if _name(domain.name, "Name") == name]
+    matches = [domain for domain in children if _name(domain.name, "Name") == name]
     if len(matches) > 1:
         raise TgiError("Ambiguous power domain reference", TgiFaultCode.INVALID_ARGUMENT)
     if not matches:
@@ -132,11 +141,90 @@ def _link_scope(link: Any) -> PowerDomainLinks | None:
     return _register_owned_child(link, PowerDomainLinks)
 
 
-def _internal_names(links: Sequence[Any]) -> list[str]:
-    return [_name(ref.value, "Name") for link in links for ref in link.internal_power_domain_reference]
+def _internal_names(links: Sequence[_PowerDomainLink]) -> list[str]:
+    names: list[str] = []
+    for link in links:
+        if not isinstance(link, _PowerDomainLink):
+            raise TgiError("Invalid powerDomainLink model", TgiFaultCode.INVALID_ID)
+        children = link.internal_power_domain_reference
+        if not isinstance(children, (list, tuple)) or any(
+            not isinstance(child, _InternalReference) for child in children
+        ):
+            raise TgiError("Invalid internalPowerDomainReference collection", TgiFaultCode.INVALID_ID)
+        if any(not isinstance(child.value, str) for child in children):
+            raise TgiError("Invalid internalPowerDomainReference content", TgiFaultCode.INVALID_ID)
+        _owned_list_ids(link, children, "internal_power_domain_reference")
+        names.extend(_name(child.value, "Name") for child in children)
+    return names
 
 
-def _check_internal_unique(names: Sequence[str], links: Sequence[Any]) -> None:
+def _instance_power_domain_links(
+    instance_id: str,
+) -> tuple[ComponentInstance, PowerDomainLinks | None, Sequence[_PowerDomainLink]]:
+    """Validate the optional instance power-domain holder before traversal or mutation."""
+    instance: ComponentInstance = _require(instance_id, ComponentInstance)
+    holder = _child(instance, "power_domain_links", PowerDomainLinks)
+    if holder is None:
+        return instance, None, ()
+    children = holder.power_domain_link
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, _PowerDomainLink) for child in children):
+        raise TgiError("Invalid powerDomainLink collection", TgiFaultCode.INVALID_ID)
+    return instance, holder, children
+
+
+def _instance_power_domain_link_ids(instance_id: str) -> list[str]:
+    """Return ordered instance link IDs with their immediate holder ownership."""
+    _, holder, children = _instance_power_domain_links(instance_id)
+    return [] if holder is None else _owned_list_ids(holder, children, "power_domain_link")
+
+
+def _external_power_domain_target(link: _PowerDomainLink, name: str | None) -> str | None:
+    """Resolve an external domain only in the component referencing the owning Design."""
+    from org.accellera.ipxact.v1685_2022 import (
+        Design,
+        DesignConfigurationInstantiationType,
+        DesignInstantiationType,
+    )
+
+    from .design_configuration import getDesignConfigurationDesignRefByID
+    from .instantiation import (
+        getDesignConfigurationInstantiationDesignConfigurationRefByID,
+        getDesignInstantiationDesignRefByID,
+    )
+
+    root = _root_for(link)
+    if isinstance(root, ComponentType):
+        return _target(link, name)
+    if not isinstance(root, Design) or name is None:
+        return None
+    design_id = get_handle(root)
+    contexts: list[ComponentType] = []
+    for component_id in registry.iter_by_predicate(lambda item: isinstance(item, ComponentType)):
+        component = resolve_handle(component_id)
+        if not isinstance(component, ComponentType):
+            continue
+        for node, _, _, _ in _walk_model(component):
+            try:
+                if isinstance(node, DesignInstantiationType):
+                    target_id = getDesignInstantiationDesignRefByID(get_handle(node))
+                elif isinstance(node, DesignConfigurationInstantiationType):
+                    configuration_id = getDesignConfigurationInstantiationDesignConfigurationRefByID(get_handle(node))
+                    target_id = getDesignConfigurationDesignRefByID(configuration_id)
+                else:
+                    continue
+            except TgiError as error:
+                if error.fault_code == TgiFaultCode.NOT_FOUND:
+                    continue
+                raise
+            if target_id == design_id:
+                contexts.append(component)
+                break
+    if len(contexts) > 1:
+        raise TgiError("Ambiguous component context for external power domain", TgiFaultCode.INVALID_ARGUMENT)
+    return None if not contexts else _target(contexts[0], name)
+
+
+def _check_internal_unique(names: Sequence[str], links: Sequence[_PowerDomainLink]) -> None:
     if len(set(names)) != len(names) or set(names).intersection(_internal_names(links)):
         raise TgiError("Internal power domain already linked on this instance", TgiFaultCode.ALREADY_EXISTS)
 
@@ -376,15 +464,14 @@ def addComponentInstancePowerDomainLink(
 
     Section: F.7.72.1.
     """
-    instance = _require(componentInstanceID, ComponentInstance)
-    _xml_text(externalPowerDomainRef)
+    instance, holder, links = _instance_power_domain_links(componentInstanceID)
+    _string_source(externalPowerDomainRef)
     if not externalPowerDomainRef.strip():
         raise TgiError("External power domain reference must be nonempty", TgiFaultCode.INVALID_ARGUMENT)
     names = [_name(value, "Name") for value in _array(internalPowerDomainRef, "internalPowerDomainRef")]
     if not names:
         raise TgiError("At least one internal power domain is required", TgiFaultCode.INVALID_ARGUMENT)
-    holder = instance.power_domain_links
-    _check_internal_unique(names, holder.power_domain_link if holder is not None else [])
+    _check_internal_unique(names, links)
     link = _PowerDomainLink(
         external_power_domain_reference=StringExpression(value=externalPowerDomainRef),
         internal_power_domain_reference=[_InternalReference(value=name) for name in names],

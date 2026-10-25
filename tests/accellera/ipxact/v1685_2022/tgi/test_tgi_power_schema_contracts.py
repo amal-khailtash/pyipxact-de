@@ -197,15 +197,15 @@ def test_power_domain_setters_preserve_expression_and_parsed_removal_ownership()
     _valid(parsed)
 
 
-def test_instance_power_domain_links_remove_exact_reference_and_invalidate_parsed_owned_tree():
+def test_instance_power_domain_links_remove_exact_reference_and_invalidate_parsed_owned_tree() -> None:
     root, instance = _design_with_instance()
     instance_handle = get_handle(instance)
-    link_id = api.addComponentInstancePowerDomainLink(instance_handle, "TOP_DOMAIN", ["PD_A", "PD_B"])
+    link_id = api.addComponentInstancePowerDomainLink(instance_handle, '"TOP_DOMAIN"', ["PD_A", "PD_B"])
     assert design_api.getPowerDomainLinkExternalPowerDomainRef(link_id) == "TOP_DOMAIN"
     assert design_api.getPowerDomainLinkInternalPowerDomainRefs(link_id) == ["PD_A", "PD_B"]
     assert api.addPowerDomainLinkInternalPowerDomainReference(link_id, "PD_C")
     assert design_api.getPowerDomainLinkInternalPowerDomainRefs(link_id) == ["PD_A", "PD_B", "PD_C"]
-    second_link_id = api.addComponentInstancePowerDomainLink(instance_handle, "TOP_DOMAIN_2", ["PD_D"])
+    second_link_id = api.addComponentInstancePowerDomainLink(instance_handle, '"TOP_DOMAIN_2"', ["PD_D"])
     assert design_api.getPowerDomainLinkInternalPowerDomainRefs(second_link_id) == ["PD_D"]
     before_duplicate = _valid(root)
     with pytest.raises(TgiError):

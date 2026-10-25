@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement eight Design power-domain link operations with shared typed traversal, SystemVerilog string expressions, preserved metadata, and registered referencing-component domain resolution.
 - Implement seven Design component-instance operations with generated name/reference wrappers, registry target resolution, unique names, shared metadata-preserving VLNV edits and owned subtree removal.
 - Implement eight Design monitor-endpoint and interconnection setter operations using shared builders, owned replacement/removal, role-aware handles and schema instance-path validation.
 - Implement nine Design active-interface, hierarchical-interface and excluded-port lifecycle operations with generated fields, schema name validation, ordered ownership and strict subtree removal.

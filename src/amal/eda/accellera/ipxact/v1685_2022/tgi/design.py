@@ -34,6 +34,7 @@ from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
 from ._library_reference import _set_reference, _xml_vlnv
 from .instantiation import _registered_reference_target, getComponentInstanceComponentRefID
+from .power import _external_power_domain_target, _instance_power_domain_link_ids, _internal_names
 from .miscellaneous import _expression_source, getExpression, getExpressionValue, setExpressionValue
 
 from org.accellera.ipxact.v1685_2022 import (
@@ -42,6 +43,7 @@ from org.accellera.ipxact.v1685_2022 import (
     ComponentInstances,
     ConfigurableLibraryRefType,
     InstanceName,
+    StringExpression,
     AdHocConnections,
     Interconnection,
     MonitorInterconnection,
@@ -66,7 +68,7 @@ from .core import (
     register_parent,
     detach_child_by_handle,
 )
-# Note: expression helper imported indirectly via power domain functions if needed
+# Expression access uses shared Miscellaneous helpers and Power reference context.
 
 __all__ = [
     # BASE (F.7.37)
@@ -100,6 +102,7 @@ __all__ = [
     "getPowerDomainLinkExternalPowerDomainRef",
     "getPowerDomainLinkExternalPowerDomainRefByID",
     "getPowerDomainLinkExternalPowerDomainRefByName",
+    "getPowerDomainLinkExternalPowerDomainRefExpression",
     "getPowerDomainLinkExternalPowerDomainRefID",
     "getPowerDomainLinkInternalPowerDomainRefs",
     # EXTENDED (F.7.38)
@@ -626,9 +629,11 @@ def getComponentInstanceName(componentInstanceID: str) -> str | None:
 
 
 def getComponentInstancePowerDomainLinkIDs(componentInstanceID: str) -> list[str]:  # F.7.37.11
-    from .power import getComponentInstancePowerDomainLinkIDs as _g
+    """Return ordered instance power-domain link handles with immediate ownership.
 
-    return _g(componentInstanceID)
+    Section: F.7.37.11.
+    """
+    return _instance_power_domain_link_ids(componentInstanceID)
 
 
 def getDesignAdHocConnectionIDs(designID: str) -> list[str]:
@@ -802,24 +807,20 @@ def getPowerDomainLinkExternalPowerDomainRef(powerDomainLinkID: str) -> str | No
 
     Section: F.7.37.28.
     """
-    link = resolve_handle(powerDomainLinkID)
-    if not isinstance(link, PowerDomainLinks.PowerDomainLink):  # type: ignore[attr-defined]
-        raise TgiError("Invalid powerDomainLink handle", TgiFaultCode.INVALID_ID)
-    ext = getattr(link, "external_power_domain_reference", None)
-    if ext is None:
-        return None
-    return getattr(ext, "value", ext)
+    expression_id = getPowerDomainLinkExternalPowerDomainRefID(powerDomainLinkID)
+    return None if expression_id is None else getExpressionValue(expression_id)
 
 
 def getPowerDomainLinkExternalPowerDomainRefByID(powerDomainLinkID: str) -> str | None:
-    """Return handle to referenced external power domain (not resolved).
+    """Return handle to referenced external power domain.
 
-    Section: F.7.37.29. (Not resolvable without external library; returns None.)
+    Section: F.7.37.29. Resolve in the registered component referencing this Design.
     """
+    name = getPowerDomainLinkExternalPowerDomainRefByName(powerDomainLinkID)
     link = resolve_handle(powerDomainLinkID)
-    if not isinstance(link, PowerDomainLinks.PowerDomainLink):  # type: ignore[attr-defined]
+    if not isinstance(link, PowerDomainLinks.PowerDomainLink):
         raise TgiError("Invalid powerDomainLink handle", TgiFaultCode.INVALID_ID)
-    return None
+    return _external_power_domain_target(link, name)
 
 
 def getPowerDomainLinkExternalPowerDomainRefByName(powerDomainLinkID: str) -> str | None:
@@ -830,32 +831,35 @@ def getPowerDomainLinkExternalPowerDomainRefByName(powerDomainLinkID: str) -> st
     return getPowerDomainLinkExternalPowerDomainRef(powerDomainLinkID)
 
 
+def getPowerDomainLinkExternalPowerDomainRefExpression(powerDomainLinkID: str) -> str | None:
+    """Return the raw external power-domain string expression.
+
+    Section: F.7.37.31.
+    """
+    expression_id = getPowerDomainLinkExternalPowerDomainRefID(powerDomainLinkID)
+    return None if expression_id is None else getExpression(expression_id)
+
+
 def getPowerDomainLinkExternalPowerDomainRefID(powerDomainLinkID: str) -> str | None:
     """Return handle of external power domain expression element.
 
     Section: F.7.37.32.
     """
     link = resolve_handle(powerDomainLinkID)
-    if not isinstance(link, PowerDomainLinks.PowerDomainLink):  # type: ignore[attr-defined]
+    if not isinstance(link, PowerDomainLinks.PowerDomainLink):
         raise TgiError("Invalid powerDomainLink handle", TgiFaultCode.INVALID_ID)
-    ext = getattr(link, "external_power_domain_reference", None)
-    return None if ext is None else get_handle(ext)
+    return _child_id(link, "external_power_domain_reference", StringExpression)
 
 
 def getPowerDomainLinkInternalPowerDomainRefs(powerDomainLinkID: str) -> list[str]:
-    """Return internal power domain reference expressions (strings).
+    """Return internal power domain reference names (strings).
 
     Section: F.7.37.33.
     """
     link = resolve_handle(powerDomainLinkID)
-    if not isinstance(link, PowerDomainLinks.PowerDomainLink):  # type: ignore[attr-defined]
+    if not isinstance(link, PowerDomainLinks.PowerDomainLink):
         raise TgiError("Invalid powerDomainLink handle", TgiFaultCode.INVALID_ID)
-    refs: list[str] = []
-    for ref in getattr(link, "internal_power_domain_reference", []):
-        val = getattr(ref, "value", ref)
-        if isinstance(val, str):
-            refs.append(val)
-    return refs
+    return _internal_names([link])
 
 
 # ---------------------------------------------------------------------------
@@ -1378,10 +1382,14 @@ def setPowerDomainLinkExternalPowerDomainRef(powerDomainLinkID: str, expression:
 
     Section: F.7.38.37.
     """
+    expression_id = getPowerDomainLinkExternalPowerDomainRefID(powerDomainLinkID)
+    if expression_id is not None:
+        return setExpressionValue(expression_id, expression)
+    child = StringExpression()
+    child.value = _expression_source(expression, child)
     link = resolve_handle(powerDomainLinkID)
-    if not isinstance(link, PowerDomainLinks.PowerDomainLink):  # type: ignore[attr-defined]
+    if not isinstance(link, PowerDomainLinks.PowerDomainLink):
         raise TgiError("Invalid powerDomainLink handle", TgiFaultCode.INVALID_ID)
-    from org.accellera.ipxact.v1685_2022.string_expression import StringExpression
-
-    link.external_power_domain_reference = StringExpression(value=expression)  # type: ignore[assignment]
+    link.external_power_domain_reference = child
+    register_parent(child, link, ("external_power_domain_reference",), "single")
     return True
