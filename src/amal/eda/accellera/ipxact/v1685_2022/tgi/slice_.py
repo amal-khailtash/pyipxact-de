@@ -18,7 +18,6 @@ shared ownership and removal helpers.
 """
 
 # ruff: noqa: I001
-from typing import overload
 from collections.abc import Sequence
 
 from org.accellera.ipxact.v1685_2022 import (
@@ -47,7 +46,7 @@ from ._model import _owned_list_ids, _sub_port_references
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
 from .port_map import _child, _child_id, _name, _set_part_select, _remove_child
-from ._attribute_references import _reference_value, resolve_attribute_reference
+from ._attribute_references import _reference_source as _field_reference_value, resolve_attribute_reference
 from ._miscellaneous_part_select import _part_select
 
 from .core import (
@@ -183,24 +182,6 @@ def _field_slice(handle: str) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.
     if not isinstance(owner, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice)):
         raise TgiError("Invalid fieldSlice handle", TgiFaultCode.INVALID_ID)
     return owner
-
-
-@overload
-def _field_reference_value(reference_id: str, xml_name: str) -> str: ...
-
-
-@overload
-def _field_reference_value(reference_id: None, xml_name: str) -> None: ...
-
-
-def _field_reference_value(reference_id: str | None, xml_name: str) -> str | None:
-    """Read a typed reference's source through the common attribute mapping."""
-    if reference_id is None:
-        return None
-    value = _reference_value(resolve_handle(reference_id), xml_name)
-    if value is None:
-        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
-    return value
 
 
 def _field_reference_target(reference_id: str | None, xml_name: str) -> str | None:

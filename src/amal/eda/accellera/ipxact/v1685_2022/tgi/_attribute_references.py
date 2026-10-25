@@ -12,7 +12,7 @@ registry; no files are loaded as a side effect.
 
 from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
-from typing import Any
+from typing import Any, overload
 
 from org.accellera.ipxact.v1685_2022 import ComponentType, FieldMap
 
@@ -167,6 +167,24 @@ def _root_for(element: Any) -> Any:
             break
         current = parent
     return current
+
+
+@overload
+def _reference_source(reference_id: str, xml_name: str) -> str: ...
+
+
+@overload
+def _reference_source(reference_id: None, xml_name: str) -> None: ...
+
+
+def _reference_source(reference_id: str | None, xml_name: str) -> str | None:
+    """Read a typed reference's source through the common attribute mapping."""
+    if reference_id is None:
+        return None
+    value = _reference_value(resolve_handle(reference_id), xml_name)
+    if value is None:
+        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
+    return value
 
 
 def _reference_value(element: Any, xml_name: str) -> str | None:

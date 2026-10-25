@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement ten Indirect interface address-block and field-reference operations using shared source/traversal helpers, XML name validation, and indexed subtree removal.
 - Complete all 70 Design TGI operations with schema-valid choice and connection builders, guarded owned removal, and scoped current/top generator Design context.
 - Implement eight Design power-domain link operations with shared typed traversal, SystemVerilog string expressions, preserved metadata, and registered referencing-component domain resolution.
 - Implement seven Design component-instance operations with generated name/reference wrappers, registry target resolution, unique names, shared metadata-preserving VLNV edits and owned subtree removal.
