@@ -123,16 +123,19 @@ __all__ = [
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+
 def _validate_local_reference_name(value: str, schema_type: str) -> None:
     """Validate XML lexical names without imposing ASCII-only restrictions."""
     from lxml import etree
 
     if not isinstance(value, str):
         raise TgiError("Expected a local-name string", TgiFaultCode.INVALID_ARGUMENT)
-    schema = etree.XMLSchema(etree.fromstring(
-        f'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">'
-        f'<xs:element name="name" type="xs:{schema_type}"/></xs:schema>'.encode()
-    ))
+    schema = etree.XMLSchema(
+        etree.fromstring(
+            f'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">'
+            f'<xs:element name="name" type="xs:{schema_type}"/></xs:schema>'.encode()
+        )
+    )
     element = etree.Element("name")
     try:
         element.text = value
@@ -208,6 +211,7 @@ def _require[T](obj: T | None, fault: str = TgiFaultCode.INVALID_ID) -> T:  # pr
 # BASE (F.7.55)
 # ---------------------------------------------------------------------------
 
+
 def getAbstractionTypeAbstractionRefID(abstractionTypeID: str) -> str | None:
     """Return handle of ``abstractionRef`` inside an abstractionType.
 
@@ -246,9 +250,7 @@ def getAbstractorInstanceAbstractorRefID(abstractorInstanceID: str) -> str | Non
     # DesignConfiguration.InterconnectionConfiguration.AbstractorInstances
     from org.accellera.ipxact.v1685_2022.design_configuration import DesignConfiguration
 
-    AbstractorInstanceCls = (
-        DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance
-    )
+    AbstractorInstanceCls = DesignConfiguration.InterconnectionConfiguration.AbstractorInstances.AbstractorInstance
     if not isinstance(ai, AbstractorInstanceCls):
         raise TgiError("Invalid abstractorInstance handle", TgiFaultCode.INVALID_ID)
     ref = getattr(ai, "abstractor_ref", None)
@@ -271,10 +273,9 @@ def getComponentInstanceComponentRefID(componentInstanceID: str) -> str | None:
     ci = resolve_handle(componentInstanceID)
     if not isinstance(ci, ComponentInstance):
         raise TgiError("Invalid componentInstance handle", TgiFaultCode.INVALID_ID)
-    ref = getattr(ci, "component_ref", None)
-    if ref is not None:
-        register_parent(ref, ci, ("component_ref",), "single")
-    return None if ref is None else get_handle(ref)
+    from .port_map import _child_id
+
+    return _child_id(ci, "component_ref", ConfigurableLibraryRefType)
 
 
 def getComponentInstantiationArchitectureName(componentInstantiationID: str) -> str | None:
@@ -726,6 +727,7 @@ def getGeneratorChainSelectorGeneratorChainRefID(generatorChainSelectorID: str) 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.56)
 # ---------------------------------------------------------------------------
+
 
 def addComponentInstantiationClearboxElementRef(componentInstantiationID: str, name: str, pathSegmentValue: str) -> str:
     """Add a ``clearboxElementRef`` element.
@@ -1198,7 +1200,8 @@ def setComponentInstantiationPackageName(componentInstantiationID: str, packageN
 
 
 def setDesignConfigurationInstantiationDesignConfigurationRef(
-    designConfigurationInstantiationID: str, designConfigurationVLNV: tuple[str, str, str, str],
+    designConfigurationInstantiationID: str,
+    designConfigurationVLNV: tuple[str, str, str, str],
 ) -> bool:
     """Update the generated reference in place after validating VLNV (F.7.56.24).
 

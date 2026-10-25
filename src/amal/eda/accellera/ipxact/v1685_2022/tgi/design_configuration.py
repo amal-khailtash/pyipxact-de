@@ -28,11 +28,11 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from ._expressions import _xml_text
+from ._library_reference import _set_reference, _xml_vlnv
 from ._model import _owned_list_ids, _walk_model
 from .address_space import _register_owned_child
 from .instantiation import (
     _registered_reference_target,
-    _validated_vlnv,
     getAbstractorInstanceAbstractorRefID,
     _validate_local_reference_name,
     getDesignConfigurationInstantiationDesignConfigurationRefByID,
@@ -195,29 +195,6 @@ def _unique_abstractor_name(owner: object, name: str, current: object | None = N
             and _abstractor_name(child, child.instance_name) == name
         ):
             raise TgiError("Abstractor instance name already exists", TgiFaultCode.ALREADY_EXISTS)
-
-
-def _xml_vlnv(value: tuple[str, str, str, str]) -> tuple[str, str, str, str]:
-    parts = _validated_vlnv(value)
-    for part in parts:
-        _xml_text(part)
-    return parts
-
-
-def _set_reference[T: (LibraryRefType, ConfigurableLibraryRefType)](
-    owner: object, attribute: str, model_type: type[T], value: tuple[str, str, str, str]
-) -> T:
-    parts = _xml_vlnv(value)
-    ref = getattr(owner, attribute)
-    if ref is not None and not isinstance(ref, model_type):
-        raise TgiError(f"Invalid {attribute} model", TgiFaultCode.INVALID_ID)
-    if ref is None:
-        ref = model_type(vendor=parts[0], library=parts[1], name=parts[2], version=parts[3])
-        setattr(owner, attribute, ref)
-    else:
-        ref.vendor, ref.library, ref.name, ref.version = parts
-    register_parent(ref, owner, (attribute,), "single")
-    return ref
 
 
 def _generator_reference(handle: str) -> ConfigurableLibraryRefType | None:

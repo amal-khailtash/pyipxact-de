@@ -32,10 +32,16 @@ from .port_map import _child, _child_id, _name, _remove_child, _set_part_select
 from ._attribute_references import _reference_value
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
+from ._library_reference import _set_reference, _xml_vlnv
+from .instantiation import _registered_reference_target, getComponentInstanceComponentRefID
 from .miscellaneous import _expression_source, getExpression, getExpressionValue, setExpressionValue
 
 from org.accellera.ipxact.v1685_2022 import (
     Design,
+    Component,
+    ComponentInstances,
+    ConfigurableLibraryRefType,
+    InstanceName,
     AdHocConnections,
     Interconnection,
     MonitorInterconnection,
@@ -195,6 +201,33 @@ def _port_reference_name(
     if value is None:
         raise TgiError("Invalid port reference source", TgiFaultCode.INVALID_ID)
     return value
+
+
+def _component_reference(instance_id: str) -> ConfigurableLibraryRefType | None:
+    """Reuse the component-instance reference-node getter and its strict generated type."""
+    ref_id = getComponentInstanceComponentRefID(instance_id)
+    if ref_id is None:
+        return None
+    ref = resolve_handle(ref_id)
+    if not isinstance(ref, ConfigurableLibraryRefType):
+        raise TgiError("Invalid componentRef model", TgiFaultCode.INVALID_ID)
+    return ref
+
+
+def _design_component_instances(
+    design_id: str,
+) -> tuple[Design, ComponentInstances | None, Sequence[ComponentInstance]]:
+    """Validate the Design's component-instance holder and ordered generated collection."""
+    owner = _resolve_design(design_id)
+    if owner is None:
+        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
+    holder = _child(owner, "component_instances", ComponentInstances)
+    if holder is None:
+        return owner, None, ()
+    children = holder.component_instance
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, ComponentInstance) for child in children):
+        raise TgiError("Invalid componentInstance collection", TgiFaultCode.INVALID_ID)
+    return owner, holder, children
 
 
 def _active_interface(interface_id: str) -> ActiveInterface:
@@ -550,16 +583,14 @@ def getInternalPortReferenceComponentInstanceRefByName(internalPortReferenceID: 
     return _port_reference_name(owner, "componentInstanceRef")
 
 
-def getComponentInstanceComponentRefByID(componentInstanceID: str) -> str | None:
+def getComponentInstanceComponentRefByID(componentInstanceID: str) -> str:
     """Return handle of referenced component (componentRef).
 
-    Section: F.7.37.8. (Design currently does not resolve to actual component object – placeholder None)
+    Section: F.7.37.8. Missing or wrong-kind registered component targets raise NOT_FOUND.
     """
-    inst = _resolve_component_instance(componentInstanceID)
-    if inst is None:
-        raise TgiError("Invalid componentInstance handle", TgiFaultCode.INVALID_ID)
     # The XML schema holds only VLNV strings; resolution to component object would be DE responsibility.
-    return None
+    ref = _component_reference(componentInstanceID)
+    return get_handle(_registered_reference_target(ref, Component, "componentRef"))
 
 
 def getComponentInstanceComponentRefByVLNV(
@@ -569,18 +600,13 @@ def getComponentInstanceComponentRefByVLNV(
 
     Section: F.7.37.9.
     """
-    inst = _resolve_component_instance(componentInstanceID)
-    if inst is None:
-        raise TgiError("Invalid componentInstance handle", TgiFaultCode.INVALID_ID)
-    comp_ref = getattr(inst, "component_ref", None)
-    if comp_ref is None:
+    ref = _component_reference(componentInstanceID)
+    if ref is None:
         return (None, None, None, None)
-    return (
-        getattr(comp_ref, "vendor", None),
-        getattr(comp_ref, "library", None),
-        getattr(comp_ref, "name", None),
-        getattr(comp_ref, "version", None),
-    )
+    parts = (ref.vendor, ref.library, ref.name, ref.version)
+    if any(part is not None and not isinstance(part, str) for part in parts):
+        raise TgiError("Invalid componentRef VLNV content", TgiFaultCode.INVALID_ID)
+    return parts
 
 
 def getComponentInstanceName(componentInstanceID: str) -> str | None:
@@ -588,10 +614,15 @@ def getComponentInstanceName(componentInstanceID: str) -> str | None:
 
     Section: F.7.37.10.
     """
-    inst = _resolve_component_instance(componentInstanceID)
-    if inst is None:
+    owner = _resolve_component_instance(componentInstanceID)
+    if owner is None:
         raise TgiError("Invalid componentInstance handle", TgiFaultCode.INVALID_ID)
-    return getattr(inst, "instance_name", None)
+    name = _child(owner, "instance_name", InstanceName)
+    if name is None:
+        return None
+    if not isinstance(name.value, str):
+        raise TgiError("Invalid instanceName content", TgiFaultCode.INVALID_ID)
+    return name.value
 
 
 def getComponentInstancePowerDomainLinkIDs(componentInstanceID: str) -> list[str]:  # F.7.37.11
@@ -627,12 +658,8 @@ def getDesignComponentInstanceIDs(designID: str) -> list[str]:
 
     Section: F.7.37.14.
     """
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.component_instances is None:
-        return []
-    return [get_handle(ci) for ci in getattr(d.component_instances, "component_instance", [])]
+    _, holder, children = _design_component_instances(designID)
+    return [] if holder is None else _owned_list_ids(holder, children, "component_instance")
 
 
 def getDesignID(top: bool) -> str | None:
@@ -908,26 +935,33 @@ def addDesignComponentInstance(
 
     Section: F.7.38.6.
     """
-    from org.accellera.ipxact.v1685_2022.library_ref_type import LibraryRefType
-
-    d = _resolve_design(designID)
-    if d is None:
-        raise TgiError("Invalid design handle", TgiFaultCode.INVALID_ID)
-    if d.component_instances is None:
-        from org.accellera.ipxact.v1685_2022.component_instances import ComponentInstances
-
-        d.component_instances = ComponentInstances()  # type: ignore[assignment]
-    ci = ComponentInstance(instance_name=componentInstanceName)  # type: ignore[call-arg]
-    # component_ref is ConfigurableLibraryRefType or LibraryRefType in schema; we use LibraryRefType
-    ci.component_ref = LibraryRefType(
-        vendor=componentVLNV[0],
-        library=componentVLNV[1],
-        name=componentVLNV[2],
-        version=componentVLNV[3],
-    )  # type: ignore[attr-defined]
-    d.component_instances.component_instance.append(ci)  # type: ignore[attr-defined]
-    register_parent(ci, d, ("component_instances",), "list")
-    return get_handle(ci)
+    owner, holder, children = _design_component_instances(designID)
+    parts = _xml_vlnv(componentVLNV)
+    source_name = _name(componentInstanceName, "Name")
+    for current in children:
+        try:
+            current_name = getComponentInstanceName(get_handle(current))
+            if current_name is None:
+                raise TgiError("Missing existing instanceName", TgiFaultCode.INVALID_ID)
+            normalized = _name(current_name, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid existing instanceName", TgiFaultCode.INVALID_ID) from error
+        if normalized == source_name:
+            raise TgiError("Duplicate component instance name", TgiFaultCode.INVALID_ARGUMENT)
+    # component_ref is ConfigurableLibraryRefType in the schema, preserving configurable values.
+    child = ComponentInstance(
+        instance_name=InstanceName(value=source_name),
+        component_ref=ConfigurableLibraryRefType(vendor="", library="", name="", version=""),
+    )
+    handle = get_handle(child)
+    setComponentInstanceComponentRef(handle, parts)
+    if holder is None:
+        holder = ComponentInstances()
+        owner.component_instances = holder
+        register_parent(holder, owner, ("component_instances",), "single")
+    _list_attr(holder, "component_instance").append(child)
+    getDesignComponentInstanceIDs(designID)
+    return handle
 
 
 def addDesignExternalAdHocConnection(designID: str, name: str, portRef: str) -> str:
@@ -1117,10 +1151,19 @@ def removeDesignComponentInstance(componentInstanceID: str) -> bool:
 
     Section: F.7.38.19.
     """
-    ci = _resolve_component_instance(componentInstanceID)
-    if ci is None:
+    child = _resolve_component_instance(componentInstanceID)
+    if child is None:
         raise TgiError("Invalid componentInstance handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(componentInstanceID)
+    holder = _register_owned_child(child, ComponentInstances)
+    if not isinstance(holder, ComponentInstances):
+        raise TgiError("Instance has no owning componentInstances holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, Design)
+    if not isinstance(owner, Design) or owner.component_instances is not holder:
+        raise TgiError("Holder has no owning Design", TgiFaultCode.INVALID_ID)
+    if componentInstanceID not in getDesignComponentInstanceIDs(get_handle(owner)):
+        raise TgiError("Instance is not in the owning collection", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, "component_instance")
+    return _remove_owned(componentInstanceID, ComponentInstance, ComponentInstances, "componentInstance")
 
 
 def removeDesignInterconnection(interconnectionID: str) -> bool:
@@ -1239,17 +1282,11 @@ def setComponentInstanceComponentRef(componentInstanceID: str, componentVLNV: tu
 
     Section: F.7.38.30.
     """
-    from org.accellera.ipxact.v1685_2022.library_ref_type import LibraryRefType
-
-    inst = _resolve_component_instance(componentInstanceID)
-    if inst is None:
+    owner = _resolve_component_instance(componentInstanceID)
+    if owner is None:
         raise TgiError("Invalid componentInstance handle", TgiFaultCode.INVALID_ID)
-    inst.component_ref = LibraryRefType(
-        vendor=componentVLNV[0],
-        library=componentVLNV[1],
-        name=componentVLNV[2],
-        version=componentVLNV[3],
-    )  # type: ignore[assignment]
+    _set_reference(owner, "component_ref", ConfigurableLibraryRefType, componentVLNV)
+    getComponentInstanceComponentRefID(componentInstanceID)
     return True
 
 
