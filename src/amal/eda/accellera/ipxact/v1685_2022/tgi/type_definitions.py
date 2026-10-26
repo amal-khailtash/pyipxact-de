@@ -3,8 +3,9 @@
 Implements BASE (F.7.81) and EXTENDED (F.7.82) functions for the
 ``typeDefinitions`` document describing reusable type definition collections.
 
-Address-unit getters validate generated definition handles and preserve raw
-expression source; resolved values use SystemVerilog constant evaluation. Other
+Address-unit and enumeration-width getters validate generated definition
+handles and preserve raw expression source; resolved values use SystemVerilog
+constant evaluation. Other
 BASE getters retain their existing neutral-value behavior for invalid handles.
 EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ID`` for unknown handles and
@@ -18,8 +19,11 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressBlockDefinitions,
     AddressUnitBits,
     BankDefinitions,
+    ComplexBaseExpression,
+    EnumerationDefinitions,
     MemoryRemapDefinitions,
     RegisterFileDefinitions,
+    UnsignedPositiveIntExpression,
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
@@ -31,8 +35,9 @@ from .core import (
     register_parent,
     resolve_handle,
 )
-from .miscellaneous import _expression_source, getExpression, getExpressionIntValue
-from .port_map import _child_id, _remove_child
+from .miscellaneous import getExpression
+from .port_map import _child, _child_id, _remove_child
+from .register_file import _expression, _numeric
 
 __all__ = [
     # BASE (F.7.81)
@@ -144,6 +149,14 @@ __all__ = [
 ]
 
 
+type _UnitDefinition = (
+    AddressBlockDefinitions.AddressBlockDefinition
+    | BankDefinitions.BankDefinition
+    | MemoryRemapDefinitions.MemoryRemapDefinition
+    | RegisterFileDefinitions.RegisterFileDefinition
+)
+
+
 # ---------------------------------------------------------------------------
 # Helpers (internal)
 # ---------------------------------------------------------------------------
@@ -165,31 +178,58 @@ def _definition[T](definition_id: str, model_type: type[T]) -> T:
     return owner
 
 
+def _definition_expression_source[T: ComplexBaseExpression](reference_id: str, model_type: type[T]) -> str:
+    """Read typed expression source without evaluating it."""
+    node = resolve_handle(reference_id)
+    if not isinstance(node, model_type) or not isinstance(node.value, str):
+        raise TgiError("Invalid definition expression content", TgiFaultCode.INVALID_ID)
+    return getExpression(reference_id)
+
+
+def _definition_expression_value[T: AddressUnitBits | UnsignedPositiveIntExpression](
+    reference_id: str, model_type: type[T]
+) -> int:
+    """Evaluate a typed definition expression within schema and TGI Long bounds."""
+    _definition_expression_source(reference_id, model_type)
+    node = resolve_handle(reference_id)
+    if not isinstance(node, model_type):
+        raise TgiError("Invalid definition expression handle", TgiFaultCode.INVALID_ID)
+    maximum = (1 << 32) - 1 if isinstance(node, UnsignedPositiveIntExpression) else (1 << 63) - 1
+    value = _numeric(node, "definition expression", minimum=1, maximum=maximum)
+    assert value is not None
+    return value
+
+
+def _set_definition_unit(owner: _UnitDefinition, source: str) -> bool:
+    """Validate an address-unit update before attaching or changing its wrapper."""
+    node = _child(owner, "address_unit_bits", AddressUnitBits)
+    candidate = node if node is not None else AddressUnitBits()
+    value = _expression(source, "addressUnitBits", 1, (1 << 64) - 1, candidate)
+    candidate.value = value
+    if node is None:
+        owner.address_unit_bits = candidate
+    _child_id(owner, "address_unit_bits", AddressUnitBits)
+    return True
+
+
 def _definition_unit_source(reference_id: str | None) -> str | None:
     """Read stored address-unit source while retaining malformed strings for repair."""
     if reference_id is None:
         return None
-    node = resolve_handle(reference_id)
-    if not isinstance(node, AddressUnitBits) or not isinstance(node.value, str):
-        raise TgiError("Invalid addressUnitBits content", TgiFaultCode.INVALID_ID)
-    return getExpression(reference_id)
+    return _definition_expression_source(reference_id, AddressUnitBits)
 
 
 def _definition_unit_value(reference_id: str | None) -> int | None:
     """Evaluate positive address units within the schema and TGI Long domains."""
-    source = _definition_unit_source(reference_id)
-    if source is None or reference_id is None:
+    if reference_id is None:
         return None
-    node = resolve_handle(reference_id)
-    if not isinstance(node, AddressUnitBits):
-        raise TgiError("Invalid addressUnitBits handle", TgiFaultCode.INVALID_ID)
-    _expression_source(source, node)
-    return getExpressionIntValue(reference_id)
+    return _definition_expression_value(reference_id, AddressUnitBits)
 
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.81)
-# Address-unit getters validate handles; other getters retain neutral returns
+# Address-unit and enumeration-width getters validate handles; other getters
+# retain neutral returns
 # for invalid handles. Structure-specific attribute names align with generated
 # schema naming (snake_case).
 # ---------------------------------------------------------------------------
@@ -296,25 +336,55 @@ def getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID: str) -> 
     return result
 
 
-def getEnumerationDefinitionWidth(enumerationDefinitionID: str) -> str | None:  # F.7.81.8
-    ed = _resolve(enumerationDefinitionID)
-    if ed is None:
-        return None
-    w = getattr(ed, "width", None)
-    if w is None:
-        return None
-    return getattr(w, "value", None)
+def getEnumerationDefinitionWidth(enumerationDefinitionID: str) -> int:  # F.7.81.8
+    """Return the resolved enumeration width.
+
+    Section: F.7.81.8.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition element.
+
+    Returns:
+        Evaluated positive 32-bit enumeration width as a TGI Long.
+    """
+    return _definition_expression_value(
+        getEnumerationDefinitionWidthID(enumerationDefinitionID), UnsignedPositiveIntExpression
+    )
 
 
-def getEnumerationDefinitionWidthExpression(enumerationDefinitionID: str) -> str | None:  # F.7.81.9
-    # UnsignedPositiveIntExpression currently only stores concrete value; no expression attribute
-    return None
+def getEnumerationDefinitionWidthExpression(enumerationDefinitionID: str) -> str:  # F.7.81.9
+    """Return the original enumeration-width expression.
+
+    Section: F.7.81.9.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition element.
+
+    Returns:
+        Stored width expression text without evaluation.
+    """
+    # UnsignedPositiveIntExpression stores expression source in its value.
+    return _definition_expression_source(
+        getEnumerationDefinitionWidthID(enumerationDefinitionID), UnsignedPositiveIntExpression
+    )
 
 
-def getEnumerationDefinitionWidthID(enumerationDefinitionID: str) -> str | None:  # F.7.81.10
-    ed = _resolve(enumerationDefinitionID)
-    w = getattr(ed, "width", None)
-    return get_handle(w) if w is not None else None
+def getEnumerationDefinitionWidthID(enumerationDefinitionID: str) -> str:  # F.7.81.10
+    """Return the required enumeration-width element handle.
+
+    Section: F.7.81.10.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition element.
+
+    Returns:
+        Handle to the owned required width element.
+    """
+    owner = _definition(enumerationDefinitionID, EnumerationDefinitions.EnumerationDefinition)
+    child_id = _child_id(owner, "width", UnsignedPositiveIntExpression)
+    if child_id is None:
+        raise TgiError("Missing enumerationDefinition width", TgiFaultCode.INVALID_ID)
+    return child_id
 
 
 def getExternalTypeDefinitionsModeLinksIDs(externalTypeDefinitionsID: str) -> list[str]:  # F.7.81.11
@@ -1025,28 +1095,36 @@ def removeTypeDefinitionsView(viewID: str) -> bool:  # F.7.82.45
     return detach_child_by_handle(viewID)
 
 
-def setAddressBlockDefinitionAddressUnitBits(addressBlockDefinitionID: str, value: int | str) -> bool:  # F.7.82.46
-    abd = _resolve(addressBlockDefinitionID)
-    if abd is None:
-        _invalid_id()
-    node = getattr(abd, "address_unit_bits", None)
-    if node is None:
-        abd.address_unit_bits = SimpleNamespace(value=SimpleNamespace(value=value))  # type: ignore[attr-defined]
-    else:
-        node.value = SimpleNamespace(value=value)  # type: ignore[attr-defined]
-    return True
+def setAddressBlockDefinitionAddressUnitBits(addressBlockDefinitionID: str, addressUnitBits: str) -> bool:  # F.7.82.46
+    """Set address-unit expression text while preserving existing metadata.
+
+    Section: F.7.82.46.
+
+    Args:
+        addressBlockDefinitionID: Handle to an addressBlockDefinition element.
+        addressUnitBits: Positive unsigned-longint expression source.
+
+    Returns:
+        True when the expression is assigned; undeclared constants remain deferred.
+    """
+    return _set_definition_unit(
+        _definition(addressBlockDefinitionID, AddressBlockDefinitions.AddressBlockDefinition), addressUnitBits
+    )
 
 
-def setBankDefinitionAddressUnitBits(bankDefinitionID: str, value: int | str) -> bool:  # F.7.82.47
-    bd = _resolve(bankDefinitionID)
-    if bd is None:
-        _invalid_id()
-    node = getattr(bd, "address_unit_bits", None)
-    if node is None:
-        bd.address_unit_bits = SimpleNamespace(value=SimpleNamespace(value=value))  # type: ignore[attr-defined]
-    else:
-        node.value = SimpleNamespace(value=value)  # type: ignore[attr-defined]
-    return True
+def setBankDefinitionAddressUnitBits(bankDefinitionID: str, addressUnitBits: str) -> bool:  # F.7.82.47
+    """Set address-unit expression text while preserving existing metadata.
+
+    Section: F.7.82.47.
+
+    Args:
+        bankDefinitionID: Handle to a bankDefinition element.
+        addressUnitBits: Positive unsigned-longint expression source.
+
+    Returns:
+        True when the expression is assigned; undeclared constants remain deferred.
+    """
+    return _set_definition_unit(_definition(bankDefinitionID, BankDefinitions.BankDefinition), addressUnitBits)
 
 
 def setEnumerationDefinitionWidth(enumerationDefinitionID: str, value: int | str) -> bool:  # F.7.82.48
@@ -1074,16 +1152,21 @@ def setExternalTypeDefinitionsTypeDefinitionsRef(
     return True
 
 
-def setMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str, value: int | str) -> bool:  # F.7.82.50
-    mrd = _resolve(memoryRemapDefinitionID)
-    if mrd is None:
-        _invalid_id()
-    node = getattr(mrd, "address_unit_bits", None)
-    if node is None:
-        mrd.address_unit_bits = SimpleNamespace(value=SimpleNamespace(value=value))  # type: ignore[attr-defined]
-    else:
-        node.value = SimpleNamespace(value=value)  # type: ignore[attr-defined]
-    return True
+def setMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str, addressUnitBits: str) -> bool:  # F.7.82.50
+    """Set address-unit expression text while preserving existing metadata.
+
+    Section: F.7.82.50.
+
+    Args:
+        memoryRemapDefinitionID: Handle to a memoryRemapDefinition element.
+        addressUnitBits: Positive unsigned-longint expression source.
+
+    Returns:
+        True when the expression is assigned; undeclared constants remain deferred.
+    """
+    return _set_definition_unit(
+        _definition(memoryRemapDefinitionID, MemoryRemapDefinitions.MemoryRemapDefinition), addressUnitBits
+    )
 
 
 def setModeLinkExternalModeReference(modeLinkID: str, name: str) -> bool:  # F.7.82.51
@@ -1102,16 +1185,21 @@ def setModeLinkModeReference(modeLinkID: str, name: str) -> bool:  # F.7.82.52
     return True
 
 
-def setRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str, value: int | str) -> bool:  # F.7.82.53
-    rfd = _resolve(registerFileDefinitionID)
-    if rfd is None:
-        _invalid_id()
-    node = getattr(rfd, "address_unit_bits", None)
-    if node is None:
-        rfd.address_unit_bits = SimpleNamespace(value=SimpleNamespace(value=value))  # type: ignore[attr-defined]
-    else:
-        node.value = SimpleNamespace(value=value)  # type: ignore[attr-defined]
-    return True
+def setRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str, addressUnitBits: str) -> bool:  # F.7.82.53
+    """Set address-unit expression text while preserving existing metadata.
+
+    Section: F.7.82.53.
+
+    Args:
+        registerFileDefinitionID: Handle to a registerFileDefinition element.
+        addressUnitBits: Positive unsigned-longint expression source.
+
+    Returns:
+        True when the expression is assigned; undeclared constants remain deferred.
+    """
+    return _set_definition_unit(
+        _definition(registerFileDefinitionID, RegisterFileDefinitions.RegisterFileDefinition), addressUnitBits
+    )
 
 
 def setResetTypeLinkExternalResetTypeReference(resetTypeLinkID: str, name: str) -> bool:  # F.7.82.54

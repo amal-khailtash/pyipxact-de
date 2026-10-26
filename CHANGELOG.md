@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement four Type definitions address-unit expression setters and three required enumeration-width getters with native Annex signatures, generated wrapper preservation, shared constant-expression validation and correct decimal boundary values.
 - Implement register-file definition address-unit value/expression/ID getters and four typed definition address-unit removers, reusing expression evaluation and invalidating removed child handles while preserving sibling identities.
 - Implement nine Type definitions address-unit value, expression and ID getters for address-block, bank and memory-remap definitions using shared SystemVerilog evaluation, schema/TGI numeric bounds and typed child ownership.
 - Fix eight Indirect interface address-space/memory-map getters and two address-space removers to use generated reference choices, with shared Slice validation, owned handles and atomic rejection of malformed branches.
