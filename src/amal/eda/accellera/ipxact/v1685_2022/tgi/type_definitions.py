@@ -3,8 +3,8 @@
 Implements BASE (F.7.81) and EXTENDED (F.7.82) functions for the
 ``typeDefinitions`` document describing reusable type definition collections.
 
-Implemented numeric and definition-list getters validate generated definition
-handles. Expression source is preserved, and resolved values use SystemVerilog
+Implemented numeric, definition-list and mode/reset-link getters validate generated
+definition handles. Expression source is preserved, and resolved values use SystemVerilog
 constant evaluation. Other
 BASE getters retain their existing neutral-value behavior for invalid handles.
 EXTENDED mutators raise :class:`TgiError` using
@@ -38,6 +38,7 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
+from ._attribute_references import _reference_name
 from ._expressions import _integer, _source
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
@@ -284,8 +285,8 @@ def _definition_unit_value(reference_id: str | None) -> int | None:
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.81)
-# Implemented numeric and definition-list getters validate handles; other
-# getters retain neutral returns
+# Implemented numeric, definition-list and mode/reset-link getters validate
+# handles; other getters retain neutral returns
 # for invalid handles. Structure-specific attribute names align with generated
 # schema naming (snake_case).
 # ---------------------------------------------------------------------------
@@ -573,28 +574,70 @@ def getMemoryRemapDefinitionAddressUnitBitsID(memoryRemapDefinitionID: str) -> s
     )
 
 
-def getModeLinkExternalModeReferenceRefByName(modeLinkID: str) -> str | None:  # F.7.81.19
-    ml = _resolve(modeLinkID)
-    ext = getattr(ml, "external_mode_reference", None)
-    return getattr(ext, "name", None) if ext else None
+def getModeLinkExternalModeReferenceRefByName(modeLinkID: str) -> str:  # F.7.81.19
+    """Return the referenced XML name.
+
+    Section: F.7.81.19.
+
+    Args:
+        modeLinkID: Handle to a modeLink element.
+
+    Returns:
+        Normalized XML name of the referenced mode or reset type, without source mutation.
+    """
+    return _reference_name(getModeLinkExternalModeReferenceID(modeLinkID), "modeRef")
 
 
-def getModeLinkExternalModeReferenceID(modeLinkID: str) -> str | None:  # F.7.81.20
-    ml = _resolve(modeLinkID)
-    ext = getattr(ml, "external_mode_reference", None)
-    return get_handle(ext) if ext else None
+def getModeLinkExternalModeReferenceID(modeLinkID: str) -> str:  # F.7.81.20
+    """Return the reference element handle.
+
+    Section: F.7.81.20.
+
+    Args:
+        modeLinkID: Handle to a modeLink element.
+
+    Returns:
+        Owned handle to the required reference element; typed source remains accessible for repair.
+    """
+    reference_id = _child_id(
+        _definition(modeLinkID, ModeLinks.ModeLink), "external_mode_reference", ModeLinks.ModeLink.ExternalModeReference
+    )
+    if reference_id is None:
+        raise TgiError("Missing required external_mode_reference reference", TgiFaultCode.INVALID_ID)
+    return reference_id
 
 
-def getModeLinkModeReferenceRefByName(modeLinkID: str) -> str | None:  # F.7.81.21
-    ml = _resolve(modeLinkID)
-    ref = getattr(ml, "mode_reference", None)
-    return getattr(ref, "name", None) if ref else None
+def getModeLinkModeReferenceRefByName(modeLinkID: str) -> str:  # F.7.81.21
+    """Return the referenced XML name.
+
+    Section: F.7.81.21.
+
+    Args:
+        modeLinkID: Handle to a modeLink element.
+
+    Returns:
+        Normalized XML name of the referenced mode or reset type, without source mutation.
+    """
+    return _reference_name(getModeLinkModeReferenceID(modeLinkID), "modeRef")
 
 
-def getModeLinkModeReferenceID(modeLinkID: str) -> str | None:  # F.7.81.22
-    ml = _resolve(modeLinkID)
-    ref = getattr(ml, "mode_reference", None)
-    return get_handle(ref) if ref else None
+def getModeLinkModeReferenceID(modeLinkID: str) -> str:  # F.7.81.22
+    """Return the reference element handle.
+
+    Section: F.7.81.22.
+
+    Args:
+        modeLinkID: Handle to a modeLink element.
+
+    Returns:
+        Owned handle to the required reference element; typed source remains accessible for repair.
+    """
+    reference_id = _child_id(
+        _definition(modeLinkID, ModeLinks.ModeLink), "mode_reference", ModeLinks.ModeLink.ModeReference
+    )
+    if reference_id is None:
+        raise TgiError("Missing required mode_reference reference", TgiFaultCode.INVALID_ID)
+    return reference_id
 
 
 def getRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str) -> int | None:  # F.7.81.23
@@ -643,28 +686,74 @@ def getRegisterFileDefinitionAddressUnitBitsID(registerFileDefinitionID: str) ->
     )
 
 
-def getResetTypeLinkExternalResetTypeRefByName(resetTypeLinkID: str) -> str | None:  # F.7.81.26
-    rtl = _resolve(resetTypeLinkID)
-    ext = getattr(rtl, "external_reset_type_reference", None)
-    return getattr(ext, "name", None) if ext else None
+def getResetTypeLinkExternalResetTypeRefByName(resetTypeLinkID: str) -> str:  # F.7.81.26
+    """Return the referenced XML name.
+
+    Section: F.7.81.26.
+
+    Args:
+        resetTypeLinkID: Handle to a resetTypeLink element.
+
+    Returns:
+        Normalized XML name of the referenced mode or reset type, without source mutation.
+    """
+    return _reference_name(getResetTypeLinkExternalResetTypeReferenceID(resetTypeLinkID), "resetTypeRef")
 
 
-def getResetTypeLinkExternalResetTypeReferenceID(resetTypeLinkID: str) -> str | None:  # F.7.81.27
-    rtl = _resolve(resetTypeLinkID)
-    ext = getattr(rtl, "external_reset_type_reference", None)
-    return get_handle(ext) if ext else None
+def getResetTypeLinkExternalResetTypeReferenceID(resetTypeLinkID: str) -> str:  # F.7.81.27
+    """Return the reference element handle.
+
+    Section: F.7.81.27.
+
+    Args:
+        resetTypeLinkID: Handle to a resetTypeLink element.
+
+    Returns:
+        Owned handle to the required reference element; typed source remains accessible for repair.
+    """
+    reference_id = _child_id(
+        _definition(resetTypeLinkID, ResetTypeLinks.ResetTypeLink),
+        "external_reset_type_reference",
+        ResetTypeLinks.ResetTypeLink.ExternalResetTypeReference,
+    )
+    if reference_id is None:
+        raise TgiError("Missing required external_reset_type_reference reference", TgiFaultCode.INVALID_ID)
+    return reference_id
 
 
-def getResetTypeLinkResetTypeReferenceRefByName(resetTypeLinkID: str) -> str | None:  # F.7.81.28
-    rtl = _resolve(resetTypeLinkID)
-    ref = getattr(rtl, "reset_type_reference", None)
-    return getattr(ref, "name", None) if ref else None
+def getResetTypeLinkResetTypeReferenceRefByName(resetTypeLinkID: str) -> str:  # F.7.81.28
+    """Return the referenced XML name.
+
+    Section: F.7.81.28.
+
+    Args:
+        resetTypeLinkID: Handle to a resetTypeLink element.
+
+    Returns:
+        Normalized XML name of the referenced mode or reset type, without source mutation.
+    """
+    return _reference_name(getResetTypeLinkResetTypeReferenceID(resetTypeLinkID), "resetTypeRef")
 
 
-def getResetTypeLinkResetTypeReferenceID(resetTypeLinkID: str) -> str | None:  # F.7.81.29
-    rtl = _resolve(resetTypeLinkID)
-    ref = getattr(rtl, "reset_type_reference", None)
-    return get_handle(ref) if ref else None
+def getResetTypeLinkResetTypeReferenceID(resetTypeLinkID: str) -> str:  # F.7.81.29
+    """Return the reference element handle.
+
+    Section: F.7.81.29.
+
+    Args:
+        resetTypeLinkID: Handle to a resetTypeLink element.
+
+    Returns:
+        Owned handle to the required reference element; typed source remains accessible for repair.
+    """
+    reference_id = _child_id(
+        _definition(resetTypeLinkID, ResetTypeLinks.ResetTypeLink),
+        "reset_type_reference",
+        ResetTypeLinks.ResetTypeLink.ResetTypeReference,
+    )
+    if reference_id is None:
+        raise TgiError("Missing required reset_type_reference reference", TgiFaultCode.INVALID_ID)
+    return reference_id
 
 
 def getTypeDefinitionsAddressBlockDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.30

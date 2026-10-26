@@ -24,14 +24,14 @@ from org.accellera.ipxact.v1685_2022.register_file_ref import RegisterFileRef
 
 from typing import overload
 
-from .port_map import _child_id, _name, _remove_child
+from .port_map import _child_id, _remove_child
 from ._reference_choices import _reference_choice, _REFERENCE_CHOICE
 from .component import _list_attr
 from ._reference_paths import _append_reference_path, _remove_reference_path
 from .address_space import _register_owned_child
 from ._model import _reference_list, _owned_list_ids
 from .component import _register_graph
-from ._attribute_references import _reference_source, _VALUE_FIELDS
+from ._attribute_references import _reference_name
 
 from .core import (
     TgiError,
@@ -165,16 +165,7 @@ def _indirect_reference_name(reference_id: None, xml_name: str) -> None: ...
 
 def _indirect_reference_name(reference_id: str | None, xml_name: str) -> str | None:
     """Read a reference source with shared attribute mapping and XML Name validation."""
-    source = resolve_handle(reference_id) if reference_id is not None else None
-    if source is not None and not isinstance(getattr(source, _VALUE_FIELDS[xml_name][0], None), str):
-        raise TgiError("Invalid indirect reference content", TgiFaultCode.INVALID_ID)
-    value = _reference_source(reference_id, xml_name)
-    if value is None:
-        return None
-    try:
-        return _name(value, "Name")
-    except TgiError as error:
-        raise TgiError("Invalid indirect reference name", TgiFaultCode.INVALID_ID) from error
+    return _reference_name(reference_id, xml_name)
 
 
 def _indirect_reference_ids[T: BankRef | RegisterFileRef](

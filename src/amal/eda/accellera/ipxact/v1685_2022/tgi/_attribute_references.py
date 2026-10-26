@@ -8,6 +8,8 @@ reuse this resolution, including registerRef and ordered fieldSlice paths.
 References to component
 ports and interfaces follow the component-instance VLNV through the TGI
 registry; no files are loaded as a side effect.
+Shared source readers also serve indirect paths and Type definitions mode/reset
+links, preserving stored source while validating XML reference names.
 """
 
 from collections.abc import Iterator
@@ -101,6 +103,7 @@ _VALUE_FIELDS: dict[str, tuple[str, ...]] = {
     "initiatorRef": ("initiator_ref",),
     "memoryMapRef": ("memory_map_ref",),
     "memoryRemapRef": ("memory_remap_ref",),
+    "modeRef": ("mode_ref",),
     "portRef": ("port_ref",),
     "powerDomainRef": ("power_domain_ref", "value"),
     "registerFileRef": ("register_file_ref",),
@@ -185,6 +188,30 @@ def _reference_source(reference_id: str | None, xml_name: str) -> str | None:
     if value is None:
         raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
     return value
+
+
+@overload
+def _reference_name(reference_id: str, xml_name: str) -> str: ...
+
+
+@overload
+def _reference_name(reference_id: None, xml_name: str) -> None: ...
+
+
+def _reference_name(reference_id: str | None, xml_name: str) -> str | None:
+    """Read normalized XML Name source without changing the generated reference."""
+    from .port_map import _name
+
+    source = resolve_handle(reference_id) if reference_id is not None else None
+    if source is not None and not isinstance(getattr(source, _VALUE_FIELDS[xml_name][0], None), str):
+        raise TgiError("Invalid reference content", TgiFaultCode.INVALID_ID)
+    value = _reference_source(reference_id, xml_name)
+    if value is None:
+        return None
+    try:
+        return _name(value, "Name")
+    except TgiError as error:
+        raise TgiError("Invalid reference name", TgiFaultCode.INVALID_ID) from error
 
 
 def _reference_value(element: Any, xml_name: str) -> str | None:
