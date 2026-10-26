@@ -25,6 +25,8 @@ from org.accellera.ipxact.v1685_2022.register_file_ref import RegisterFileRef
 from typing import overload
 
 from .port_map import _child_id, _name, _remove_child
+from ._reference_paths import _append_reference_path, _remove_reference_path
+from .address_space import _register_owned_child
 from ._model import _reference_list, _owned_list_ids
 from .component import _register_graph
 from ._attribute_references import _reference_source, _VALUE_FIELDS
@@ -181,6 +183,22 @@ def _indirect_reference_ids[T: BankRef | RegisterFileRef](
     for child in children:
         _register_graph(child)
     return _owned_list_ids(owner, children, attribute)
+
+
+def _remove_indirect_path[T: BankRef | RegisterFileRef](
+    reference_id: str,
+    owner_type: type[IndirectAddressRef] | type[IndirectDataRef],
+    attribute: str,
+    model_type: type[T],
+) -> bool:
+    """Discover and require the specific address/data path owner before removal."""
+    child = resolve_handle(reference_id)
+    if not isinstance(child, model_type):
+        raise TgiError("Invalid indirect path reference handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, owner_type)
+    if not isinstance(owner, owner_type):
+        raise TgiError("Reference has no matching indirect path owner", TgiFaultCode.INVALID_ID)
+    return _remove_reference_path(owner, reference_id, attribute, model_type)
 
 
 def _safe_name(obj: object | None, attr: str) -> object | None:  # helper for attribute-holding refs
@@ -573,13 +591,10 @@ def addIndirectAddressRefBankRef(indirectAddressRefID: str, bankRef: str) -> str
 
     Section: F.7.54.1.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    br = BankRef(bank_ref=bankRef)
-    ar.bank_ref.append(br)  # type: ignore[attr-defined]
-    register_parent(br, ar, ("bank_ref",), "list")
-    return get_handle(br)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child_id = _append_reference_path(owner, bankRef, "bank_ref", BankRef)
+    getIndirectAddressRefBankRefIDs(indirectAddressRefID)
+    return child_id
 
 
 def addIndirectAddressRefRegisterFileRef(indirectAddressRefID: str, registerFileRef: str) -> str:
@@ -587,13 +602,10 @@ def addIndirectAddressRefRegisterFileRef(indirectAddressRefID: str, registerFile
 
     Section: F.7.54.2.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    rf = RegisterFileRef(register_file_ref=registerFileRef)
-    ar.register_file_ref.append(rf)  # type: ignore[attr-defined]
-    register_parent(rf, ar, ("register_file_ref",), "list")
-    return get_handle(rf)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child_id = _append_reference_path(owner, registerFileRef, "register_file_ref", RegisterFileRef)
+    getIndirectAddressRefRegisterFileRefIDs(indirectAddressRefID)
+    return child_id
 
 
 def addIndirectDataRefBankRef(indirectDataRefID: str, bankRef: str) -> str:
@@ -601,13 +613,10 @@ def addIndirectDataRefBankRef(indirectDataRefID: str, bankRef: str) -> str:
 
     Section: F.7.54.3.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    br = BankRef(bank_ref=bankRef)
-    dr.bank_ref.append(br)  # type: ignore[attr-defined]
-    register_parent(br, dr, ("bank_ref",), "list")
-    return get_handle(br)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child_id = _append_reference_path(owner, bankRef, "bank_ref", BankRef)
+    getIndirectDataRefBankRefIDs(indirectDataRefID)
+    return child_id
 
 
 def addIndirectDataRefRegisterFileRef(indirectDataRefID: str, registerFileRef: str) -> str:
@@ -615,13 +624,10 @@ def addIndirectDataRefRegisterFileRef(indirectDataRefID: str, registerFileRef: s
 
     Section: F.7.54.4.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    rf = RegisterFileRef(register_file_ref=registerFileRef)
-    dr.register_file_ref.append(rf)  # type: ignore[attr-defined]
-    register_parent(rf, dr, ("register_file_ref",), "list")
-    return get_handle(rf)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child_id = _append_reference_path(owner, registerFileRef, "register_file_ref", RegisterFileRef)
+    getIndirectDataRefRegisterFileRefIDs(indirectDataRefID)
+    return child_id
 
 
 def addIndirectInterfaceTransparentBridge(indirectInterfaceID: str, initiatorRef: str) -> str:
@@ -696,7 +702,7 @@ def removeIndirectAddressRefBankRef(bankRefID: str) -> bool:
 
     Section: F.7.54.11.
     """
-    return detach_child_by_handle(bankRefID)
+    return _remove_indirect_path(bankRefID, IndirectAddressRef, "bank_ref", BankRef)
 
 
 def removeIndirectAddressRefMemoryMapRef(indirectAddressRefID: str) -> bool:
@@ -728,7 +734,7 @@ def removeIndirectAddressRefRegisterFileRef(registerFileRefID: str) -> bool:
 
     Section: F.7.54.14.
     """
-    return detach_child_by_handle(registerFileRefID)
+    return _remove_indirect_path(registerFileRefID, IndirectAddressRef, "register_file_ref", RegisterFileRef)
 
 
 def removeIndirectAddressRefRegisterRef(indirectAddressRefID: str) -> bool:
@@ -778,7 +784,7 @@ def removeIndirectDataRefBankRef(bankRefID: str) -> bool:
 
     Section: F.7.54.19.
     """
-    return detach_child_by_handle(bankRefID)
+    return _remove_indirect_path(bankRefID, IndirectDataRef, "bank_ref", BankRef)
 
 
 def removeIndirectDataRefMemoryMapRef(indirectDataRefID: str) -> bool:
@@ -810,7 +816,7 @@ def removeIndirectDataRefRegisterFileRef(registerFileRefID: str) -> bool:
 
     Section: F.7.54.22.
     """
-    return detach_child_by_handle(registerFileRefID)
+    return _remove_indirect_path(registerFileRefID, IndirectDataRef, "register_file_ref", RegisterFileRef)
 
 
 def removeIndirectDataRefRegisterRef(indirectDataRefID: str) -> bool:

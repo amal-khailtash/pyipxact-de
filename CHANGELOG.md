@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement eight Indirect interface bank/register-file path add/remove operations with normalized XML names, atomic typed mutation, strict owner membership and descendant handle invalidation; reuse shared Slice path helpers and guard against foreign-child removal.
 - Implement ten Indirect interface ordered bank/register-file reference getters and alternate-register removers with shared validation, preserved metadata, and owned handle lifetimes.
 - Implement ten Indirect interface register and alternate-register reference operations with shared typed name/handle access and indexed register subtree removal.
 - Implement ten Indirect interface address-block and field-reference operations using shared source/traversal helpers, XML name validation, and indexed subtree removal.

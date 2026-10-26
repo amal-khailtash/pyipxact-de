@@ -40,6 +40,7 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterRef,
 )
 
+from ._reference_paths import _append_reference_path, _remove_reference_path
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
 from ._expressions import _string_source
 from ._model import _owned_list_ids, _sub_port_references, _reference_list as _field_reference_list
@@ -275,13 +276,7 @@ def _add_field_reference[T: BankRef | RegisterFileRef](
     field_slice_id: str, source: str, attribute: str, model_type: type[T]
 ) -> str:
     """Append a generated named reference to its ordered owned path."""
-    owner = _field_slice(field_slice_id)
-    _field_reference_list(owner, attribute, model_type)
-    child = model_type(**{attribute: _name(source, "Name")})
-    children = _list_attr(owner, attribute)
-    children.append(child)
-    _owned_list_ids(owner, children, attribute)
-    return get_handle(child)
+    return _append_reference_path(_field_slice(field_slice_id), source, attribute, model_type)
 
 
 def _remove_field_reference[T: BankRef | RegisterFileRef](
@@ -295,10 +290,7 @@ def _remove_field_reference[T: BankRef | RegisterFileRef](
     owner = _register_owned_child(child, owner_type)
     if not isinstance(owner, owner_type):
         raise TgiError("Reference has no owning field slice", TgiFaultCode.INVALID_ID)
-    children = _field_reference_list(owner, attribute, model_type)
-    _owned_list_ids(owner, children, attribute)
-    _list_attr(owner, attribute)
-    return _remove_owned(reference_id, model_type, owner_type, "field reference")
+    return _remove_reference_path(owner, reference_id, attribute, model_type)
 
 
 def _mode_slice_list[T: ComponentType.Modes.Mode.FieldSlice | ComponentType.Modes.Mode.PortSlice](
