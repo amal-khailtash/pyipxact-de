@@ -3,7 +3,7 @@
 Implements BASE (F.7.81) and EXTENDED (F.7.82) functions for the
 ``typeDefinitions`` document describing reusable type definition collections.
 
-Implemented numeric and enumeration-list getters validate generated definition
+Implemented numeric and definition-list getters validate generated definition
 handles. Expression source is preserved, and resolved values use SystemVerilog
 constant evaluation. Other
 BASE getters retain their existing neutral-value behavior for invalid handles.
@@ -20,10 +20,15 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressBlockDefinitions,
     AddressUnitBits,
     BankDefinitions,
+    Choices,
     ComplexBaseExpression,
     EnumeratedValueType,
     EnumerationDefinitions,
+    ExternalTypeDefinitions,
+    FieldDefinitions,
+    MemoryMapDefinitions,
     MemoryRemapDefinitions,
+    RegisterDefinitions,
     RegisterFileDefinitions,
     UnsignedBitVectorExpression,
     UnsignedPositiveIntExpression,
@@ -276,7 +281,7 @@ def _definition_unit_value(reference_id: str | None) -> int | None:
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.81)
-# Implemented numeric and enumeration-list getters validate handles; other
+# Implemented numeric and definition-list getters validate handles; other
 # getters retain neutral returns
 # for invalid handles. Structure-specific attribute names align with generated
 # schema naming (snake_case).
@@ -630,27 +635,57 @@ def getResetTypeLinkResetTypeReferenceID(resetTypeLinkID: str) -> str | None:  #
 
 
 def getTypeDefinitionsAddressBlockDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.30
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned address-block-definition handles.
+
+    Section: F.7.81.30.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "address_block_definitions", AddressBlockDefinitions)
+    if container is None:
         return []
-    abd = getattr(td, "address_block_definitions", None)
-    return [get_handle(x) for x in getattr(abd, "address_block_definition", [])] if abd else []
+    return _definition_list_ids(container, "address_block_definition", AddressBlockDefinitions.AddressBlockDefinition)
 
 
 def getTypeDefinitionsBankDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.31
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned bank-definition handles.
+
+    Section: F.7.81.31.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "bank_definitions", BankDefinitions)
+    if container is None:
         return []
-    bd = getattr(td, "bank_definitions", None)
-    return [get_handle(x) for x in getattr(bd, "bank_definition", [])] if bd else []
+    return _definition_list_ids(container, "bank_definition", BankDefinitions.BankDefinition)
 
 
 def getTypeDefinitionsChoiceIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.32
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned choice handles.
+
+    Section: F.7.81.32.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "choices", Choices)
+    if container is None:
         return []
-    choices = getattr(td, "choices", None)
-    return [get_handle(c) for c in getattr(choices, "choice", [])] if choices else []
+    return _definition_list_ids(container, "choice", Choices.Choice)
 
 
 def getTypeDefinitionsEnumerationDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.33
@@ -672,37 +707,72 @@ def getTypeDefinitionsEnumerationDefinitionIDs(typeDefinitionsID: str) -> list[s
 
 
 def getTypeDefinitionsExternalTypeDefinitionsIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.34
-    td = _resolve(typeDefinitionsID)
-    if td is None:
-        return []
-    ext_list = getattr(td, "external_type_definitions", None)
-    if not ext_list:
-        return []
-    return [get_handle(e) for e in ext_list]
+    """Return ordered owned external type-definition handles.
+
+    Section: F.7.81.34.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered external type-definition handles, or an empty list when absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    return _definition_list_ids(owner, "external_type_definitions", ExternalTypeDefinitions)
 
 
 def getTypeDefinitionsFieldDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.35
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned field-definition handles.
+
+    Section: F.7.81.35.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "field_definitions", FieldDefinitions)
+    if container is None:
         return []
-    fds = getattr(td, "field_definitions", None)
-    return [get_handle(f) for f in getattr(fds, "field_definition", [])] if fds else []
+    return _definition_list_ids(container, "field_definition", FieldDefinitions.FieldDefinition)
 
 
 def getTypeDefinitionsMemoryMapDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.36
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned memory-map-definition handles.
+
+    Section: F.7.81.36.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "memory_map_definitions", MemoryMapDefinitions)
+    if container is None:
         return []
-    mmd = getattr(td, "memory_map_definitions", None)
-    return [get_handle(m) for m in getattr(mmd, "memory_map_definition", [])] if mmd else []
+    return _definition_list_ids(container, "memory_map_definition", MemoryMapDefinitions.MemoryMapDefinition)
 
 
 def getTypeDefinitionsMemoryRemapDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.37
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned memory-remap-definition handles.
+
+    Section: F.7.81.37.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "memory_remap_definitions", MemoryRemapDefinitions)
+    if container is None:
         return []
-    mrd = getattr(td, "memory_remap_definitions", None)
-    return [get_handle(m) for m in getattr(mrd, "memory_remap_definition", [])] if mrd else []
+    return _definition_list_ids(container, "memory_remap_definition", MemoryRemapDefinitions.MemoryRemapDefinition)
 
 
 def getTypeDefinitionsModeIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.38
@@ -714,19 +784,39 @@ def getTypeDefinitionsModeIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.38
 
 
 def getTypeDefinitionsRegisterDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.39
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned register-definition handles.
+
+    Section: F.7.81.39.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "register_definitions", RegisterDefinitions)
+    if container is None:
         return []
-    rds = getattr(td, "register_definitions", None)
-    return [get_handle(r) for r in getattr(rds, "register_definition", [])] if rds else []
+    return _definition_list_ids(container, "register_definition", RegisterDefinitions.RegisterDefinition)
 
 
 def getTypeDefinitionsRegisterFileDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.40
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned register-file-definition handles.
+
+    Section: F.7.81.40.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "register_file_definitions", RegisterFileDefinitions)
+    if container is None:
         return []
-    rfds = getattr(td, "register_file_definitions", None)
-    return [get_handle(rf) for rf in getattr(rfds, "register_file_definition", [])] if rfds else []
+    return _definition_list_ids(container, "register_file_definition", RegisterFileDefinitions.RegisterFileDefinition)
 
 
 def getTypeDefinitionsResetTypeIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.41

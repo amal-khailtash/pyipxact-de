@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement nine Type definitions collection getters with typed generated members, ordered handles, preserved tuple storage and restored descendant ownership.
 - Implement seven Type definitions enumeration traversal/lifecycle operations with generated builders, unique XML names, known value-width checks, preserved width metadata and parsed-owner subtree removal.
 - Implement four Type definitions address-unit expression setters and three required enumeration-width getters with native Annex signatures, generated wrapper preservation, shared constant-expression validation and correct decimal boundary values.
 - Implement register-file definition address-unit value/expression/ID getters and four typed definition address-unit removers, reusing expression evaluation and invalidating removed child handles while preserving sibling identities.
