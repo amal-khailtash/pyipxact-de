@@ -178,3 +178,14 @@ def _string_value(source: str) -> str:
     if not isinstance(value, str):
         raise TgiError("Expected string expression value", TgiFaultCode.INVALID_ARGUMENT)
     return value
+
+
+def _constant_source(source: str) -> str:
+    """Validate an arbitrary constant expression, deferring undeclared identifiers."""
+    _xml_text(source)
+    try:
+        SvExpressionParser().parse(source)
+    except SvExpressionError as error:
+        if not _undeclared(error):
+            raise TgiError("Invalid constant expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    return source

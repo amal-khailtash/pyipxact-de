@@ -13,8 +13,7 @@ EXTENDED mutators raise :class:`TgiError` using
 """
 
 from collections.abc import Callable, Sequence
-from types import SimpleNamespace
-from typing import Any, NoReturn, Protocol, cast
+from typing import Protocol, cast
 
 from org.accellera.ipxact.v1685_2022 import (
     AddressBlockDefinitions,
@@ -24,11 +23,13 @@ from org.accellera.ipxact.v1685_2022 import (
     ComplexBaseExpression,
     ComponentType,
     ConfigurableLibraryRefType,
+    EnumeratedValues,
     EnumeratedValueType,
     EnumerationDefinitions,
     ExternalTypeDefinitions,
     FieldAccessPolicyDefinitions,
     FieldDefinitions,
+    FieldType,
     MemoryMapDefinitions,
     MemoryRemapDefinitions,
     ModeLinks,
@@ -36,23 +37,25 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterFileDefinitions,
     ResetTypeLinks,
     UnsignedBitVectorExpression,
+    UnsignedIntExpression,
     UnsignedPositiveIntExpression,
+    UnsignedPositiveLongintExpression,
     ViewLinks,
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
 from ._attribute_references import _reference_name, resolve_attribute_reference
-from ._expressions import _integer, _source
+from ._expressions import _constant_source, _integer, _source
 from ._library_reference import _set_reference, _xml_vlnv
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
+from .choice import addChoiceEnumeration
 from .component import _list_attr, _register_graph
 from .core import (
     TgiError,
     TgiFaultCode,
     detach_child_by_handle,
     get_handle,
-    register_parent,
     resolve_handle,
 )
 from .instantiation import _registered_reference_target
@@ -183,14 +186,6 @@ type _UnitDefinition = (
 # ---------------------------------------------------------------------------
 
 
-def _resolve(handle: str) -> Any | None:  # generic resolver
-    return resolve_handle(handle)
-
-
-def _invalid_id() -> NoReturn:  # convenience
-    raise TgiError("Invalid ID", TgiFaultCode.INVALID_ID)
-
-
 def _definition[T](definition_id: str, model_type: type[T]) -> T:
     """Require the generated definition owner before accessing its children."""
     owner = resolve_handle(definition_id)
@@ -272,6 +267,13 @@ def _enumeration_value_source(source: str, node: UnsignedBitVectorExpression, wi
     if width is not None and value is not None and value.bit_length() > width:
         raise TgiError("Enumerated value exceeds enumeration width", TgiFaultCode.INVALID_ARGUMENT)
     return source
+
+
+def _new_enumerated_value(name: str, source: str, width: int | None) -> EnumeratedValueType:
+    """Create a generated enumerated value using shared expression-width validation."""
+    value = UnsignedBitVectorExpression()
+    value.value = _enumeration_value_source(source, value, width)
+    return EnumeratedValueType(name=name, value=value)
 
 
 def _set_link_reference[T, H](
@@ -1213,13 +1215,6 @@ def _add_definition_member[M: _NamedDefinition, H](
     return get_handle(child)
 
 
-def _ensure_td(tdID: str) -> TypeDefinitions:
-    td = resolve_handle(tdID)
-    if not isinstance(td, TypeDefinitions):  # pragma: no cover - defensive
-        _invalid_id()
-    return cast(TypeDefinitions, td)
-
-
 def _new_external_definition(name: str, vlnv: tuple[str, str, str, str]) -> ExternalTypeDefinitions:
     """Create a generated external definition with validated source VLNV."""
     name = _name(name, "Name")
@@ -1272,14 +1267,26 @@ def addComponentExternalTypeDefinitions(
     return _append_external_definition(holder, child)
 
 
-def addEnumerationDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.2
-    td = _ensure_td(typeDefinitionsID)
-    if getattr(td, "enumeration_definitions", None) is None:
-        td.enumeration_definitions = SimpleNamespace(enumeration_definition=[])  # type: ignore[attr-defined]
-    ed = SimpleNamespace(name=name, width=SimpleNamespace(value="0"), enumerated_value=[])
-    td.enumeration_definitions.enumeration_definition.append(ed)  # type: ignore[attr-defined]
-    register_parent(ed, td, ("enumeration_definitions",), "list")
-    return get_handle(ed)
+def addEnumerationDefinition(
+    typeDefID: str, name: str, enumeratedName: str, enumeratedExpression: str, *, width: str
+) -> str:  # F.7.82.2
+    """Add an enumeration definition and its first value to a TypeDefinitions document.
+
+    Section: F.7.82.2.
+
+    Clause 9.3 and memoryMap.xsd require an explicit width. Annex F omits that
+    input and describes a component location absent from component.xsd.
+    This local extension requires keyword-only width and uses the standalone
+    TypeDefinitions document specified by clause 9.
+    """
+    _definition(typeDefID, TypeDefinitions)
+    enumerated_name = _name(enumeratedName, "Name")
+    width_source = _expression(width, "width", 1, (1 << 32) - 1)
+    width_value = _integer(width_source, (1 << 32) - 1, True, minimum=1)
+    _enumeration_value_source(enumeratedExpression, UnsignedBitVectorExpression(), width_value)
+    definition_id = addTypeDefinitionsEnumerationDefinition(typeDefID, name, width)
+    addEnumerationDefinitionEnumeratedValue(definition_id, enumerated_name, enumeratedExpression)
+    return definition_id
 
 
 def addEnumerationDefinitionEnumeratedValue(enumerationDefinitionID: str, name: str, value: str) -> str:  # F.7.82.3
@@ -1304,9 +1311,7 @@ def addEnumerationDefinitionEnumeratedValue(enumerationDefinitionID: str, name: 
     width_source = _definition_expression_source(width_id, UnsignedPositiveIntExpression)
     _expression(width_source, "width", 1, (1 << 32) - 1, width_node)
     width = _integer(width_source, (1 << 32) - 1, True, minimum=1)
-    value_node = UnsignedBitVectorExpression()
-    value_node.value = _enumeration_value_source(value, value_node, width)
-    child = EnumeratedValueType(name=name, value=value_node)
+    child = _new_enumerated_value(name, value, width)
     _list_attr(owner, "enumerated_value").append(child)
     getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID)
     return get_handle(child)
@@ -1406,26 +1411,76 @@ def addExternalTypeDefinitionsViewLink(
     return get_handle(child)
 
 
-def addFieldDefinitionsEnumeratedValue(fieldDefinitionsID: str, name: str, value: str) -> str:  # F.7.82.6
-    fd = _resolve(fieldDefinitionsID)
-    if fd is None:
-        _invalid_id()
-    if getattr(fd, "enumerated_values", None) is None:
-        fd.enumerated_values = SimpleNamespace(enumerated_value=[])  # type: ignore[attr-defined]
-    ev = SimpleNamespace(name=name, value=SimpleNamespace(value=value))
-    fd.enumerated_values.enumerated_value.append(ev)  # type: ignore[attr-defined]
-    register_parent(ev, fd, ("enumerated_values",), "list")
-    return get_handle(ev)
+_FIELD_ENUM_CHOICE = "enumeration_definition_ref_or_enumerated_value"
 
 
-def addTypeDefinitionsAddressBlockDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.7
-    td = _ensure_td(typeDefinitionsID)
-    if td.address_block_definitions is None:
-        td.address_block_definitions = SimpleNamespace(address_block_definition=[])  # type: ignore[attr-defined]
-    abd = SimpleNamespace(name=name)
-    td.address_block_definitions.address_block_definition.append(abd)  # type: ignore[attr-defined]
-    register_parent(abd, td, ("address_block_definitions",), "list")
-    return get_handle(abd)
+def _field_enumeration_members(
+    holder: EnumeratedValues,
+) -> Sequence[EnumeratedValueType | EnumeratedValues.EnumerationDefinitionRef]:
+    """Validate the reference-or-inline-value branch without normalizing tuple storage."""
+    values = holder.enumeration_definition_ref_or_enumerated_value
+    if not isinstance(values, (list, tuple)) or not (
+        all(isinstance(value, EnumeratedValueType) for value in values)
+        or (len(values) == 1 and isinstance(values[0], EnumeratedValues.EnumerationDefinitionRef))
+    ):
+        raise TgiError("Invalid field enumeration choice", TgiFaultCode.INVALID_ID)
+    for value in values:
+        _register_graph(value)
+    _owned_list_ids(holder, values, _FIELD_ENUM_CHOICE)
+    return values
+
+
+def addFieldDefinitionsEnumeratedValue(fieldDefinitionID: str, name: str, expression: str) -> str:  # F.7.82.6
+    """Append a generated inline value respecting the field's declared width.
+
+    Section: F.7.82.6.
+    """
+    owner = _definition(fieldDefinitionID, FieldDefinitions.FieldDefinition)
+    holder = _child(owner, "enumerated_values", EnumeratedValues)
+    values = () if holder is None else _field_enumeration_members(holder)
+    if values and isinstance(values[0], EnumeratedValues.EnumerationDefinitionRef):
+        raise TgiError(
+            "Inline values cannot coexist with an enumeration definition reference", TgiFaultCode.INVALID_ARGUMENT
+        )
+    name = _definition_new_name(values, name)
+    width = _child(owner, "bit_width", UnsignedPositiveIntExpression)
+    if width is None or not isinstance(width.value, str):
+        raise TgiError("Invalid field-definition width", TgiFaultCode.INVALID_ID)
+    _expression(width.value, "bitWidth", 1, (1 << 32) - 1, width)
+    known_width = _integer(width.value, (1 << 32) - 1, True, minimum=1)
+    child = _new_enumerated_value(name, expression, known_width)
+    if holder is None:
+        holder = EnumeratedValues()
+        owner.enumerated_values = holder
+        _child(owner, "enumerated_values", EnumeratedValues)
+    _list_attr(holder, _FIELD_ENUM_CHOICE).append(child)
+    _field_enumeration_members(holder)
+    return get_handle(child)
+
+
+def addTypeDefinitionsAddressBlockDefinition(
+    typeDefinitionsID: str, name: str, range: str, width: str
+) -> str:  # F.7.82.7
+    """Add a generated AddressBlock definition with validated constant-expression sources.
+
+    Section: F.7.82.7.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    range_source = _expression(range, "range", 1, (1 << 64) - 1)
+    width_source = _expression(width, "width", 1, (1 << 32) - 1)
+    child = AddressBlockDefinitions.AddressBlockDefinition(
+        name=_name(name, "Name"),
+        range=UnsignedPositiveLongintExpression(value=range_source),
+        width=UnsignedPositiveIntExpression(value=width_source),
+    )
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        AddressBlockDefinitions,
+        "address_block_definitions",
+        "address_block_definition",
+        getTypeDefinitionsAddressBlockDefinitionIDs,
+    )
 
 
 def addTypeDefinitionsBankDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.8
@@ -1445,14 +1500,19 @@ def addTypeDefinitionsBankDefinition(typeDefinitionsID: str, name: str) -> str: 
     )
 
 
-def addTypeDefinitionsChoice(typeDefinitionsID: str, name: str) -> str:  # F.7.82.9
-    td = _ensure_td(typeDefinitionsID)
-    if td.choices is None:
-        td.choices = SimpleNamespace(choice=[])  # type: ignore[attr-defined]
-    ch = SimpleNamespace(name=name)
-    td.choices.choice.append(ch)  # type: ignore[attr-defined]
-    register_parent(ch, td, ("choices",), "list")
-    return get_handle(ch)
+def addTypeDefinitionsChoice(typeDefinitionsID: str, name: str, enumerations: Sequence[str]) -> str:  # F.7.82.9
+    """Add a generated choice with a nonempty ordered array of constant expressions.
+
+    Section: F.7.82.9.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    if not isinstance(enumerations, (list, tuple)) or not enumerations:
+        raise TgiError("enumerations must be a nonempty array", TgiFaultCode.INVALID_ARGUMENT)
+    sources = [_constant_source(value) for value in enumerations]
+    child = Choices.Choice(name=_name(name, "Name"))
+    for source in sources:
+        addChoiceEnumeration(get_handle(child), source)
+    return _add_definition_member(typeDefinitionsID, child, Choices, "choices", "choice", getTypeDefinitionsChoiceIDs)
 
 
 def addTypeDefinitionsEnumerationDefinition(typeDefinitionsID: str, name: str, width: str) -> str:  # F.7.82.10
@@ -1525,14 +1585,24 @@ def addTypeDefinitionsFieldAccessPolicyDefinition(typeDefinitionsID: str, name: 
     )
 
 
-def addTypeDefinitionsFieldDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.13
-    td = _ensure_td(typeDefinitionsID)
-    if td.field_definitions is None:
-        td.field_definitions = SimpleNamespace(field_definition=[])  # type: ignore[attr-defined]
-    fld = SimpleNamespace(name=name)
-    td.field_definitions.field_definition.append(fld)  # type: ignore[attr-defined]
-    register_parent(fld, td, ("field_definitions",), "list")
-    return get_handle(fld)
+def addTypeDefinitionsFieldDefinition(typeDefinitionsID: str, name: str, bitWidth: str) -> str:  # F.7.82.13
+    """Add a generated Field definition with validated constant-expression sources.
+
+    Section: F.7.82.13.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    source = _expression(bitWidth, "bitWidth", 1, (1 << 32) - 1)
+    child = FieldDefinitions.FieldDefinition(
+        name=_name(name, "Name"), bit_width=UnsignedPositiveIntExpression(value=source)
+    )
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        FieldDefinitions,
+        "field_definitions",
+        "field_definition",
+        getTypeDefinitionsFieldDefinitionIDs,
+    )
 
 
 def addTypeDefinitionsMemoryMapDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.14
@@ -1581,24 +1651,63 @@ def addTypeDefinitionsMode(typeDefinitionsID: str, name: str) -> str:  # F.7.82.
     )
 
 
-def addTypeDefinitionsRegisterDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.17
-    td = _ensure_td(typeDefinitionsID)
-    if td.register_definitions is None:
-        td.register_definitions = SimpleNamespace(register_definition=[])  # type: ignore[attr-defined]
-    reg = SimpleNamespace(name=name)
-    td.register_definitions.register_definition.append(reg)  # type: ignore[attr-defined]
-    register_parent(reg, td, ("register_definitions",), "list")
-    return get_handle(reg)
+def addTypeDefinitionsRegisterDefinition(
+    typeDefinitionsID: str, name: str, size: str, fieldName: str, fieldOffset: str, fieldWidth: str
+) -> str:  # F.7.82.17
+    """Add a generated Register definition with validated constant-expression sources.
+
+    Section: F.7.82.17.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    size_source = _expression(size, "size", 1, (1 << 32) - 1)
+    offset_source = _expression(fieldOffset, "fieldOffset", 0, (1 << 32) - 1)
+    width_source = _expression(fieldWidth, "fieldWidth", 1, (1 << 32) - 1)
+    size_value = _integer(size_source, (1 << 32) - 1, True, minimum=1)
+    offset_value = _integer(offset_source, (1 << 32) - 1, True)
+    width_value = _integer(width_source, (1 << 32) - 1, True, minimum=1)
+    if (
+        size_value is not None
+        and offset_value is not None
+        and width_value is not None
+        and offset_value + width_value > size_value
+    ):
+        raise TgiError("Field exceeds register definition size", TgiFaultCode.INVALID_ARGUMENT)
+    field = FieldType(
+        name=_name(fieldName, "Name"),
+        bit_offset=UnsignedIntExpression(value=offset_source),
+        choice=[UnsignedPositiveIntExpression(value=width_source)],
+    )
+    child = RegisterDefinitions.RegisterDefinition(
+        name=_name(name, "Name"), size=UnsignedPositiveIntExpression(value=size_source), field_value=[field]
+    )
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        RegisterDefinitions,
+        "register_definitions",
+        "register_definition",
+        getTypeDefinitionsRegisterDefinitionIDs,
+    )
 
 
-def addTypeDefinitionsRegisterFileDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.18
-    td = _ensure_td(typeDefinitionsID)
-    if td.register_file_definitions is None:
-        td.register_file_definitions = SimpleNamespace(register_file_definition=[])  # type: ignore[attr-defined]
-    rfd = SimpleNamespace(name=name)
-    td.register_file_definitions.register_file_definition.append(rfd)  # type: ignore[attr-defined]
-    register_parent(rfd, td, ("register_file_definitions",), "list")
-    return get_handle(rfd)
+def addTypeDefinitionsRegisterFileDefinition(typeDefinitionsID: str, name: str, range: str) -> str:  # F.7.82.18
+    """Add a generated RegisterFile definition with validated constant-expression sources.
+
+    Section: F.7.82.18.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    source = _expression(range, "range", 1, (1 << 64) - 1)
+    child = RegisterFileDefinitions.RegisterFileDefinition(
+        name=_name(name, "Name"), range=UnsignedPositiveLongintExpression(value=source)
+    )
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        RegisterFileDefinitions,
+        "register_file_definitions",
+        "register_file_definition",
+        getTypeDefinitionsRegisterFileDefinitionIDs,
+    )
 
 
 def addTypeDefinitionsResetType(typeDefinitionsID: str, name: str) -> str:  # F.7.82.19
@@ -1790,17 +1899,47 @@ def removeExternalTypeDefinitionsViewLink(viewLinkID: str) -> bool:  # F.7.82.27
 
 
 def removeFieldDefinitionEnumerationDefinitionRef(fieldDefinitionID: str) -> bool:  # F.7.82.28
-    fd = _resolve(fieldDefinitionID)
-    if fd is None:
-        _invalid_id()
-    if getattr(fd, "enumeration_definition_ref", None) is None:
+    """Remove a field definition's referenced enumeration and prune its empty holder.
+
+    Section: F.7.82.28.
+    """
+    owner = _definition(fieldDefinitionID, FieldDefinitions.FieldDefinition)
+    holder = _child(owner, "enumerated_values", EnumeratedValues)
+    if holder is None:
         return False
-    fd.enumeration_definition_ref = None  # type: ignore[attr-defined]
-    return True
+    values = _field_enumeration_members(holder)
+    if not values or not isinstance(values[0], EnumeratedValues.EnumerationDefinitionRef):
+        return False
+    _list_attr(holder, _FIELD_ENUM_CHOICE)
+    result = detach_child_by_handle(get_handle(values[0]))
+    _remove_child(owner, "enumerated_values")
+    return result
 
 
-def removeFieldDefinitionsEnumeratedValue(enumeratedValueID: str) -> bool:  # F.7.82.29
-    return detach_child_by_handle(enumeratedValueID)
+def removeFieldDefinitionsEnumeratedValue(domainTypeDefID: str) -> bool:  # F.7.82.29
+    """Remove an actual inline enumerated-value member of a field definition.
+
+    Section: F.7.82.29.
+
+    Annex F and WSDL name the input domainTypeDefID, but domainTypeDef cannot
+    contain enumerated values. As the operation description specifies, this
+    argument identifies the enumeratedValue to remove from a field definition.
+    """
+    child = _definition(domainTypeDefID, EnumeratedValueType)
+    holder = _register_owned_child(child, EnumeratedValues)
+    if not isinstance(holder, EnumeratedValues):
+        raise TgiError("Value has no enumeratedValues holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, FieldDefinitions.FieldDefinition)
+    if not isinstance(owner, FieldDefinitions.FieldDefinition) or owner.enumerated_values is not holder:
+        raise TgiError("Value is not owned by a field definition", TgiFaultCode.INVALID_ID)
+    values = _field_enumeration_members(holder)
+    if not any(value is child for value in values):
+        raise TgiError("Value is not in its owning field enumeration", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, _FIELD_ENUM_CHOICE)
+    result = _remove_owned(domainTypeDefID, EnumeratedValueType, EnumeratedValues, "field enumerated value")
+    if not holder.enumeration_definition_ref_or_enumerated_value:
+        _remove_child(owner, "enumerated_values")
+    return result
 
 
 def removeMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str) -> bool:  # F.7.82.30

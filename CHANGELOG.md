@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete nine expression-bearing Type definitions and field-enumeration lifecycle operations with shared constant parsing, generated models and typed ownership. Require explicit keyword-only width in addEnumerationDefinition to resolve the Annex signature mismatch with mandatory XML width; retain the published domainTypeDefID argument name for typed field-value removal.
+
 - Implement five external Type definitions and mode/view link lifecycle operations using generated component holders, validated VLNVs and shared reference setters.
 
 - Implement seven generated named Type definitions builders and typed field-access-policy removal using shared collection lifecycle validation.
