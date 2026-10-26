@@ -19,6 +19,7 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressUnitBits,
     BankDefinitions,
     MemoryRemapDefinitions,
+    RegisterFileDefinitions,
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
@@ -31,7 +32,7 @@ from .core import (
     resolve_handle,
 )
 from .miscellaneous import _expression_source, getExpression, getExpressionIntValue
-from .port_map import _child_id
+from .port_map import _child_id, _remove_child
 
 __all__ = [
     # BASE (F.7.81)
@@ -436,19 +437,49 @@ def getModeLinkModeReferenceID(modeLinkID: str) -> str | None:  # F.7.81.22
 
 
 def getRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str) -> int | None:  # F.7.81.23
-    rfd = _resolve(registerFileDefinitionID)
-    return getattr(getattr(rfd, "address_unit_bits", None), "value", None)
+    """Return the resolved address-unit value.
+
+    Section: F.7.81.23.
+
+    Args:
+        registerFileDefinitionID: Handle to a registerFileDefinition element.
+
+    Returns:
+        Evaluated positive address units as a TGI Long, or None when absent.
+    """
+    return _definition_unit_value(getRegisterFileDefinitionAddressUnitBitsID(registerFileDefinitionID))
 
 
 def getRegisterFileDefinitionAddressUnitBitsExpression(registerFileDefinitionID: str) -> str | None:  # F.7.81.24
-    rfd = _resolve(registerFileDefinitionID)
-    return getattr(getattr(getattr(rfd, "address_unit_bits", None), "value", None), "expression", None)
+    """Return the original address-unit expression.
+
+    Section: F.7.81.24.
+
+    Args:
+        registerFileDefinitionID: Handle to a registerFileDefinition element.
+
+    Returns:
+        Stored expression text without evaluation, or None when absent.
+    """
+    return _definition_unit_source(getRegisterFileDefinitionAddressUnitBitsID(registerFileDefinitionID))
 
 
 def getRegisterFileDefinitionAddressUnitBitsID(registerFileDefinitionID: str) -> str | None:  # F.7.81.25
-    rfd = _resolve(registerFileDefinitionID)
-    aub = getattr(rfd, "address_unit_bits", None)
-    return get_handle(aub) if aub else None
+    """Return the address-unit element handle.
+
+    Section: F.7.81.25.
+
+    Args:
+        registerFileDefinitionID: Handle to a registerFileDefinition element.
+
+    Returns:
+        Handle to the owned addressUnitBits element, or None when absent.
+    """
+    return _child_id(
+        _definition(registerFileDefinitionID, RegisterFileDefinitions.RegisterFileDefinition),
+        "address_unit_bits",
+        AddressUnitBits,
+    )
 
 
 def getResetTypeLinkExternalResetTypeRefByName(resetTypeLinkID: str) -> str | None:  # F.7.81.26
@@ -829,23 +860,37 @@ def addTypeDefinitionsView(typeDefinitionsID: str, name: str) -> str:  # F.7.82.
 
 
 def removeAddressBlockDefinitionAddressUnitBits(addressBlockDefinitionID: str) -> bool:  # F.7.82.21
-    abd = _resolve(addressBlockDefinitionID)
-    if abd is None:
-        _invalid_id()
-    if getattr(abd, "address_unit_bits", None) is None:
+    """Remove the owned address-unit element and invalidate its handle.
+
+    Section: F.7.82.21.
+
+    Args:
+        addressBlockDefinitionID: Handle to an addressBlockDefinition element.
+
+    Returns:
+        True when removed, or False when the optional element is absent.
+    """
+    if getAddressBlockDefinitionAddressUnitBitsID(addressBlockDefinitionID) is None:
         return False
-    abd.address_unit_bits = None  # type: ignore[attr-defined]
-    return True
+    return _remove_child(
+        _definition(addressBlockDefinitionID, AddressBlockDefinitions.AddressBlockDefinition), "address_unit_bits"
+    )
 
 
 def removeBankDefinitionAddressUnitBits(bankDefinitionID: str) -> bool:  # F.7.82.22
-    bd = _resolve(bankDefinitionID)
-    if bd is None:
-        _invalid_id()
-    if getattr(bd, "address_unit_bits", None) is None:
+    """Remove the owned address-unit element and invalidate its handle.
+
+    Section: F.7.82.22.
+
+    Args:
+        bankDefinitionID: Handle to a bankDefinition element.
+
+    Returns:
+        True when removed, or False when the optional element is absent.
+    """
+    if getBankDefinitionAddressUnitBitsID(bankDefinitionID) is None:
         return False
-    bd.address_unit_bits = None  # type: ignore[attr-defined]
-    return True
+    return _remove_child(_definition(bankDefinitionID, BankDefinitions.BankDefinition), "address_unit_bits")
 
 
 def removeComponentExternalTypeDefinitions(componentID: str) -> bool:  # F.7.82.23
@@ -889,23 +934,39 @@ def removeFieldDefinitionsEnumeratedValue(enumeratedValueID: str) -> bool:  # F.
 
 
 def removeMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str) -> bool:  # F.7.82.30
-    mrd = _resolve(memoryRemapDefinitionID)
-    if mrd is None:
-        _invalid_id()
-    if getattr(mrd, "address_unit_bits", None) is None:
+    """Remove the owned address-unit element and invalidate its handle.
+
+    Section: F.7.82.30.
+
+    Args:
+        memoryRemapDefinitionID: Handle to a memoryRemapDefinition element.
+
+    Returns:
+        True when removed, or False when the optional element is absent.
+    """
+    if getMemoryRemapDefinitionAddressUnitBitsID(memoryRemapDefinitionID) is None:
         return False
-    mrd.address_unit_bits = None  # type: ignore[attr-defined]
-    return True
+    return _remove_child(
+        _definition(memoryRemapDefinitionID, MemoryRemapDefinitions.MemoryRemapDefinition), "address_unit_bits"
+    )
 
 
 def removeRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str) -> bool:  # F.7.82.31
-    rfd = _resolve(registerFileDefinitionID)
-    if rfd is None:
-        _invalid_id()
-    if getattr(rfd, "address_unit_bits", None) is None:
+    """Remove the owned address-unit element and invalidate its handle.
+
+    Section: F.7.82.31.
+
+    Args:
+        registerFileDefinitionID: Handle to a registerFileDefinition element.
+
+    Returns:
+        True when removed, or False when the optional element is absent.
+    """
+    if getRegisterFileDefinitionAddressUnitBitsID(registerFileDefinitionID) is None:
         return False
-    rfd.address_unit_bits = None  # type: ignore[attr-defined]
-    return True
+    return _remove_child(
+        _definition(registerFileDefinitionID, RegisterFileDefinitions.RegisterFileDefinition), "address_unit_bits"
+    )
 
 
 def removeTypeDefinitionsAddressBlockDefinition(addressBlockDefinitionID: str) -> bool:  # F.7.82.32
