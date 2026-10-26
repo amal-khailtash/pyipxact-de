@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement eight Indirect interface named reference setters using shared Slice wrapper mutation with index and metadata preservation.
+
 - Implement six Indirect interface root-reference setters through shared Slice choice mutation with wrapper preservation and atomic branch validation.
 
 - Implement ten Indirect interface memory-remap getters and map/remap removers using generated choices, map-qualified target resolution and owned handle invalidation.

@@ -3,10 +3,11 @@
 from org.accellera.ipxact.v1685_2022 import BankRef, RegisterFileRef
 
 from ._model import _owned_list_ids, _reference_list
+from ._reference_choices import _update_reference
 from .address_space import _remove_owned
-from .component import _list_attr
-from .core import TgiError, TgiFaultCode, get_handle, resolve_handle
-from .port_map import _name
+from .component import _list_attr, _register_graph
+from .core import TgiError, TgiFaultCode, get_handle, register_parent, resolve_handle
+from .port_map import _child, _name
 
 
 def _append_reference_path[T: BankRef | RegisterFileRef](
@@ -34,3 +35,13 @@ def _remove_reference_path[T: BankRef | RegisterFileRef](
     _owned_list_ids(owner, children, attribute)
     _list_attr(owner, attribute)
     return _remove_owned(reference_id, model_type, type(owner), "path reference")
+
+
+def _set_named_reference[T](owner: object, attribute: str, replacement: T) -> bool:
+    """Attach a missing wrapper or update its source without replacing indices."""
+    current = _child(owner, attribute, type(replacement))
+    current = _update_reference(current, replacement, attribute)
+    setattr(owner, attribute, current)
+    register_parent(current, owner, (attribute,), "single")
+    _register_graph(current)
+    return True

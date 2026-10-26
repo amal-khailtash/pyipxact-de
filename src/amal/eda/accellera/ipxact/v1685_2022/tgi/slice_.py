@@ -40,14 +40,14 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterRef,
 )
 
-from ._reference_choices import _reference_choice, _set_reference_choice, _update_reference
-from ._reference_paths import _append_reference_path, _remove_reference_path
+from ._reference_choices import _reference_choice, _set_reference_choice
+from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
 from ._expressions import _string_source
 from ._model import _owned_list_ids, _sub_port_references, _reference_list as _field_reference_list
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
-from .port_map import _child, _child_id, _name, _set_part_select, _remove_child
+from .port_map import _child_id, _name, _set_part_select, _remove_child
 from ._attribute_references import _reference_source as _field_reference_value, resolve_attribute_reference
 from ._miscellaneous_part_select import _part_select
 
@@ -234,11 +234,7 @@ def _set_field_reference(
     replacement: AddressBlockRef | AlternateRegisterRef | FieldRef | RegisterRef,
 ) -> bool:
     """Attach a missing wrapper or update its source without replacing indices."""
-    current = _child(owner, attribute, type(replacement))
-    current = _update_reference(current, replacement, attribute)
-    setattr(owner, attribute, current)
-    register_parent(current, owner, (attribute,), "single")
-    return True
+    return _set_named_reference(owner, attribute, replacement)
 
 
 def _add_field_reference[T: BankRef | RegisterFileRef](

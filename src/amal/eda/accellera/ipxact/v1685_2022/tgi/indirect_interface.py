@@ -28,7 +28,7 @@ from typing import overload
 from .port_map import _child_id, _remove_child, _name
 from ._reference_choices import _reference_choice, _REFERENCE_CHOICE, _set_reference_choice
 from .component import _list_attr
-from ._reference_paths import _append_reference_path, _remove_reference_path
+from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
 from .address_space import _register_owned_child
 from ._model import _reference_list, _owned_list_ids
 from .component import _register_graph
@@ -89,6 +89,14 @@ __all__ = [
     "setIndirectDataRefAddressSpaceRef",
     "setIndirectDataRefMemoryMapRef",
     "setIndirectDataRefMemoryRemapRef",
+    "setIndirectAddressRefAddressBlockRef",
+    "setIndirectAddressRefAlternateRegisterRef",
+    "setIndirectAddressRefFieldRef",
+    "setIndirectAddressRefRegisterRef",
+    "setIndirectDataRefAddressBlockRef",
+    "setIndirectDataRefAlternateRegisterRef",
+    "setIndirectDataRefFieldRef",
+    "setIndirectDataRefRegisterRef",
     # EXTENDED (F.7.54)
     "addIndirectAddressRefBankRef",
     "addIndirectAddressRefRegisterFileRef",
@@ -885,3 +893,83 @@ def setIndirectDataRefMemoryRemapRef(indirectDataRefID: str, memoryRemapRef: str
     return _set_reference_choice(
         owner, replacement, "memory_remap_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
     )
+
+
+def setIndirectAddressRefAddressBlockRef(indirectAddressRefID: str, addressBlockRef: str) -> bool:
+    """Set a normalized addressBlockRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.26.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = AddressBlockRef(address_block_ref=_name(addressBlockRef, "Name"))
+    return _set_named_reference(owner, "address_block_ref", replacement)
+
+
+def setIndirectAddressRefAlternateRegisterRef(indirectAddressRefID: str, alternateRegisterRef: str) -> bool:
+    """Set a normalized alternateRegisterRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.28.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = AlternateRegisterRef(alternate_register_ref=_name(alternateRegisterRef, "Name"))
+    return _set_named_reference(owner, "alternate_register_ref", replacement)
+
+
+def setIndirectAddressRefFieldRef(indirectAddressRefID: str, fieldRef: str) -> bool:
+    """Set a normalized fieldRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.29.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = FieldRef(field_ref=_name(fieldRef, "Name"))
+    return _set_named_reference(owner, "field_ref", replacement)
+
+
+def setIndirectAddressRefRegisterRef(indirectAddressRefID: str, registerRef: str) -> bool:
+    """Set a normalized registerRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.32.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = RegisterRef(register_ref=_name(registerRef, "Name"))
+    return _set_named_reference(owner, "register_ref", replacement)
+
+
+def setIndirectDataRefAddressBlockRef(indirectDataRefID: str, addressBlockRef: str) -> bool:
+    """Set a normalized addressBlockRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.33.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = AddressBlockRef(address_block_ref=_name(addressBlockRef, "Name"))
+    return _set_named_reference(owner, "address_block_ref", replacement)
+
+
+def setIndirectDataRefAlternateRegisterRef(indirectDataRefID: str, alternateRegisterRef: str) -> bool:
+    """Set a normalized alternateRegisterRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.35.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = AlternateRegisterRef(alternate_register_ref=_name(alternateRegisterRef, "Name"))
+    return _set_named_reference(owner, "alternate_register_ref", replacement)
+
+
+def setIndirectDataRefFieldRef(indirectDataRefID: str, fieldRef: str) -> bool:
+    """Set a normalized fieldRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.36.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = FieldRef(field_ref=_name(fieldRef, "Name"))
+    return _set_named_reference(owner, "field_ref", replacement)
+
+
+def setIndirectDataRefRegisterRef(indirectDataRefID: str, registerRef: str) -> bool:
+    """Set a normalized registerRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.39.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = RegisterRef(register_ref=_name(registerRef, "Name"))
+    return _set_named_reference(owner, "register_ref", replacement)
