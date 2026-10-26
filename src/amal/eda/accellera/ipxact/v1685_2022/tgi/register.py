@@ -20,6 +20,7 @@ from org.accellera.ipxact.v1685_2022.register_file_definitions import RegisterFi
 from org.accellera.ipxact.v1685_2022.unsigned_int_expression import UnsignedIntExpression
 from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import UnsignedLongintExpression
 from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import UnsignedPositiveIntExpression
+from org.accellera.ipxact.v1685_2022.volatile import Volatile
 
 from .component import _list_attr, _register_graph, _register_owner_for
 from .core import (
@@ -34,6 +35,7 @@ from .core import (
 from .register_file import _expression as _register_file_expression
 from .register_file import _integer as _integer_expression
 from .register_file import _numeric as _register_file_numeric
+from .port_map import _name as _schema_name
 
 __all__ = [
     # BASE (F.7.73)
@@ -143,9 +145,13 @@ __all__ = [
     "removeBroadcastToMemoryMapRef",
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
+    "removeRegisterTypeIdentifier",
+    "removeRegisterVolatility",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
     "setRegisterSize",
+    "setRegisterTypeIdentifier",
+    "setRegisterVolatility",
 ]
 
 type _Register = (
@@ -305,6 +311,32 @@ def _register_definition_reference(register: _Register) -> _RegisterDefinitionRe
     if len(references) > 1:
         raise TgiError("Multiple register definition references", TgiFaultCode.INVALID_ID)
     return references[0] if references else None
+
+
+def _register_type_identifier(register: _Register) -> str | None:
+    identifiers = [child for child in getattr(register, "choice", ()) if isinstance(child, str)]
+    if len(identifiers) > 1:
+        raise TgiError("Multiple register typeIdentifiers", TgiFaultCode.INVALID_ID)
+    return identifiers[0] if identifiers else None
+
+
+def _register_volatile(register: _Register) -> Volatile | None:
+    volatiles = [child for child in getattr(register, "choice", ()) if isinstance(child, Volatile)]
+    if len(volatiles) > 1:
+        raise TgiError("Multiple register volatile values", TgiFaultCode.INVALID_ID)
+    if volatiles:
+        register_parent(volatiles[0], register, ("choice",), "list")
+        return volatiles[0]
+    return None
+
+
+def _inline_register_choice(register: _Register, requirement: str) -> UnsignedPositiveIntExpression:
+    size = _register_size(register)
+    if _register_definition_reference(register) is not None:
+        raise TgiError(f"{requirement} requires an inline register definition", TgiFaultCode.INVALID_ARGUMENT)
+    if size is None:
+        raise TgiError(f"{requirement} requires an inline register size", TgiFaultCode.INVALID_ARGUMENT)
+    return size
 
 
 def _check_field_containment(register: _Register, size: int | None) -> None:
@@ -1043,16 +1075,44 @@ def getRegisterSizeID(registerID: str) -> str | None:
 
 
 def getRegisterTypeIdentifier(registerID: str) -> str | None:
-    """Return typeIdentifier (F.7.73.76)."""
-    r = _resolve(registerID)
-    return _maybe_value(getattr(r, "type_identifier", None))
+    """Return inline typeIdentifier (F.7.73.76).
+
+    Section: F.7.73.76.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Inline typeIdentifier, or None when absent or a definition reference is used.
+    """
+    register = _resolve_register(registerID)
+    _register_size(register)
+    if _register_definition_reference(register) is not None:
+        return None
+    return _register_type_identifier(register)
 
 
 def getRegisterVolatility(registerID: str) -> bool | None:
-    """Return volatility boolean (F.7.73.77)."""
-    r = _resolve(registerID)
-    val = getattr(getattr(r, "volatile", None), "value", None)
-    return val if isinstance(val, bool) else None
+    """Return volatility boolean (F.7.73.77).
+
+    Section: F.7.73.77.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Explicit volatility value, or None when it is absent or a definition reference is used.
+    """
+    register = _resolve_register(registerID)
+    _register_size(register)
+    if _register_definition_reference(register) is not None:
+        return None
+    volatile = _register_volatile(register)
+    if volatile is None:
+        return None
+    if type(volatile.value) is not bool:
+        raise TgiError("Invalid register volatile value", TgiFaultCode.INVALID_ID)
+    return volatile.value
 
 
 # Reset values
@@ -1369,6 +1429,57 @@ def removeBroadcastToRegisterRef(registerRefID: str) -> bool:
     return detach_child_by_handle(registerRefID)
 
 
+def removeRegisterTypeIdentifier(registerID: str) -> bool:
+    """Remove inline typeIdentifier (F.7.74.35).
+
+    Section: F.7.74.35.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        True if an inline typeIdentifier was removed, otherwise False.
+    """
+    register = _resolve_register(registerID)
+    _register_size(register)
+    if _register_definition_reference(register) is not None:
+        return False
+    identifier = _register_type_identifier(register)
+    if identifier is None:
+        return False
+    items = _list_attr(register, "choice")
+    index = next((index for index, child in enumerate(items) if isinstance(child, str)), None)
+    if index is None:
+        raise TgiError("Register typeIdentifier choice changed during removal", TgiFaultCode.INVALID_ID)
+    del items[index]
+    return True
+
+
+def removeRegisterVolatility(registerID: str) -> bool:
+    """Remove explicit volatility (F.7.74.36).
+
+    Section: F.7.74.36.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        True if explicit volatility was removed, otherwise False.
+    """
+    register = _resolve_register(registerID)
+    _register_size(register)
+    if _register_definition_reference(register) is not None:
+        return False
+    volatile = _register_volatile(register)
+    if volatile is None:
+        return False
+    volatile_id = get_handle(volatile)
+    _register_graph(volatile)
+    if not detach_child_by_handle(volatile_id):
+        raise TgiError("Could not remove register volatility", TgiFaultCode.INVALID_ID)
+    return True
+
+
 def setRegisterAddressOffset(registerID: str, value: str) -> bool:
     """Set addressOffset.
 
@@ -1475,4 +1586,65 @@ def setRegisterSize(registerID: str, value: str) -> bool:
         items.insert(position, size)
         register_parent(size, register, ("choice",), "list")
         _register_graph(size)
+    return True
+
+
+def setRegisterTypeIdentifier(registerID: str, typeIdentifier: str) -> bool:
+    """Set an inline typeIdentifier on a register.
+
+    Section: F.7.74.66.
+
+    Args:
+        registerID: Handle to a register element.
+        typeIdentifier: New register typeIdentifier name.
+
+    Returns:
+        True after setting the inline typeIdentifier.
+    """
+    register = _resolve_register(registerID)
+    size = _inline_register_choice(register, "setRegisterTypeIdentifier")
+    value = _schema_name(typeIdentifier, "Name")
+    identifier = _register_type_identifier(register)
+    items = _list_attr(register, "choice")
+    if identifier is not None:
+        index = next((index for index, child in enumerate(items) if isinstance(child, str)), None)
+        if index is None:
+            raise TgiError("Register typeIdentifier choice changed during update", TgiFaultCode.INVALID_ID)
+        items[index] = value
+        return True
+    position = next((index for index, child in enumerate(items) if child is size), None)
+    if position is None:
+        raise TgiError("Register size choice changed during update", TgiFaultCode.INVALID_ID)
+    items.insert(position, value)
+    return True
+
+
+def setRegisterVolatility(registerID: str, volatile: bool) -> bool:
+    """Set explicit register volatility.
+
+    Section: F.7.74.67.
+
+    Args:
+        registerID: Handle to a register element.
+        volatile: Whether the register value is volatile.
+
+    Returns:
+        True after setting the explicit volatility value.
+    """
+    register = _resolve_register(registerID)
+    size = _inline_register_choice(register, "setRegisterVolatility")
+    if type(volatile) is not bool:
+        raise TgiError("volatile must be a boolean", TgiFaultCode.INVALID_ARGUMENT)
+    current = _register_volatile(register)
+    items = _list_attr(register, "choice")
+    if current is None:
+        current = Volatile(value=volatile)
+        position = next((index for index, child in enumerate(items) if child is size), None)
+        if position is None:
+            raise TgiError("Register size choice changed during update", TgiFaultCode.INVALID_ID)
+        items.insert(position + 1, current)
+    else:
+        current.value = volatile
+    register_parent(current, register, ("choice",), "list")
+    _register_graph(current)
     return True
