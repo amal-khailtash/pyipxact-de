@@ -14,7 +14,7 @@ EXTENDED mutators raise :class:`TgiError` using
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn, Protocol, cast
 
 from org.accellera.ipxact.v1685_2022 import (
     AddressBlockDefinitions,
@@ -26,6 +26,7 @@ from org.accellera.ipxact.v1685_2022 import (
     EnumeratedValueType,
     EnumerationDefinitions,
     ExternalTypeDefinitions,
+    FieldAccessPolicyDefinitions,
     FieldDefinitions,
     MemoryMapDefinitions,
     MemoryRemapDefinitions,
@@ -1169,6 +1170,48 @@ def getViewLinkViewReferenceID(viewLinkID: str) -> str:  # F.7.81.47
 # ---------------------------------------------------------------------------
 
 
+def _field_policy_ids(type_definitions_id: str) -> list[str]:
+    """Traverse the field-access-policy collection omitted from Annex F BASE getters."""
+    owner = _definition(type_definitions_id, TypeDefinitions)
+    holder = _child(owner, "field_access_policy_definitions", FieldAccessPolicyDefinitions)
+    return (
+        []
+        if holder is None
+        else _definition_list_ids(
+            holder, "field_access_policy_definition", FieldAccessPolicyDefinitions.FieldAccessPolicyDefinition
+        )
+    )
+
+
+class _NamedDefinition(Protocol):
+    """Generated named definition members."""
+
+    name: str
+
+
+def _add_definition_member[M: _NamedDefinition, H](
+    type_definitions_id: str,
+    child: M,
+    holder_type: type[H],
+    holder_attribute: str,
+    member_attribute: str,
+    ids_getter: Callable[[str], list[str]],
+) -> str:
+    """Append a generated definition after validating its holder and unique XML name."""
+    owner = _definition(type_definitions_id, TypeDefinitions)
+    ids_getter(type_definitions_id)
+    holder = _child(owner, holder_attribute, holder_type)
+    children = () if holder is None else _definition_list(holder, member_attribute, type(child))
+    name = _definition_new_name(children, child.name)
+    child.name = name
+    if holder is None:
+        holder = holder_type()
+        setattr(owner, holder_attribute, holder)
+    _list_attr(holder, member_attribute).append(child)
+    ids_getter(type_definitions_id)
+    return get_handle(child)
+
+
 def _ensure_td(tdID: str) -> TypeDefinitions:
     td = resolve_handle(tdID)
     if not isinstance(td, TypeDefinitions):  # pragma: no cover - defensive
@@ -1275,13 +1318,20 @@ def addTypeDefinitionsAddressBlockDefinition(typeDefinitionsID: str, name: str) 
 
 
 def addTypeDefinitionsBankDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.8
-    td = _ensure_td(typeDefinitionsID)
-    if td.bank_definitions is None:
-        td.bank_definitions = SimpleNamespace(bank_definition=[])  # type: ignore[attr-defined]
-    bd = SimpleNamespace(name=name)
-    td.bank_definitions.bank_definition.append(bd)  # type: ignore[attr-defined]
-    register_parent(bd, td, ("bank_definitions",), "list")
-    return get_handle(bd)
+    """Add a generated Bank definition with a unique XML name.
+
+    Section: F.7.82.8.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = BankDefinitions.BankDefinition(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        BankDefinitions,
+        "bank_definitions",
+        "bank_definition",
+        getTypeDefinitionsBankDefinitionIDs,
+    )
 
 
 def addTypeDefinitionsChoice(typeDefinitionsID: str, name: str) -> str:  # F.7.82.9
@@ -1338,13 +1388,20 @@ def addTypeDefinitionsExternalTypeDefinitions(typeDefinitionsID: str, name: str)
 
 
 def addTypeDefinitionsFieldAccessPolicyDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.12
-    td = _ensure_td(typeDefinitionsID)
-    if td.field_access_policy_definitions is None:
-        td.field_access_policy_definitions = SimpleNamespace(field_access_policy_definition=[])  # type: ignore[attr-defined]
-    fap = SimpleNamespace(name=name)
-    td.field_access_policy_definitions.field_access_policy_definition.append(fap)  # type: ignore[attr-defined]
-    register_parent(fap, td, ("field_access_policy_definitions",), "list")
-    return get_handle(fap)
+    """Add a generated FieldAccessPolicy definition with a unique XML name.
+
+    Section: F.7.82.12.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = FieldAccessPolicyDefinitions.FieldAccessPolicyDefinition(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        FieldAccessPolicyDefinitions,
+        "field_access_policy_definitions",
+        "field_access_policy_definition",
+        _field_policy_ids,
+    )
 
 
 def addTypeDefinitionsFieldDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.13
@@ -1358,33 +1415,49 @@ def addTypeDefinitionsFieldDefinition(typeDefinitionsID: str, name: str) -> str:
 
 
 def addTypeDefinitionsMemoryMapDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.14
-    td = _ensure_td(typeDefinitionsID)
-    if td.memory_map_definitions is None:
-        td.memory_map_definitions = SimpleNamespace(memory_map_definition=[])  # type: ignore[attr-defined]
-    mmd = SimpleNamespace(name=name)
-    td.memory_map_definitions.memory_map_definition.append(mmd)  # type: ignore[attr-defined]
-    register_parent(mmd, td, ("memory_map_definitions",), "list")
-    return get_handle(mmd)
+    """Add a generated MemoryMap definition with a unique XML name.
+
+    Section: F.7.82.14.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = MemoryMapDefinitions.MemoryMapDefinition(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        MemoryMapDefinitions,
+        "memory_map_definitions",
+        "memory_map_definition",
+        getTypeDefinitionsMemoryMapDefinitionIDs,
+    )
 
 
 def addTypeDefinitionsMemoryRemapDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.15
-    td = _ensure_td(typeDefinitionsID)
-    if td.memory_remap_definitions is None:
-        td.memory_remap_definitions = SimpleNamespace(memory_remap_definition=[])  # type: ignore[attr-defined]
-    mrd = SimpleNamespace(name=name)
-    td.memory_remap_definitions.memory_remap_definition.append(mrd)  # type: ignore[attr-defined]
-    register_parent(mrd, td, ("memory_remap_definitions",), "list")
-    return get_handle(mrd)
+    """Add a generated MemoryRemap definition with a unique XML name.
+
+    Section: F.7.82.15.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = MemoryRemapDefinitions.MemoryRemapDefinition(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        MemoryRemapDefinitions,
+        "memory_remap_definitions",
+        "memory_remap_definition",
+        getTypeDefinitionsMemoryRemapDefinitionIDs,
+    )
 
 
 def addTypeDefinitionsMode(typeDefinitionsID: str, name: str) -> str:  # F.7.82.16
-    td = _ensure_td(typeDefinitionsID)
-    if td.modes is None:
-        td.modes = SimpleNamespace(mode=[])  # type: ignore[attr-defined]
-    mode = SimpleNamespace(name=name)
-    td.modes.mode.append(mode)  # type: ignore[attr-defined]
-    register_parent(mode, td, ("modes",), "list")
-    return get_handle(mode)
+    """Add a generated Mode definition with a unique XML name.
+
+    Section: F.7.82.16.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = TypeDefinitions.Modes.Mode(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID, child, TypeDefinitions.Modes, "modes", "mode", getTypeDefinitionsModeIDs
+    )
 
 
 def addTypeDefinitionsRegisterDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.17
@@ -1408,23 +1481,32 @@ def addTypeDefinitionsRegisterFileDefinition(typeDefinitionsID: str, name: str) 
 
 
 def addTypeDefinitionsResetType(typeDefinitionsID: str, name: str) -> str:  # F.7.82.19
-    td = _ensure_td(typeDefinitionsID)
-    if td.reset_types is None:
-        td.reset_types = SimpleNamespace(reset_type=[])  # type: ignore[attr-defined]
-    rt = SimpleNamespace(name=name)
-    td.reset_types.reset_type.append(rt)  # type: ignore[attr-defined]
-    register_parent(rt, td, ("reset_types",), "list")
-    return get_handle(rt)
+    """Add a generated ResetType definition with a unique XML name.
+
+    Section: F.7.82.19.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = TypeDefinitions.ResetTypes.ResetType(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID,
+        child,
+        TypeDefinitions.ResetTypes,
+        "reset_types",
+        "reset_type",
+        getTypeDefinitionsResetTypeIDs,
+    )
 
 
 def addTypeDefinitionsView(typeDefinitionsID: str, name: str) -> str:  # F.7.82.20
-    td = _ensure_td(typeDefinitionsID)
-    if td.views is None:
-        td.views = SimpleNamespace(view=[])  # type: ignore[attr-defined]
-    view = SimpleNamespace(name=name)
-    td.views.view.append(view)  # type: ignore[attr-defined]
-    register_parent(view, td, ("views",), "list")
-    return get_handle(view)
+    """Add a generated View definition with a unique XML name.
+
+    Section: F.7.82.20.
+    """
+    _definition(typeDefinitionsID, TypeDefinitions)
+    child = TypeDefinitions.Views.View(name=_name(name, "Name"))
+    return _add_definition_member(
+        typeDefinitionsID, child, TypeDefinitions.Views, "views", "view", getTypeDefinitionsViewIDs
+    )
 
 
 def removeAddressBlockDefinitionAddressUnitBits(addressBlockDefinitionID: str) -> bool:  # F.7.82.21
@@ -1733,7 +1815,20 @@ def removeTypeDefinitionsExternalTypeDefinitions(externalTypeDefinitionsID: str)
 
 
 def removeTypeDefinitionsFieldAccessPolicyDefinition(fieldAccessPolicyDefinitionID: str) -> bool:  # F.7.82.37
-    return detach_child_by_handle(fieldAccessPolicyDefinitionID)
+    """Remove an owned field-access-policy definition and prune its empty holder.
+
+    Section: F.7.82.37.
+    """
+    return _remove_definition_collection_member(
+        fieldAccessPolicyDefinitionID,
+        FieldAccessPolicyDefinitions.FieldAccessPolicyDefinition,
+        FieldAccessPolicyDefinitions,
+        TypeDefinitions,
+        "field_access_policy_definitions",
+        "field_access_policy_definition",
+        _field_policy_ids,
+        "field access policy definition",
+    )
 
 
 def removeTypeDefinitionsFieldDefinition(fieldDefinitionID: str) -> bool:  # F.7.82.38

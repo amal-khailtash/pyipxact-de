@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement seven generated named Type definitions builders and typed field-access-policy removal using shared collection lifecycle validation.
+
 - Complete Indirect interface bridge creation, traversal and removal, endianness mutation, memory-map choice replacement and alias/broadcast optional-reference removal.
 
 - Implement seven Indirect interface getters with standard defaults, shared constant evaluation, typed required references and scalar memory-map target resolution.
