@@ -3,8 +3,8 @@
 Implements BASE (F.7.81) and EXTENDED (F.7.82) functions for the
 ``typeDefinitions`` document describing reusable type definition collections.
 
-Address-unit and enumeration-width getters validate generated definition
-handles and preserve raw expression source; resolved values use SystemVerilog
+Implemented numeric and enumeration-list getters validate generated definition
+handles. Expression source is preserved, and resolved values use SystemVerilog
 constant evaluation. Other
 BASE getters retain their existing neutral-value behavior for invalid handles.
 EXTENDED mutators raise :class:`TgiError` using
@@ -12,6 +12,7 @@ EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 """
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Any, NoReturn, cast
 
@@ -20,13 +21,19 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressUnitBits,
     BankDefinitions,
     ComplexBaseExpression,
+    EnumeratedValueType,
     EnumerationDefinitions,
     MemoryRemapDefinitions,
     RegisterFileDefinitions,
+    UnsignedBitVectorExpression,
     UnsignedPositiveIntExpression,
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
+from ._expressions import _integer, _source
+from ._model import _owned_list_ids
+from .address_space import _register_owned_child, _remove_owned
+from .component import _list_attr, _register_graph
 from .core import (
     TgiError,
     TgiFaultCode,
@@ -36,7 +43,7 @@ from .core import (
     resolve_handle,
 )
 from .miscellaneous import getExpression
-from .port_map import _child, _child_id, _remove_child
+from .port_map import _child, _child_id, _name, _remove_child
 from .register_file import _expression, _numeric
 
 __all__ = [
@@ -212,6 +219,47 @@ def _set_definition_unit(owner: _UnitDefinition, source: str) -> bool:
     return True
 
 
+def _definition_list[T](owner: object, attribute: str, model_type: type[T]) -> Sequence[T]:
+    """Validate a generated definition list without normalizing tuple storage."""
+    children = getattr(owner, attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid definition list", TgiFaultCode.INVALID_ID)
+    return cast(Sequence[T], children)
+
+
+def _definition_list_ids[T](owner: object, attribute: str, model_type: type[T]) -> list[str]:
+    """Restore immediate and descendant ownership for a typed definition list."""
+    children = _definition_list(owner, attribute, model_type)
+    for child in children:
+        _register_graph(child)
+    return _owned_list_ids(owner, children, attribute)
+
+
+def _definition_new_name(children: Sequence[object], source: str) -> str:
+    """Require a normalized XML name distinct from existing definition members."""
+    name = _name(source, "Name")
+    for child in children:
+        current = getattr(child, "name", None)
+        if not isinstance(current, str):
+            raise TgiError("Invalid definition name content", TgiFaultCode.INVALID_ID)
+        try:
+            current = _name(current, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid definition name", TgiFaultCode.INVALID_ID) from error
+        if current == name:
+            raise TgiError("Duplicate definition name", TgiFaultCode.ALREADY_EXISTS)
+    return name
+
+
+def _enumeration_value_source(source: str, node: UnsignedBitVectorExpression, width: int | None) -> str:
+    """Validate unsigned value source and its fit within a known enumeration width."""
+    source = _source(source, node, maximum=None)
+    value = _integer(source, None, True)
+    if width is not None and value is not None and value.bit_length() > width:
+        raise TgiError("Enumerated value exceeds enumeration width", TgiFaultCode.INVALID_ARGUMENT)
+    return source
+
+
 def _definition_unit_source(reference_id: str | None) -> str | None:
     """Read stored address-unit source while retaining malformed strings for repair."""
     if reference_id is None:
@@ -228,8 +276,8 @@ def _definition_unit_value(reference_id: str | None) -> int | None:
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.81)
-# Address-unit and enumeration-width getters validate handles; other getters
-# retain neutral returns
+# Implemented numeric and enumeration-list getters validate handles; other
+# getters retain neutral returns
 # for invalid handles. Structure-specific attribute names align with generated
 # schema naming (snake_case).
 # ---------------------------------------------------------------------------
@@ -326,14 +374,19 @@ def getBankDefinitionAddressUnitBitsID(bankDefinitionID: str) -> str | None:  # 
 
 
 def getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID: str) -> list[str]:  # F.7.81.7
-    ed = _resolve(enumerationDefinitionID)
-    if ed is None:
-        return []
-    result: list[str] = []
+    """Return ordered owned enumerated-value handles.
+
+    Section: F.7.81.7.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition element.
+
+    Returns:
+        Ordered handles to enumerated values, including their value descendants.
+    """
+    owner = _definition(enumerationDefinitionID, EnumerationDefinitions.EnumerationDefinition)
     # Enumeration definition schema has direct enumerated_value list
-    for v in getattr(ed, "enumerated_value", []) or []:  # type: ignore[list-item]
-        result.append(get_handle(v))
-    return result
+    return _definition_list_ids(owner, "enumerated_value", EnumeratedValueType)
 
 
 def getEnumerationDefinitionWidth(enumerationDefinitionID: str) -> int:  # F.7.81.8
@@ -601,11 +654,21 @@ def getTypeDefinitionsChoiceIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.
 
 
 def getTypeDefinitionsEnumerationDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.33
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned enumeration-definition handles.
+
+    Section: F.7.81.33.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+
+    Returns:
+        Ordered definition handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "enumeration_definitions", EnumerationDefinitions)
+    if container is None:
         return []
-    eds = getattr(td, "enumeration_definitions", None)
-    return [get_handle(e) for e in getattr(eds, "enumeration_definition", [])] if eds else []
+    return _definition_list_ids(container, "enumeration_definition", EnumerationDefinitions.EnumerationDefinition)
 
 
 def getTypeDefinitionsExternalTypeDefinitionsIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.34
@@ -748,15 +811,33 @@ def addEnumerationDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.8
 
 
 def addEnumerationDefinitionEnumeratedValue(enumerationDefinitionID: str, name: str, value: str) -> str:  # F.7.82.3
-    ed = _resolve(enumerationDefinitionID)
-    if ed is None:
-        _invalid_id()
-    if getattr(ed, "enumerated_value", None) is None:
-        ed.enumerated_value = []  # type: ignore[attr-defined]
-    ev = SimpleNamespace(name=name, value=SimpleNamespace(value=value))
-    ed.enumerated_value.append(ev)  # type: ignore[attr-defined]
-    register_parent(ev, ed, ("enumerated_value",), "list")
-    return get_handle(ev)
+    """Append a named enumerated value after validating its expression and width.
+
+    Section: F.7.82.3.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition element.
+        name: Unique XML name of the enumerated value.
+        value: Unsigned bit-vector expression source.
+
+    Returns:
+        Handle to the generated enumerated-value element.
+    """
+    owner = _definition(enumerationDefinitionID, EnumerationDefinitions.EnumerationDefinition)
+    getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID)
+    children = _definition_list(owner, "enumerated_value", EnumeratedValueType)
+    name = _definition_new_name(children, name)
+    width_id = getEnumerationDefinitionWidthID(enumerationDefinitionID)
+    width_node = cast(UnsignedPositiveIntExpression, resolve_handle(width_id))
+    width_source = _definition_expression_source(width_id, UnsignedPositiveIntExpression)
+    _expression(width_source, "width", 1, (1 << 32) - 1, width_node)
+    width = _integer(width_source, (1 << 32) - 1, True, minimum=1)
+    value_node = UnsignedBitVectorExpression()
+    value_node.value = _enumeration_value_source(value, value_node, width)
+    child = EnumeratedValueType(name=name, value=value_node)
+    _list_attr(owner, "enumerated_value").append(child)
+    getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID)
+    return get_handle(child)
 
 
 def addExternalTypeDefinitionsModeLink(externalTypeDefinitionsID: str, name: str) -> str:  # F.7.82.4
@@ -825,8 +906,37 @@ def addTypeDefinitionsChoice(typeDefinitionsID: str, name: str) -> str:  # F.7.8
     return get_handle(ch)
 
 
-def addTypeDefinitionsEnumerationDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.10
-    return addEnumerationDefinition(typeDefinitionsID, name)
+def addTypeDefinitionsEnumerationDefinition(typeDefinitionsID: str, name: str, width: str) -> str:  # F.7.82.10
+    """Append a generated enumeration definition with a validated width.
+
+    Section: F.7.82.10.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions document.
+        name: Unique XML name of the enumeration definition.
+        width: Positive unsigned-int width expression source.
+
+    Returns:
+        Handle to the definition; add enumerated values to complete its required content.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    getTypeDefinitionsEnumerationDefinitionIDs(typeDefinitionsID)
+    container = _child(owner, "enumeration_definitions", EnumerationDefinitions)
+    children = (
+        ()
+        if container is None
+        else _definition_list(container, "enumeration_definition", EnumerationDefinitions.EnumerationDefinition)
+    )
+    name = _definition_new_name(children, name)
+    source = _expression(width, "width", 1, (1 << 32) - 1)
+    child = EnumerationDefinitions.EnumerationDefinition(name=name, width=UnsignedPositiveIntExpression(value=source))
+    setEnumerationDefinitionWidth(get_handle(child), width)
+    if container is None:
+        container = EnumerationDefinitions()
+        owner.enumeration_definitions = container
+    _list_attr(container, "enumeration_definition").append(child)
+    getTypeDefinitionsEnumerationDefinitionIDs(typeDefinitionsID)
+    return get_handle(child)
 
 
 def addTypeDefinitionsExternalTypeDefinitions(typeDefinitionsID: str, name: str) -> str:  # F.7.82.11
@@ -974,7 +1084,28 @@ def removeComponentExternalTypeDefinitions(componentID: str) -> bool:  # F.7.82.
 
 
 def removeEnumerationDefinitionEnumeratedValue(enumeratedValueID: str) -> bool:  # F.7.82.24
-    return detach_child_by_handle(enumeratedValueID)
+    """Remove an owned enumerated value and invalidate its subtree.
+
+    Section: F.7.82.24.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue in an enumerationDefinition.
+
+    Returns:
+        True when the member and its value wrapper are removed.
+    """
+    child = _definition(enumeratedValueID, EnumeratedValueType)
+    owner = _register_owned_child(child, EnumerationDefinitions.EnumerationDefinition)
+    if not isinstance(owner, EnumerationDefinitions.EnumerationDefinition):
+        raise TgiError("Enumerated value has no enumeration definition owner", TgiFaultCode.INVALID_ID)
+    children = _definition_list(owner, "enumerated_value", EnumeratedValueType)
+    if not any(member is child for member in children):
+        raise TgiError("Enumerated value is not in its owning list", TgiFaultCode.INVALID_ID)
+    getEnumerationDefinitionEnumeratedValueIDs(get_handle(owner))
+    _list_attr(owner, "enumerated_value")
+    return _remove_owned(
+        enumeratedValueID, EnumeratedValueType, EnumerationDefinitions.EnumerationDefinition, "enumerated value"
+    )
 
 
 def removeExternalTypeDefinitionsModeLink(modeLinkID: str) -> bool:  # F.7.82.25
@@ -1052,7 +1183,37 @@ def removeTypeDefinitionsChoice(choiceID: str) -> bool:  # F.7.82.34
 
 
 def removeTypeDefinitionsEnumerationDefinition(enumerationDefinitionID: str) -> bool:  # F.7.82.35
-    return detach_child_by_handle(enumerationDefinitionID)
+    """Remove an owned enumeration definition and prune an empty optional container.
+
+    Section: F.7.82.35.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition in typeDefinitions.
+
+    Returns:
+        True when the definition and its descendants are removed.
+    """
+    child = _definition(enumerationDefinitionID, EnumerationDefinitions.EnumerationDefinition)
+    container = _register_owned_child(child, EnumerationDefinitions)
+    if not isinstance(container, EnumerationDefinitions):
+        raise TgiError("Enumeration definition has no owning container", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(container, TypeDefinitions)
+    if not isinstance(owner, TypeDefinitions) or owner.enumeration_definitions is not container:
+        raise TgiError("Enumeration definition has no typeDefinitions owner", TgiFaultCode.INVALID_ID)
+    children = _definition_list(container, "enumeration_definition", EnumerationDefinitions.EnumerationDefinition)
+    if not any(member is child for member in children):
+        raise TgiError("Enumeration definition is not in its owning list", TgiFaultCode.INVALID_ID)
+    getTypeDefinitionsEnumerationDefinitionIDs(get_handle(owner))
+    _list_attr(container, "enumeration_definition")
+    result = _remove_owned(
+        enumerationDefinitionID,
+        EnumerationDefinitions.EnumerationDefinition,
+        EnumerationDefinitions,
+        "enumeration definition",
+    )
+    if not container.enumeration_definition:
+        _remove_child(owner, "enumeration_definitions")
+    return result
 
 
 def removeTypeDefinitionsExternalTypeDefinitions(externalTypeDefinitionsID: str) -> bool:  # F.7.82.36
@@ -1127,15 +1288,28 @@ def setBankDefinitionAddressUnitBits(bankDefinitionID: str, addressUnitBits: str
     return _set_definition_unit(_definition(bankDefinitionID, BankDefinitions.BankDefinition), addressUnitBits)
 
 
-def setEnumerationDefinitionWidth(enumerationDefinitionID: str, value: int | str) -> bool:  # F.7.82.48
-    ed = _resolve(enumerationDefinitionID)
-    if ed is None:
-        _invalid_id()
-    node = getattr(ed, "width", None)
-    if node is None:
-        ed.width = SimpleNamespace(value=SimpleNamespace(value=value))  # type: ignore[attr-defined]
-    else:
-        node.value = SimpleNamespace(value=value)  # type: ignore[attr-defined]
+def setEnumerationDefinitionWidth(enumerationDefinitionID: str, width: str) -> bool:  # F.7.82.48
+    """Update width source while preserving its wrapper and existing value fit.
+
+    Section: F.7.82.48.
+
+    Args:
+        enumerationDefinitionID: Handle to an enumerationDefinition element.
+        width: Positive unsigned-int width expression source.
+
+    Returns:
+        True when assigned; undeclared width or value constants remain deferred.
+    """
+    width_id = getEnumerationDefinitionWidthID(enumerationDefinitionID)
+    node = cast(UnsignedPositiveIntExpression, resolve_handle(width_id))
+    source = _expression(width, "width", 1, (1 << 32) - 1, node)
+    number = _integer(source, (1 << 32) - 1, True, minimum=1)
+    for child_id in getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID):
+        child = cast(EnumeratedValueType, resolve_handle(child_id))
+        if not isinstance(child.value, UnsignedBitVectorExpression) or not isinstance(child.value.value, str):
+            raise TgiError("Invalid enumerated value content", TgiFaultCode.INVALID_ID)
+        _enumeration_value_source(child.value.value, child.value, number)
+    node.value = source
     return True
 
 
