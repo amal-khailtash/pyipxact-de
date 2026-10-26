@@ -40,7 +40,7 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterRef,
 )
 
-from ._reference_choices import _reference_choice
+from ._reference_choices import _reference_choice, _set_reference_choice, _update_reference
 from ._reference_paths import _append_reference_path, _remove_reference_path
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
 from ._expressions import _string_source
@@ -194,14 +194,6 @@ def _field_reference_target(reference_id: str | None, xml_name: str) -> str | No
     return resolve_attribute_reference(reference_id, xml_name)
 
 
-def _update_reference[T](current: T | None, replacement: T, attribute: str) -> T:
-    """Preserve an existing named wrapper while updating only its source."""
-    if current is None:
-        return replacement
-    setattr(current, attribute, getattr(replacement, attribute))
-    return current
-
-
 def _field_choice(
     owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice,
 ) -> tuple[_FieldAddressSpaceRef | None, _FieldMemoryMapRef | None, MemoryRemapRef | None]:
@@ -223,25 +215,17 @@ def _set_field_choice(
     owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice, replacement: _FieldChoiceRef, attribute: str
 ) -> bool:
     """Update a reference choice, invalidating only alternatives removed from it."""
-    address, memory_map, remap = _field_choice(owner)
-    if attribute == "address_space_ref":
-        kept = [_update_reference(address, replacement, attribute)]
-    elif attribute == "memory_map_ref":
-        kept = [_update_reference(memory_map, replacement, attribute)]
-        if remap is not None:
-            kept.append(remap)
-    else:
-        if memory_map is None:
-            raise TgiError("memoryRemapRef requires a memoryMapRef", TgiFaultCode.INVALID_ARGUMENT)
-        kept = [memory_map, _update_reference(remap, replacement, attribute)]
-    old = list(owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref)
-    owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref = old
-    for child in tuple(old):
-        if not any(child is retained for retained in kept):
-            detach_child_by_handle(get_handle(child))
-    owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref = kept
-    _owned_list_ids(owner, kept, _FIELD_CHOICE)
-    return True
+    address_type = (
+        ComponentType.Modes.Mode.FieldSlice.AddressSpaceRef
+        if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
+        else FieldMap.FieldSlice.AddressSpaceRef
+    )
+    map_type = (
+        ComponentType.Modes.Mode.FieldSlice.MemoryMapRef
+        if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
+        else FieldMap.FieldSlice.MemoryMapRef
+    )
+    return _set_reference_choice(owner, replacement, attribute, address_type, map_type)
 
 
 def _set_field_reference(

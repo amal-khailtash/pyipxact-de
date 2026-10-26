@@ -16,6 +16,7 @@ from org.accellera.ipxact.v1685_2022 import (
     FieldRef,
     RegisterRef,
     AlternateRegisterRef,
+    MemoryRemapRef,
 )
 from org.accellera.ipxact.v1685_2022.indirect_address_ref import IndirectAddressRef
 from org.accellera.ipxact.v1685_2022.indirect_data_ref import IndirectDataRef
@@ -24,8 +25,8 @@ from org.accellera.ipxact.v1685_2022.register_file_ref import RegisterFileRef
 
 from typing import overload
 
-from .port_map import _child_id, _remove_child
-from ._reference_choices import _reference_choice, _REFERENCE_CHOICE
+from .port_map import _child_id, _remove_child, _name
+from ._reference_choices import _reference_choice, _REFERENCE_CHOICE, _set_reference_choice
 from .component import _list_attr
 from ._reference_paths import _append_reference_path, _remove_reference_path
 from .address_space import _register_owned_child
@@ -82,6 +83,12 @@ __all__ = [
     "getIndirectDataRefRegisterFileRefIDs",
     "getIndirectDataRefRegisterRefByName",
     "getIndirectDataRefRegisterRefID",
+    "setIndirectAddressRefAddressSpaceRef",
+    "setIndirectAddressRefMemoryMapRef",
+    "setIndirectAddressRefMemoryRemapRef",
+    "setIndirectDataRefAddressSpaceRef",
+    "setIndirectDataRefMemoryMapRef",
+    "setIndirectDataRefMemoryRemapRef",
     # EXTENDED (F.7.54)
     "addIndirectAddressRefBankRef",
     "addIndirectAddressRefRegisterFileRef",
@@ -806,3 +813,75 @@ def removeIndirectDataRefRegisterRef(indirectDataRefID: str) -> bool:
     if getIndirectDataRefRegisterRefID(indirectDataRefID) is None:
         return False
     return _remove_child(_indirect_reference(indirectDataRefID, IndirectDataRef), "register_ref")
+
+
+def setIndirectAddressRefAddressSpaceRef(indirectAddressRefID: str, addressSpaceRef: str) -> bool:
+    """Set the normalized addressSpaceRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.27.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = IndirectAddressRef.AddressSpaceRef(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "address_space_ref", IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef
+    )
+
+
+def setIndirectAddressRefMemoryMapRef(indirectAddressRefID: str, memoryMapRef: str) -> bool:
+    """Set the normalized memoryMapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.30.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = IndirectAddressRef.MemoryMapRef(memory_map_ref=_name(memoryMapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_map_ref", IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef
+    )
+
+
+def setIndirectAddressRefMemoryRemapRef(indirectAddressRefID: str, memoryRemapRef: str) -> bool:
+    """Set the normalized memoryRemapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.31.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = MemoryRemapRef(memory_remap_ref=_name(memoryRemapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_remap_ref", IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef
+    )
+
+
+def setIndirectDataRefAddressSpaceRef(indirectDataRefID: str, addressSpaceRef: str) -> bool:
+    """Set the normalized addressSpaceRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.34.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = IndirectDataRef.AddressSpaceRef(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "address_space_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
+    )
+
+
+def setIndirectDataRefMemoryMapRef(indirectDataRefID: str, memoryMapRef: str) -> bool:
+    """Set the normalized memoryMapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.37.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = IndirectDataRef.MemoryMapRef(memory_map_ref=_name(memoryMapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_map_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
+    )
+
+
+def setIndirectDataRefMemoryRemapRef(indirectDataRefID: str, memoryRemapRef: str) -> bool:
+    """Set the normalized memoryRemapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.38.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = MemoryRemapRef(memory_remap_ref=_name(memoryRemapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_remap_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
+    )
