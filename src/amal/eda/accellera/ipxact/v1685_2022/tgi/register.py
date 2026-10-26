@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
+from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegisters
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
 from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
 from org.accellera.ipxact.v1685_2022.field_type import FieldType
@@ -149,6 +150,8 @@ __all__ = [
     "removeRegisterFieldVolatility",
     "removeRegisterTypeIdentifier",
     "removeRegisterVolatility",
+    "setAlternateRegisterTypeIdentifier",
+    "setAlternateRegisterVolatility",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
     "setRegisterFieldTypeIdentifier",
@@ -177,6 +180,8 @@ _REGISTER_DEFINITION_REF_TYPES = (
     RegisterFileDefinitions.RegisterFileDefinition.Register.RegisterDefinitionRef,
 )
 
+type _AlternateRegister = AlternateRegisters.AlternateRegister
+
 _UINT32_MAX = (1 << 32) - 1
 _UINT64_MAX = (1 << 64) - 1
 
@@ -195,6 +200,14 @@ def _resolve_register(registerID: str) -> _Register:
         raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
     _register_graph(register)
     return register
+
+
+def _resolve_alternate_register(alternateRegisterID: str) -> _AlternateRegister:
+    alternate_register = resolve_handle(alternateRegisterID)
+    if not isinstance(alternate_register, AlternateRegisters.AlternateRegister):
+        raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
+    _register_graph(alternate_register)
+    return alternate_register
 
 
 def _resolve_field(fieldID: str) -> FieldType:
@@ -514,16 +527,41 @@ def getAlternateRegisterRefAlternateRegisterRefByName(alternateRegisterRefID: st
 
 
 def getAlternateRegisterTypeIdentifier(alternateRegisterID: str) -> str | None:
-    """Return typeIdentifier value (F.7.73.10)."""
-    ar = _resolve(alternateRegisterID)
-    return _maybe_value(getattr(ar, "type_identifier", None))
+    """Return alternate register typeIdentifier.
+
+    Section: F.7.73.10.
+
+    Args:
+        alternateRegisterID: Handle to an alternate register element.
+
+    Returns:
+        The alternate register typeIdentifier, or None when it is absent.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    identifier = alternate_register.type_identifier
+    if identifier is not None and not isinstance(identifier, str):
+        raise TgiError("Invalid alternate register typeIdentifier", TgiFaultCode.INVALID_ID)
+    return identifier
 
 
 def getAlternateRegisterVolatility(alternateRegisterID: str) -> bool | None:
-    """Return volatility boolean (F.7.73.11)."""
-    ar = _resolve(alternateRegisterID)
-    val = getattr(getattr(ar, "volatile", None), "value", None)
-    return val if isinstance(val, bool) else None
+    """Return explicit alternate register volatility.
+
+    Section: F.7.73.11.
+
+    Args:
+        alternateRegisterID: Handle to an alternate register element.
+
+    Returns:
+        The explicit volatility value, or None when it is absent.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    volatile = alternate_register.volatile
+    if volatile is None:
+        return None
+    if not isinstance(volatile, Volatile) or type(volatile.value) is not bool:
+        raise TgiError("Invalid alternate register volatile value", TgiFaultCode.INVALID_ID)
+    return volatile.value
 
 
 # BroadcastTo getters (grouped)
@@ -1401,24 +1439,47 @@ def removeAlternateRegisterField(regFieldID: str) -> bool:
 
 
 def removeAlternateRegisterTypeIdentifier(alternateRegisterID: str) -> bool:
-    """Remove typeIdentifier (F.7.74.14)."""
-    ar = _resolve(alternateRegisterID)
-    if ar is None:
-        raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
-    if getattr(ar, "type_identifier", None) is None:
+    """Remove the alternate register typeIdentifier.
+
+    Section: F.7.74.14.
+
+    Args:
+        alternateRegisterID: Handle to an alternate register element.
+
+    Returns:
+        True if a typeIdentifier was removed, otherwise False.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    identifier = alternate_register.type_identifier
+    if identifier is None:
         return False
-    ar.type_identifier = None  # type: ignore[attr-defined]
+    if not isinstance(identifier, str):
+        raise TgiError("Invalid alternate register typeIdentifier", TgiFaultCode.INVALID_ID)
+    alternate_register.type_identifier = None
     return True
 
 
 def removeAlternateRegisterVolatility(alternateRegisterID: str) -> bool:
-    """Remove volatility (F.7.74.15)."""
-    ar = _resolve(alternateRegisterID)
-    if ar is None:
-        raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
-    if getattr(ar, "volatile", None) is None:
+    """Remove explicit alternate register volatility.
+
+    Section: F.7.74.15.
+
+    Args:
+        alternateRegisterID: Handle to an alternate register element.
+
+    Returns:
+        True if explicit volatility was removed, otherwise False.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    volatile = alternate_register.volatile
+    if volatile is None:
         return False
-    ar.volatile = None  # type: ignore[attr-defined]
+    if not isinstance(volatile, Volatile) or type(volatile.value) is not bool:
+        raise TgiError("Invalid alternate register volatile value", TgiFaultCode.INVALID_ID)
+    volatile_id = get_handle(volatile)
+    _register_graph(volatile)
+    if not detach_child_by_handle(volatile_id):
+        raise TgiError("Could not remove alternate register volatility", TgiFaultCode.INVALID_ID)
     return True
 
 
@@ -1577,6 +1638,55 @@ def removeRegisterVolatility(registerID: str) -> bool:
     _register_graph(volatile)
     if not detach_child_by_handle(volatile_id):
         raise TgiError("Could not remove register volatility", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def setAlternateRegisterTypeIdentifier(alternateRegisterID: str, typeIdentifier: str) -> bool:
+    """Set alternate register typeIdentifier.
+
+    Section: F.7.74.42.
+
+    Args:
+        alternateRegisterID: Handle to an alternate register element.
+        typeIdentifier: New alternate register typeIdentifier name.
+
+    Returns:
+        True after setting the typeIdentifier.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    value = _schema_name(typeIdentifier, "Name")
+    current = alternate_register.type_identifier
+    if current is not None and not isinstance(current, str):
+        raise TgiError("Invalid alternate register typeIdentifier", TgiFaultCode.INVALID_ID)
+    alternate_register.type_identifier = value
+    return True
+
+
+def setAlternateRegisterVolatility(alternateRegisterID: str, _volatile: bool) -> bool:
+    """Set explicit alternate register volatility.
+
+    Section: F.7.74.43.
+
+    Args:
+        alternateRegisterID: Handle to an alternate register element.
+        _volatile: Whether the alternate register value is volatile.
+
+    Returns:
+        True after setting explicit volatility.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    if type(_volatile) is not bool:
+        raise TgiError("_volatile must be a boolean", TgiFaultCode.INVALID_ARGUMENT)
+    current = alternate_register.volatile
+    if current is not None and (not isinstance(current, Volatile) or type(current.value) is not bool):
+        raise TgiError("Invalid alternate register volatile value", TgiFaultCode.INVALID_ID)
+    if current is None:
+        current = Volatile(value=_volatile)
+        alternate_register.volatile = current
+    else:
+        current.value = _volatile
+    register_parent(current, alternate_register, ("volatile",), "single")
+    _register_graph(current)
     return True
 
 
