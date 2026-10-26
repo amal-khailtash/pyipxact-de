@@ -7,6 +7,74 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Fixed
+
+- Complete nine expression-bearing Type definitions and field-enumeration lifecycle operations with shared constant parsing, generated models and typed ownership. Require explicit keyword-only width in addEnumerationDefinition to resolve the Annex signature mismatch with mandatory XML width; retain the published domainTypeDefID argument name for typed field-value removal.
+
+- Implement five external Type definitions and mode/view link lifecycle operations using generated component holders, validated VLNVs and shared reference setters.
+
+- Implement seven generated named Type definitions builders and typed field-access-policy removal using shared collection lifecycle validation.
+
+- Complete Indirect interface bridge creation, traversal and removal, endianness mutation, memory-map choice replacement and alias/broadcast optional-reference removal.
+
+- Implement seven Indirect interface getters with standard defaults, shared constant evaluation, typed required references and scalar memory-map target resolution.
+
+- Implement eight Indirect interface named reference setters using shared Slice wrapper mutation with index and metadata preservation.
+
+- Implement six Indirect interface root-reference setters through shared Slice choice mutation with wrapper preservation and atomic branch validation.
+
+- Implement ten Indirect interface memory-remap getters and map/remap removers using generated choices, map-qualified target resolution and owned handle invalidation.
+
+- Implement nine Type definitions collection removers with shared typed ownership checks, subtree invalidation and optional-holder pruning.
+
+- Implement view and external VLNV reference setters plus mode/reset/view collection removers with generated wrapper preservation, shared validation, typed ownership and empty-holder pruning.
+- Implement four mode/reset reference setters and three external-link removers with generated wrapper preservation, known local uniqueness, parsed ownership checks and empty-holder pruning.
+- Implement seven Type definitions view/reference lookups with required typed reference handles, validated stored VLNV, registered document resolution and local view target ownership.
+- Implement eight Type definitions mode/reset link reference getters using required generated reference handles, correct reference fields and shared XML Name validation with indirect interfaces.
+- Implement six Type definitions mode/view/reset and external-link collection getters with typed generated members, ordered handles, preserved tuple storage and restored descendant ownership.
+- Implement nine Type definitions collection getters with typed generated members, ordered handles, preserved tuple storage and restored descendant ownership.
+- Implement seven Type definitions enumeration traversal/lifecycle operations with generated builders, unique XML names, known value-width checks, preserved width metadata and parsed-owner subtree removal.
+- Implement four Type definitions address-unit expression setters and three required enumeration-width getters with native Annex signatures, generated wrapper preservation, shared constant-expression validation and correct decimal boundary values.
+- Implement register-file definition address-unit value/expression/ID getters and four typed definition address-unit removers, reusing expression evaluation and invalidating removed child handles while preserving sibling identities.
+- Implement nine Type definitions address-unit value, expression and ID getters for address-block, bank and memory-remap definitions using shared SystemVerilog evaluation, schema/TGI numeric bounds and typed child ownership.
+- Fix eight Indirect interface address-space/memory-map getters and two address-space removers to use generated reference choices, with shared Slice validation, owned handles and atomic rejection of malformed branches.
+- Implement eight Indirect interface bank/register-file path add/remove operations with normalized XML names, atomic typed mutation, strict owner membership and descendant handle invalidation; reuse shared Slice path helpers and guard against foreign-child removal.
+- Implement ten Indirect interface ordered bank/register-file reference getters and alternate-register removers with shared validation, preserved metadata, and owned handle lifetimes.
+- Implement ten Indirect interface register and alternate-register reference operations with shared typed name/handle access and indexed register subtree removal.
+- Implement ten Indirect interface address-block and field-reference operations using shared source/traversal helpers, XML name validation, and indexed subtree removal.
+- Complete all 70 Design TGI operations with schema-valid choice and connection builders, guarded owned removal, and scoped current/top generator Design context.
+- Implement eight Design power-domain link operations with shared typed traversal, SystemVerilog string expressions, preserved metadata, and registered referencing-component domain resolution.
+- Implement seven Design component-instance operations with generated name/reference wrappers, registry target resolution, unique names, shared metadata-preserving VLNV edits and owned subtree removal.
+- Implement eight Design monitor-endpoint and interconnection setter operations using shared builders, owned replacement/removal, role-aware handles and schema instance-path validation.
+- Implement nine Design active-interface, hierarchical-interface and excluded-port lifecycle operations with generated fields, schema name validation, ordered ownership and strict subtree removal.
+- Implement five Design tied-value operations through shared expression and child-lifecycle functions, validating unsigned constants and open/default alternatives while preserving source, bounds and metadata.
+- Implement eight Design ad-hoc connection and endpoint lifecycle operations with shared builders, schema name validation, unique connection names, ordered references and owned subtree removal.
+- Implement nine Design port-reference traversal operations with generated mixed holders, stored names, shared ordered sub-port validation, and strict owner/list membership on removal.
+- Implement six Design internal/external port part-select operations using shared generated models and SV expression validation, preserving metadata and invalidating removed subtree handles.
+- Complete all 67 Slice TGI operations with document-local target resolution, selected map/remap context, exact bank/register-file paths, and banked address-block support.
+- Validate mode port-builder references with the standard portName restriction and record a deferred ossschem GUI integration investigation.
+- Implement nine Slice register-reference and mode-builder operations with complete Annex/WSDL signatures, generated required references, and parsed subtree removal.
+- Implement eight FieldSlice bank/register-file reference-path operations with standard name signatures, generated ordered wrappers, and owned subtree removal.
+- Implement ten FieldSlice address-space/map/remap reference-choice operations with generated wrappers, atomic choice updates, and removed handle invalidation.
+- Implement ten FieldSlice named-reference operations with standard signatures and generated wrappers.
+- Normalize referenced XML names while preserving indices, metadata and wrapper identity; remove alternate-register references through their owning slice.
+- Implement five FieldSlice range operations for mode and field-map slices using shared generated range helpers.
+- Correct FieldSlice range source-array and owner-based mutation signatures while preserving expression metadata and descendant lifetimes.
+- Implement eight mode port-slice reference and part-select operations using generated models and shared atomic setters.
+- Correct Slice reference signatures and name-return contracts, normalize referenced port names, and preserve wrappers and subtree lifetimes.
+- Reject reversed unsigned expression bounds even when constant identifiers remain unresolved.
+- Implement five Slice path/location operations with generated path holders, ordered traversal, and parsed ownership recovery.
+- Validate HDL path string expressions through SvExpressionParser while preserving source text and required containers on removal.
+- Implement six HDL Slice range operations with generated models, preserved expression metadata, and shared Driver range helpers.
+- Correct Slice range setter and remover signatures and validate endpoint changes atomically.
+- Complete Driver choice builders with standard expression arguments, atomic validation, and shared low-level setters.
+- Validate and normalize unique Driver view references using the standard NMTOKEN rules.
+- Correct Driver removal handles, invalidate removed subtrees, and recover parsed view-reference ownership.
+- Preserve Driver range/default expression metadata and validate mutations before changing generated choice or endpoint values.
+- Implement standard string-expression signatures for clock pulse and SingleShotDriver setters, preserving wrapper identity and metadata.
+- Validate clock pulse expressions using the shared SystemVerilog one-bit cast and enforce binary SingleShotDriver values.
+- Update Codecov main coverage from the immutable release tag after verified PyPI publication.
+
 ## [0.8.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.7.0...v0.8.0) (2026-10-24)
 
 

@@ -75,12 +75,24 @@ def _get_text(elementID: str, attr: str) -> str | None:
 
 @lru_cache(maxsize=3)
 def _name_schema(kind: str) -> etree.XMLSchema:
-    """Validate the lexical rules of the five commonStructures name groups."""
+    """Validate the lexical rules of the five commonStructures name groups.
+
+    Instance reference paths additionally use the three instancePath schema patterns.
+    """
     declaration = f'<xs:element name="name" type="xs:{kind}"/>'
     if kind == "portName":
         declaration = (
             '<xs:element name="name"><xs:simpleType><xs:restriction base="xs:string">'
             '<xs:whiteSpace value="collapse"/><xs:pattern value="\\i[\\p{L}\\p{N}\\.\\-:_]*"/>'
+            "</xs:restriction></xs:simpleType></xs:element>"
+        )
+    elif kind == "instancePath":
+        declaration = (
+            '<xs:element name="name"><xs:simpleType><xs:restriction base="xs:string">'
+            '<xs:whiteSpace value="collapse"/>'
+            '<xs:pattern value="\\i[\\p{L}\\p{N}\\.\\-:_]*"/>'
+            '<xs:pattern value="\\i[\\p{L}\\p{N}\\.\\-:_]*/\\i[\\p{L}\\p{N}\\.\\-:_]*"/>'
+            '<xs:pattern value="(\\i[\\p{L}\\p{N}\\.\\-:_]*/)+[\\i\\p{L}\\p{N}\\.\\-:_]*"/>'
             "</xs:restriction></xs:simpleType></xs:element>"
         )
     return etree.XMLSchema(

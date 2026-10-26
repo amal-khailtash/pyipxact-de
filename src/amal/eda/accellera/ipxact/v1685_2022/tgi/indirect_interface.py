@@ -10,18 +10,44 @@ Error handling: invalid handles raise :class:`TgiError` with
 """
 # ruff: noqa: I001
 
-from org.accellera.ipxact.v1685_2022 import IndirectInterface
+from org.accellera.ipxact.v1685_2022 import (
+    IndirectInterface,
+    AddressBlockRef,
+    FieldRef,
+    RegisterRef,
+    AlternateRegisterRef,
+    MemoryRemapRef,
+    BitsInLau,
+    TransparentBridge,
+    FieldType,
+    FieldDefinitions,
+    EndianessType,
+)
 from org.accellera.ipxact.v1685_2022.indirect_address_ref import IndirectAddressRef
 from org.accellera.ipxact.v1685_2022.indirect_data_ref import IndirectDataRef
 from org.accellera.ipxact.v1685_2022.bank_ref import BankRef
 from org.accellera.ipxact.v1685_2022.register_file_ref import RegisterFileRef
+
+from typing import overload
+
+from .port_map import _child, _child_id, _remove_child, _name
+from ._reference_choices import _reference_choice, _REFERENCE_CHOICE, _set_reference_choice
+from .component import _list_attr
+from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
+from .address_space import _register_owned_child, _remove_owned
+from ._model import _reference_list, _owned_list_ids
+from .component import _register_graph
+from ._attribute_references import _reference_name, resolve_attribute_reference
+
+from ._interface_choices import _indirect_interface_choice, _INTERFACE_CHOICE
+from .register_file import _numeric
+from .miscellaneous import getExpression
 
 from .core import (
     TgiError,
     TgiFaultCode,
     resolve_handle,
     get_handle,
-    register_parent,
     detach_child_by_handle,
 )
 
@@ -65,6 +91,32 @@ __all__ = [
     "getIndirectDataRefRegisterFileRefIDs",
     "getIndirectDataRefRegisterRefByName",
     "getIndirectDataRefRegisterRefID",
+    "setIndirectAddressRefAddressSpaceRef",
+    "setIndirectAddressRefMemoryMapRef",
+    "setIndirectAddressRefMemoryRemapRef",
+    "setIndirectDataRefAddressSpaceRef",
+    "setIndirectDataRefMemoryMapRef",
+    "setIndirectDataRefMemoryRemapRef",
+    "setIndirectAddressRefAddressBlockRef",
+    "setIndirectAddressRefAlternateRegisterRef",
+    "setIndirectAddressRefFieldRef",
+    "setIndirectAddressRefRegisterRef",
+    "setIndirectDataRefAddressBlockRef",
+    "setIndirectDataRefAlternateRegisterRef",
+    "setIndirectDataRefFieldRef",
+    "setIndirectDataRefRegisterRef",
+    "getIndirectInterfaceBitsInLau",
+    "getIndirectInterfaceBitsInLauExpression",
+    "getIndirectInterfaceEndianness",
+    "getIndirectInterfaceIndirectAddressRefID",
+    "getIndirectInterfaceIndirectDataRefID",
+    "getIndirectInterfaceMemoryMapRefByID",
+    "getIndirectInterfaceMemoryMapRefByName",
+    "getIndirectInterfaceTransparentBridgeIDs",
+    "removeIndirectInterfaceEndianness",
+    "removeIndirectInterfaceTransparentBridge",
+    "setIndirectInterfaceEndianness",
+    "setIndirectInterfaceMemoryMapRef",
     # EXTENDED (F.7.54)
     "addIndirectAddressRefBankRef",
     "addIndirectAddressRefRegisterFileRef",
@@ -95,6 +147,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Helpers (non-spec)
 # ---------------------------------------------------------------------------
+
 
 def _resolve(iiID: str) -> IndirectInterface | None:
     obj = resolve_handle(iiID)
@@ -129,6 +182,53 @@ def _get_data_ref(iiID: str) -> IndirectDataRef:
     return ii.indirect_data_ref
 
 
+def _indirect_reference[T: IndirectAddressRef | IndirectDataRef](reference_id: str, model_type: type[T]) -> T:
+    """Resolve the generated address or data reference owner before child traversal."""
+    owner = resolve_handle(reference_id)
+    if not isinstance(owner, model_type):
+        raise TgiError("Invalid indirect reference handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+@overload
+def _indirect_reference_name(reference_id: str, xml_name: str) -> str: ...
+
+
+@overload
+def _indirect_reference_name(reference_id: None, xml_name: str) -> None: ...
+
+
+def _indirect_reference_name(reference_id: str | None, xml_name: str) -> str | None:
+    """Read a reference source with shared attribute mapping and XML Name validation."""
+    return _reference_name(reference_id, xml_name)
+
+
+def _indirect_reference_ids[T: BankRef | RegisterFileRef](
+    owner: IndirectAddressRef | IndirectDataRef, attribute: str, model_type: type[T]
+) -> list[str]:
+    """Return an ordered typed reference path with immediate and descendant ownership."""
+    children = _reference_list(owner, attribute, model_type)
+    for child in children:
+        _register_graph(child)
+    return _owned_list_ids(owner, children, attribute)
+
+
+def _remove_indirect_path[T: BankRef | RegisterFileRef](
+    reference_id: str,
+    owner_type: type[IndirectAddressRef] | type[IndirectDataRef],
+    attribute: str,
+    model_type: type[T],
+) -> bool:
+    """Discover and require the specific address/data path owner before removal."""
+    child = resolve_handle(reference_id)
+    if not isinstance(child, model_type):
+        raise TgiError("Invalid indirect path reference handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, owner_type)
+    if not isinstance(owner, owner_type):
+        raise TgiError("Reference has no matching indirect path owner", TgiFaultCode.INVALID_ID)
+    return _remove_reference_path(owner, reference_id, attribute, model_type)
+
+
 def _safe_name(obj: object | None, attr: str) -> object | None:  # helper for attribute-holding refs
     if obj is None:
         return None
@@ -139,16 +239,13 @@ def _safe_name(obj: object | None, attr: str) -> object | None:  # helper for at
 # BASE (F.7.53) – IndirectAddressRef getters
 # ---------------------------------------------------------------------------
 
+
 def getIndirectAddressRefAddressBlockRefByName(indirectAddressRefID: str) -> str | None:
     """Return addressBlockRef attribute value.
 
     Section: F.7.53.1.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    blk = ar.address_block_ref
-    return None if blk is None else blk.address_block_ref
+    return _indirect_reference_name(getIndirectAddressRefAddressBlockRefID(indirectAddressRefID), "addressBlockRef")
 
 
 def getIndirectAddressRefAddressBlockRefID(indirectAddressRefID: str) -> str | None:
@@ -156,10 +253,9 @@ def getIndirectAddressRefAddressBlockRefID(indirectAddressRefID: str) -> str | N
 
     Section: F.7.53.2.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.address_block_ref is None else get_handle(ar.address_block_ref)
+    return _child_id(
+        _indirect_reference(indirectAddressRefID, IndirectAddressRef), "address_block_ref", AddressBlockRef
+    )
 
 
 def getIndirectAddressRefAddressSpaceRefByName(indirectAddressRefID: str) -> str | None:
@@ -167,11 +263,7 @@ def getIndirectAddressRefAddressSpaceRefByName(indirectAddressRefID: str) -> str
 
     Section: F.7.53.3.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    asr = ar.address_space_ref
-    return None if asr is None else asr.address_space_ref
+    return _indirect_reference_name(getIndirectAddressRefAddressSpaceRefID(indirectAddressRefID), "addressSpaceRef")
 
 
 def getIndirectAddressRefAddressSpaceRefID(indirectAddressRefID: str) -> str | None:
@@ -179,10 +271,9 @@ def getIndirectAddressRefAddressSpaceRefID(indirectAddressRefID: str) -> str | N
 
     Section: F.7.53.4.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.address_space_ref is None else get_handle(ar.address_space_ref)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child = _reference_choice(owner, IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef)[0]
+    return get_handle(child) if child is not None else None
 
 
 def getIndirectAddressRefAlternateRegisterRefByName(indirectAddressRefID: str) -> str | None:
@@ -190,11 +281,9 @@ def getIndirectAddressRefAlternateRegisterRefByName(indirectAddressRefID: str) -
 
     Section: F.7.53.5.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    alt = ar.alternate_register_ref
-    return None if alt is None else alt.alternate_register_ref
+    return _indirect_reference_name(
+        getIndirectAddressRefAlternateRegisterRefID(indirectAddressRefID), "alternateRegisterRef"
+    )
 
 
 def getIndirectAddressRefAlternateRegisterRefID(indirectAddressRefID: str) -> str | None:
@@ -202,10 +291,9 @@ def getIndirectAddressRefAlternateRegisterRefID(indirectAddressRefID: str) -> st
 
     Section: F.7.53.6.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.alternate_register_ref is None else get_handle(ar.alternate_register_ref)
+    return _child_id(
+        _indirect_reference(indirectAddressRefID, IndirectAddressRef), "alternate_register_ref", AlternateRegisterRef
+    )
 
 
 def getIndirectAddressRefBankRefByNames(indirectAddressRefID: str) -> list[str]:
@@ -213,10 +301,9 @@ def getIndirectAddressRefBankRefByNames(indirectAddressRefID: str) -> list[str]:
 
     Section: F.7.53.7.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return [b.bank_ref for b in getattr(ar, "bank_ref", []) if b.bank_ref is not None]
+    return [
+        _indirect_reference_name(handle, "bankRef") for handle in getIndirectAddressRefBankRefIDs(indirectAddressRefID)
+    ]
 
 
 def getIndirectAddressRefBankRefIDs(indirectAddressRefID: str) -> list[str]:
@@ -224,10 +311,7 @@ def getIndirectAddressRefBankRefIDs(indirectAddressRefID: str) -> list[str]:
 
     Section: F.7.53.8.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(b) for b in getattr(ar, "bank_ref", [])]
+    return _indirect_reference_ids(_indirect_reference(indirectAddressRefID, IndirectAddressRef), "bank_ref", BankRef)
 
 
 def getIndirectAddressRefFieldRefByName(indirectAddressRefID: str) -> str | None:
@@ -235,11 +319,7 @@ def getIndirectAddressRefFieldRefByName(indirectAddressRefID: str) -> str | None
 
     Section: F.7.53.9.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    fr = ar.field_ref
-    return None if fr is None else fr.field_ref
+    return _indirect_reference_name(getIndirectAddressRefFieldRefID(indirectAddressRefID), "fieldRef")
 
 
 def getIndirectAddressRefFieldRefID(indirectAddressRefID: str) -> str | None:
@@ -247,10 +327,7 @@ def getIndirectAddressRefFieldRefID(indirectAddressRefID: str) -> str | None:
 
     Section: F.7.53.10.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.field_ref is None else get_handle(ar.field_ref)
+    return _child_id(_indirect_reference(indirectAddressRefID, IndirectAddressRef), "field_ref", FieldRef)
 
 
 def getIndirectAddressRefMemoryMapRefByName(indirectAddressRefID: str) -> str | None:
@@ -258,11 +335,7 @@ def getIndirectAddressRefMemoryMapRefByName(indirectAddressRefID: str) -> str | 
 
     Section: F.7.53.11.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    mm = ar.memory_map_ref
-    return None if mm is None else mm.memory_map_ref
+    return _indirect_reference_name(getIndirectAddressRefMemoryMapRefID(indirectAddressRefID), "memoryMapRef")
 
 
 def getIndirectAddressRefMemoryMapRefID(indirectAddressRefID: str) -> str | None:
@@ -270,30 +343,29 @@ def getIndirectAddressRefMemoryMapRefID(indirectAddressRefID: str) -> str | None
 
     Section: F.7.53.12.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.memory_map_ref is None else get_handle(ar.memory_map_ref)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child = _reference_choice(owner, IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef)[1]
+    return get_handle(child) if child is not None else None
 
 
 def getIndirectAddressRefMemoryRemapRefByID(indirectAddressRefID: str) -> str | None:
-    """Return memoryRemapRef attribute value (same as ByName for attribute form).
+    """Return the handle of the referenced memoryRemap element.
 
     Section: F.7.53.13.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    mr = ar.memory_remap_ref
-    return None if mr is None else mr.memory_remap_ref
+    reference_id = getIndirectAddressRefMemoryRemapRefID(indirectAddressRefID)
+    if reference_id is None:
+        return None
+    getIndirectAddressRefMemoryRemapRefByName(indirectAddressRefID)
+    return resolve_attribute_reference(reference_id, "memoryRemapRef")
 
 
 def getIndirectAddressRefMemoryRemapRefByName(indirectAddressRefID: str) -> str | None:
-    """Alias returning memoryRemapRef attribute value.
+    """Return the memoryRemapRef attribute value.
 
     Section: F.7.53.14.
     """
-    return getIndirectAddressRefMemoryRemapRefByID(indirectAddressRefID)
+    return _indirect_reference_name(getIndirectAddressRefMemoryRemapRefID(indirectAddressRefID), "memoryRemapRef")
 
 
 def getIndirectAddressRefMemoryRemapRefID(indirectAddressRefID: str) -> str | None:
@@ -301,10 +373,12 @@ def getIndirectAddressRefMemoryRemapRefID(indirectAddressRefID: str) -> str | No
 
     Section: F.7.53.15.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.memory_remap_ref is None else get_handle(ar.memory_remap_ref)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child = _reference_choice(owner, IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef)[2]
+    if child is None:
+        return None
+    _register_graph(child)
+    return get_handle(child)
 
 
 def getIndirectAddressRefRegisterFileRefByNames(indirectAddressRefID: str) -> list[str]:
@@ -312,10 +386,10 @@ def getIndirectAddressRefRegisterFileRefByNames(indirectAddressRefID: str) -> li
 
     Section: F.7.53.16.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return [r.register_file_ref for r in getattr(ar, "register_file_ref", []) if r.register_file_ref is not None]
+    return [
+        _indirect_reference_name(handle, "registerFileRef")
+        for handle in getIndirectAddressRefRegisterFileRefIDs(indirectAddressRefID)
+    ]
 
 
 def getIndirectAddressRefRegisterFileRefIDs(indirectAddressRefID: str) -> list[str]:
@@ -323,10 +397,9 @@ def getIndirectAddressRefRegisterFileRefIDs(indirectAddressRefID: str) -> list[s
 
     Section: F.7.53.17.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(r) for r in getattr(ar, "register_file_ref", [])]
+    return _indirect_reference_ids(
+        _indirect_reference(indirectAddressRefID, IndirectAddressRef), "register_file_ref", RegisterFileRef
+    )
 
 
 def getIndirectAddressRefRegisterRefByName(indirectAddressRefID: str) -> str | None:
@@ -334,11 +407,7 @@ def getIndirectAddressRefRegisterRefByName(indirectAddressRefID: str) -> str | N
 
     Section: F.7.53.18.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    rr = ar.register_ref
-    return None if rr is None else rr.register_ref
+    return _indirect_reference_name(getIndirectAddressRefRegisterRefID(indirectAddressRefID), "registerRef")
 
 
 def getIndirectAddressRefRegisterRefID(indirectAddressRefID: str) -> str | None:
@@ -346,24 +415,18 @@ def getIndirectAddressRefRegisterRefID(indirectAddressRefID: str) -> str | None:
 
     Section: F.7.53.19.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    return None if ar.register_ref is None else get_handle(ar.register_ref)
+    return _child_id(_indirect_reference(indirectAddressRefID, IndirectAddressRef), "register_ref", RegisterRef)
 
 
 # IndirectDataRef getters (F.7.53.20+)
+
 
 def getIndirectDataRefAddressBlockRefByName(indirectDataRefID: str) -> str | None:
     """Return addressBlockRef attribute value for data ref.
 
     Section: F.7.53.20.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    blk = dr.address_block_ref
-    return None if blk is None else blk.address_block_ref
+    return _indirect_reference_name(getIndirectDataRefAddressBlockRefID(indirectDataRefID), "addressBlockRef")
 
 
 def getIndirectDataRefAddressBlockRefID(indirectDataRefID: str) -> str | None:
@@ -371,10 +434,7 @@ def getIndirectDataRefAddressBlockRefID(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.21.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.address_block_ref is None else get_handle(dr.address_block_ref)
+    return _child_id(_indirect_reference(indirectDataRefID, IndirectDataRef), "address_block_ref", AddressBlockRef)
 
 
 def getIndirectDataRefAddressSpaceRefByName(indirectDataRefID: str) -> str | None:
@@ -382,11 +442,7 @@ def getIndirectDataRefAddressSpaceRefByName(indirectDataRefID: str) -> str | Non
 
     Section: F.7.53.22.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    asr = dr.address_space_ref
-    return None if asr is None else asr.address_space_ref
+    return _indirect_reference_name(getIndirectDataRefAddressSpaceRefID(indirectDataRefID), "addressSpaceRef")
 
 
 def getIndirectDataRefAddressSpaceRefID(indirectDataRefID: str) -> str | None:
@@ -394,10 +450,9 @@ def getIndirectDataRefAddressSpaceRefID(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.23.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.address_space_ref is None else get_handle(dr.address_space_ref)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child = _reference_choice(owner, IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef)[0]
+    return get_handle(child) if child is not None else None
 
 
 def getIndirectDataRefAlternateRegisterRefByName(indirectDataRefID: str) -> str | None:
@@ -405,11 +460,7 @@ def getIndirectDataRefAlternateRegisterRefByName(indirectDataRefID: str) -> str 
 
     Section: F.7.53.24.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    alt = dr.alternate_register_ref
-    return None if alt is None else alt.alternate_register_ref
+    return _indirect_reference_name(getIndirectDataRefAlternateRegisterRefID(indirectDataRefID), "alternateRegisterRef")
 
 
 def getIndirectDataRefAlternateRegisterRefID(indirectDataRefID: str) -> str | None:
@@ -417,10 +468,9 @@ def getIndirectDataRefAlternateRegisterRefID(indirectDataRefID: str) -> str | No
 
     Section: F.7.53.25.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.alternate_register_ref is None else get_handle(dr.alternate_register_ref)
+    return _child_id(
+        _indirect_reference(indirectDataRefID, IndirectDataRef), "alternate_register_ref", AlternateRegisterRef
+    )
 
 
 def getIndirectDataRefBankRefByNames(indirectDataRefID: str) -> list[str]:
@@ -428,10 +478,7 @@ def getIndirectDataRefBankRefByNames(indirectDataRefID: str) -> list[str]:
 
     Section: F.7.53.26.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return [b.bank_ref for b in getattr(dr, "bank_ref", []) if b.bank_ref is not None]
+    return [_indirect_reference_name(handle, "bankRef") for handle in getIndirectDataRefBankRefIDs(indirectDataRefID)]
 
 
 def getIndirectDataRefBankRefIDs(indirectDataRefID: str) -> list[str]:
@@ -439,10 +486,7 @@ def getIndirectDataRefBankRefIDs(indirectDataRefID: str) -> list[str]:
 
     Section: F.7.53.27.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(b) for b in getattr(dr, "bank_ref", [])]
+    return _indirect_reference_ids(_indirect_reference(indirectDataRefID, IndirectDataRef), "bank_ref", BankRef)
 
 
 def getIndirectDataRefFieldRefByName(indirectDataRefID: str) -> str | None:
@@ -450,11 +494,7 @@ def getIndirectDataRefFieldRefByName(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.28.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    fr = dr.field_ref
-    return None if fr is None else fr.field_ref
+    return _indirect_reference_name(getIndirectDataRefFieldRefID(indirectDataRefID), "fieldRef")
 
 
 def getIndirectDataRefFieldRefID(indirectDataRefID: str) -> str | None:
@@ -462,10 +502,7 @@ def getIndirectDataRefFieldRefID(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.29.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.field_ref is None else get_handle(dr.field_ref)
+    return _child_id(_indirect_reference(indirectDataRefID, IndirectDataRef), "field_ref", FieldRef)
 
 
 def getIndirectDataRefMemoryMapRefByName(indirectDataRefID: str) -> str | None:
@@ -473,11 +510,7 @@ def getIndirectDataRefMemoryMapRefByName(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.30.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    mm = dr.memory_map_ref
-    return None if mm is None else mm.memory_map_ref
+    return _indirect_reference_name(getIndirectDataRefMemoryMapRefID(indirectDataRefID), "memoryMapRef")
 
 
 def getIndirectDataRefMemoryMapRefID(indirectDataRefID: str) -> str | None:
@@ -485,30 +518,29 @@ def getIndirectDataRefMemoryMapRefID(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.31.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.memory_map_ref is None else get_handle(dr.memory_map_ref)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child = _reference_choice(owner, IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef)[1]
+    return get_handle(child) if child is not None else None
 
 
 def getIndirectDataRefMemoryRemapRefByID(indirectDataRefID: str) -> str | None:
-    """Return memoryRemapRef attribute value (data).
+    """Return the handle of the referenced memoryRemap element.
 
     Section: F.7.53.32.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    mr = dr.memory_remap_ref
-    return None if mr is None else mr.memory_remap_ref
+    reference_id = getIndirectDataRefMemoryRemapRefID(indirectDataRefID)
+    if reference_id is None:
+        return None
+    getIndirectDataRefMemoryRemapRefByName(indirectDataRefID)
+    return resolve_attribute_reference(reference_id, "memoryRemapRef")
 
 
 def getIndirectDataRefMemoryRemapRefByName(indirectDataRefID: str) -> str | None:
-    """Alias returning memoryRemapRef attribute value (data).
+    """Return the memoryRemapRef attribute value (data).
 
     Section: F.7.53.33.
     """
-    return getIndirectDataRefMemoryRemapRefByID(indirectDataRefID)
+    return _indirect_reference_name(getIndirectDataRefMemoryRemapRefID(indirectDataRefID), "memoryRemapRef")
 
 
 def getIndirectDataRefMemoryRemapRefID(indirectDataRefID: str) -> str | None:
@@ -516,10 +548,12 @@ def getIndirectDataRefMemoryRemapRefID(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.34.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.memory_remap_ref is None else get_handle(dr.memory_remap_ref)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child = _reference_choice(owner, IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef)[2]
+    if child is None:
+        return None
+    _register_graph(child)
+    return get_handle(child)
 
 
 def getIndirectDataRefRegisterFileRefByNames(indirectDataRefID: str) -> list[str]:
@@ -527,10 +561,10 @@ def getIndirectDataRefRegisterFileRefByNames(indirectDataRefID: str) -> list[str
 
     Section: F.7.53.35.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return [r.register_file_ref for r in getattr(dr, "register_file_ref", []) if r.register_file_ref is not None]
+    return [
+        _indirect_reference_name(handle, "registerFileRef")
+        for handle in getIndirectDataRefRegisterFileRefIDs(indirectDataRefID)
+    ]
 
 
 def getIndirectDataRefRegisterFileRefIDs(indirectDataRefID: str) -> list[str]:
@@ -538,10 +572,9 @@ def getIndirectDataRefRegisterFileRefIDs(indirectDataRefID: str) -> list[str]:
 
     Section: F.7.53.36.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return [get_handle(r) for r in getattr(dr, "register_file_ref", [])]
+    return _indirect_reference_ids(
+        _indirect_reference(indirectDataRefID, IndirectDataRef), "register_file_ref", RegisterFileRef
+    )
 
 
 def getIndirectDataRefRegisterRefByName(indirectDataRefID: str) -> str | None:
@@ -549,11 +582,7 @@ def getIndirectDataRefRegisterRefByName(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.37.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    rr = dr.register_ref
-    return None if rr is None else rr.register_ref
+    return _indirect_reference_name(getIndirectDataRefRegisterRefID(indirectDataRefID), "registerRef")
 
 
 def getIndirectDataRefRegisterRefID(indirectDataRefID: str) -> str | None:
@@ -561,28 +590,23 @@ def getIndirectDataRefRegisterRefID(indirectDataRefID: str) -> str | None:
 
     Section: F.7.53.38.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    return None if dr.register_ref is None else get_handle(dr.register_ref)
+    return _child_id(_indirect_reference(indirectDataRefID, IndirectDataRef), "register_ref", RegisterRef)
 
 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.54)
 # ---------------------------------------------------------------------------
 
+
 def addIndirectAddressRefBankRef(indirectAddressRefID: str, bankRef: str) -> str:
     """Append a bankRef to indirectAddressRef.
 
     Section: F.7.54.1.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    br = BankRef(bank_ref=bankRef)
-    ar.bank_ref.append(br)  # type: ignore[attr-defined]
-    register_parent(br, ar, ("bank_ref",), "list")
-    return get_handle(br)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child_id = _append_reference_path(owner, bankRef, "bank_ref", BankRef)
+    getIndirectAddressRefBankRefIDs(indirectAddressRefID)
+    return child_id
 
 
 def addIndirectAddressRefRegisterFileRef(indirectAddressRefID: str, registerFileRef: str) -> str:
@@ -590,13 +614,10 @@ def addIndirectAddressRefRegisterFileRef(indirectAddressRefID: str, registerFile
 
     Section: F.7.54.2.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    rf = RegisterFileRef(register_file_ref=registerFileRef)
-    ar.register_file_ref.append(rf)  # type: ignore[attr-defined]
-    register_parent(rf, ar, ("register_file_ref",), "list")
-    return get_handle(rf)
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    child_id = _append_reference_path(owner, registerFileRef, "register_file_ref", RegisterFileRef)
+    getIndirectAddressRefRegisterFileRefIDs(indirectAddressRefID)
+    return child_id
 
 
 def addIndirectDataRefBankRef(indirectDataRefID: str, bankRef: str) -> str:
@@ -604,13 +625,10 @@ def addIndirectDataRefBankRef(indirectDataRefID: str, bankRef: str) -> str:
 
     Section: F.7.54.3.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    br = BankRef(bank_ref=bankRef)
-    dr.bank_ref.append(br)  # type: ignore[attr-defined]
-    register_parent(br, dr, ("bank_ref",), "list")
-    return get_handle(br)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child_id = _append_reference_path(owner, bankRef, "bank_ref", BankRef)
+    getIndirectDataRefBankRefIDs(indirectDataRefID)
+    return child_id
 
 
 def addIndirectDataRefRegisterFileRef(indirectDataRefID: str, registerFileRef: str) -> str:
@@ -618,13 +636,10 @@ def addIndirectDataRefRegisterFileRef(indirectDataRefID: str, registerFileRef: s
 
     Section: F.7.54.4.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    rf = RegisterFileRef(register_file_ref=registerFileRef)
-    dr.register_file_ref.append(rf)  # type: ignore[attr-defined]
-    register_parent(rf, dr, ("register_file_ref",), "list")
-    return get_handle(rf)
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    child_id = _append_reference_path(owner, registerFileRef, "register_file_ref", RegisterFileRef)
+    getIndirectDataRefRegisterFileRefIDs(indirectDataRefID)
+    return child_id
 
 
 def addIndirectInterfaceTransparentBridge(indirectInterfaceID: str, initiatorRef: str) -> str:
@@ -632,33 +647,65 @@ def addIndirectInterfaceTransparentBridge(indirectInterfaceID: str, initiatorRef
 
     Section: F.7.54.5.
     """
-    ii = _resolve(indirectInterfaceID)
-    if ii is None:
-        raise TgiError("Invalid indirectInterface handle", TgiFaultCode.INVALID_ID)
-    from org.accellera.ipxact.v1685_2022.transparent_bridge import TransparentBridge
-
-    tb = TransparentBridge(initiator_ref=initiatorRef)
-    ii.transparent_bridge.append(tb)  # type: ignore[attr-defined]
-    register_parent(tb, ii, ("transparent_bridge",), "list")
-    return get_handle(tb)
+    owner = _indirect_interface(indirectInterfaceID)
+    name = _name(initiatorRef, "Name")
+    _, bridges = _indirect_interface_choice(owner)
+    for bridge in bridges:
+        if not isinstance(bridge.initiator_ref, str):
+            raise TgiError("Invalid transparent bridge reference", TgiFaultCode.INVALID_ID)
+        try:
+            current = _name(bridge.initiator_ref, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid transparent bridge reference", TgiFaultCode.INVALID_ID) from error
+        if current == name:
+            raise TgiError("Duplicate transparent bridge reference", TgiFaultCode.ALREADY_EXISTS)
+    getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID)
+    values = _list_attr(owner, _INTERFACE_CHOICE)
+    if values and isinstance(values[0], str):
+        values.clear()
+    bridge = TransparentBridge(initiator_ref=name)
+    values.append(bridge)
+    getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID)
+    return get_handle(bridge)
 
 
 # The following remove* functions act on handles of child elements
 
-def removeAliasOfMemoryRemapRef(aliasOfMemoryRemapRefID: str) -> bool:
-    """Remove aliasOfMemoryRemapRef (global element reference removal).
+
+def removeAliasOfMemoryRemapRef(aliasOfID: str) -> bool:
+    """Remove the optional memoryRemapRef from an aliasOf element.
 
     Section: F.7.54.6.
     """
-    return detach_child_by_handle(aliasOfMemoryRemapRefID)
+    owner = resolve_handle(aliasOfID)
+    if not isinstance(owner, FieldType.AliasOf):
+        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
+    child = _reference_choice(owner, FieldType.AliasOf.AddressSpaceRef, FieldType.AliasOf.MemoryMapRef)[2]
+    if child is None:
+        return False
+    _register_graph(child)
+    _list_attr(owner, _REFERENCE_CHOICE)
+    return detach_child_by_handle(get_handle(child))
 
 
-def removeBroadcastToAddressSpaceRef(broadcastToAddressSpaceRefID: str) -> bool:
-    """Remove broadcastToAddressSpaceRef.
+def removeBroadcastToAddressSpaceRef(broadcastToID: str) -> bool:
+    """Remove the optional addressSpaceRef from a broadcastTo element.
 
     Section: F.7.54.7.
     """
-    return detach_child_by_handle(broadcastToAddressSpaceRefID)
+    owner = resolve_handle(broadcastToID)
+    models = (
+        FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+        FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+    )
+    if not isinstance(owner, models):
+        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
+    child = _reference_choice(owner, type(owner).AddressSpaceRef, type(owner).MemoryMapRef)[0]
+    if child is None:
+        return False
+    _register_graph(child)
+    _list_attr(owner, _REFERENCE_CHOICE)
+    return detach_child_by_handle(get_handle(child))
 
 
 def removeIndirectAddressRefAddressBlockRef(indirectAddressRefID: str) -> bool:
@@ -666,11 +713,9 @@ def removeIndirectAddressRefAddressBlockRef(indirectAddressRefID: str) -> bool:
 
     Section: F.7.54.8.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    ar.address_block_ref = None
-    return True
+    if getIndirectAddressRefAddressBlockRefID(indirectAddressRefID) is None:
+        return False
+    return _remove_child(_indirect_reference(indirectAddressRefID, IndirectAddressRef), "address_block_ref")
 
 
 def removeIndirectAddressRefAddressSpaceRef(indirectAddressRefID: str) -> bool:
@@ -678,11 +723,11 @@ def removeIndirectAddressRefAddressSpaceRef(indirectAddressRefID: str) -> bool:
 
     Section: F.7.54.9.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    ar.address_space_ref = None
-    return True
+    child_id = getIndirectAddressRefAddressSpaceRefID(indirectAddressRefID)
+    if child_id is None:
+        return False
+    _list_attr(_indirect_reference(indirectAddressRefID, IndirectAddressRef), _REFERENCE_CHOICE)
+    return detach_child_by_handle(child_id)
 
 
 def removeIndirectAddressRefAlternateRegisterRef(indirectAddressRefID: str) -> bool:
@@ -690,11 +735,9 @@ def removeIndirectAddressRefAlternateRegisterRef(indirectAddressRefID: str) -> b
 
     Section: F.7.54.10.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    ar.alternate_register_ref = None
-    return True
+    if getIndirectAddressRefAlternateRegisterRefID(indirectAddressRefID) is None:
+        return False
+    return _remove_child(_indirect_reference(indirectAddressRefID, IndirectAddressRef), "alternate_register_ref")
 
 
 def removeIndirectAddressRefBankRef(bankRefID: str) -> bool:
@@ -702,19 +745,20 @@ def removeIndirectAddressRefBankRef(bankRefID: str) -> bool:
 
     Section: F.7.54.11.
     """
-    return detach_child_by_handle(bankRefID)
+    return _remove_indirect_path(bankRefID, IndirectAddressRef, "bank_ref", BankRef)
 
 
 def removeIndirectAddressRefMemoryMapRef(indirectAddressRefID: str) -> bool:
-    """Remove memoryMapRef from indirectAddressRef.
+    """Remove memoryMapRef from indirectAddressRef, including its companion memoryRemapRef.
 
     Section: F.7.54.12.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    ar.memory_map_ref = None
-    return True
+    child_id = getIndirectAddressRefMemoryMapRefID(indirectAddressRefID)
+    if child_id is None:
+        return False
+    removeIndirectAddressRefMemoryRemapRef(indirectAddressRefID)
+    _list_attr(_indirect_reference(indirectAddressRefID, IndirectAddressRef), _REFERENCE_CHOICE)
+    return detach_child_by_handle(child_id)
 
 
 def removeIndirectAddressRefMemoryRemapRef(indirectAddressRefID: str) -> bool:
@@ -722,11 +766,11 @@ def removeIndirectAddressRefMemoryRemapRef(indirectAddressRefID: str) -> bool:
 
     Section: F.7.54.13.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    ar.memory_remap_ref = None
-    return True
+    child_id = getIndirectAddressRefMemoryRemapRefID(indirectAddressRefID)
+    if child_id is None:
+        return False
+    _list_attr(_indirect_reference(indirectAddressRefID, IndirectAddressRef), _REFERENCE_CHOICE)
+    return detach_child_by_handle(child_id)
 
 
 def removeIndirectAddressRefRegisterFileRef(registerFileRefID: str) -> bool:
@@ -734,7 +778,7 @@ def removeIndirectAddressRefRegisterFileRef(registerFileRefID: str) -> bool:
 
     Section: F.7.54.14.
     """
-    return detach_child_by_handle(registerFileRefID)
+    return _remove_indirect_path(registerFileRefID, IndirectAddressRef, "register_file_ref", RegisterFileRef)
 
 
 def removeIndirectAddressRefRegisterRef(indirectAddressRefID: str) -> bool:
@@ -742,11 +786,9 @@ def removeIndirectAddressRefRegisterRef(indirectAddressRefID: str) -> bool:
 
     Section: F.7.54.15.
     """
-    ar = _resolve_address_ref(indirectAddressRefID)
-    if ar is None:
-        raise TgiError("Invalid indirectAddressRef handle", TgiFaultCode.INVALID_ID)
-    ar.register_ref = None
-    return True
+    if getIndirectAddressRefRegisterRefID(indirectAddressRefID) is None:
+        return False
+    return _remove_child(_indirect_reference(indirectAddressRefID, IndirectAddressRef), "register_ref")
 
 
 def removeIndirectDataRefAddressBlockRef(indirectDataRefID: str) -> bool:
@@ -754,11 +796,9 @@ def removeIndirectDataRefAddressBlockRef(indirectDataRefID: str) -> bool:
 
     Section: F.7.54.16.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    dr.address_block_ref = None
-    return True
+    if getIndirectDataRefAddressBlockRefID(indirectDataRefID) is None:
+        return False
+    return _remove_child(_indirect_reference(indirectDataRefID, IndirectDataRef), "address_block_ref")
 
 
 def removeIndirectDataRefAddressSpaceRef(indirectDataRefID: str) -> bool:
@@ -766,11 +806,11 @@ def removeIndirectDataRefAddressSpaceRef(indirectDataRefID: str) -> bool:
 
     Section: F.7.54.17.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    dr.address_space_ref = None
-    return True
+    child_id = getIndirectDataRefAddressSpaceRefID(indirectDataRefID)
+    if child_id is None:
+        return False
+    _list_attr(_indirect_reference(indirectDataRefID, IndirectDataRef), _REFERENCE_CHOICE)
+    return detach_child_by_handle(child_id)
 
 
 def removeIndirectDataRefAlternateRegisterRef(indirectDataRefID: str) -> bool:
@@ -778,11 +818,9 @@ def removeIndirectDataRefAlternateRegisterRef(indirectDataRefID: str) -> bool:
 
     Section: F.7.54.18.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    dr.alternate_register_ref = None
-    return True
+    if getIndirectDataRefAlternateRegisterRefID(indirectDataRefID) is None:
+        return False
+    return _remove_child(_indirect_reference(indirectDataRefID, IndirectDataRef), "alternate_register_ref")
 
 
 def removeIndirectDataRefBankRef(bankRefID: str) -> bool:
@@ -790,19 +828,20 @@ def removeIndirectDataRefBankRef(bankRefID: str) -> bool:
 
     Section: F.7.54.19.
     """
-    return detach_child_by_handle(bankRefID)
+    return _remove_indirect_path(bankRefID, IndirectDataRef, "bank_ref", BankRef)
 
 
 def removeIndirectDataRefMemoryMapRef(indirectDataRefID: str) -> bool:
-    """Remove memoryMapRef from indirectDataRef.
+    """Remove memoryMapRef from indirectDataRef, including its companion memoryRemapRef.
 
     Section: F.7.54.20.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    dr.memory_map_ref = None
-    return True
+    child_id = getIndirectDataRefMemoryMapRefID(indirectDataRefID)
+    if child_id is None:
+        return False
+    removeIndirectDataRefMemoryRemapRef(indirectDataRefID)
+    _list_attr(_indirect_reference(indirectDataRefID, IndirectDataRef), _REFERENCE_CHOICE)
+    return detach_child_by_handle(child_id)
 
 
 def removeIndirectDataRefMemoryRemapRef(indirectDataRefID: str) -> bool:
@@ -810,11 +849,11 @@ def removeIndirectDataRefMemoryRemapRef(indirectDataRefID: str) -> bool:
 
     Section: F.7.54.21.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    dr.memory_remap_ref = None
-    return True
+    child_id = getIndirectDataRefMemoryRemapRefID(indirectDataRefID)
+    if child_id is None:
+        return False
+    _list_attr(_indirect_reference(indirectDataRefID, IndirectDataRef), _REFERENCE_CHOICE)
+    return detach_child_by_handle(child_id)
 
 
 def removeIndirectDataRefRegisterFileRef(registerFileRefID: str) -> bool:
@@ -822,7 +861,7 @@ def removeIndirectDataRefRegisterFileRef(registerFileRefID: str) -> bool:
 
     Section: F.7.54.22.
     """
-    return detach_child_by_handle(registerFileRefID)
+    return _remove_indirect_path(registerFileRefID, IndirectDataRef, "register_file_ref", RegisterFileRef)
 
 
 def removeIndirectDataRefRegisterRef(indirectDataRefID: str) -> bool:
@@ -830,8 +869,320 @@ def removeIndirectDataRefRegisterRef(indirectDataRefID: str) -> bool:
 
     Section: F.7.54.23.
     """
-    dr = _resolve_data_ref(indirectDataRefID)
-    if dr is None:
-        raise TgiError("Invalid indirectDataRef handle", TgiFaultCode.INVALID_ID)
-    dr.register_ref = None
+    if getIndirectDataRefRegisterRefID(indirectDataRefID) is None:
+        return False
+    return _remove_child(_indirect_reference(indirectDataRefID, IndirectDataRef), "register_ref")
+
+
+def setIndirectAddressRefAddressSpaceRef(indirectAddressRefID: str, addressSpaceRef: str) -> bool:
+    """Set the normalized addressSpaceRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.27.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = IndirectAddressRef.AddressSpaceRef(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "address_space_ref", IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef
+    )
+
+
+def setIndirectAddressRefMemoryMapRef(indirectAddressRefID: str, memoryMapRef: str) -> bool:
+    """Set the normalized memoryMapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.30.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = IndirectAddressRef.MemoryMapRef(memory_map_ref=_name(memoryMapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_map_ref", IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef
+    )
+
+
+def setIndirectAddressRefMemoryRemapRef(indirectAddressRefID: str, memoryRemapRef: str) -> bool:
+    """Set the normalized memoryRemapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.31.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = MemoryRemapRef(memory_remap_ref=_name(memoryRemapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_remap_ref", IndirectAddressRef.AddressSpaceRef, IndirectAddressRef.MemoryMapRef
+    )
+
+
+def setIndirectDataRefAddressSpaceRef(indirectDataRefID: str, addressSpaceRef: str) -> bool:
+    """Set the normalized addressSpaceRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.34.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = IndirectDataRef.AddressSpaceRef(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "address_space_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
+    )
+
+
+def setIndirectDataRefMemoryMapRef(indirectDataRefID: str, memoryMapRef: str) -> bool:
+    """Set the normalized memoryMapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.37.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = IndirectDataRef.MemoryMapRef(memory_map_ref=_name(memoryMapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_map_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
+    )
+
+
+def setIndirectDataRefMemoryRemapRef(indirectDataRefID: str, memoryRemapRef: str) -> bool:
+    """Set the normalized memoryRemapRef while preserving compatible reference wrappers.
+
+    Section: F.7.54.38.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = MemoryRemapRef(memory_remap_ref=_name(memoryRemapRef, "Name"))
+    return _set_reference_choice(
+        owner, replacement, "memory_remap_ref", IndirectDataRef.AddressSpaceRef, IndirectDataRef.MemoryMapRef
+    )
+
+
+def setIndirectAddressRefAddressBlockRef(indirectAddressRefID: str, addressBlockRef: str) -> bool:
+    """Set a normalized addressBlockRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.26.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = AddressBlockRef(address_block_ref=_name(addressBlockRef, "Name"))
+    return _set_named_reference(owner, "address_block_ref", replacement)
+
+
+def setIndirectAddressRefAlternateRegisterRef(indirectAddressRefID: str, alternateRegisterRef: str) -> bool:
+    """Set a normalized alternateRegisterRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.28.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = AlternateRegisterRef(alternate_register_ref=_name(alternateRegisterRef, "Name"))
+    return _set_named_reference(owner, "alternate_register_ref", replacement)
+
+
+def setIndirectAddressRefFieldRef(indirectAddressRefID: str, fieldRef: str) -> bool:
+    """Set a normalized fieldRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.29.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = FieldRef(field_ref=_name(fieldRef, "Name"))
+    return _set_named_reference(owner, "field_ref", replacement)
+
+
+def setIndirectAddressRefRegisterRef(indirectAddressRefID: str, registerRef: str) -> bool:
+    """Set a normalized registerRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.32.
+    """
+    owner = _indirect_reference(indirectAddressRefID, IndirectAddressRef)
+    replacement = RegisterRef(register_ref=_name(registerRef, "Name"))
+    return _set_named_reference(owner, "register_ref", replacement)
+
+
+def setIndirectDataRefAddressBlockRef(indirectDataRefID: str, addressBlockRef: str) -> bool:
+    """Set a normalized addressBlockRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.33.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = AddressBlockRef(address_block_ref=_name(addressBlockRef, "Name"))
+    return _set_named_reference(owner, "address_block_ref", replacement)
+
+
+def setIndirectDataRefAlternateRegisterRef(indirectDataRefID: str, alternateRegisterRef: str) -> bool:
+    """Set a normalized alternateRegisterRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.35.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = AlternateRegisterRef(alternate_register_ref=_name(alternateRegisterRef, "Name"))
+    return _set_named_reference(owner, "alternate_register_ref", replacement)
+
+
+def setIndirectDataRefFieldRef(indirectDataRefID: str, fieldRef: str) -> bool:
+    """Set a normalized fieldRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.36.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = FieldRef(field_ref=_name(fieldRef, "Name"))
+    return _set_named_reference(owner, "field_ref", replacement)
+
+
+def setIndirectDataRefRegisterRef(indirectDataRefID: str, registerRef: str) -> bool:
+    """Set a normalized registerRef, preserving an existing generated reference wrapper.
+
+    Section: F.7.54.39.
+    """
+    owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
+    replacement = RegisterRef(register_ref=_name(registerRef, "Name"))
+    return _set_named_reference(owner, "register_ref", replacement)
+
+
+def _indirect_interface(indirect_interface_id: str) -> IndirectInterface:
+    """Resolve an indirect interface before typed traversal."""
+    owner = _resolve(indirect_interface_id)
+    if owner is None:
+        raise TgiError("Invalid indirectInterface handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def getIndirectInterfaceBitsInLau(indirectInterfaceID: str) -> int:
+    """Return positive bitsInLau as a TGI Long, defaulting to eight bits.
+
+    Section: F.7.53.39.
+    """
+    getIndirectInterfaceBitsInLauExpression(indirectInterfaceID)
+    node = _child(_indirect_interface(indirectInterfaceID), "bits_in_lau", BitsInLau)
+    value = _numeric(node, "bitsInLau", minimum=1, maximum=(1 << 63) - 1)
+    return 8 if value is None else value
+
+
+def getIndirectInterfaceBitsInLauExpression(indirectInterfaceID: str) -> str | None:
+    """Return stored bitsInLau source without evaluating unresolved constants.
+
+    Section: F.7.53.40.
+    """
+    node = _child(_indirect_interface(indirectInterfaceID), "bits_in_lau", BitsInLau)
+    if node is None:
+        return None
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid bitsInLau expression content", TgiFaultCode.INVALID_ID)
+    return getExpression(get_handle(node))
+
+
+def getIndirectInterfaceEndianness(indirectInterfaceID: str) -> str:
+    """Return the endianness value, defaulting to little endian.
+
+    Section: F.7.53.41.
+    """
+    value = _indirect_interface(indirectInterfaceID).endianness
+    if value is None:
+        return "little"
+    if not isinstance(value, EndianessType):
+        raise TgiError("Invalid indirect interface endianness", TgiFaultCode.INVALID_ID)
+    return value.value
+
+
+def getIndirectInterfaceIndirectAddressRefID(indirectInterfaceID: str) -> str:
+    """Return the required owned indirectAddressRef handle.
+
+    Section: F.7.53.42.
+    """
+    child_id = _child_id(_indirect_interface(indirectInterfaceID), "indirect_address_ref", IndirectAddressRef)
+    if child_id is None:
+        raise TgiError("Missing indirectAddressRef", TgiFaultCode.INVALID_ID)
+    return child_id
+
+
+def getIndirectInterfaceIndirectDataRefID(indirectInterfaceID: str) -> str:
+    """Return the required owned indirectDataRef handle.
+
+    Section: F.7.53.43.
+    """
+    child_id = _child_id(_indirect_interface(indirectInterfaceID), "indirect_data_ref", IndirectDataRef)
+    if child_id is None:
+        raise TgiError("Missing indirectDataRef", TgiFaultCode.INVALID_ID)
+    return child_id
+
+
+def getIndirectInterfaceMemoryMapRefByID(indirectInterfaceID: str) -> str | None:
+    """Return the referenced memoryMap handle in the containing document.
+
+    Section: F.7.53.44.
+    """
+    if getIndirectInterfaceMemoryMapRefByName(indirectInterfaceID) is None:
+        return None
+    return resolve_attribute_reference(indirectInterfaceID, "memoryMapRef")
+
+
+def getIndirectInterfaceMemoryMapRefByName(indirectInterfaceID: str) -> str | None:
+    """Return the normalized memoryMapRef source, preserving stored XML text.
+
+    Section: F.7.53.45.
+    """
+    return _indirect_interface_choice(_indirect_interface(indirectInterfaceID))[0]
+
+
+def getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID: str) -> list[str]:
+    """Return ordered owned transparentBridge handles from the interface choice.
+
+    Section: F.7.53.46.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    _, bridges = _indirect_interface_choice(owner)
+    for bridge in bridges:
+        _register_graph(bridge)
+    return _owned_list_ids(owner, bridges, _INTERFACE_CHOICE)
+
+
+def removeIndirectInterfaceEndianness(indirectInterfaceID: str) -> bool:
+    """Remove an explicit endianness value, restoring the little endian default.
+
+    Section: F.7.54.24.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    getIndirectInterfaceEndianness(indirectInterfaceID)
+    if owner.endianness is None:
+        return False
+    owner.endianness = None
+    return True
+
+
+def removeIndirectInterfaceTransparentBridge(transparentBridgeID: str) -> bool:
+    """Remove an actual indirect-interface bridge and invalidate its descendants.
+
+    Section: F.7.54.25.
+    """
+    child = resolve_handle(transparentBridgeID)
+    if not isinstance(child, TransparentBridge):
+        raise TgiError("Invalid transparentBridge handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, IndirectInterface)
+    if not isinstance(owner, IndirectInterface):
+        raise TgiError("Bridge has no indirect interface owner", TgiFaultCode.INVALID_ID)
+    _, bridges = _indirect_interface_choice(owner)
+    if not any(bridge is child for bridge in bridges):
+        raise TgiError("Bridge is not in the owning interface choice", TgiFaultCode.INVALID_ID)
+    getIndirectInterfaceTransparentBridgeIDs(get_handle(owner))
+    _list_attr(owner, _INTERFACE_CHOICE)
+    return _remove_owned(transparentBridgeID, TransparentBridge, IndirectInterface, "transparent bridge")
+
+
+def setIndirectInterfaceEndianness(indirectInterfaceID: str, value: str) -> bool:
+    """Set a generated endianness enumeration after validating the input.
+
+    Section: F.7.54.40.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    if not isinstance(value, str):
+        raise TgiError("Invalid endianness value", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        endianness = EndianessType(value)
+    except ValueError as error:
+        raise TgiError("Invalid endianness value", TgiFaultCode.INVALID_ARGUMENT) from error
+    owner.endianness = endianness
+    return True
+
+
+def setIndirectInterfaceMemoryMapRef(indirectInterfaceID: str, memoryMapRef: str) -> bool:
+    """Set a memoryMapRef, invalidating transparent bridges removed from its choice.
+
+    Section: F.7.54.41.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    name = _name(memoryMapRef, "Name")
+    _indirect_interface_choice(owner)
+    bridges = getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID)
+    if bridges:
+        _list_attr(owner, _INTERFACE_CHOICE)
+        for bridge_id in bridges:
+            removeIndirectInterfaceTransparentBridge(bridge_id)
+    owner.memory_map_ref_or_transparent_bridge = [name]
     return True

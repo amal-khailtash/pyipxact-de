@@ -8,7 +8,7 @@ choice fields, preserve wrapper metadata and invalidate removed descendants.
 
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Protocol
 
 from org.accellera.ipxact.v1685_2022.abstraction_types import AbstractionTypes
 from org.accellera.ipxact.v1685_2022.configurable_library_ref_type import ConfigurableLibraryRefType
@@ -76,7 +76,7 @@ def _require(handle: str, cls: type) -> Any:
     return obj
 
 
-def _child(parent: Any, attr: str, cls: type) -> Any | None:
+def _child[T](parent: object, attr: str, cls: type[T]) -> T | None:
     child = getattr(parent, attr)
     if child is None:
         return None
@@ -89,7 +89,7 @@ def _child(parent: Any, attr: str, cls: type) -> Any | None:
     return child
 
 
-def _child_id(parent: Any, attr: str, cls: type) -> str | None:
+def _child_id[T](parent: object, attr: str, cls: type[T]) -> str | None:
     child = _child(parent, attr, cls)
     return get_handle(child) if child is not None else None
 
@@ -124,13 +124,21 @@ def _replace_choice(parent: Any, value: Any) -> None:
     _register_graph(value)
 
 
-def _set_part_select(parent: Any, range: Sequence[str] | None, indices: Sequence[str] | None) -> str:
+class _PartSelectOwner(Protocol):
+    """Generated objects owning an optional partSelect."""
+
+    part_select: PartSelect | None
+
+
+def _set_part_select(parent: _PartSelectOwner, range: Sequence[str] | None, indices: Sequence[str] | None) -> str:
     current = parent.part_select
     old_range, old_indices = _parts(current)
     range_values = _range_plan(range, old_range) if range is not None else None
     index_values = _array(indices, "indices") if indices is not None else []
     if range_values is None and not index_values:
         raise TgiError("partSelect requires a range or indices", TgiFaultCode.INVALID_ARGUMENT)
+    if old_indices is not None and not isinstance(old_indices.index, (list, tuple)):
+        raise TgiError("Invalid indices model", TgiFaultCode.INVALID_ID)
     old_items = list(old_indices.index) if old_indices else []
     if any(not isinstance(item, Index) for item in old_items):
         raise TgiError("Invalid indices model", TgiFaultCode.INVALID_ID)

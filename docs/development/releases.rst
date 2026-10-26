@@ -18,13 +18,19 @@ and metadata checks are the same:
 * **04. Publish** builds the tagged distributions once, checks the installed
   wheel, uploads those same files and verifies their availability and SHA-256
   hashes on PyPI. Only then does it publish the GitHub release and activate
-  released documentation.
+  released documentation and measure coverage of the released tag.
 
 ``distributions.yml`` is a reusable build job called by feature CI and the
 publisher. It has no independent trigger. A feature packaging check validates
 that changes can be packaged; publication builds again because the final release
-version differs from the feature PR. The complete source test suite is not
-repeated during publication.
+version differs from the feature PR.
+
+``coverage.yml`` shares the four-worker test and coverage job between feature CI
+and production publication. After PyPI artifact verification succeeds, the
+publisher tests the immutable release tag and uploads coverage with that tag's
+commit SHA and an explicit ``main`` branch. This updates Codecov's default-branch
+report after squash merges without rerunning full CI on every merge or on release
+metadata PRs. Feature PR uploads retain Codecov's normal PR detection.
 
 Read the Docs PR previews and development ``latest`` documentation remain
 independent of package publication. CI builds documentation to detect errors;
@@ -104,7 +110,10 @@ Release validation and publication
 7. After verified publication, independent jobs attach the distributions and
    publish the GitHub release, and activate/build the version on Read the Docs.
    A TestPyPI dispatch verifies its uploaded artifacts but does not announce a
-   GitHub release or activate release documentation.
+   GitHub release, activate release documentation or update released coverage.
+8. The post-publication coverage job tests the released tag, saves XML/HTML
+   reports and updates Codecov's ``main`` report. It runs independently of the
+   announcement and documentation jobs.
 
 Failure and retry behavior
 --------------------------
@@ -112,6 +121,11 @@ Failure and retry behavior
 A build, installed-wheel or upload/availability failure leaves the GitHub release
 as a draft and does not activate released documentation. Coverage results from
 feature validation remain available; they describe tested code, not publication.
+
+If post-publication tests or the Codecov upload fail, the package remains
+published and the coverage job fails visibly. Re-run that job to retry without
+uploading the package again. Released coverage upload failures are fatal to that
+job; feature-PR upload failures remain informational.
 
 If PyPI succeeds but GitHub or documentation fails, the package is already
 published. Re-run the failed announcement job without uploading again. The docs
@@ -136,8 +150,8 @@ Service configuration
   metadata checks; draft release publication uses this token too.
 * Configure PyPI and TestPyPI trusted publishers for ``publish.yml`` and its
   respective ``pypi`` / ``testpypi`` environments. These identities are unchanged.
-* Configure ``CODECOV_TOKEN`` for feature-PR coverage and the Read the Docs GitHub
-  integration for PR previews and development docs.
+* Configure ``CODECOV_TOKEN`` for feature-PR and released coverage, and the Read
+  the Docs GitHub integration for PR previews and development docs.
 * Configure ``READTHEDOCS_TOKEN`` with released-version activation and build
   permissions, and disable independent automatic release-version activation.
 

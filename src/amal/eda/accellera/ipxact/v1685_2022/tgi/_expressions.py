@@ -5,6 +5,7 @@ import re
 
 from amal.eda.systemverilog.expression_parser import SvExpressionError, SvExpressionParser
 from org.accellera.ipxact.v1685_2022.complex_base_expression import ComplexBaseExpression
+from org.accellera.ipxact.v1685_2022.complex_tied_value_expression import ComplexTiedValueExpression
 from org.accellera.ipxact.v1685_2022.real_expression import RealExpression
 
 from .core import TgiError, TgiFaultCode
@@ -94,12 +95,17 @@ def _real_source(value: str, current: RealExpression) -> str:
     return value
 
 
-def _bit(source: str) -> bool:
-    """Resolve an expression with the SystemVerilog one-bit cast required by C.7.9."""
+def _bit(source: str, *, deferred: bool = False) -> bool | None:
+    """Resolve an expression with the SystemVerilog one-bit cast required by C.7.9.
+
+    Deferred evaluation retains only expressions with undeclared identifiers.
+    """
     _xml_text(source)
     try:
         return bool(SvExpressionParser().evaluate(f"bit'({source})"))
     except SvExpressionError as error:
+        if deferred and _undeclared(error):
+            return None
         raise TgiError("Cannot cast expression to an unsigned bit", TgiFaultCode.INVALID_ARGUMENT) from error
 
 
@@ -107,6 +113,10 @@ def _source(value: str, current: ComplexBaseExpression | None = None, maximum: i
     _xml_text(value)
     if not value.strip():
         raise TgiError("Expression must be nonempty", TgiFaultCode.INVALID_ARGUMENT)
+    if current is not None:
+        declared_minimum, declared_maximum = getattr(current, "minimum", None), getattr(current, "maximum", None)
+        if declared_minimum is not None and declared_maximum is not None and declared_minimum > declared_maximum:
+            raise TgiError("Expression bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
     result = _integer(value, maximum, True)
     if result is not None and current is not None:
         minimum = getattr(current, "minimum", None)
@@ -114,3 +124,68 @@ def _source(value: str, current: ComplexBaseExpression | None = None, maximum: i
         if (minimum is not None and result < minimum) or (maximum is not None and result > maximum):
             raise TgiError("Expression outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
     return value
+
+
+def _string_source(source: str) -> str:
+    """Validate a C.7.5/C.7.6 string expression, deferring undeclared names."""
+    _xml_text(source)
+    try:
+        SvExpressionParser().parse_string(source)
+    except SvExpressionError as error:
+        if not _undeclared(error):
+            raise TgiError("Cannot resolve string expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    except UnicodeError as error:
+        raise TgiError("String expression contains invalid Unicode", TgiFaultCode.INVALID_ARGUMENT) from error
+    return source
+
+
+def _tied_value(source: str, current: ComplexTiedValueExpression, *, deferred: bool = False) -> str | None:
+    """Resolve a tied value to an unsigned integer or the standard open/default strings."""
+    _xml_text(source)
+    minimum, maximum = current.minimum, current.maximum
+    if any(bound is not None and type(bound) is not int for bound in (minimum, maximum)):
+        raise TgiError("Invalid tied-value bounds", TgiFaultCode.INVALID_ARGUMENT)
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise TgiError("Tied-value bounds are reversed", TgiFaultCode.INVALID_ARGUMENT)
+    if source.strip() in ("open", "default"):
+        return source.strip()
+    try:
+        result = SvExpressionParser().parse_string(source)
+    except SvExpressionError:
+        result = None
+    if result is not None:
+        value = result.value.value
+        if not isinstance(value, str) or value not in ("open", "default"):
+            raise TgiError("Invalid tied-value string", TgiFaultCode.INVALID_ARGUMENT)
+        return value
+    value = _integer(source, None, deferred, decimal_literals=False)
+    if value is None:
+        return None
+    if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
+        raise TgiError("Tied value outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return str(value)
+
+
+def _string_value(source: str) -> str:
+    """Evaluate a C.7.5 string expression in a SystemVerilog string assignment context."""
+    _xml_text(source)
+    try:
+        value = SvExpressionParser().parse_string(source).value.value
+    except SvExpressionError as error:
+        raise TgiError("Cannot evaluate string expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    except UnicodeError as error:
+        raise TgiError("String expression contains invalid Unicode", TgiFaultCode.INVALID_ARGUMENT) from error
+    if not isinstance(value, str):
+        raise TgiError("Expected string expression value", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def _constant_source(source: str) -> str:
+    """Validate an arbitrary constant expression, deferring undeclared identifiers."""
+    _xml_text(source)
+    try:
+        SvExpressionParser().parse(source)
+    except SvExpressionError as error:
+        if not _undeclared(error):
+            raise TgiError("Invalid constant expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    return source

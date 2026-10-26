@@ -10,7 +10,8 @@ Where the underlying schema objects have simple content, generic access
 uses their ``value`` attributes with strict fault code semantics. Argument
 and define values use typed generated Value wrappers; expression source is
 stored in simple content. Values, expressions and part-select edits retain
-their generated schema wrappers and metadata.
+their generated schema wrappers and metadata. Tied-value expressions additionally
+support the standard open/default alternatives and unsigned numeric bounds.
 """
 
 # ruff: noqa: I001
@@ -20,6 +21,8 @@ from dataclasses import fields, is_dataclass
 from amal.eda.systemverilog.expression_parser import SvExpressionParser, SvExpressionError
 from org.accellera.ipxact.v1685_2022 import (
     ComplexBaseExpression,
+    ComplexTiedValueExpression,
+    StringExpression,
     NameValuePairType,
     Value,
     UnsignedIntExpression,
@@ -31,7 +34,7 @@ from org.accellera.ipxact.v1685_2022 import (
     SignedLongintExpression,
     RealExpression,
 )
-from ._expressions import _real_source, _undeclared, _xml_text
+from ._expressions import _bit, _real_source, _string_source, _string_value, _tied_value, _undeclared, _xml_text
 from . import _miscellaneous_part_select as _part_select_ops
 from . import _miscellaneous_registry as _registry_ops
 import re
@@ -130,10 +133,12 @@ def _pair(handle: str) -> NameValuePairType:
     return obj
 
 
-def _expression(handle: str) -> ComplexBaseExpression:
+def _expression(handle: str) -> ComplexBaseExpression | ComplexTiedValueExpression:
     obj = _require(handle)
-    if not isinstance(obj, ComplexBaseExpression):
+    if not isinstance(obj, (ComplexBaseExpression, ComplexTiedValueExpression)):
         raise TgiError("Expected expression element", TgiFaultCode.INVALID_ID)
+    if isinstance(obj, StringExpression) and not isinstance(obj.value, str):
+        raise TgiError("Invalid string expression content", TgiFaultCode.INVALID_ID)
     return obj
 
 
@@ -196,10 +201,18 @@ def _boolean_target(handle: str) -> Any:
     return obj
 
 
-def _expression_source(value: str, obj: ComplexBaseExpression) -> str:
+def _expression_source(value: str, obj: ComplexBaseExpression | ComplexTiedValueExpression) -> str:
+    if isinstance(obj, StringExpression):
+        return _string_source(value)
+    if isinstance(obj, ComplexTiedValueExpression):
+        _tied_value(value, obj, deferred=True)
+        return value
     if isinstance(obj, RealExpression):
         return _real_source(value, obj)
     _xml_text(value)
+    if isinstance(obj, UnsignedBitExpression):
+        _bit(value, deferred=True)
+        return value
     try:
         result = SvExpressionParser().parse(value)
     except SvExpressionError as exc:
@@ -211,8 +224,6 @@ def _expression_source(value: str, obj: ComplexBaseExpression) -> str:
         bounds = (1 if isinstance(obj, UnsignedPositiveIntExpression) else 0, (1 << 32) - 1)
     elif isinstance(obj, (UnsignedPositiveLongintExpression, UnsignedLongintExpression)):
         bounds = (1 if isinstance(obj, UnsignedPositiveLongintExpression) else 0, (1 << 64) - 1)
-    elif isinstance(obj, UnsignedBitExpression):
-        bounds = (0, 1)
     elif isinstance(obj, UnsignedBitVectorExpression):
         bounds = (0, None)
     elif isinstance(obj, SignedLongintExpression):
@@ -431,6 +442,8 @@ def getExpressionValue(expressionID: str) -> str:  # F.7.59.10
 
     Uses SvExpressionParser for constant evaluation. Numeric constants are returned as strings; other constant values
     retain the parser's literal representation. Unresolved expressions raise TgiError.
+    Tied-value wrappers resolve unsigned constants or the standard open/default strings.
+    String-expression wrappers evaluate in a SystemVerilog string assignment context.
 
     Args:
         expressionID: Handle to the expression element.
@@ -438,6 +451,14 @@ def getExpressionValue(expressionID: str) -> str:  # F.7.59.10
     Returns:
         The evaluated constant as a string.
     """
+    obj = _expression(expressionID)
+    if isinstance(obj, StringExpression):
+        return _string_value(getExpression(expressionID))
+    if isinstance(obj, ComplexTiedValueExpression):
+        value = _tied_value(getExpression(expressionID), obj)
+        if value is None:
+            raise TgiError("Cannot evaluate tied value", TgiFaultCode.INVALID_ARGUMENT)
+        return value
     return _evaluated_text(getExpression(expressionID))
 
 

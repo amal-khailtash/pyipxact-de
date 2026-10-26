@@ -1,9 +1,28 @@
 """Generated model traversal with immediate owning fields for TGI handles."""
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
 
-from .core import get_handle, register_parent
+from org.accellera.ipxact.v1685_2022 import (
+    AdHocConnection,
+    BankRef,
+    ComponentType,
+    ExternalPortReference,
+    RegisterFileRef,
+    SubPortReference,
+)
+
+from .core import TgiError, TgiFaultCode, get_handle, register_parent
+
+
+def _reference_list[T: BankRef | RegisterFileRef](owner: object, attribute: str, model_type: type[T]) -> Sequence[T]:
+    """Validate an ordered hierarchical reference path before traversal or mutation."""
+    children = getattr(owner, attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid field reference path", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(getattr(child, attribute), str) for child in children):
+        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
+    return children
 
 
 def _owned_list_ids(owner: object, children: Iterable[object], attribute: str) -> list[str]:
@@ -37,3 +56,17 @@ def _walk_model(root: object) -> Iterator[tuple[object, object | None, str | Non
                     for child in value
                     if is_dataclass(child) and not isinstance(child, type)
                 )
+
+
+def _sub_port_references(
+    owner: ComponentType.Modes.Mode.PortSlice
+    | ExternalPortReference
+    | AdHocConnection.PortReferences.InternalPortReference,
+) -> Sequence[SubPortReference]:
+    """Validate the ordered sub-port reference path before traversal or mutation."""
+    children = owner.sub_port_reference
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, SubPortReference) for child in children):
+        raise TgiError("Invalid subPortReference model", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(child.sub_port_ref, str) for child in children):
+        raise TgiError("Invalid subPortRef source", TgiFaultCode.INVALID_ID)
+    return children

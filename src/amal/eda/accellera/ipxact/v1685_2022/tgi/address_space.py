@@ -273,7 +273,7 @@ def _register_owned_child(child: Any, expected_parent: type | tuple[type, ...] |
     return None
 
 
-def _remove_owned(handle: str, expected: type, parent_type: type, label: str) -> bool:
+def _remove_owned(handle: str, expected: type, parent_type: type | tuple[type, ...], label: str) -> bool:
     """Remove a typed child after discovering its owning schema container."""
     obj = resolve_handle(handle)
     if not isinstance(obj, expected):

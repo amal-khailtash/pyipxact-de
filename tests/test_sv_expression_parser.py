@@ -48,3 +48,34 @@ def test_invalid_expression(expression):
 def test_invalid_constant_name():
     with pytest.raises(SvExpressionError, match="constant name"):
         SvExpressionParser({"bad-name": 1}).parse("1")
+
+
+@pytest.mark.parametrize(
+    "expression,expected",
+    [
+        ('"u.sig[3]"', "u.sig[3]"),
+        ('{"u", ".", "sig"}', "u.sig"),
+        ("string'(65)", "A"),
+        ('1 ? "left" : "right"', "left"),
+        ('""', ""),
+    ],
+)
+def test_string_assignment_context(expression: str, expected: str) -> None:
+    result = SvExpressionParser().parse_string(expression)
+    assert result.value.value == expected
+    assert result.bit_width is None
+    with pytest.raises(SvExpressionError, match="not an integer or real"):
+        result.as_python()
+
+
+def test_string_context_resolves_named_constants() -> None:
+    parser = SvExpressionParser({"PREFIX": 'string\'("u")', "INDEX": 3})
+    result = parser.parse_string('{PREFIX, ".sig"}')
+    assert result.value.value == "u.sig"
+    assert parser.evaluate("INDEX + 1") == 4
+
+
+@pytest.mark.parametrize("expression", ["7", "1.5", "", '"unterminated', "MISSING", "1; localparam injected=2"])
+def test_invalid_string_assignment_context(expression: str) -> None:
+    with pytest.raises(SvExpressionError):
+        SvExpressionParser().parse_string(expression)
