@@ -41,7 +41,7 @@ from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
 from ._attribute_references import _reference_name, resolve_attribute_reference
 from ._expressions import _integer, _source
-from ._library_reference import _xml_vlnv
+from ._library_reference import _set_reference, _xml_vlnv
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr, _register_graph
@@ -1671,7 +1671,26 @@ def removeTypeDefinitionsMemoryRemapDefinition(memoryRemapDefinitionID: str) -> 
 
 
 def removeTypeDefinitionsMode(modeID: str) -> bool:  # F.7.82.41
-    return detach_child_by_handle(modeID)
+    """Remove an owned mode and invalidate its generated subtree.
+
+    Section: F.7.82.41.
+
+    Args:
+        modeID: Handle to a mode element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        modeID,
+        TypeDefinitions.Modes.Mode,
+        TypeDefinitions.Modes,
+        TypeDefinitions,
+        "modes",
+        "mode",
+        getTypeDefinitionsModeIDs,
+        "mode",
+    )
 
 
 def removeTypeDefinitionsRegisterDefinition(registerDefinitionID: str) -> bool:  # F.7.82.42
@@ -1683,11 +1702,49 @@ def removeTypeDefinitionsRegisterFileDefinition(registerFileDefinitionID: str) -
 
 
 def removeTypeDefinitionsResetType(resetTypeID: str) -> bool:  # F.7.82.44
-    return detach_child_by_handle(resetTypeID)
+    """Remove an owned reset type and invalidate its generated subtree.
+
+    Section: F.7.82.44.
+
+    Args:
+        resetTypeID: Handle to a reset type element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        resetTypeID,
+        TypeDefinitions.ResetTypes.ResetType,
+        TypeDefinitions.ResetTypes,
+        TypeDefinitions,
+        "reset_types",
+        "reset_type",
+        getTypeDefinitionsResetTypeIDs,
+        "reset type",
+    )
 
 
 def removeTypeDefinitionsView(viewID: str) -> bool:  # F.7.82.45
-    return detach_child_by_handle(viewID)
+    """Remove an owned view and invalidate its generated subtree.
+
+    Section: F.7.82.45.
+
+    Args:
+        viewID: Handle to a view element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        viewID,
+        TypeDefinitions.Views.View,
+        TypeDefinitions.Views,
+        TypeDefinitions,
+        "views",
+        "view",
+        getTypeDefinitionsViewIDs,
+        "view",
+    )
 
 
 def setAddressBlockDefinitionAddressUnitBits(addressBlockDefinitionID: str, addressUnitBits: str) -> bool:  # F.7.82.46
@@ -1749,14 +1806,24 @@ def setEnumerationDefinitionWidth(enumerationDefinitionID: str, width: str) -> b
 
 def setExternalTypeDefinitionsTypeDefinitionsRef(
     externalTypeDefinitionsID: str,
-    vlnv: tuple[str, str, str, str],
+    typeDefinitionsRef: tuple[str, str, str, str],
 ) -> bool:  # F.7.82.49
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
-        _invalid_id()
-    etd.type_definitions_ref = SimpleNamespace(  # type: ignore[attr-defined]
-        vendor=vlnv[0], library=vlnv[1], name=vlnv[2], version=vlnv[3]
-    )
+    """Set a complete VLNV while preserving the generated library-reference wrapper.
+
+    Section: F.7.82.49.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element.
+        typeDefinitionsRef: Four XML strings giving vendor, library, name and version.
+
+    Returns:
+        True after assignment without requiring the referenced document to be registered.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    if not isinstance(typeDefinitionsRef, (list, tuple)):
+        raise TgiError("typeDefinitionsRef must be a four-part VLNV array", TgiFaultCode.INVALID_ARGUMENT)
+    _set_reference(owner, "type_definitions_ref", ConfigurableLibraryRefType, typeDefinitionsRef)
+    getExternalTypeDefinitionsTypeDefinitionsRefByVLNV(externalTypeDefinitionsID)
     return True
 
 
@@ -1882,17 +1949,45 @@ def setResetTypeLinkResetTypeReference(resetTypeLinkID: str, resetTypeRef: str) 
     )
 
 
-def setViewLinkExternalViewReference(viewLinkID: str, name: str) -> bool:  # F.7.82.56
-    vl = _resolve(viewLinkID)
-    if vl is None:
-        _invalid_id()
-    vl.external_view_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    return True
+def setViewLinkExternalViewReference(viewLinkID: str, viewRef: str) -> bool:  # F.7.82.56
+    """Set a view reference while preserving its generated wrapper identity.
+
+    Section: F.7.82.56.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+        viewRef: XML Name source for the viewRef attribute.
+
+    Returns:
+        True after assignment without requiring the external view target to be registered.
+    """
+    return _set_link_reference(
+        _definition(viewLinkID, ViewLinks.ViewLink),
+        "external_view_reference",
+        ViewLinks.ViewLink.ExternalViewReference,
+        "view_ref",
+        viewRef,
+    )
 
 
-def setViewLinkViewReference(viewLinkID: str, name: str) -> bool:  # F.7.82.57
-    vl = _resolve(viewLinkID)
-    if vl is None:
-        _invalid_id()
-    vl.view_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    return True
+def setViewLinkViewReference(viewLinkID: str, viewRef: str) -> bool:  # F.7.82.57
+    """Set a view reference while preserving its generated wrapper identity.
+
+    Section: F.7.82.57.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+        viewRef: XML Name source for the viewRef attribute.
+
+    Returns:
+        True after assignment; known duplicate local view references are rejected.
+    """
+    return _set_link_reference(
+        _definition(viewLinkID, ViewLinks.ViewLink),
+        "view_reference",
+        ViewLinks.ViewLink.ViewReference,
+        "view_ref",
+        viewRef,
+        ViewLinks,
+        "view_link",
+    )
