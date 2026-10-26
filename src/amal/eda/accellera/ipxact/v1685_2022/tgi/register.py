@@ -16,6 +16,7 @@ from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegiste
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
 from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
 from org.accellera.ipxact.v1685_2022.field_type import FieldType
+from org.accellera.ipxact.v1685_2022.mode_ref import ModeRef
 from org.accellera.ipxact.v1685_2022.register_file import RegisterFile
 from org.accellera.ipxact.v1685_2022.register_file_definitions import RegisterFileDefinitions
 from org.accellera.ipxact.v1685_2022.unsigned_int_expression import UnsignedIntExpression
@@ -24,6 +25,7 @@ from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import Uns
 from org.accellera.ipxact.v1685_2022.volatile import Volatile
 
 from .component import _list_attr, _register_graph, _register_owner_for
+from .address_space import _register_owned_child
 from .core import (
     TgiError,
     TgiFaultCode,
@@ -36,6 +38,7 @@ from .core import (
 from .register_file import _expression as _register_file_expression
 from .register_file import _integer as _integer_expression
 from .register_file import _numeric as _register_file_numeric
+from .register_file import _child_ids as _register_file_child_ids
 from .port_map import _name as _schema_name
 
 __all__ = [
@@ -152,6 +155,7 @@ __all__ = [
     "removeRegisterVolatility",
     "setAlternateRegisterTypeIdentifier",
     "setAlternateRegisterVolatility",
+    "setModeRefPriority",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
     "setRegisterFieldTypeIdentifier",
@@ -300,7 +304,9 @@ def _check_register_field_containment(register: _Register | None, field: FieldTy
         size_node.maximum is not None and size > size_node.maximum
     ):
         raise TgiError("Register size is outside its declared bounds", TgiFaultCode.INVALID_ARGUMENT)
-    offset_node = _register_field_bit_offset(field)
+    offset_node = field.bit_offset
+    if not isinstance(offset_node, UnsignedIntExpression):
+        raise TgiError("Invalid register field bitOffset model", TgiFaultCode.INVALID_ID)
     offset = _integer_expression(offset_node.value, _UINT32_MAX, True)
     if offset is None:
         return
@@ -509,15 +515,39 @@ def getAliasOfRegisterRefID(aliasOfID: str) -> str | None:
 
 
 def getAlternateRegisterFieldIDs(alternateRegisterID: str) -> list[str]:
-    """Return field handles of alternateRegister (F.7.73.7)."""
-    ar = _resolve(alternateRegisterID)
-    return _list_handles(ar, "field")
+    """Return field handles defined on an alternate register.
+
+    Section: F.7.73.7.
+
+    Args:
+        alternateRegisterID: Handle to an alternateRegister element.
+
+    Returns:
+        Handles to the alternate register's fields, in document order.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    fields = alternate_register.field_value
+    if any(not isinstance(field, FieldType) for field in fields):
+        raise TgiError("Invalid alternate register field model", TgiFaultCode.INVALID_ID)
+    return _register_file_child_ids(alternate_register, fields, ("field_value",))
 
 
 def getAlternateRegisterModeRefIDs(alternateRegisterID: str) -> list[str]:
-    """Return modeRef handles (F.7.73.8)."""
-    ar = _resolve(alternateRegisterID)
-    return _list_handles(ar, "mode_ref")
+    """Return modeRef handles defined on an alternate register.
+
+    Section: F.7.73.8.
+
+    Args:
+        alternateRegisterID: Handle to an alternateRegister element.
+
+    Returns:
+        Handles to the alternate register's modeRef elements, in document order.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    mode_refs = alternate_register.mode_ref
+    if any(not isinstance(mode_ref, ModeRef) for mode_ref in mode_refs):
+        raise TgiError("Invalid alternate register modeRef model", TgiFaultCode.INVALID_ID)
+    return _register_file_child_ids(alternate_register, mode_refs, ("mode_ref",))
 
 
 def getAlternateRegisterRefAlternateRegisterRefByName(alternateRegisterRefID: str) -> str | None:
@@ -1255,33 +1285,76 @@ def getResetValueID(resetID: str) -> str | None:
 
 
 def addAlternateRegisterField(alternateRegisterID: str, name: str, offset: str, width: str) -> str:
-    """Add field to alternateRegister (F.7.74.1)."""
-    ar = _resolve(alternateRegisterID)
-    if ar is None:
-        raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
-    field = _ns(
-        name=name,
-        bit_offset=_ns(value=_coerce_int(offset)),
-        bit_width=_ns(value=_coerce_int(width)),
+    """Add a field to an alternate register.
+
+    Section: F.7.74.1.
+
+    Args:
+        alternateRegisterID: Handle to an alternateRegister element.
+        name: XML Name for the new field.
+        offset: Unsigned 32-bit bitOffset expression.
+        width: Positive unsigned 32-bit bitWidth expression.
+
+    Returns:
+        Handle to the new regField element.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    field_name = _schema_name(name, "Name")
+    offset_source = _register_file_expression(offset, "offset", 0, _UINT32_MAX)
+    width_source = _register_file_expression(width, "width", 1, _UINT32_MAX)
+    fields = alternate_register.field_value
+    if any(not isinstance(existing, FieldType) for existing in fields):
+        raise TgiError("Invalid alternate register field model", TgiFaultCode.INVALID_ID)
+    if any(existing.name == field_name for existing in fields):
+        raise TgiError(f"Alternate register field name {field_name!r} already exists", TgiFaultCode.INVALID_ARGUMENT)
+    field = FieldType(
+        name=field_name,
+        bit_offset=UnsignedIntExpression(value=offset_source),
+        choice=[UnsignedPositiveIntExpression(value=width_source)],
     )
-    if not hasattr(ar, "field"):
-        ar.field = []  # type: ignore[attr-defined]
-    ar.field.append(field)  # type: ignore[attr-defined]
-    register_parent(field, ar, ("field",), "list")
+    width_number = _integer_expression(width_source, _UINT32_MAX, True)
+    holder = _register_owned_child(alternate_register, AlternateRegisters)
+    register = _register_owned_child(holder, _REGISTER_TYPES) if holder is not None else None
+    if register is not None:
+        _check_register_field_containment(register, field, width_number)
+    _list_attr(alternate_register, "field_value").append(field)
+    register_parent(field, alternate_register, ("field_value",), "list")
+    _register_graph(field)
     return get_handle(field)
 
 
 def addAlternaterRegisterModeRef(alternateRegisterID: str, modeRef: str, priority: int) -> str:
-    """Add modeRef to alternateRegister (F.7.74.2)."""
-    ar = _resolve(alternateRegisterID)
-    if ar is None:
-        raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
-    mr = _ns(value=modeRef, priority=priority)
-    if not hasattr(ar, "mode_ref"):
-        ar.mode_ref = []  # type: ignore[attr-defined]
-    ar.mode_ref.append(mr)  # type: ignore[attr-defined]
-    register_parent(mr, ar, ("mode_ref",), "list")
-    return get_handle(mr)
+    """Add a modeRef to an alternate register.
+
+    Section: F.7.74.2.
+
+    Args:
+        alternateRegisterID: Handle to an alternateRegister element.
+        modeRef: XML Name of the referenced mode.
+        priority: Unique non-negative integer priority for this alternate register.
+
+    Returns:
+        Handle to the new modeRef element.
+    """
+    alternate_register = _resolve_alternate_register(alternateRegisterID)
+    mode_name = _schema_name(modeRef, "Name")
+    holder = _register_owned_child(alternate_register, AlternateRegisters)
+    if holder is not None:
+        for sibling in holder.alternate_register:
+            if sibling is alternate_register:
+                continue
+            if any(getattr(existing, "value", None) == mode_name for existing in sibling.mode_ref):
+                raise TgiError(
+                    f"modeRef {mode_name!r} already exists in alternateRegisters", TgiFaultCode.INVALID_ARGUMENT
+                )
+    from .access_policy import _mode_ref_priority
+
+    priority_value = _mode_ref_priority(alternate_register.mode_ref, mode_name, priority)
+    mode_ref_node = ModeRef(value=mode_name, priority=priority_value)
+    _list_attr(alternate_register, "mode_ref").append(mode_ref_node)
+    register_parent(mode_ref_node, alternate_register, ("mode_ref",), "list")
+    _register_graph(mode_ref_node)
+    return get_handle(mode_ref_node)
 
 
 def addBroadcastToBankRef(broadcastToID: str, bankRef: str) -> str:
@@ -1434,8 +1507,27 @@ def removeAliasOfRegisterRef(aliasOfID: str) -> bool:
 
 
 def removeAlternateRegisterField(regFieldID: str) -> bool:
-    """Remove alternate register field (F.7.74.13)."""
-    return detach_child_by_handle(regFieldID)
+    """Remove a field from its alternate register.
+
+    Section: F.7.74.13.
+
+    Args:
+        regFieldID: Handle to a regField element.
+
+    Returns:
+        True when the field was removed.
+    """
+    field = resolve_handle(regFieldID)
+    if not isinstance(field, FieldType):
+        raise TgiError("Invalid alternate register field handle", TgiFaultCode.INVALID_ID)
+    alternate_register = _register_owned_child(field, AlternateRegisters.AlternateRegister)
+    if alternate_register is None or not any(item is field for item in alternate_register.field_value):
+        raise TgiError("Field is not owned by an alternate register", TgiFaultCode.INVALID_ID)
+    _register_graph(alternate_register)
+    _list_attr(alternate_register, "field_value")
+    if not detach_child_by_handle(regFieldID):
+        raise TgiError("Could not remove alternate register field", TgiFaultCode.INVALID_ID)
+    return True
 
 
 def removeAlternateRegisterTypeIdentifier(alternateRegisterID: str) -> bool:
@@ -1484,8 +1576,34 @@ def removeAlternateRegisterVolatility(alternateRegisterID: str) -> bool:
 
 
 def removeAlternaterRegisterModeRef(modeRefID: str) -> bool:
-    """Remove modeRef element (F.7.74.16)."""
-    return detach_child_by_handle(modeRefID)
+    """Remove a modeRef from its containing element.
+
+    Section: F.7.74.16.
+
+    Args:
+        modeRefID: Handle to a modeRef element.
+
+    Returns:
+        True when the modeRef was removed.
+    """
+    mode_ref_node = resolve_handle(modeRefID)
+    if not isinstance(mode_ref_node, ModeRef):
+        raise TgiError("Invalid modeRef handle", TgiFaultCode.INVALID_ID)
+    parent = _register_owned_child(mode_ref_node)
+    info = get_parent_info(modeRefID)
+    if (
+        parent is None
+        or info is None
+        or info.path != ("mode_ref",)
+        or info.container != "list"
+        or not any(item is mode_ref_node for item in getattr(parent, "mode_ref", ()))
+    ):
+        raise TgiError("modeRef has no supported owning element", TgiFaultCode.INVALID_ID)
+    _register_graph(parent)
+    _list_attr(parent, "mode_ref")
+    if not detach_child_by_handle(modeRefID):
+        raise TgiError("Could not remove modeRef", TgiFaultCode.INVALID_ID)
+    return True
 
 
 def removeBroadcastToAddressBlockRef(broadcastToID: str) -> bool:
@@ -1687,6 +1805,47 @@ def setAlternateRegisterVolatility(alternateRegisterID: str, _volatile: bool) ->
         current.value = _volatile
     register_parent(current, alternate_register, ("volatile",), "single")
     _register_graph(current)
+    return True
+
+
+def setModeRefPriority(modeRefID: str, priority: int) -> bool:
+    """Set the priority on a modeRef.
+
+    Section: F.7.74.55.
+
+    Args:
+        modeRefID: Handle to a modeRef element.
+        priority: Unique non-negative integer priority in the containing element.
+
+    Returns:
+        True after updating the priority.
+    """
+    mode_ref_node = resolve_handle(modeRefID)
+    if not isinstance(mode_ref_node, ModeRef):
+        raise TgiError("Invalid modeRef handle", TgiFaultCode.INVALID_ID)
+    if type(priority) is not int or priority < 0:
+        raise TgiError("priority must be a non-negative integer", TgiFaultCode.INVALID_ARGUMENT)
+    parent = _register_owned_child(mode_ref_node)
+    info = get_parent_info(modeRefID)
+    if parent is None:
+        if info is not None:
+            raise TgiError("modeRef has no supported owning element", TgiFaultCode.INVALID_ID)
+        mode_refs: list[ModeRef] | tuple[ModeRef, ...] = ()
+    else:
+        mode_refs = getattr(parent, "mode_ref", None)
+        if (
+            info is None
+            or info.path != ("mode_ref",)
+            or info.container != "list"
+            or not isinstance(mode_refs, (list, tuple))
+            or not any(item is mode_ref_node for item in mode_refs)
+        ):
+            raise TgiError("modeRef has no supported owning element", TgiFaultCode.INVALID_ID)
+    if any(item is not mode_ref_node and getattr(item, "priority", None) == priority for item in mode_refs):
+        raise TgiError(f"modeRef priority {priority} already exists in this element", TgiFaultCode.INVALID_ARGUMENT)
+    if parent is not None:
+        _register_graph(parent)
+    mode_ref_node.priority = priority
     return True
 
 
