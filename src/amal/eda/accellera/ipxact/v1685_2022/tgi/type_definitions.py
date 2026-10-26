@@ -22,6 +22,7 @@ from org.accellera.ipxact.v1685_2022 import (
     BankDefinitions,
     Choices,
     ComplexBaseExpression,
+    ComponentType,
     ConfigurableLibraryRefType,
     EnumeratedValueType,
     EnumerationDefinitions,
@@ -1219,16 +1220,56 @@ def _ensure_td(tdID: str) -> TypeDefinitions:
     return cast(TypeDefinitions, td)
 
 
-def addComponentExternalTypeDefinitions(componentID: str) -> str:  # F.7.82.1
-    comp = _resolve(componentID)
-    if comp is None:
-        _invalid_id()
-    if getattr(comp, "external_type_definitions", None) is None:
-        comp.external_type_definitions = []  # type: ignore[attr-defined]
-    etd = SimpleNamespace(name=None, type_definitions_ref=None, view_links=None, mode_links=None, reset_type_links=None)
-    comp.external_type_definitions.append(etd)  # type: ignore[attr-defined]
-    register_parent(etd, comp, ("external_type_definitions",), "list")
-    return get_handle(etd)
+def _new_external_definition(name: str, vlnv: tuple[str, str, str, str]) -> ExternalTypeDefinitions:
+    """Create a generated external definition with validated source VLNV."""
+    name = _name(name, "Name")
+    if not isinstance(vlnv, (list, tuple)):
+        raise TgiError("vlnv must be a four-part array", TgiFaultCode.INVALID_ARGUMENT)
+    parts = _xml_vlnv(vlnv)
+    child = ExternalTypeDefinitions(
+        name=name,
+        type_definitions_ref=ConfigurableLibraryRefType(
+            vendor=parts[0], library=parts[1], name=parts[2], version=parts[3]
+        ),
+    )
+    setExternalTypeDefinitionsTypeDefinitionsRef(get_handle(child), vlnv)
+    return child
+
+
+def _append_external_definition(
+    owner: TypeDefinitions | ComponentType.TypeDefinitions, child: ExternalTypeDefinitions
+) -> str:
+    """Append a unique external definition to its generated direct list."""
+    children = _definition_list(owner, "external_type_definitions", ExternalTypeDefinitions)
+    child.name = _definition_new_name(children, child.name)
+    _list_attr(owner, "external_type_definitions").append(child)
+    _definition_list_ids(owner, "external_type_definitions", ExternalTypeDefinitions)
+    return get_handle(child)
+
+
+def addComponentExternalTypeDefinitions(
+    componentID: str, name: str, vlnv: tuple[str, str, str, str]
+) -> str:  # F.7.82.1
+    """Add a named external definition to a component's generated typeDefinitions holder.
+
+    Section: F.7.82.1.
+
+    Args:
+        componentID: Component handle.
+        name: Unique external-definition XML name.
+        vlnv: Four-part source VLNV.
+
+    Returns:
+        Owned external-definition handle.
+    """
+    owner = _definition(componentID, ComponentType)
+    holder = _child(owner, "type_definitions", ComponentType.TypeDefinitions)
+    child = _new_external_definition(name, vlnv)
+    if holder is None:
+        holder = ComponentType.TypeDefinitions()
+        owner.type_definitions = holder
+        _child(owner, "type_definitions", ComponentType.TypeDefinitions)
+    return _append_external_definition(holder, child)
 
 
 def addEnumerationDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.2
@@ -1271,28 +1312,98 @@ def addEnumerationDefinitionEnumeratedValue(enumerationDefinitionID: str, name: 
     return get_handle(child)
 
 
-def addExternalTypeDefinitionsModeLink(externalTypeDefinitionsID: str, name: str) -> str:  # F.7.82.4
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
-        _invalid_id()
-    if getattr(etd, "mode_links", None) is None:
-        etd.mode_links = SimpleNamespace(mode_link=[])  # type: ignore[attr-defined]
-    ml = SimpleNamespace(name=name, external_mode_reference=None, mode_reference=None)
-    etd.mode_links.mode_link.append(ml)  # type: ignore[attr-defined]
-    register_parent(ml, etd, ("mode_links",), "list")
-    return get_handle(ml)
+def addExternalTypeDefinitionsModeLink(
+    externalTypeDefinitionsID: str, externalModeRef: str, modeReference: str
+) -> str:  # F.7.82.4
+    """Add a generated link with required external and local references.
+
+    Section: F.7.82.4.
+
+    Args:
+        externalTypeDefinitionsID: External-definition handle.
+        externalModeRef: External mode XML name.
+        modeReference: Local mode XML name.
+
+    Returns:
+        Owned mode-link handle.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    holder = _child(owner, "mode_links", ModeLinks)
+    children = () if holder is None else _definition_list(holder, "mode_link", ModeLinks.ModeLink)
+    external = _name(externalModeRef, "Name")
+    local = _name(modeReference, "Name")
+    for peer in children:
+        for attribute, source in (("external_mode_reference", external), ("mode_reference", local)):
+            reference = _child(
+                peer,
+                attribute,
+                ModeLinks.ModeLink.ExternalModeReference
+                if attribute.startswith("external")
+                else ModeLinks.ModeLink.ModeReference,
+            )
+            if reference is None:
+                raise TgiError("Missing required link reference", TgiFaultCode.INVALID_ID)
+            if _reference_name(get_handle(reference), "modeRef") == source:
+                raise TgiError("Duplicate link reference", TgiFaultCode.ALREADY_EXISTS)
+    child = ModeLinks.ModeLink(
+        external_mode_reference=ModeLinks.ModeLink.ExternalModeReference(mode_ref=external),
+        mode_reference=ModeLinks.ModeLink.ModeReference(mode_ref=local),
+    )
+    setModeLinkExternalModeReference(get_handle(child), external)
+    setModeLinkModeReference(get_handle(child), local)
+    if holder is None:
+        holder = ModeLinks()
+        owner.mode_links = holder
+    _list_attr(holder, "mode_link").append(child)
+    getExternalTypeDefinitionsModeLinksIDs(externalTypeDefinitionsID)
+    return get_handle(child)
 
 
-def addExternalTypeDefinitionsViewLink(externalTypeDefinitionsID: str, name: str) -> str:  # F.7.82.5
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
-        _invalid_id()
-    if getattr(etd, "view_links", None) is None:
-        etd.view_links = SimpleNamespace(view_link=[])  # type: ignore[attr-defined]
-    vl = SimpleNamespace(name=name, external_view_reference=None, view_reference=None)
-    etd.view_links.view_link.append(vl)  # type: ignore[attr-defined]
-    register_parent(vl, etd, ("view_links",), "list")
-    return get_handle(vl)
+def addExternalTypeDefinitionsViewLink(
+    externalTypeDefinitionsID: str, externalViewRef: str, viewReference: str
+) -> str:  # F.7.82.5
+    """Add a generated link with required external and local references.
+
+    Section: F.7.82.5.
+
+    Args:
+        externalTypeDefinitionsID: External-definition handle.
+        externalViewRef: External view XML name.
+        viewReference: Local view XML name.
+
+    Returns:
+        Owned view-link handle.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    holder = _child(owner, "view_links", ViewLinks)
+    children = () if holder is None else _definition_list(holder, "view_link", ViewLinks.ViewLink)
+    external = _name(externalViewRef, "Name")
+    local = _name(viewReference, "Name")
+    for peer in children:
+        for attribute, source in (("external_view_reference", external), ("view_reference", local)):
+            reference = _child(
+                peer,
+                attribute,
+                ViewLinks.ViewLink.ExternalViewReference
+                if attribute.startswith("external")
+                else ViewLinks.ViewLink.ViewReference,
+            )
+            if reference is None:
+                raise TgiError("Missing required link reference", TgiFaultCode.INVALID_ID)
+            if _reference_name(get_handle(reference), "viewRef") == source:
+                raise TgiError("Duplicate link reference", TgiFaultCode.ALREADY_EXISTS)
+    child = ViewLinks.ViewLink(
+        external_view_reference=ViewLinks.ViewLink.ExternalViewReference(view_ref=external),
+        view_reference=ViewLinks.ViewLink.ViewReference(view_ref=local),
+    )
+    setViewLinkExternalViewReference(get_handle(child), external)
+    setViewLinkViewReference(get_handle(child), local)
+    if holder is None:
+        holder = ViewLinks()
+        owner.view_links = holder
+    _list_attr(holder, "view_link").append(child)
+    getExternalTypeDefinitionsViewLinkIDs(externalTypeDefinitionsID)
+    return get_handle(child)
 
 
 def addFieldDefinitionsEnumeratedValue(fieldDefinitionsID: str, name: str, value: str) -> str:  # F.7.82.6
@@ -1377,14 +1488,24 @@ def addTypeDefinitionsEnumerationDefinition(typeDefinitionsID: str, name: str, w
     return get_handle(child)
 
 
-def addTypeDefinitionsExternalTypeDefinitions(typeDefinitionsID: str, name: str) -> str:  # F.7.82.11
-    td = _ensure_td(typeDefinitionsID)
-    if td.external_type_definitions is None:
-        td.external_type_definitions = SimpleNamespace(external_type_definitions=[])  # type: ignore[attr-defined]
-    ext = SimpleNamespace(name=name)
-    td.external_type_definitions.external_type_definitions.append(ext)  # type: ignore[attr-defined]
-    register_parent(ext, td, ("external_type_definitions",), "list")
-    return get_handle(ext)
+def addTypeDefinitionsExternalTypeDefinitions(
+    typeDefinitionsID: str, name: str, vlnv: tuple[str, str, str, str]
+) -> str:  # F.7.82.11
+    """Add a generated external definition with a unique name and complete source VLNV.
+
+    Section: F.7.82.11.
+
+    Args:
+        typeDefinitionsID: TypeDefinitions document handle.
+        name: Unique external-definition XML name.
+        vlnv: Four-part source VLNV.
+
+    Returns:
+        Owned external-definition handle.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    child = _new_external_definition(name, vlnv)
+    return _append_external_definition(owner, child)
 
 
 def addTypeDefinitionsFieldAccessPolicyDefinition(typeDefinitionsID: str, name: str) -> str:  # F.7.82.12
@@ -1543,14 +1664,35 @@ def removeBankDefinitionAddressUnitBits(bankDefinitionID: str) -> bool:  # F.7.8
     return _remove_child(_definition(bankDefinitionID, BankDefinitions.BankDefinition), "address_unit_bits")
 
 
-def removeComponentExternalTypeDefinitions(componentID: str) -> bool:  # F.7.82.23
-    comp = _resolve(componentID)
-    if comp is None:
-        _invalid_id()
-    if getattr(comp, "external_type_definitions", None) is None:
-        return False
-    comp.external_type_definitions = None  # type: ignore[attr-defined]
-    return True
+def removeComponentExternalTypeDefinitions(externalTypeDefinitionsID: str) -> bool:  # F.7.82.23
+    """Remove an actual component external-definition member and prune its empty holder.
+
+    Section: F.7.82.23.
+
+    Args:
+        externalTypeDefinitionsID: Owned component external-definition handle.
+
+    Returns:
+        True after removal; the last member prunes the component holder.
+    """
+    child = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    holder = _register_owned_child(child, ComponentType.TypeDefinitions)
+    if not isinstance(holder, ComponentType.TypeDefinitions):
+        raise TgiError("External definition has no component typeDefinitions holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, ComponentType)
+    if not isinstance(owner, ComponentType) or owner.type_definitions is not holder:
+        raise TgiError("External definition holder has no component owner", TgiFaultCode.INVALID_ID)
+    children = _definition_list(holder, "external_type_definitions", ExternalTypeDefinitions)
+    if not any(member is child for member in children):
+        raise TgiError("External definition is not in its owning list", TgiFaultCode.INVALID_ID)
+    _definition_list_ids(holder, "external_type_definitions", ExternalTypeDefinitions)
+    _list_attr(holder, "external_type_definitions")
+    result = _remove_owned(
+        externalTypeDefinitionsID, ExternalTypeDefinitions, ComponentType.TypeDefinitions, "external definition"
+    )
+    if not holder.external_type_definitions:
+        _remove_child(owner, "type_definitions")
+    return result
 
 
 def removeEnumerationDefinitionEnumeratedValue(enumeratedValueID: str) -> bool:  # F.7.82.24

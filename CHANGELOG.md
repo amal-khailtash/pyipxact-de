@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement five external Type definitions and mode/view link lifecycle operations using generated component holders, validated VLNVs and shared reference setters.
+
 - Implement seven generated named Type definitions builders and typed field-access-policy removal using shared collection lifecycle validation.
 
 - Complete Indirect interface bridge creation, traversal and removal, endianness mutation, memory-map choice replacement and alias/broadcast optional-reference removal.
