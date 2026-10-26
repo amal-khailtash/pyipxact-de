@@ -28,10 +28,13 @@ from org.accellera.ipxact.v1685_2022 import (
     FieldDefinitions,
     MemoryMapDefinitions,
     MemoryRemapDefinitions,
+    ModeLinks,
     RegisterDefinitions,
     RegisterFileDefinitions,
+    ResetTypeLinks,
     UnsignedBitVectorExpression,
     UnsignedPositiveIntExpression,
+    ViewLinks,
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
@@ -446,19 +449,39 @@ def getEnumerationDefinitionWidthID(enumerationDefinitionID: str) -> str:  # F.7
 
 
 def getExternalTypeDefinitionsModeLinksIDs(externalTypeDefinitionsID: str) -> list[str]:  # F.7.81.11
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
+    """Return ordered owned mode-link handles.
+
+    Section: F.7.81.11.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    container = _child(owner, "mode_links", ModeLinks)
+    if container is None:
         return []
-    ml = getattr(etd, "mode_links", None)
-    return [get_handle(m) for m in getattr(ml, "mode_link", [])] if ml else []
+    return _definition_list_ids(container, "mode_link", ModeLinks.ModeLink)
 
 
 def getExternalTypeDefinitionsResetTypeLinkIDs(externalTypeDefinitionsID: str) -> list[str]:  # F.7.81.12
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
+    """Return ordered owned reset-type-link handles.
+
+    Section: F.7.81.12.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    container = _child(owner, "reset_type_links", ResetTypeLinks)
+    if container is None:
         return []
-    rl = getattr(etd, "reset_type_links", None)
-    return [get_handle(r) for r in getattr(rl, "reset_type_link", [])] if rl else []
+    return _definition_list_ids(container, "reset_type_link", ResetTypeLinks.ResetTypeLink)
 
 
 def getExternalTypeDefinitionsTypeDefinitionsRefByID(externalTypeDefinitionsID: str) -> str | None:  # F.7.81.13
@@ -487,11 +510,21 @@ def getExternalTypeDefinitionsTypeDefinitionsRefByVLNV(
 
 
 def getExternalTypeDefinitionsViewLinkIDs(externalTypeDefinitionsID: str) -> list[str]:  # F.7.81.15
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
+    """Return ordered owned view-link handles.
+
+    Section: F.7.81.15.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    container = _child(owner, "view_links", ViewLinks)
+    if container is None:
         return []
-    vl = getattr(etd, "view_links", None)
-    return [get_handle(v) for v in getattr(vl, "view_link", [])] if vl else []
+    return _definition_list_ids(container, "view_link", ViewLinks.ViewLink)
 
 
 def getMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str) -> int | None:  # F.7.81.16
@@ -776,11 +809,21 @@ def getTypeDefinitionsMemoryRemapDefinitionIDs(typeDefinitionsID: str) -> list[s
 
 
 def getTypeDefinitionsModeIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.38
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned mode handles.
+
+    Section: F.7.81.38.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions element.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "modes", TypeDefinitions.Modes)
+    if container is None:
         return []
-    modes = getattr(td, "modes", None)
-    return [get_handle(m) for m in getattr(modes, "mode", [])] if modes else []
+    return _definition_list_ids(container, "mode", TypeDefinitions.Modes.Mode)
 
 
 def getTypeDefinitionsRegisterDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.39
@@ -820,19 +863,39 @@ def getTypeDefinitionsRegisterFileDefinitionIDs(typeDefinitionsID: str) -> list[
 
 
 def getTypeDefinitionsResetTypeIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.41
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned reset-type handles.
+
+    Section: F.7.81.41.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions element.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "reset_types", TypeDefinitions.ResetTypes)
+    if container is None:
         return []
-    rts = getattr(td, "reset_types", None)
-    return [get_handle(rt) for rt in getattr(rts, "reset_type", [])] if rts else []
+    return _definition_list_ids(container, "reset_type", TypeDefinitions.ResetTypes.ResetType)
 
 
 def getTypeDefinitionsViewIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.42
-    td = _resolve(typeDefinitionsID)
-    if td is None:
+    """Return ordered owned view handles.
+
+    Section: F.7.81.42.
+
+    Args:
+        typeDefinitionsID: Handle to a typeDefinitions element.
+
+    Returns:
+        Ordered member handles, or an empty list when the container is absent.
+    """
+    owner = _definition(typeDefinitionsID, TypeDefinitions)
+    container = _child(owner, "views", TypeDefinitions.Views)
+    if container is None:
         return []
-    views = getattr(td, "views", None)
-    return [get_handle(v) for v in getattr(views, "view", [])] if views else []
+    return _definition_list_ids(container, "view", TypeDefinitions.Views.View)
 
 
 def getViewLinkExternalViewReferenceRefByName(viewLinkID: str) -> str | None:  # F.7.81.43
