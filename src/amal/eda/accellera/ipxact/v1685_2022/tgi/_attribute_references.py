@@ -17,7 +17,14 @@ from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
 from typing import Any, overload
 
-from org.accellera.ipxact.v1685_2022 import ComponentType, FieldMap, ViewLinks
+from org.accellera.ipxact.v1685_2022 import (
+    ComponentType,
+    FieldMap,
+    IndirectAddressRef,
+    IndirectDataRef,
+    MemoryRemapRef,
+    ViewLinks,
+)
 
 from .core import TgiError, TgiFaultCode, get_handle, register_parent, registry, resolve_handle
 
@@ -356,10 +363,16 @@ _FIELD_SLICE_LEVELS: dict[str, int] = {
 
 def _field_slice_context(
     source_path: tuple[object, ...],
-) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice | None:
-    """Find a generated fieldSlice using fieldSliceReferenceGroup."""
+) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice | IndirectAddressRef | IndirectDataRef | None:
+    """Find a generated fieldSlice or indirect reference using fieldSliceReferenceGroup."""
     return next(
-        (node for node in source_path if isinstance(node, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice))),
+        (
+            node
+            for node in source_path
+            if isinstance(
+                node, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice, IndirectAddressRef, IndirectDataRef)
+            )
+        ),
         None,
     )
 
@@ -554,8 +567,10 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
     element = resolve_handle(elementID)
     if element is None:
         raise TgiError("Invalid element handle", TgiFaultCode.INVALID_ID)
-    view_link_reference = isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef"
-    reference = _reference_name(elementID, xml_name) if view_link_reference else _reference_value(element, xml_name)
+    normalized_reference = (isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef") or (
+        isinstance(element, MemoryRemapRef) and xml_name == "memoryRemapRef"
+    )
+    reference = _reference_name(elementID, xml_name) if normalized_reference else _reference_value(element, xml_name)
     if reference is None or not reference.strip():
         return None
 
@@ -572,15 +587,15 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
         if not _is_target(obj, xml_name):
             continue
         name = _model_name(obj)
-        if view_link_reference:
+        if normalized_reference:
             from .port_map import _name
 
             if not isinstance(name, str):
-                raise TgiError("Invalid referenced view name content", TgiFaultCode.INVALID_ID)
+                raise TgiError("Invalid referenced target name content", TgiFaultCode.INVALID_ID)
             try:
                 name = _name(name, "Name")
             except TgiError as error:
-                raise TgiError("Invalid referenced view name", TgiFaultCode.INVALID_ID) from error
+                raise TgiError("Invalid referenced target name", TgiFaultCode.INVALID_ID) from error
         if name == reference:
             candidates.append((obj, ancestors))
 

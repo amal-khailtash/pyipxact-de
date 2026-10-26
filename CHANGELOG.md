@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement ten Indirect interface memory-remap getters and map/remap removers using generated choices, map-qualified target resolution and owned handle invalidation.
+
 - Implement nine Type definitions collection removers with shared typed ownership checks, subtree invalidation and optional-holder pruning.
 
 - Implement view and external VLNV reference setters plus mode/reset/view collection removers with generated wrapper preservation, shared validation, typed ownership and empty-holder pruning.
