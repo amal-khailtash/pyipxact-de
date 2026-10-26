@@ -13,6 +13,7 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
+from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
 from org.accellera.ipxact.v1685_2022.field_type import FieldType
 from org.accellera.ipxact.v1685_2022.register_file import RegisterFile
 from org.accellera.ipxact.v1685_2022.register_file_definitions import RegisterFileDefinitions
@@ -20,11 +21,12 @@ from org.accellera.ipxact.v1685_2022.unsigned_int_expression import UnsignedIntE
 from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import UnsignedLongintExpression
 from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import UnsignedPositiveIntExpression
 
-from .component import _list_attr, _register_graph
+from .component import _list_attr, _register_graph, _register_owner_for
 from .core import (
     TgiError,
     TgiFaultCode,
     get_handle,
+    get_parent_info,
     resolve_handle,
     register_parent,
     detach_child_by_handle,
@@ -142,6 +144,7 @@ __all__ = [
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
     "setRegisterAddressOffset",
+    "setRegisterFieldBitWidth",
     "setRegisterSize",
 ]
 
@@ -182,6 +185,94 @@ def _resolve_register(registerID: str) -> _Register:
         raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
     _register_graph(register)
     return register
+
+
+def _resolve_field(fieldID: str) -> FieldType:
+    field = resolve_handle(fieldID)
+    if not isinstance(field, FieldType):
+        raise TgiError("Invalid field handle", TgiFaultCode.INVALID_ID)
+    _register_graph(field)
+    return field
+
+
+def _resolve_register_field(registerFieldID: str) -> tuple[FieldType, _Register | None]:
+    field = resolve_handle(registerFieldID)
+    if not isinstance(field, FieldType):
+        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
+    _register_owner_for(field)
+    parent = resolve_handle(registerFieldID)
+    seen: set[int] = set()
+    while parent is not None and id(parent) not in seen:
+        if isinstance(parent, _REGISTER_TYPES):
+            _register_graph(parent)
+            return field, parent
+        seen.add(id(parent))
+        info = get_parent_info(get_handle(parent))
+        parent = resolve_handle(info.parent_handle) if info is not None else None
+    return field, None
+
+
+_REGISTER_TYPES = (
+    AddressBlockType.Register,
+    BankedBlockType.Register,
+    RegisterFile.Register,
+    RegisterFileDefinitions.RegisterFileDefinition.Register,
+)
+
+
+def _register_field_bit_offset(field: FieldType) -> UnsignedIntExpression:
+    offset = getattr(field, "bit_offset", None)
+    if not isinstance(offset, UnsignedIntExpression):
+        raise TgiError("Invalid register field bitOffset model", TgiFaultCode.INVALID_ID)
+    register_parent(offset, field, ("bit_offset",), "single")
+    return offset
+
+
+def _register_field_width_state(
+    field: FieldType,
+) -> tuple[UnsignedPositiveIntExpression | None, FieldType.FieldDefinitionRef | None, FieldType.AliasOf | None]:
+    choice = getattr(field, "choice", ())
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    widths = [child for child in choice if isinstance(child, UnsignedPositiveIntExpression)]
+    references = [child for child in choice if isinstance(child, FieldType.FieldDefinitionRef)]
+    aliases = [child for child in choice if isinstance(child, FieldType.AliasOf)]
+    multiple_branches = sum(bool(group) for group in (widths, references, aliases)) > 1
+    if len(widths) > 1 or len(references) > 1 or len(aliases) > 1 or multiple_branches:
+        raise TgiError("Invalid register field bitWidth choice", TgiFaultCode.INVALID_ID)
+    return (widths[0] if widths else None, references[0] if references else None, aliases[0] if aliases else None)
+
+
+def _register_field_bit_width(field: FieldType) -> UnsignedPositiveIntExpression | None:
+    width, _, _ = _register_field_width_state(field)
+    if width is not None:
+        register_parent(width, field, ("choice",), "list")
+    return width
+
+
+def _check_register_field_containment(register: _Register | None, field: FieldType, width: int | None) -> None:
+    if register is None or width is None or field.array is not None:
+        return
+    size_node = _register_size(register)
+    if size_node is None:
+        return
+    size = _integer_expression(size_node.value, _UINT32_MAX, True)
+    if size is None:
+        return
+    if (size_node.minimum is not None and size < size_node.minimum) or (
+        size_node.maximum is not None and size > size_node.maximum
+    ):
+        raise TgiError("Register size is outside its declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    offset_node = _register_field_bit_offset(field)
+    offset = _integer_expression(offset_node.value, _UINT32_MAX, True)
+    if offset is None:
+        return
+    if (offset_node.minimum is not None and offset < offset_node.minimum) or (
+        offset_node.maximum is not None and offset > offset_node.maximum
+    ):
+        raise TgiError("Register field bitOffset is outside its declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    if offset + width > size:
+        raise TgiError("Register field bitWidth would extend beyond the register size", TgiFaultCode.INVALID_ARGUMENT)
 
 
 def _register_address_offset(register: _Register) -> UnsignedLongintExpression:
@@ -576,10 +667,18 @@ def getEnumeratedValuesEnumerationDefinitionRefID(enumeratedValuesID: str) -> st
 
 
 def getFieldBitOffsetID(fieldID: str) -> str | None:
-    """Return bitOffset handle (F.7.73.38)."""
-    f = _resolve(fieldID)
-    off = getattr(f, "bit_offset", None)
-    return get_handle(off) if off is not None else None
+    """Return the owned bitOffset handle (F.7.73.38).
+
+    Section: F.7.73.38.
+
+    Args:
+        fieldID: Handle to a field element.
+
+    Returns:
+        Handle to the field's unsigned bitOffset expression.
+    """
+    field = _resolve_field(fieldID)
+    return get_handle(_register_field_bit_offset(field))
 
 
 def getFieldDefinitionBitWidthID(fieldDefinitionID: str) -> str | None:
@@ -683,47 +782,96 @@ def getRegisterFieldAliasOfID(registerFieldID: str) -> str | None:
 
 
 def getRegisterFieldBitOffset(registerFieldID: str) -> int | None:
-    """Return bitOffset value (F.7.73.50)."""
-    f = _resolve(registerFieldID)
-    off = getattr(f, "bit_offset", None)
-    val = getattr(off, "value", None)
-    return int(val) if isinstance(val, int) else None
+    """Return the evaluated unsigned 32-bit bitOffset (F.7.73.50).
+
+    Section: F.7.73.50.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+
+    Returns:
+        Evaluated bitOffset; an unresolved expression faults.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    return _register_file_numeric(_register_field_bit_offset(field), "bitOffset", 0, _UINT32_MAX)
 
 
 def getRegisterFieldBitOffsetExpression(registerFieldID: str) -> str | None:
-    """Return bitOffset expression (F.7.73.51)."""
-    f = _resolve(registerFieldID)
-    off = getattr(f, "bit_offset", None)
-    return getattr(off, "value_expression", None)
+    """Return the stored bitOffset source expression (F.7.73.51).
+
+    Section: F.7.73.51.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+
+    Returns:
+        The bitOffset expression text.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    return _register_field_bit_offset(field).value
 
 
 def getRegisterFieldBitOffsetID(registerFieldID: str) -> str | None:
-    """Return handle of bitOffset (F.7.73.52)."""
-    f = _resolve(registerFieldID)
-    off = getattr(f, "bit_offset", None)
-    return get_handle(off) if off is not None else None
+    """Return the owned bitOffset handle (F.7.73.52).
+
+    Section: F.7.73.52.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+
+    Returns:
+        Handle to the field's unsigned bitOffset expression.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    return get_handle(_register_field_bit_offset(field))
 
 
 def getRegisterFieldBitWidth(registerFieldID: str) -> int | None:
-    """Return bitWidth numeric value (F.7.73.53)."""
-    f = _resolve(registerFieldID)
-    w = getattr(f, "bit_width", None)
-    val = getattr(w, "value", None)
-    return int(val) if isinstance(val, int) else None
+    """Return the evaluated positive unsigned 32-bit bitWidth (F.7.73.53).
+
+    Section: F.7.73.53.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+
+    Returns:
+        Evaluated inline bitWidth, or None for a field definition reference.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width = _register_field_bit_width(field)
+    return _register_file_numeric(width, "bitWidth", 1, _UINT32_MAX)
 
 
 def getRegisterFieldBitWidthExpression(registerFieldID: str) -> str | None:
-    """Return bitWidth expression (F.7.73.54)."""
-    f = _resolve(registerFieldID)
-    w = getattr(f, "bit_width", None)
-    return getattr(w, "value_expression", None)
+    """Return the stored bitWidth source expression (F.7.73.54).
+
+    Section: F.7.73.54.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+
+    Returns:
+        The inline bitWidth expression text, or None for a reference choice.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width = _register_field_bit_width(field)
+    return width.value if width is not None else None
 
 
 def getRegisterFieldBitWidthID(registerFieldID: str) -> str | None:
-    """Return bitWidth handle (F.7.73.55)."""
-    f = _resolve(registerFieldID)
-    w = getattr(f, "bit_width", None)
-    return get_handle(w) if w is not None else None
+    """Return the owned bitWidth handle (F.7.73.55).
+
+    Section: F.7.73.55.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+
+    Returns:
+        Handle to the inline bitWidth expression, or None for a reference choice.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width = _register_field_bit_width(field)
+    return get_handle(width) if width is not None else None
 
 
 def getRegisterFieldEnumeratedValuesID(registerFieldID: str) -> str | None:
@@ -1238,6 +1386,61 @@ def setRegisterAddressOffset(registerID: str, value: str) -> bool:
     source = _register_file_expression(value, "addressOffset", 0, _UINT64_MAX, offset)
     offset.value = source
     register_parent(offset, register, ("address_offset",), "single")
+    return True
+
+
+def setRegisterFieldBitWidth(registerFieldID: str, value: str) -> bool:
+    """Set inline bitWidth from an unsigned positive 32-bit expression.
+
+    Section: F.7.74.58.
+
+    Args:
+        registerFieldID: Handle to a field owned by a register.
+        value: New bitWidth expression source.
+
+    Returns:
+        True after updating the inline bitWidth choice.
+    """
+    field, register = _resolve_register_field(registerFieldID)
+    current, reference, alias = _register_field_width_state(field)
+    source = _register_file_expression(value, "bitWidth", 1, _UINT32_MAX, current)
+    number = _integer_expression(source, _UINT32_MAX, True)
+    _check_register_field_containment(register, field, number)
+    items = _list_attr(field, "choice")
+
+    if current is not None:
+        current.value = source
+        register_parent(current, field, ("choice",), "list")
+        _register_graph(current)
+        return True
+
+    branch = reference if reference is not None else alias
+    if branch is not None:
+        position = next((index for index, child in enumerate(items) if child is branch), None)
+        if position is None:
+            raise TgiError("Register field choice changed during update", TgiFaultCode.INVALID_ID)
+        branch_id = get_handle(branch)
+        register_parent(branch, field, ("choice",), "list")
+        _register_graph(branch)
+        if not detach_child_by_handle(branch_id):
+            raise TgiError("Could not replace register field definition choice", TgiFaultCode.INVALID_ID)
+    else:
+        position = next(
+            (
+                index
+                for index, child in enumerate(items)
+                if isinstance(
+                    child,
+                    (bool, FieldType.Resets, FieldType.FieldAccessPolicies, EnumeratedValues),
+                )
+            ),
+            len(items),
+        )
+
+    width = UnsignedPositiveIntExpression(value=source)
+    items.insert(position, width)
+    register_parent(width, field, ("choice",), "list")
+    _register_graph(width)
     return True
 
 
