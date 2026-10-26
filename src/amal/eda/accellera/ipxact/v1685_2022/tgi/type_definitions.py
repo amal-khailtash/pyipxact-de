@@ -3,15 +3,23 @@
 Implements BASE (F.7.81) and EXTENDED (F.7.82) functions for the
 ``typeDefinitions`` document describing reusable type definition collections.
 
-BASE getters are tolerant: invalid handles return neutral values (empty list,
-``None``) instead of raising unless the spec semantics depend on explicit
-fault signaling. EXTENDED mutators raise :class:`TgiError` using
+Address-unit getters validate generated definition handles and preserve raw
+expression source; resolved values use SystemVerilog constant evaluation. Other
+BASE getters retain their existing neutral-value behavior for invalid handles.
+EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ID`` for unknown handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 """
+
 from types import SimpleNamespace
 from typing import Any, NoReturn, cast
 
+from org.accellera.ipxact.v1685_2022 import (
+    AddressBlockDefinitions,
+    AddressUnitBits,
+    BankDefinitions,
+    MemoryRemapDefinitions,
+)
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
 from .core import (
@@ -22,6 +30,8 @@ from .core import (
     register_parent,
     resolve_handle,
 )
+from .miscellaneous import _expression_source, getExpression, getExpressionIntValue
+from .port_map import _child_id
 
 __all__ = [
     # BASE (F.7.81)
@@ -137,6 +147,7 @@ __all__ = [
 # Helpers (internal)
 # ---------------------------------------------------------------------------
 
+
 def _resolve(handle: str) -> Any | None:  # generic resolver
     return resolve_handle(handle)
 
@@ -145,42 +156,132 @@ def _invalid_id() -> NoReturn:  # convenience
     raise TgiError("Invalid ID", TgiFaultCode.INVALID_ID)
 
 
+def _definition[T](definition_id: str, model_type: type[T]) -> T:
+    """Require the generated definition owner before accessing its children."""
+    owner = resolve_handle(definition_id)
+    if not isinstance(owner, model_type):
+        raise TgiError("Invalid type definition handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def _definition_unit_source(reference_id: str | None) -> str | None:
+    """Read stored address-unit source while retaining malformed strings for repair."""
+    if reference_id is None:
+        return None
+    node = resolve_handle(reference_id)
+    if not isinstance(node, AddressUnitBits) or not isinstance(node.value, str):
+        raise TgiError("Invalid addressUnitBits content", TgiFaultCode.INVALID_ID)
+    return getExpression(reference_id)
+
+
+def _definition_unit_value(reference_id: str | None) -> int | None:
+    """Evaluate positive address units within the schema and TGI Long domains."""
+    source = _definition_unit_source(reference_id)
+    if source is None or reference_id is None:
+        return None
+    node = resolve_handle(reference_id)
+    if not isinstance(node, AddressUnitBits):
+        raise TgiError("Invalid addressUnitBits handle", TgiFaultCode.INVALID_ID)
+    _expression_source(source, node)
+    return getExpressionIntValue(reference_id)
+
+
 # ---------------------------------------------------------------------------
 # BASE (F.7.81)
-# Each getter tolerant: returns None/[] if invalid. Structure-specific
-# attribute names align with generated schema naming (snake_case).
+# Address-unit getters validate handles; other getters retain neutral returns
+# for invalid handles. Structure-specific attribute names align with generated
+# schema naming (snake_case).
 # ---------------------------------------------------------------------------
 
+
 def getAddressBlockDefinitionAddressUnitBits(addressBlockDefinitionID: str) -> int | None:  # F.7.81.1
-    abd = _resolve(addressBlockDefinitionID)
-    return getattr(getattr(abd, "address_unit_bits", None), "value", None)
+    """Return the resolved address-unit value.
+
+    Section: F.7.81.1.
+
+    Args:
+        addressBlockDefinitionID: Handle to an addressBlockDefinition element.
+
+    Returns:
+        Evaluated positive address units as a TGI Long, or None when absent.
+    """
+    return _definition_unit_value(getAddressBlockDefinitionAddressUnitBitsID(addressBlockDefinitionID))
 
 
 def getAddressBlockDefinitionAddressUnitBitsExpression(addressBlockDefinitionID: str) -> str | None:  # F.7.81.2
-    abd = _resolve(addressBlockDefinitionID)
-    return getattr(getattr(getattr(abd, "address_unit_bits", None), "value", None), "expression", None)
+    """Return the original address-unit expression.
+
+    Section: F.7.81.2.
+
+    Args:
+        addressBlockDefinitionID: Handle to an addressBlockDefinition element.
+
+    Returns:
+        Stored expression text without evaluation, or None when absent.
+    """
+    return _definition_unit_source(getAddressBlockDefinitionAddressUnitBitsID(addressBlockDefinitionID))
 
 
 def getAddressBlockDefinitionAddressUnitBitsID(addressBlockDefinitionID: str) -> str | None:  # F.7.81.3
-    abd = _resolve(addressBlockDefinitionID)
-    aub = getattr(abd, "address_unit_bits", None)
-    return get_handle(aub) if aub is not None else None
+    """Return the address-unit element handle.
+
+    Section: F.7.81.3.
+
+    Args:
+        addressBlockDefinitionID: Handle to an addressBlockDefinition element.
+
+    Returns:
+        Handle to the owned addressUnitBits element, or None when absent.
+    """
+    return _child_id(
+        _definition(addressBlockDefinitionID, AddressBlockDefinitions.AddressBlockDefinition),
+        "address_unit_bits",
+        AddressUnitBits,
+    )
 
 
 def getBankDefinitionAddressUnitBits(bankDefinitionID: str) -> int | None:  # F.7.81.4
-    bd = _resolve(bankDefinitionID)
-    return getattr(getattr(bd, "address_unit_bits", None), "value", None)
+    """Return the resolved address-unit value.
+
+    Section: F.7.81.4.
+
+    Args:
+        bankDefinitionID: Handle to a bankDefinition element.
+
+    Returns:
+        Evaluated positive address units as a TGI Long, or None when absent.
+    """
+    return _definition_unit_value(getBankDefinitionAddressUnitBitsID(bankDefinitionID))
 
 
 def getBankDefinitionAddressUnitBitsExpression(bankDefinitionID: str) -> str | None:  # F.7.81.5
-    bd = _resolve(bankDefinitionID)
-    return getattr(getattr(getattr(bd, "address_unit_bits", None), "value", None), "expression", None)
+    """Return the original address-unit expression.
+
+    Section: F.7.81.5.
+
+    Args:
+        bankDefinitionID: Handle to a bankDefinition element.
+
+    Returns:
+        Stored expression text without evaluation, or None when absent.
+    """
+    return _definition_unit_source(getBankDefinitionAddressUnitBitsID(bankDefinitionID))
 
 
 def getBankDefinitionAddressUnitBitsID(bankDefinitionID: str) -> str | None:  # F.7.81.6
-    bd = _resolve(bankDefinitionID)
-    aub = getattr(bd, "address_unit_bits", None)
-    return get_handle(aub) if aub is not None else None
+    """Return the address-unit element handle.
+
+    Section: F.7.81.6.
+
+    Args:
+        bankDefinitionID: Handle to a bankDefinition element.
+
+    Returns:
+        Handle to the owned addressUnitBits element, or None when absent.
+    """
+    return _child_id(
+        _definition(bankDefinitionID, BankDefinitions.BankDefinition), "address_unit_bits", AddressUnitBits
+    )
 
 
 def getEnumerationDefinitionEnumeratedValueIDs(enumerationDefinitionID: str) -> list[str]:  # F.7.81.7
@@ -265,19 +366,49 @@ def getExternalTypeDefinitionsViewLinkIDs(externalTypeDefinitionsID: str) -> lis
 
 
 def getMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str) -> int | None:  # F.7.81.16
-    mrd = _resolve(memoryRemapDefinitionID)
-    return getattr(getattr(mrd, "address_unit_bits", None), "value", None)
+    """Return the resolved address-unit value.
+
+    Section: F.7.81.16.
+
+    Args:
+        memoryRemapDefinitionID: Handle to a memoryRemapDefinition element.
+
+    Returns:
+        Evaluated positive address units as a TGI Long, or None when absent.
+    """
+    return _definition_unit_value(getMemoryRemapDefinitionAddressUnitBitsID(memoryRemapDefinitionID))
 
 
 def getMemoryRemapDefinitionAddressUnitBitsExpression(memoryRemapDefinitionID: str) -> str | None:  # F.7.81.17
-    mrd = _resolve(memoryRemapDefinitionID)
-    return getattr(getattr(getattr(mrd, "address_unit_bits", None), "value", None), "expression", None)
+    """Return the original address-unit expression.
+
+    Section: F.7.81.17.
+
+    Args:
+        memoryRemapDefinitionID: Handle to a memoryRemapDefinition element.
+
+    Returns:
+        Stored expression text without evaluation, or None when absent.
+    """
+    return _definition_unit_source(getMemoryRemapDefinitionAddressUnitBitsID(memoryRemapDefinitionID))
 
 
 def getMemoryRemapDefinitionAddressUnitBitsID(memoryRemapDefinitionID: str) -> str | None:  # F.7.81.18
-    mrd = _resolve(memoryRemapDefinitionID)
-    aub = getattr(mrd, "address_unit_bits", None)
-    return get_handle(aub) if aub else None
+    """Return the address-unit element handle.
+
+    Section: F.7.81.18.
+
+    Args:
+        memoryRemapDefinitionID: Handle to a memoryRemapDefinition element.
+
+    Returns:
+        Handle to the owned addressUnitBits element, or None when absent.
+    """
+    return _child_id(
+        _definition(memoryRemapDefinitionID, MemoryRemapDefinitions.MemoryRemapDefinition),
+        "address_unit_bits",
+        AddressUnitBits,
+    )
 
 
 def getModeLinkExternalModeReferenceRefByName(modeLinkID: str) -> str | None:  # F.7.81.19
@@ -484,6 +615,7 @@ def getViewLinkViewReferenceID(viewLinkID: str) -> str | None:  # F.7.81.47
 # EXTENDED (F.7.82) – addition, removal, set operations
 # Each function validates IDs and returns handles or booleans per spec style.
 # ---------------------------------------------------------------------------
+
 
 def _ensure_td(tdID: str) -> TypeDefinitions:
     td = resolve_handle(tdID)
@@ -951,4 +1083,3 @@ def setViewLinkViewReference(viewLinkID: str, name: str) -> bool:  # F.7.82.57
         _invalid_id()
     vl.view_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
     return True
-

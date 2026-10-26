@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement nine Type definitions address-unit value, expression and ID getters for address-block, bank and memory-remap definitions using shared SystemVerilog evaluation, schema/TGI numeric bounds and typed child ownership.
 - Fix eight Indirect interface address-space/memory-map getters and two address-space removers to use generated reference choices, with shared Slice validation, owned handles and atomic rejection of malformed branches.
 - Implement eight Indirect interface bank/register-file path add/remove operations with normalized XML names, atomic typed mutation, strict owner membership and descendant handle invalidation; reuse shared Slice path helpers and guard against foreign-child removal.
 - Implement ten Indirect interface ordered bank/register-file reference getters and alternate-register removers with shared validation, preserved metadata, and owned handle lifetimes.
