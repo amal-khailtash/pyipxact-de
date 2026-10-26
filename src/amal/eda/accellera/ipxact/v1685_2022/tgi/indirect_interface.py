@@ -17,6 +17,8 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterRef,
     AlternateRegisterRef,
     MemoryRemapRef,
+    BitsInLau,
+    EndianessType,
 )
 from org.accellera.ipxact.v1685_2022.indirect_address_ref import IndirectAddressRef
 from org.accellera.ipxact.v1685_2022.indirect_data_ref import IndirectDataRef
@@ -25,7 +27,7 @@ from org.accellera.ipxact.v1685_2022.register_file_ref import RegisterFileRef
 
 from typing import overload
 
-from .port_map import _child_id, _remove_child, _name
+from .port_map import _child, _child_id, _remove_child, _name
 from ._reference_choices import _reference_choice, _REFERENCE_CHOICE, _set_reference_choice
 from .component import _list_attr
 from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
@@ -33,6 +35,10 @@ from .address_space import _register_owned_child
 from ._model import _reference_list, _owned_list_ids
 from .component import _register_graph
 from ._attribute_references import _reference_name, resolve_attribute_reference
+
+from ._interface_choices import _indirect_interface_choice
+from .register_file import _numeric
+from .miscellaneous import getExpression
 
 from .core import (
     TgiError,
@@ -97,6 +103,13 @@ __all__ = [
     "setIndirectDataRefAlternateRegisterRef",
     "setIndirectDataRefFieldRef",
     "setIndirectDataRefRegisterRef",
+    "getIndirectInterfaceBitsInLau",
+    "getIndirectInterfaceBitsInLauExpression",
+    "getIndirectInterfaceEndianness",
+    "getIndirectInterfaceIndirectAddressRefID",
+    "getIndirectInterfaceIndirectDataRefID",
+    "getIndirectInterfaceMemoryMapRefByID",
+    "getIndirectInterfaceMemoryMapRefByName",
     # EXTENDED (F.7.54)
     "addIndirectAddressRefBankRef",
     "addIndirectAddressRefRegisterFileRef",
@@ -973,3 +986,88 @@ def setIndirectDataRefRegisterRef(indirectDataRefID: str, registerRef: str) -> b
     owner = _indirect_reference(indirectDataRefID, IndirectDataRef)
     replacement = RegisterRef(register_ref=_name(registerRef, "Name"))
     return _set_named_reference(owner, "register_ref", replacement)
+
+
+def _indirect_interface(indirect_interface_id: str) -> IndirectInterface:
+    """Resolve an indirect interface before typed traversal."""
+    owner = _resolve(indirect_interface_id)
+    if owner is None:
+        raise TgiError("Invalid indirectInterface handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def getIndirectInterfaceBitsInLau(indirectInterfaceID: str) -> int:
+    """Return positive bitsInLau as a TGI Long, defaulting to eight bits.
+
+    Section: F.7.53.39.
+    """
+    getIndirectInterfaceBitsInLauExpression(indirectInterfaceID)
+    node = _child(_indirect_interface(indirectInterfaceID), "bits_in_lau", BitsInLau)
+    value = _numeric(node, "bitsInLau", minimum=1, maximum=(1 << 63) - 1)
+    return 8 if value is None else value
+
+
+def getIndirectInterfaceBitsInLauExpression(indirectInterfaceID: str) -> str | None:
+    """Return stored bitsInLau source without evaluating unresolved constants.
+
+    Section: F.7.53.40.
+    """
+    node = _child(_indirect_interface(indirectInterfaceID), "bits_in_lau", BitsInLau)
+    if node is None:
+        return None
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid bitsInLau expression content", TgiFaultCode.INVALID_ID)
+    return getExpression(get_handle(node))
+
+
+def getIndirectInterfaceEndianness(indirectInterfaceID: str) -> str:
+    """Return the endianness value, defaulting to little endian.
+
+    Section: F.7.53.41.
+    """
+    value = _indirect_interface(indirectInterfaceID).endianness
+    if value is None:
+        return "little"
+    if not isinstance(value, EndianessType):
+        raise TgiError("Invalid indirect interface endianness", TgiFaultCode.INVALID_ID)
+    return value.value
+
+
+def getIndirectInterfaceIndirectAddressRefID(indirectInterfaceID: str) -> str:
+    """Return the required owned indirectAddressRef handle.
+
+    Section: F.7.53.42.
+    """
+    child_id = _child_id(_indirect_interface(indirectInterfaceID), "indirect_address_ref", IndirectAddressRef)
+    if child_id is None:
+        raise TgiError("Missing indirectAddressRef", TgiFaultCode.INVALID_ID)
+    return child_id
+
+
+def getIndirectInterfaceIndirectDataRefID(indirectInterfaceID: str) -> str:
+    """Return the required owned indirectDataRef handle.
+
+    Section: F.7.53.43.
+    """
+    child_id = _child_id(_indirect_interface(indirectInterfaceID), "indirect_data_ref", IndirectDataRef)
+    if child_id is None:
+        raise TgiError("Missing indirectDataRef", TgiFaultCode.INVALID_ID)
+    return child_id
+
+
+def getIndirectInterfaceMemoryMapRefByID(indirectInterfaceID: str) -> str | None:
+    """Return the referenced memoryMap handle in the containing document.
+
+    Section: F.7.53.44.
+    """
+    if getIndirectInterfaceMemoryMapRefByName(indirectInterfaceID) is None:
+        return None
+    return resolve_attribute_reference(indirectInterfaceID, "memoryMapRef")
+
+
+def getIndirectInterfaceMemoryMapRefByName(indirectInterfaceID: str) -> str | None:
+    """Return the normalized memoryMapRef source, preserving stored XML text.
+
+    Section: F.7.53.45.
+    """
+    return _indirect_interface_choice(_indirect_interface(indirectInterfaceID))[0]

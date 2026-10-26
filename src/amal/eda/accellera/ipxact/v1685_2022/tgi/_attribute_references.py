@@ -22,6 +22,7 @@ from org.accellera.ipxact.v1685_2022 import (
     FieldMap,
     IndirectAddressRef,
     IndirectDataRef,
+    IndirectInterface,
     MemoryRemapRef,
     ViewLinks,
 )
@@ -223,6 +224,10 @@ def _reference_name(reference_id: str | None, xml_name: str) -> str | None:
 
 
 def _reference_value(element: Any, xml_name: str) -> str | None:
+    if isinstance(element, IndirectInterface) and xml_name == "memoryMapRef":
+        from ._interface_choices import _indirect_interface_choice
+
+        return _indirect_interface_choice(element)[0]
     if xml_name == "viewRef":
         selected_view = getattr(element, "view", None)
         selected_name = getattr(selected_view, "view_ref", None)
