@@ -7,6 +7,10 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Fixed
+
+- Complete eight Register address-offset and size TGI operations using generated models, constant-expression validation, owned handles and metadata-preserving edits. Validate scalar field containment before resizing and support inline definition choice replacement.
+
 ## [0.9.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.8.0...v0.9.0) (2026-10-26)
 
 

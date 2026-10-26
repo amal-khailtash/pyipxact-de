@@ -1,15 +1,26 @@
 """Register category TGI functions (IEEE 1685-2022).
 
 Implements BASE (F.7.73) and EXTENDED (F.7.74) Register functions. Only the
-functions defined in Annex F are exported. BASE getters return empty/None for
-invalid handles. EXTENDED mutators raise :class:`TgiError` with appropriate
-:TgiFaultCode values. Schema coverage is partial; where underlying objects are
-absent the operations return graceful defaults or raise ``INVALID_ID``.
+functions defined in Annex F are exported. Most legacy BASE getters retain
+their neutral invalid-handle behavior; register address and size operations
+validate typed 2022 register handles. EXTENDED mutators raise :class:`TgiError`
+with appropriate :class:`TgiFaultCode` values. Schema coverage remains partial.
 """
-# ruff: noqa: I001
-from typing import Any
-from types import SimpleNamespace
 
+# ruff: noqa: I001
+from types import SimpleNamespace
+from typing import Any
+
+from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
+from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
+from org.accellera.ipxact.v1685_2022.field_type import FieldType
+from org.accellera.ipxact.v1685_2022.register_file import RegisterFile
+from org.accellera.ipxact.v1685_2022.register_file_definitions import RegisterFileDefinitions
+from org.accellera.ipxact.v1685_2022.unsigned_int_expression import UnsignedIntExpression
+from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import UnsignedLongintExpression
+from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import UnsignedPositiveIntExpression
+
+from .component import _list_attr, _register_graph
 from .core import (
     TgiError,
     TgiFaultCode,
@@ -18,6 +29,9 @@ from .core import (
     register_parent,
     detach_child_by_handle,
 )
+from .register_file import _expression as _register_file_expression
+from .register_file import _integer as _integer_expression
+from .register_file import _numeric as _register_file_numeric
 
 __all__ = [
     # BASE (F.7.73)
@@ -127,7 +141,133 @@ __all__ = [
     "removeBroadcastToMemoryMapRef",
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
+    "setRegisterAddressOffset",
+    "setRegisterSize",
 ]
+
+type _Register = (
+    AddressBlockType.Register
+    | BankedBlockType.Register
+    | RegisterFile.Register
+    | RegisterFileDefinitions.RegisterFileDefinition.Register
+)
+type _RegisterDefinitionRef = (
+    AddressBlockType.Register.RegisterDefinitionRef
+    | BankedBlockType.Register.RegisterDefinitionRef
+    | RegisterFile.Register.RegisterDefinitionRef
+    | RegisterFileDefinitions.RegisterFileDefinition.Register.RegisterDefinitionRef
+)
+_REGISTER_DEFINITION_REF_TYPES = (
+    AddressBlockType.Register.RegisterDefinitionRef,
+    BankedBlockType.Register.RegisterDefinitionRef,
+    RegisterFile.Register.RegisterDefinitionRef,
+    RegisterFileDefinitions.RegisterFileDefinition.Register.RegisterDefinitionRef,
+)
+
+_UINT32_MAX = (1 << 32) - 1
+_UINT64_MAX = (1 << 64) - 1
+
+
+def _resolve_register(registerID: str) -> _Register:
+    register = resolve_handle(registerID)
+    if not isinstance(
+        register,
+        (
+            AddressBlockType.Register,
+            BankedBlockType.Register,
+            RegisterFile.Register,
+            RegisterFileDefinitions.RegisterFileDefinition.Register,
+        ),
+    ):
+        raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
+    _register_graph(register)
+    return register
+
+
+def _register_address_offset(register: _Register) -> UnsignedLongintExpression:
+    offset = getattr(register, "address_offset", None)
+    if not isinstance(offset, UnsignedLongintExpression):
+        raise TgiError("Invalid register addressOffset model", TgiFaultCode.INVALID_ID)
+    register_parent(offset, register, ("address_offset",), "single")
+    return offset
+
+
+def _register_size(register: _Register) -> UnsignedPositiveIntExpression | None:
+    sizes = [child for child in getattr(register, "choice", ()) if isinstance(child, UnsignedPositiveIntExpression)]
+    if len(sizes) > 1:
+        raise TgiError("Multiple register sizes", TgiFaultCode.INVALID_ID)
+    references = [
+        child for child in getattr(register, "choice", ()) if isinstance(child, _REGISTER_DEFINITION_REF_TYPES)
+    ]
+    if len(references) > 1 or (references and sizes):
+        raise TgiError("Invalid register definition choice", TgiFaultCode.INVALID_ID)
+    if sizes:
+        register_parent(sizes[0], register, ("choice",), "list")
+        return sizes[0]
+    return None
+
+
+def _register_definition_reference(register: _Register) -> _RegisterDefinitionRef | None:
+    references = [
+        child for child in getattr(register, "choice", ()) if isinstance(child, _REGISTER_DEFINITION_REF_TYPES)
+    ]
+    if len(references) > 1:
+        raise TgiError("Multiple register definition references", TgiFaultCode.INVALID_ID)
+    return references[0] if references else None
+
+
+def _check_field_containment(register: _Register, size: int | None) -> None:
+    """Reject known inline scalar fields extending past a known replacement size.
+
+    Array replication and referenced field-definition widths need additional
+    effective-width resolution and remain outside this setter's containment check.
+    """
+    if size is None:
+        return
+    for field in getattr(register, "choice", ()):
+        if not isinstance(field, FieldType) or field.array is not None:
+            continue
+        widths = [child for child in field.choice if isinstance(child, UnsignedPositiveIntExpression)]
+        if len(widths) > 1:
+            raise TgiError("Multiple register field bitWidths", TgiFaultCode.INVALID_ID)
+        if not widths:
+            continue
+        if not isinstance(field.bit_offset, UnsignedIntExpression):
+            raise TgiError("Invalid register field bitOffset model", TgiFaultCode.INVALID_ID)
+        offset = _integer_expression(field.bit_offset.value, _UINT32_MAX, True)
+        width = _integer_expression(widths[0].value, _UINT32_MAX, True)
+        if offset is not None and offset < 0:
+            raise TgiError("Register field bitOffset is negative", TgiFaultCode.INVALID_ARGUMENT)
+        if width is not None and width < 1:
+            raise TgiError("Register field bitWidth is not positive", TgiFaultCode.INVALID_ARGUMENT)
+        for node, number, label in (
+            (field.bit_offset, offset, "bitOffset"),
+            (widths[0], width, "bitWidth"),
+        ):
+            if number is not None and (
+                (node.minimum is not None and number < node.minimum)
+                or (node.maximum is not None and number > node.maximum)
+            ):
+                raise TgiError(f"Register field {label} is outside its declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+        if offset is not None and width is not None and offset + width > size:
+            raise TgiError("Register size would exclude an existing field", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _replace_register_choice(register: _Register, choice: UnsignedPositiveIntExpression) -> None:
+    items = _list_attr(register, "choice")
+    for child in list(items):
+        if isinstance(child, str):
+            items.remove(child)
+            continue
+        child_handle = get_handle(child)
+        register_parent(child, register, ("choice",), "list")
+        _register_graph(child)
+        if not detach_child_by_handle(child_handle):
+            raise TgiError("Could not replace register definition choice", TgiFaultCode.INVALID_ID)
+    items.append(choice)
+    register_parent(choice, register, ("choice",), "list")
+    _register_graph(choice)
+
 
 # ---------------------------------------------------------------------------
 # Internal helper utilities (non-spec)
@@ -162,11 +302,11 @@ def _coerce_int(value: str) -> int | str:
 def _ns(**kwargs: Any) -> SimpleNamespace:
     return SimpleNamespace(**kwargs)
 
+
 # ---------------------------------------------------------------------------
 # BASE (F.7.73) – many getters are thin wrappers over attribute presence
-# NOTE: Due to absent concrete schema linkages in this development snapshot,
-# several getters return None/[] because underlying model classes are not yet
-# wired. Implementations keep signature & error-handling contract.
+# NOTE: Many legacy getters retain graceful defaults where the model linkage is
+# incomplete. Register address and size operations use typed 1685-2022 models.
 # ---------------------------------------------------------------------------
 # The following block uses repetitive patterns; each function retains a short
 # docstring referencing its Section number for traceability.
@@ -243,6 +383,7 @@ def getAlternateRegisterVolatility(alternateRegisterID: str) -> bool | None:
     ar = _resolve(alternateRegisterID)
     val = getattr(getattr(ar, "volatile", None), "value", None)
     return val if isinstance(val, bool) else None
+
 
 # BroadcastTo getters (grouped)
 
@@ -360,6 +501,7 @@ def getBroadcastToRegisterRefID(broadcastToID: str) -> str | None:
     ref = getattr(b, "register_ref", None)
     return get_handle(ref) if ref is not None else None
 
+
 # EnumeratedValue(s)
 
 
@@ -429,6 +571,7 @@ def getEnumeratedValuesEnumerationDefinitionRefID(enumeratedValuesID: str) -> st
     ref = getattr(evs, "enumeration_definition_ref", None)
     return get_handle(ref) if ref is not None else None
 
+
 # Field / FieldDefinition / FieldRef
 
 
@@ -476,35 +619,58 @@ def getFieldRefIndexIDs(fieldRefID: str) -> list[str]:
     fr = _resolve(fieldRefID)
     return _list_handles(fr, "index")
 
+
 # Register (address / size / type)
 
 
 def getRegisterAddressOffset(registerID: str) -> int | None:
-    """Return addressOffset value (F.7.73.45)."""
-    r = _resolve(registerID)
-    off = getattr(r, "address_offset", None)
-    val = getattr(off, "value", None)
-    return int(val) if isinstance(val, int) else None
+    """Return evaluated unsigned 64-bit addressOffset (F.7.73.45).
+
+    Section: F.7.73.45.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Evaluated addressOffset; unresolved expressions fault.
+    """
+    offset = _register_address_offset(_resolve_register(registerID))
+    return _register_file_numeric(offset, "addressOffset", 0, _UINT64_MAX)
 
 
 def getRegisterAddressOffsetExpression(registerID: str) -> str | None:
-    """Return addressOffset expression (F.7.73.46)."""
-    r = _resolve(registerID)
-    off = getattr(r, "address_offset", None)
-    return getattr(off, "value_expression", None)
+    """Return addressOffset source text (F.7.73.46).
+
+    Section: F.7.73.46.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        The stored addressOffset expression.
+    """
+    return _register_address_offset(_resolve_register(registerID)).value
 
 
 def getRegisterAddressOffsetID(registerID: str) -> str | None:
-    """Return handle of addressOffset (F.7.73.47)."""
-    r = _resolve(registerID)
-    off = getattr(r, "address_offset", None)
-    return get_handle(off) if off is not None else None
+    """Return addressOffset handle (F.7.73.47).
+
+    Section: F.7.73.47.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handle to the owned addressOffset expression.
+    """
+    return get_handle(_register_address_offset(_resolve_register(registerID)))
 
 
 def getRegisterAlternateRegisterIDs(registerID: str) -> list[str]:
     """Return alternateRegister handles (F.7.73.48)."""
     r = _resolve(registerID)
     return _list_handles(r, "alternate_register")
+
 
 # Register Field getters (aliases, offsets, widths, enumeratedValues, resets)
 
@@ -626,6 +792,7 @@ def getRegisterFileAddressOffsetID(registerFileID: str) -> str | None:
     off = getattr(rf, "address_offset", None)
     return get_handle(off) if off is not None else None
 
+
 # RegisterRef
 
 
@@ -646,6 +813,7 @@ def getRegisterRefRegisterRefByName(registerRefID: str) -> str | None:
     """Return registerRef value (F.7.73.68)."""
     rr = _resolve(registerRefID)
     return _maybe_value(getattr(rr, "register_ref", None))
+
 
 # Register definition references
 
@@ -677,29 +845,53 @@ def getRegisterRegisterDefinitionRefID(registerID: str) -> str | None:
     ref = getattr(r, "register_definition_ref", None)
     return get_handle(ref) if ref is not None else None
 
+
 # Size / type / volatility
 
 
 def getRegisterSize(registerID: str) -> int | None:
-    """Return size value (F.7.73.73)."""
-    r = _resolve(registerID)
-    sz = getattr(r, "size", None)
-    val = getattr(sz, "value", None)
-    return int(val) if isinstance(val, int) else None
+    """Return evaluated inline unsigned positive 32-bit size (F.7.73.73).
+
+    Section: F.7.73.73.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Evaluated inline size, or None when the register uses a definition reference.
+    """
+    size = _register_size(_resolve_register(registerID))
+    return _register_file_numeric(size, "size", 1, _UINT32_MAX)
 
 
 def getRegisterSizeExpression(registerID: str) -> str | None:
-    """Return size expression (F.7.73.74)."""
-    r = _resolve(registerID)
-    sz = getattr(r, "size", None)
-    return getattr(sz, "value_expression", None)
+    """Return stored inline size expression text (F.7.73.74).
+
+    Section: F.7.73.74.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Inline size source text, or None when the register uses a definition reference.
+    """
+    size = _register_size(_resolve_register(registerID))
+    return size.value if size is not None else None
 
 
 def getRegisterSizeID(registerID: str) -> str | None:
-    """Return size handle (F.7.73.75)."""
-    r = _resolve(registerID)
-    sz = getattr(r, "size", None)
-    return get_handle(sz) if sz is not None else None
+    """Return inline size handle (F.7.73.75).
+
+    Section: F.7.73.75.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handle to the owned size expression, or None for a definition reference.
+    """
+    size = _register_size(_resolve_register(registerID))
+    return get_handle(size) if size is not None else None
 
 
 def getRegisterTypeIdentifier(registerID: str) -> str | None:
@@ -713,6 +905,7 @@ def getRegisterVolatility(registerID: str) -> bool | None:
     r = _resolve(registerID)
     val = getattr(getattr(r, "volatile", None), "value", None)
     return val if isinstance(val, bool) else None
+
 
 # Reset values
 
@@ -759,6 +952,7 @@ def getResetValueID(resetID: str) -> str | None:
     rst = _resolve(resetID)
     v = getattr(rst, "value", None)
     return get_handle(v) if v is not None else None
+
 
 # ---------------------------------------------------------------------------
 # EXTENDED (F.7.74)
@@ -921,6 +1115,7 @@ def addRegisterRefIndex(registerRefID: str, value: str) -> str:
     register_parent(idx, rr, ("index",), "list")
     return get_handle(idx)
 
+
 # Removes
 
 
@@ -1024,3 +1219,57 @@ def removeBroadcastToRegisterFileRef(registerRefID: str) -> bool:
 def removeBroadcastToRegisterRef(registerRefID: str) -> bool:
     """Remove registerRef (F.7.74.22)."""
     return detach_child_by_handle(registerRefID)
+
+
+def setRegisterAddressOffset(registerID: str, value: str) -> bool:
+    """Set addressOffset.
+
+    Section: F.7.74.56.
+
+    Args:
+        registerID: Handle to a register element.
+        value: New unsigned 64-bit addressOffset expression.
+
+    Returns:
+        True after the existing expression node is updated.
+    """
+    register = _resolve_register(registerID)
+    offset = _register_address_offset(register)
+    source = _register_file_expression(value, "addressOffset", 0, _UINT64_MAX, offset)
+    offset.value = source
+    register_parent(offset, register, ("address_offset",), "single")
+    return True
+
+
+def setRegisterSize(registerID: str, value: str) -> bool:
+    """Set inline size, replacing a register-definition choice when present.
+
+    Section: F.7.74.65.
+
+    Args:
+        registerID: Handle to a register element.
+        value: New unsigned positive 32-bit size expression.
+
+    Returns:
+        True after updating the inline size or replacing a definition choice.
+    """
+    register = _resolve_register(registerID)
+    current = _register_size(register)
+    definition_ref = _register_definition_reference(register)
+    source = _register_file_expression(value, "size", 1, _UINT32_MAX, current)
+    number = _integer_expression(source, _UINT32_MAX, True)
+    if definition_ref is None:
+        _check_field_containment(register, number)
+    if definition_ref is not None:
+        _replace_register_choice(register, UnsignedPositiveIntExpression(value=source))
+    elif current is not None:
+        current.value = source
+        register_parent(current, register, ("choice",), "list")
+    else:
+        items = _list_attr(register, "choice")
+        position = next((index for index, child in enumerate(items) if not isinstance(child, str)), len(items))
+        size = UnsignedPositiveIntExpression(value=source)
+        items.insert(position, size)
+        register_parent(size, register, ("choice",), "list")
+        _register_graph(size)
+    return True
