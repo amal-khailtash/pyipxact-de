@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement seven Type definitions view/reference lookups with required typed reference handles, validated stored VLNV, registered document resolution and local view target ownership.
 - Implement eight Type definitions mode/reset link reference getters using required generated reference handles, correct reference fields and shared XML Name validation with indirect interfaces.
 - Implement six Type definitions mode/view/reset and external-link collection getters with typed generated members, ordered handles, preserved tuple storage and restored descendant ownership.
 - Implement nine Type definitions collection getters with typed generated members, ordered handles, preserved tuple storage and restored descendant ownership.

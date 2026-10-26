@@ -3,10 +3,10 @@
 Implements BASE (F.7.81) and EXTENDED (F.7.82) functions for the
 ``typeDefinitions`` document describing reusable type definition collections.
 
-Implemented numeric, definition-list and mode/reset-link getters validate generated
-definition handles. Expression source is preserved, and resolved values use SystemVerilog
-constant evaluation. Other
-BASE getters retain their existing neutral-value behavior for invalid handles.
+BASE getters validate generated definition and reference handles. Expression
+source is preserved, and resolved values use SystemVerilog constant evaluation.
+Required references reject missing content; optional collections retain empty
+results. Target getters resolve the referenced document or local model object.
 EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ID`` for unknown handles and
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
@@ -22,6 +22,7 @@ from org.accellera.ipxact.v1685_2022 import (
     BankDefinitions,
     Choices,
     ComplexBaseExpression,
+    ConfigurableLibraryRefType,
     EnumeratedValueType,
     EnumerationDefinitions,
     ExternalTypeDefinitions,
@@ -38,8 +39,9 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
 
-from ._attribute_references import _reference_name
+from ._attribute_references import _reference_name, resolve_attribute_reference
 from ._expressions import _integer, _source
+from ._library_reference import _xml_vlnv
 from ._model import _owned_list_ids
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr, _register_graph
@@ -51,6 +53,7 @@ from .core import (
     register_parent,
     resolve_handle,
 )
+from .instantiation import _registered_reference_target
 from .miscellaneous import getExpression
 from .port_map import _child, _child_id, _name, _remove_child
 from .register_file import _expression, _numeric
@@ -285,10 +288,10 @@ def _definition_unit_value(reference_id: str | None) -> int | None:
 
 # ---------------------------------------------------------------------------
 # BASE (F.7.81)
-# Implemented numeric, definition-list and mode/reset-link getters validate
-# handles; other getters retain neutral returns
-# for invalid handles. Structure-specific attribute names align with generated
-# schema naming (snake_case).
+# Numeric, collection and reference getters validate generated handles.
+# Optional collections return empty lists; required references reject missing
+# content. Structure-specific attribute names align with generated schema
+# naming (snake_case).
 # ---------------------------------------------------------------------------
 
 
@@ -485,29 +488,49 @@ def getExternalTypeDefinitionsResetTypeLinkIDs(externalTypeDefinitionsID: str) -
     return _definition_list_ids(container, "reset_type_link", ResetTypeLinks.ResetTypeLink)
 
 
-def getExternalTypeDefinitionsTypeDefinitionsRefByID(externalTypeDefinitionsID: str) -> str | None:  # F.7.81.13
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
-        return None
-    ref = getattr(etd, "type_definitions_ref", None)
-    return get_handle(ref) if ref else None
+def getExternalTypeDefinitionsTypeDefinitionsRefByID(externalTypeDefinitionsID: str) -> str:  # F.7.81.13
+    """Return the registered Type definitions document referenced by VLNV.
+
+    Section: F.7.81.13.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element.
+
+    Returns:
+        Referenced 1685-2022 document handle; unavailable or wrong-kind targets raise NOT_FOUND.
+    """
+    getExternalTypeDefinitionsTypeDefinitionsRefByVLNV(externalTypeDefinitionsID)
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    try:
+        target = _registered_reference_target(owner.type_definitions_ref, TypeDefinitions, "typeDefinitionsRef")
+    except TgiError as error:
+        if error.fault_code == TgiFaultCode.INVALID_ID:
+            raise TgiError("Referenced document edition is unsupported", TgiFaultCode.NOT_FOUND) from error
+        raise
+    return get_handle(target)
 
 
 def getExternalTypeDefinitionsTypeDefinitionsRefByVLNV(
     externalTypeDefinitionsID: str,
-) -> tuple[str | None, str | None, str | None, str | None]:  # F.7.81.14
-    etd = _resolve(externalTypeDefinitionsID)
-    if etd is None:
-        return (None, None, None, None)
-    ref = getattr(etd, "type_definitions_ref", None)
-    if ref is None:
-        return (None, None, None, None)
-    return (
-        getattr(ref, "vendor", None),
-        getattr(ref, "library", None),
-        getattr(ref, "name", None),
-        getattr(ref, "version", None),
-    )
+) -> tuple[str, str, str, str]:  # F.7.81.14
+    """Return the complete stored VLNV of the required external document reference.
+
+    Section: F.7.81.14.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element.
+
+    Returns:
+        Validated vendor, library, name and version strings, without target lookup.
+    """
+    owner = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    reference = _child(owner, "type_definitions_ref", ConfigurableLibraryRefType)
+    if reference is None:
+        raise TgiError("Missing required typeDefinitionsRef", TgiFaultCode.INVALID_ID)
+    try:
+        return _xml_vlnv((reference.vendor, reference.library, reference.name, reference.version))
+    except TgiError as error:
+        raise TgiError("Invalid typeDefinitionsRef VLNV", TgiFaultCode.INVALID_ID) from error
 
 
 def getExternalTypeDefinitionsViewLinkIDs(externalTypeDefinitionsID: str) -> list[str]:  # F.7.81.15
@@ -987,34 +1010,89 @@ def getTypeDefinitionsViewIDs(typeDefinitionsID: str) -> list[str]:  # F.7.81.42
     return _definition_list_ids(container, "view", TypeDefinitions.Views.View)
 
 
-def getViewLinkExternalViewReferenceRefByName(viewLinkID: str) -> str | None:  # F.7.81.43
-    vl = _resolve(viewLinkID)
-    ext = getattr(vl, "external_view_reference", None)
-    return getattr(ext, "name", None) if ext else None
+def getViewLinkExternalViewReferenceRefByName(viewLinkID: str) -> str:  # F.7.81.43
+    """Return the referenced view name.
+
+    Section: F.7.81.43.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+
+    Returns:
+        Normalized referenced view name without changing its stored source.
+    """
+    return _reference_name(getViewLinkExternalViewReferenceID(viewLinkID), "viewRef")
 
 
-def getViewLinkExternalViewReferenceID(viewLinkID: str) -> str | None:  # F.7.81.44
-    vl = _resolve(viewLinkID)
-    ext = getattr(vl, "external_view_reference", None)
-    return get_handle(ext) if ext else None
+def getViewLinkExternalViewReferenceID(viewLinkID: str) -> str:  # F.7.81.44
+    """Return the reference element handle.
+
+    Section: F.7.81.44.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+
+    Returns:
+        Owned handle to the required reference element, including typed source needing repair.
+    """
+    reference_id = _child_id(
+        _definition(viewLinkID, ViewLinks.ViewLink), "external_view_reference", ViewLinks.ViewLink.ExternalViewReference
+    )
+    if reference_id is None:
+        raise TgiError("Missing required external_view_reference reference", TgiFaultCode.INVALID_ID)
+    return reference_id
 
 
-def getViewLinkViewReferenceRefByID(viewLinkID: str) -> str | None:  # F.7.81.45
-    vl = _resolve(viewLinkID)
-    ref = getattr(vl, "view_reference", None)
-    return getattr(ref, "id", None) if ref else None
+def getViewLinkViewReferenceRefByID(viewLinkID: str) -> str:  # F.7.81.45
+    """Return the local view targeted by the required view reference.
+
+    Section: F.7.81.45.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+
+    Returns:
+        Referenced view handle; missing targets raise NOT_FOUND and ambiguity INVALID_ARGUMENT.
+    """
+    reference_id = getViewLinkViewReferenceID(viewLinkID)
+    getViewLinkViewReferenceRefByName(viewLinkID)
+    target_id = resolve_attribute_reference(reference_id, "viewRef")
+    if target_id is None:
+        raise TgiError("Referenced view is absent", TgiFaultCode.NOT_FOUND)
+    return target_id
 
 
-def getViewLinkViewReferenceRefByName(viewLinkID: str) -> str | None:  # F.7.81.46
-    vl = _resolve(viewLinkID)
-    ref = getattr(vl, "view_reference", None)
-    return getattr(ref, "name", None) if ref else None
+def getViewLinkViewReferenceRefByName(viewLinkID: str) -> str:  # F.7.81.46
+    """Return the referenced view name.
+
+    Section: F.7.81.46.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+
+    Returns:
+        Normalized referenced view name without changing its stored source.
+    """
+    return _reference_name(getViewLinkViewReferenceID(viewLinkID), "viewRef")
 
 
-def getViewLinkViewReferenceID(viewLinkID: str) -> str | None:  # F.7.81.47
-    vl = _resolve(viewLinkID)
-    ref = getattr(vl, "view_reference", None)
-    return get_handle(ref) if ref else None
+def getViewLinkViewReferenceID(viewLinkID: str) -> str:  # F.7.81.47
+    """Return the reference element handle.
+
+    Section: F.7.81.47.
+
+    Args:
+        viewLinkID: Handle to a viewLink element.
+
+    Returns:
+        Owned handle to the required reference element, including typed source needing repair.
+    """
+    reference_id = _child_id(
+        _definition(viewLinkID, ViewLinks.ViewLink), "view_reference", ViewLinks.ViewLink.ViewReference
+    )
+    if reference_id is None:
+        raise TgiError("Missing required view_reference reference", TgiFaultCode.INVALID_ID)
+    return reference_id
 
 
 # ---------------------------------------------------------------------------

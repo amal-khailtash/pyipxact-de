@@ -8,15 +8,16 @@ reuse this resolution, including registerRef and ordered fieldSlice paths.
 References to component
 ports and interfaces follow the component-instance VLNV through the TGI
 registry; no files are loaded as a side effect.
-Shared source readers also serve indirect paths and Type definitions mode/reset
+Shared source readers also serve indirect paths and Type definitions mode/reset/view
 links, preserving stored source while validating XML reference names.
+View links resolve local views in Type definitions and component models.
 """
 
 from collections.abc import Iterator
 from dataclasses import fields, is_dataclass
 from typing import Any, overload
 
-from org.accellera.ipxact.v1685_2022 import ComponentType, FieldMap
+from org.accellera.ipxact.v1685_2022 import ComponentType, FieldMap, ViewLinks
 
 from .core import TgiError, TgiFaultCode, get_handle, register_parent, registry, resolve_handle
 
@@ -56,7 +57,7 @@ _TARGET_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
     "resetTypeRef": (("component_type", "ResetType"),),
     "segmentRef": (("address_spaces", "Segment"),),
     "subPortRef": (("sub_port_type", "SubPortType"),),
-    "viewRef": (("model_type", "View"), ("abstractor_model_type", "View")),
+    "viewRef": (("model_type", "View"), ("abstractor_model_type", "View"), ("type_definitions", "View")),
 }
 
 _QUALIFIER_TYPES: dict[str, tuple[tuple[str, str], ...]] = {
@@ -553,7 +554,8 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
     element = resolve_handle(elementID)
     if element is None:
         raise TgiError("Invalid element handle", TgiFaultCode.INVALID_ID)
-    reference = _reference_value(element, xml_name)
+    view_link_reference = isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef"
+    reference = _reference_name(elementID, xml_name) if view_link_reference else _reference_value(element, xml_name)
     if reference is None or not reference.strip():
         return None
 
@@ -565,11 +567,22 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
         if target is not None:
             _register_target_owner(target_root, target)
             return get_handle(target)
-    candidates = [
-        (obj, ancestors)
-        for obj, ancestors in _walk(target_root)
-        if _is_target(obj, xml_name) and _model_name(obj) == reference
-    ]
+    candidates: list[tuple[object, tuple[object, ...]]] = []
+    for obj, ancestors in _walk(target_root):
+        if not _is_target(obj, xml_name):
+            continue
+        name = _model_name(obj)
+        if view_link_reference:
+            from .port_map import _name
+
+            if not isinstance(name, str):
+                raise TgiError("Invalid referenced view name content", TgiFaultCode.INVALID_ID)
+            try:
+                name = _name(name, "Name")
+            except TgiError as error:
+                raise TgiError("Invalid referenced view name", TgiFaultCode.INVALID_ID) from error
+        if name == reference:
+            candidates.append((obj, ancestors))
 
     if xml_name == "segmentRef":
         candidates = _segment_candidates(root, source_path, candidates)
