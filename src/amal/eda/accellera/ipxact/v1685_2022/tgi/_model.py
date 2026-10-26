@@ -3,9 +3,26 @@
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
 
-from org.accellera.ipxact.v1685_2022 import AdHocConnection, ComponentType, ExternalPortReference, SubPortReference
+from org.accellera.ipxact.v1685_2022 import (
+    AdHocConnection,
+    BankRef,
+    ComponentType,
+    ExternalPortReference,
+    RegisterFileRef,
+    SubPortReference,
+)
 
 from .core import TgiError, TgiFaultCode, get_handle, register_parent
+
+
+def _reference_list[T: BankRef | RegisterFileRef](owner: object, attribute: str, model_type: type[T]) -> Sequence[T]:
+    """Validate an ordered hierarchical reference path before traversal or mutation."""
+    children = getattr(owner, attribute)
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid field reference path", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(getattr(child, attribute), str) for child in children):
+        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
+    return children
 
 
 def _owned_list_ids(owner: object, children: Iterable[object], attribute: str) -> list[str]:

@@ -42,7 +42,7 @@ from org.accellera.ipxact.v1685_2022 import (
 
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
 from ._expressions import _string_source
-from ._model import _owned_list_ids, _sub_port_references
+from ._model import _owned_list_ids, _sub_port_references, _reference_list as _field_reference_list
 from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr
 from .port_map import _child, _child_id, _name, _set_part_select, _remove_child
@@ -269,18 +269,6 @@ def _set_field_reference(
     setattr(owner, attribute, current)
     register_parent(current, owner, (attribute,), "single")
     return True
-
-
-def _field_reference_list[T: BankRef | RegisterFileRef](
-    owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice, attribute: str, model_type: type[T]
-) -> Sequence[T]:
-    """Validate an ordered hierarchical reference path before traversal or mutation."""
-    children = getattr(owner, attribute)
-    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
-        raise TgiError("Invalid field reference path", TgiFaultCode.INVALID_ID)
-    if any(not isinstance(getattr(child, attribute), str) for child in children):
-        raise TgiError("Invalid field reference source", TgiFaultCode.INVALID_ID)
-    return children
 
 
 def _add_field_reference[T: BankRef | RegisterFileRef](
