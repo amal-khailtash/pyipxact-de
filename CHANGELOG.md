@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete six Register field type-identifier and volatility operations with validated ordered choices, inline default-false semantics, preserved alias/reference branches and sibling data, and exact setter keywords.
 - Complete six Register type-identifier and volatility getters, setters and removals with ordered schema choices, validated names and Boolean values, preserved wrapper identity, and explicit absent-volatility semantics.
 - Complete eight Register field offset and width operations with typed expression children, preserved metadata and handles, validated scalar containment, and schema-valid alias/reference replacement.
 - Complete eight Register address-offset and size TGI operations using generated models, constant-expression validation, owned handles and metadata-preserving edits. Validate scalar field containment before resizing and support inline definition choice replacement.

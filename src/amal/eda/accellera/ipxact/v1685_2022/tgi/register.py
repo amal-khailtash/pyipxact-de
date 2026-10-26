@@ -145,10 +145,14 @@ __all__ = [
     "removeBroadcastToMemoryMapRef",
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
+    "removeRegisterFieldTypeIdentifier",
+    "removeRegisterFieldVolatility",
     "removeRegisterTypeIdentifier",
     "removeRegisterVolatility",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
+    "setRegisterFieldTypeIdentifier",
+    "setRegisterFieldVolatility",
     "setRegisterSize",
     "setRegisterTypeIdentifier",
     "setRegisterVolatility",
@@ -247,6 +251,20 @@ def _register_field_width_state(
     if len(widths) > 1 or len(references) > 1 or len(aliases) > 1 or multiple_branches:
         raise TgiError("Invalid register field bitWidth choice", TgiFaultCode.INVALID_ID)
     return (widths[0] if widths else None, references[0] if references else None, aliases[0] if aliases else None)
+
+
+def _register_field_type_identifier(field: FieldType) -> str | None:
+    identifiers = [child for child in getattr(field, "choice", ()) if isinstance(child, str)]
+    if len(identifiers) > 1:
+        raise TgiError("Multiple register field typeIdentifiers", TgiFaultCode.INVALID_ID)
+    return identifiers[0] if identifiers else None
+
+
+def _register_field_volatile(field: FieldType) -> bool | None:
+    values = [child for child in getattr(field, "choice", ()) if type(child) is bool]
+    if len(values) > 1:
+        raise TgiError("Multiple register field volatile values", TgiFaultCode.INVALID_ID)
+    return values[0] if values else None
 
 
 def _register_field_bit_width(field: FieldType) -> UnsignedPositiveIntExpression | None:
@@ -954,16 +972,44 @@ def getRegisterFieldResetIDs(registerFieldID: str) -> list[str]:
 
 
 def getRegisterFieldTypeIdentifier(registerFieldID: str) -> str | None:
-    """Return typeIdentifier (F.7.73.63)."""
-    f = _resolve(registerFieldID)
-    return _maybe_value(getattr(f, "type_identifier", None))
+    """Return an inline register field typeIdentifier (F.7.73.63).
+
+    Section: F.7.73.63.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        The typeIdentifier for an inline-width or alias field, or None for a field-definition reference.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if reference is not None:
+        return None
+    if width is None and alias is None:
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    return _register_field_type_identifier(field)
 
 
 def getRegisterFieldVolatility(registerFieldID: str) -> bool | None:
-    """Return volatility flag (F.7.73.64)."""
-    f = _resolve(registerFieldID)
-    val = getattr(getattr(f, "volatile", None), "value", None)
-    return val if isinstance(val, bool) else None
+    """Return register field volatility (F.7.73.64).
+
+    Section: F.7.73.64.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        The explicit volatility, False by default for inline-width fields, or None for alias and reference fields.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if width is None:
+        if reference is not None or alias is not None:
+            return None
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    volatile = _register_field_volatile(field)
+    return False if volatile is None else volatile
 
 
 def getRegisterFileAddressOffsetID(registerFileID: str) -> str | None:
@@ -1429,6 +1475,60 @@ def removeBroadcastToRegisterRef(registerRefID: str) -> bool:
     return detach_child_by_handle(registerRefID)
 
 
+def removeRegisterFieldTypeIdentifier(registerFieldID: str) -> bool:
+    """Remove a register field typeIdentifier (F.7.74.32).
+
+    Section: F.7.74.32.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        True if a typeIdentifier was removed, otherwise False.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if reference is not None or (width is None and alias is None):
+        return False
+    identifier = _register_field_type_identifier(field)
+    if identifier is None:
+        return False
+    items = _list_attr(field, "choice")
+    index = next((index for index, child in enumerate(items) if isinstance(child, str)), None)
+    if index is None:
+        raise TgiError("Register field typeIdentifier choice changed during removal", TgiFaultCode.INVALID_ID)
+    del items[index]
+    return True
+
+
+def removeRegisterFieldVolatility(registerFieldID: str) -> bool:
+    """Remove register field volatility (F.7.74.33).
+
+    Section: F.7.74.33.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        True if an explicit volatility value was removed, otherwise False.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if width is None:
+        if reference is not None or alias is not None:
+            return False
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    volatile = _register_field_volatile(field)
+    if volatile is None:
+        return False
+    items = _list_attr(field, "choice")
+    index = next((index for index, child in enumerate(items) if type(child) is bool), None)
+    if index is None:
+        raise TgiError("Register field volatility choice changed during removal", TgiFaultCode.INVALID_ID)
+    del items[index]
+    return True
+
+
 def removeRegisterTypeIdentifier(registerID: str) -> bool:
     """Remove inline typeIdentifier (F.7.74.35).
 
@@ -1552,6 +1652,85 @@ def setRegisterFieldBitWidth(registerFieldID: str, value: str) -> bool:
     items.insert(position, width)
     register_parent(width, field, ("choice",), "list")
     _register_graph(width)
+    return True
+
+
+def setRegisterFieldTypeIdentifier(regFieldID: str, typeIdentifier: str) -> bool:
+    """Set a register field typeIdentifier (F.7.74.62).
+
+    Section: F.7.74.62.
+
+    Args:
+        regFieldID: Handle to a register field element.
+        typeIdentifier: New register field typeIdentifier name.
+
+    Returns:
+        True after setting the typeIdentifier.
+    """
+    field, _ = _resolve_register_field(regFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if reference is not None:
+        raise TgiError(
+            "setRegisterFieldTypeIdentifier requires an inline or alias field",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+    if width is None and alias is None:
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    value = _schema_name(typeIdentifier, "Name")
+    identifier = _register_field_type_identifier(field)
+    items = _list_attr(field, "choice")
+    if identifier is not None:
+        index = next((index for index, child in enumerate(items) if isinstance(child, str)), None)
+        if index is None:
+            raise TgiError("Register field typeIdentifier choice changed during update", TgiFaultCode.INVALID_ID)
+        items[index] = value
+        return True
+    position = next(
+        (
+            index
+            for index, child in enumerate(items)
+            if isinstance(child, (UnsignedPositiveIntExpression, FieldType.AliasOf))
+        ),
+        None,
+    )
+    if position is None:
+        raise TgiError("Register field choice changed during update", TgiFaultCode.INVALID_ID)
+    items.insert(position, value)
+    return True
+
+
+def setRegisterFieldVolatility(regFieldID: str, volatile: bool) -> bool:
+    """Set register field volatility (F.7.74.63).
+
+    Section: F.7.74.63.
+
+    Args:
+        regFieldID: Handle to a register field element.
+        volatile: Whether the register field is volatile.
+
+    Returns:
+        True after setting explicit volatility.
+    """
+    field, _ = _resolve_register_field(regFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if width is None:
+        if reference is not None or alias is not None:
+            raise TgiError("setRegisterFieldVolatility requires an inline field width", TgiFaultCode.INVALID_ARGUMENT)
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    if type(volatile) is not bool:
+        raise TgiError("volatile must be a boolean", TgiFaultCode.INVALID_ARGUMENT)
+    current = _register_field_volatile(field)
+    items = _list_attr(field, "choice")
+    if current is not None:
+        index = next((index for index, child in enumerate(items) if type(child) is bool), None)
+        if index is None:
+            raise TgiError("Register field volatility choice changed during update", TgiFaultCode.INVALID_ID)
+        items[index] = volatile
+        return True
+    position = next((index for index, child in enumerate(items) if child is width), None)
+    if position is None:
+        raise TgiError("Register field bitWidth choice changed during update", TgiFaultCode.INVALID_ID)
+    items.insert(position + 1, volatile)
     return True
 
 
