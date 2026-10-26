@@ -12,7 +12,7 @@ EXTENDED mutators raise :class:`TgiError` using
 ``TgiFaultCode.INVALID_ARGUMENT`` for semantic issues.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Any, NoReturn, cast
 
@@ -270,6 +270,74 @@ def _enumeration_value_source(source: str, node: UnsignedBitVectorExpression, wi
     if width is not None and value is not None and value.bit_length() > width:
         raise TgiError("Enumerated value exceeds enumeration width", TgiFaultCode.INVALID_ARGUMENT)
     return source
+
+
+def _set_link_reference[T, H](
+    owner: object,
+    attribute: str,
+    model_type: type[T],
+    source_attribute: str,
+    source: str,
+    holder_type: type[H] | None = None,
+    member_attribute: str = "",
+) -> bool:
+    """Update a generated name reference, preserving its node and known local uniqueness."""
+    name = _name(source, "Name")
+    node = _child(owner, attribute, model_type)
+    if holder_type is not None:
+        holder = _register_owned_child(owner, holder_type)
+        if holder is not None:
+            members = _definition_list(holder, member_attribute, type(owner))
+            if not any(member is owner for member in members):
+                raise TgiError("Link is not in its owning list", TgiFaultCode.INVALID_ID)
+            for member in members:
+                if member is owner:
+                    continue
+                peer = getattr(member, attribute)
+                if not isinstance(peer, model_type) or not isinstance(getattr(peer, source_attribute), str):
+                    raise TgiError("Invalid local link reference content", TgiFaultCode.INVALID_ID)
+                try:
+                    peer_name = _name(getattr(peer, source_attribute), "Name")
+                except TgiError as error:
+                    raise TgiError("Invalid local link reference name", TgiFaultCode.INVALID_ID) from error
+                if peer_name == name:
+                    raise TgiError("Duplicate local link reference", TgiFaultCode.ALREADY_EXISTS)
+    if node is None:
+        node = model_type(**{source_attribute: name})
+        setattr(owner, attribute, node)
+        _child(owner, attribute, model_type)
+    else:
+        setattr(node, source_attribute, name)
+    return True
+
+
+def _remove_definition_collection_member[M, H](
+    member_id: str,
+    model_type: type[M],
+    holder_type: type[H],
+    owner_type: type[TypeDefinitions | ExternalTypeDefinitions],
+    holder_attribute: str,
+    member_attribute: str,
+    ids_getter: Callable[[str], list[str]],
+    label: str,
+) -> bool:
+    """Remove an actual typed collection member and prune an empty optional holder."""
+    child = _definition(member_id, model_type)
+    holder = _register_owned_child(child, holder_type)
+    if not isinstance(holder, holder_type):
+        raise TgiError(f"{label} has no owning container", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, owner_type)
+    if not isinstance(owner, owner_type) or getattr(owner, holder_attribute) is not holder:
+        raise TgiError(f"{label} has no matching collection owner", TgiFaultCode.INVALID_ID)
+    members = _definition_list(holder, member_attribute, model_type)
+    if not any(member is child for member in members):
+        raise TgiError(f"{label} is not in its owning list", TgiFaultCode.INVALID_ID)
+    ids_getter(get_handle(owner))
+    _list_attr(holder, member_attribute)
+    result = _remove_owned(member_id, model_type, holder_type, label)
+    if not getattr(holder, member_attribute):
+        _remove_child(owner, holder_attribute)
+    return result
 
 
 def _definition_unit_source(reference_id: str | None) -> str | None:
@@ -1429,15 +1497,72 @@ def removeEnumerationDefinitionEnumeratedValue(enumeratedValueID: str) -> bool: 
 
 
 def removeExternalTypeDefinitionsModeLink(modeLinkID: str) -> bool:  # F.7.82.25
-    return detach_child_by_handle(modeLinkID)
+    """Remove an owned mode link and invalidate its generated subtree.
+
+    Section: F.7.82.25.
+
+    Args:
+        modeLinkID: Handle to a modelink element in externalTypeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        modeLinkID,
+        ModeLinks.ModeLink,
+        ModeLinks,
+        ExternalTypeDefinitions,
+        "mode_links",
+        "mode_link",
+        getExternalTypeDefinitionsModeLinksIDs,
+        "mode link",
+    )
 
 
 def removeExternalTypeDefinitionsResetTypeLink(resetTypeLinkID: str) -> bool:  # F.7.82.26
-    return detach_child_by_handle(resetTypeLinkID)
+    """Remove an owned reset type link and invalidate its generated subtree.
+
+    Section: F.7.82.26.
+
+    Args:
+        resetTypeLinkID: Handle to a resettypelink element in externalTypeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        resetTypeLinkID,
+        ResetTypeLinks.ResetTypeLink,
+        ResetTypeLinks,
+        ExternalTypeDefinitions,
+        "reset_type_links",
+        "reset_type_link",
+        getExternalTypeDefinitionsResetTypeLinkIDs,
+        "reset type link",
+    )
 
 
 def removeExternalTypeDefinitionsViewLink(viewLinkID: str) -> bool:  # F.7.82.27
-    return detach_child_by_handle(viewLinkID)
+    """Remove an owned view link and invalidate its generated subtree.
+
+    Section: F.7.82.27.
+
+    Args:
+        viewLinkID: Handle to a viewlink element in externalTypeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        viewLinkID,
+        ViewLinks.ViewLink,
+        ViewLinks,
+        ExternalTypeDefinitions,
+        "view_links",
+        "view_link",
+        getExternalTypeDefinitionsViewLinkIDs,
+        "view link",
+    )
 
 
 def removeFieldDefinitionEnumerationDefinitionRef(fieldDefinitionID: str) -> bool:  # F.7.82.28
@@ -1513,27 +1638,16 @@ def removeTypeDefinitionsEnumerationDefinition(enumerationDefinitionID: str) -> 
     Returns:
         True when the definition and its descendants are removed.
     """
-    child = _definition(enumerationDefinitionID, EnumerationDefinitions.EnumerationDefinition)
-    container = _register_owned_child(child, EnumerationDefinitions)
-    if not isinstance(container, EnumerationDefinitions):
-        raise TgiError("Enumeration definition has no owning container", TgiFaultCode.INVALID_ID)
-    owner = _register_owned_child(container, TypeDefinitions)
-    if not isinstance(owner, TypeDefinitions) or owner.enumeration_definitions is not container:
-        raise TgiError("Enumeration definition has no typeDefinitions owner", TgiFaultCode.INVALID_ID)
-    children = _definition_list(container, "enumeration_definition", EnumerationDefinitions.EnumerationDefinition)
-    if not any(member is child for member in children):
-        raise TgiError("Enumeration definition is not in its owning list", TgiFaultCode.INVALID_ID)
-    getTypeDefinitionsEnumerationDefinitionIDs(get_handle(owner))
-    _list_attr(container, "enumeration_definition")
-    result = _remove_owned(
+    return _remove_definition_collection_member(
         enumerationDefinitionID,
         EnumerationDefinitions.EnumerationDefinition,
         EnumerationDefinitions,
+        TypeDefinitions,
+        "enumeration_definitions",
+        "enumeration_definition",
+        getTypeDefinitionsEnumerationDefinitionIDs,
         "enumeration definition",
     )
-    if not container.enumeration_definition:
-        _remove_child(owner, "enumeration_definitions")
-    return result
 
 
 def removeTypeDefinitionsExternalTypeDefinitions(externalTypeDefinitionsID: str) -> bool:  # F.7.82.36
@@ -1663,20 +1777,48 @@ def setMemoryRemapDefinitionAddressUnitBits(memoryRemapDefinitionID: str, addres
     )
 
 
-def setModeLinkExternalModeReference(modeLinkID: str, name: str) -> bool:  # F.7.82.51
-    ml = _resolve(modeLinkID)
-    if ml is None:
-        _invalid_id()
-    ml.external_mode_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    return True
+def setModeLinkExternalModeReference(modeLinkID: str, modeRef: str) -> bool:  # F.7.82.51
+    """Set a named reference while preserving its generated wrapper identity.
+
+    Section: F.7.82.51.
+
+    Args:
+        modeLinkID: Handle to a modeLink element.
+        modeRef: XML Name source for the reference attribute.
+
+    Returns:
+        True after assignment without requiring the external target to be registered.
+    """
+    return _set_link_reference(
+        _definition(modeLinkID, ModeLinks.ModeLink),
+        "external_mode_reference",
+        ModeLinks.ModeLink.ExternalModeReference,
+        "mode_ref",
+        modeRef,
+    )
 
 
-def setModeLinkModeReference(modeLinkID: str, name: str) -> bool:  # F.7.82.52
-    ml = _resolve(modeLinkID)
-    if ml is None:
-        _invalid_id()
-    ml.mode_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    return True
+def setModeLinkModeReference(modeLinkID: str, modeRef: str) -> bool:  # F.7.82.52
+    """Set a named reference while preserving its generated wrapper identity.
+
+    Section: F.7.82.52.
+
+    Args:
+        modeLinkID: Handle to a modeLink element.
+        modeRef: XML Name source for the reference attribute.
+
+    Returns:
+        True after assignment; known duplicate local references are rejected.
+    """
+    return _set_link_reference(
+        _definition(modeLinkID, ModeLinks.ModeLink),
+        "mode_reference",
+        ModeLinks.ModeLink.ModeReference,
+        "mode_ref",
+        modeRef,
+        ModeLinks,
+        "mode_link",
+    )
 
 
 def setRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str, addressUnitBits: str) -> bool:  # F.7.82.53
@@ -1696,20 +1838,48 @@ def setRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str, addr
     )
 
 
-def setResetTypeLinkExternalResetTypeReference(resetTypeLinkID: str, name: str) -> bool:  # F.7.82.54
-    rtl = _resolve(resetTypeLinkID)
-    if rtl is None:
-        _invalid_id()
-    rtl.external_reset_type_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    return True
+def setResetTypeLinkExternalResetTypeReference(resetTypeLinkID: str, resetTypeRef: str) -> bool:  # F.7.82.54
+    """Set a named reference while preserving its generated wrapper identity.
+
+    Section: F.7.82.54.
+
+    Args:
+        resetTypeLinkID: Handle to a resetTypeLink element.
+        resetTypeRef: XML Name source for the reference attribute.
+
+    Returns:
+        True after assignment without requiring the external target to be registered.
+    """
+    return _set_link_reference(
+        _definition(resetTypeLinkID, ResetTypeLinks.ResetTypeLink),
+        "external_reset_type_reference",
+        ResetTypeLinks.ResetTypeLink.ExternalResetTypeReference,
+        "reset_type_ref",
+        resetTypeRef,
+    )
 
 
-def setResetTypeLinkResetTypeReference(resetTypeLinkID: str, name: str) -> bool:  # F.7.82.55
-    rtl = _resolve(resetTypeLinkID)
-    if rtl is None:
-        _invalid_id()
-    rtl.reset_type_reference = SimpleNamespace(name=name)  # type: ignore[attr-defined]
-    return True
+def setResetTypeLinkResetTypeReference(resetTypeLinkID: str, resetTypeRef: str) -> bool:  # F.7.82.55
+    """Set a named reference while preserving its generated wrapper identity.
+
+    Section: F.7.82.55.
+
+    Args:
+        resetTypeLinkID: Handle to a resetTypeLink element.
+        resetTypeRef: XML Name source for the reference attribute.
+
+    Returns:
+        True after assignment; known duplicate local references are rejected.
+    """
+    return _set_link_reference(
+        _definition(resetTypeLinkID, ResetTypeLinks.ResetTypeLink),
+        "reset_type_reference",
+        ResetTypeLinks.ResetTypeLink.ResetTypeReference,
+        "reset_type_ref",
+        resetTypeRef,
+        ResetTypeLinks,
+        "reset_type_link",
+    )
 
 
 def setViewLinkExternalViewReference(viewLinkID: str, name: str) -> bool:  # F.7.82.56
