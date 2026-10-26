@@ -40,6 +40,7 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterRef,
 )
 
+from ._reference_choices import _reference_choice
 from ._reference_paths import _append_reference_path, _remove_reference_path
 from ._ranges import _range_endpoint, _range_sources, _range_value, _remove_range, _set_range
 from ._expressions import _string_source
@@ -205,7 +206,6 @@ def _field_choice(
     owner: ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice,
 ) -> tuple[_FieldAddressSpaceRef | None, _FieldMemoryMapRef | None, MemoryRemapRef | None]:
     """Validate the generated address-space or memory-map/remap reference choice."""
-    values = owner.address_space_ref_or_memory_map_ref_or_memory_remap_ref
     address_type = (
         ComponentType.Modes.Mode.FieldSlice.AddressSpaceRef
         if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
@@ -216,22 +216,7 @@ def _field_choice(
         if isinstance(owner, ComponentType.Modes.Mode.FieldSlice)
         else FieldMap.FieldSlice.MemoryMapRef
     )
-    if not isinstance(values, (list, tuple)):
-        raise TgiError("Invalid field reference choice", TgiFaultCode.INVALID_ID)
-    if not values:
-        return None, None, None
-    if len(values) == 1 and isinstance(values[0], address_type):
-        result = (values[0], None, None)
-    elif (
-        len(values) in (1, 2)
-        and isinstance(values[0], map_type)
-        and (len(values) == 1 or isinstance(values[1], MemoryRemapRef))
-    ):
-        result = (None, values[0], values[1] if len(values) == 2 else None)
-    else:
-        raise TgiError("Invalid field reference choice", TgiFaultCode.INVALID_ID)
-    _owned_list_ids(owner, values, _FIELD_CHOICE)
-    return result
+    return _reference_choice(owner, address_type, map_type)
 
 
 def _set_field_choice(
