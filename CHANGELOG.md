@@ -7,6 +7,13 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.8.0...v0.9.0) (2026-10-26)
+
+
+### Features
+
+* complete driver, slice, design, indirect interface and type definitions TGI ([#30](https://github.com/amal-khailtash/pyipxact-de/issues/30)) ([092859c](https://github.com/amal-khailtash/pyipxact-de/commit/092859c69f6a7fc42ac3000588159791f6fee1a6))
+
 ### Fixed
 
 - Complete nine expression-bearing Type definitions and field-enumeration lifecycle operations with shared constant parsing, generated models and typed ownership. Require explicit keyword-only width in addEnumerationDefinition to resolve the Annex signature mismatch with mandatory XML width; retain the published domainTypeDefID argument name for typed field-value removal.
