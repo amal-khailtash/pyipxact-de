@@ -5,14 +5,14 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [Unreleased]
+
 ## [0.9.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.8.0...v0.9.0) (2026-10-26)
 
 
 ### Features
 
 * complete driver, slice, design, indirect interface and type definitions TGI ([#30](https://github.com/amal-khailtash/pyipxact-de/issues/30)) ([092859c](https://github.com/amal-khailtash/pyipxact-de/commit/092859c69f6a7fc42ac3000588159791f6fee1a6))
-
-## [Unreleased]
 
 ### Fixed
 
