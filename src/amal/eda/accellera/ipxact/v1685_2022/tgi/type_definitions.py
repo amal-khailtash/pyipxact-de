@@ -1616,15 +1616,72 @@ def removeRegisterFileDefinitionAddressUnitBits(registerFileDefinitionID: str) -
 
 
 def removeTypeDefinitionsAddressBlockDefinition(addressBlockDefinitionID: str) -> bool:  # F.7.82.32
-    return detach_child_by_handle(addressBlockDefinitionID)
+    """Remove an owned address block definition and invalidate its generated subtree.
+
+    Section: F.7.82.32.
+
+    Args:
+        addressBlockDefinitionID: Handle to a address block definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        addressBlockDefinitionID,
+        AddressBlockDefinitions.AddressBlockDefinition,
+        AddressBlockDefinitions,
+        TypeDefinitions,
+        "address_block_definitions",
+        "address_block_definition",
+        getTypeDefinitionsAddressBlockDefinitionIDs,
+        "address block definition",
+    )
 
 
 def removeTypeDefinitionsBankDefinition(bankDefinitionID: str) -> bool:  # F.7.82.33
-    return detach_child_by_handle(bankDefinitionID)
+    """Remove an owned bank definition and invalidate its generated subtree.
+
+    Section: F.7.82.33.
+
+    Args:
+        bankDefinitionID: Handle to a bank definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        bankDefinitionID,
+        BankDefinitions.BankDefinition,
+        BankDefinitions,
+        TypeDefinitions,
+        "bank_definitions",
+        "bank_definition",
+        getTypeDefinitionsBankDefinitionIDs,
+        "bank definition",
+    )
 
 
 def removeTypeDefinitionsChoice(choiceID: str) -> bool:  # F.7.82.34
-    return detach_child_by_handle(choiceID)
+    """Remove an owned choice and invalidate its generated subtree.
+
+    Section: F.7.82.34.
+
+    Args:
+        choiceID: Handle to a choice element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        choiceID,
+        Choices.Choice,
+        Choices,
+        TypeDefinitions,
+        "choices",
+        "choice",
+        getTypeDefinitionsChoiceIDs,
+        "choice",
+    )
 
 
 def removeTypeDefinitionsEnumerationDefinition(enumerationDefinitionID: str) -> bool:  # F.7.82.35
@@ -1651,7 +1708,28 @@ def removeTypeDefinitionsEnumerationDefinition(enumerationDefinitionID: str) -> 
 
 
 def removeTypeDefinitionsExternalTypeDefinitions(externalTypeDefinitionsID: str) -> bool:  # F.7.82.36
-    return detach_child_by_handle(externalTypeDefinitionsID)
+    """Remove an owned external definition and invalidate its reference/link subtree.
+
+    Section: F.7.82.36.
+
+    Args:
+        externalTypeDefinitionsID: Handle to an externalTypeDefinitions element in typeDefinitions.
+
+    Returns:
+        True after removal; the direct root list is retained when empty.
+    """
+    child = _definition(externalTypeDefinitionsID, ExternalTypeDefinitions)
+    owner = _register_owned_child(child, TypeDefinitions)
+    if not isinstance(owner, TypeDefinitions):
+        raise TgiError("External type definition has no typeDefinitions owner", TgiFaultCode.INVALID_ID)
+    children = _definition_list(owner, "external_type_definitions", ExternalTypeDefinitions)
+    if not any(member is child for member in children):
+        raise TgiError("External type definition is not in its owning list", TgiFaultCode.INVALID_ID)
+    getTypeDefinitionsExternalTypeDefinitionsIDs(get_handle(owner))
+    _list_attr(owner, "external_type_definitions")
+    return _remove_owned(
+        externalTypeDefinitionsID, ExternalTypeDefinitions, TypeDefinitions, "external type definition"
+    )
 
 
 def removeTypeDefinitionsFieldAccessPolicyDefinition(fieldAccessPolicyDefinitionID: str) -> bool:  # F.7.82.37
@@ -1659,15 +1737,72 @@ def removeTypeDefinitionsFieldAccessPolicyDefinition(fieldAccessPolicyDefinition
 
 
 def removeTypeDefinitionsFieldDefinition(fieldDefinitionID: str) -> bool:  # F.7.82.38
-    return detach_child_by_handle(fieldDefinitionID)
+    """Remove an owned field definition and invalidate its generated subtree.
+
+    Section: F.7.82.38.
+
+    Args:
+        fieldDefinitionID: Handle to a field definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        fieldDefinitionID,
+        FieldDefinitions.FieldDefinition,
+        FieldDefinitions,
+        TypeDefinitions,
+        "field_definitions",
+        "field_definition",
+        getTypeDefinitionsFieldDefinitionIDs,
+        "field definition",
+    )
 
 
 def removeTypeDefinitionsMemoryMapDefinition(memoryMapDefinitionID: str) -> bool:  # F.7.82.39
-    return detach_child_by_handle(memoryMapDefinitionID)
+    """Remove an owned memory map definition and invalidate its generated subtree.
+
+    Section: F.7.82.39.
+
+    Args:
+        memoryMapDefinitionID: Handle to a memory map definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        memoryMapDefinitionID,
+        MemoryMapDefinitions.MemoryMapDefinition,
+        MemoryMapDefinitions,
+        TypeDefinitions,
+        "memory_map_definitions",
+        "memory_map_definition",
+        getTypeDefinitionsMemoryMapDefinitionIDs,
+        "memory map definition",
+    )
 
 
 def removeTypeDefinitionsMemoryRemapDefinition(memoryRemapDefinitionID: str) -> bool:  # F.7.82.40
-    return detach_child_by_handle(memoryRemapDefinitionID)
+    """Remove an owned memory remap definition and invalidate its generated subtree.
+
+    Section: F.7.82.40.
+
+    Args:
+        memoryRemapDefinitionID: Handle to a memory remap definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        memoryRemapDefinitionID,
+        MemoryRemapDefinitions.MemoryRemapDefinition,
+        MemoryRemapDefinitions,
+        TypeDefinitions,
+        "memory_remap_definitions",
+        "memory_remap_definition",
+        getTypeDefinitionsMemoryRemapDefinitionIDs,
+        "memory remap definition",
+    )
 
 
 def removeTypeDefinitionsMode(modeID: str) -> bool:  # F.7.82.41
@@ -1694,11 +1829,49 @@ def removeTypeDefinitionsMode(modeID: str) -> bool:  # F.7.82.41
 
 
 def removeTypeDefinitionsRegisterDefinition(registerDefinitionID: str) -> bool:  # F.7.82.42
-    return detach_child_by_handle(registerDefinitionID)
+    """Remove an owned register definition and invalidate its generated subtree.
+
+    Section: F.7.82.42.
+
+    Args:
+        registerDefinitionID: Handle to a register definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        registerDefinitionID,
+        RegisterDefinitions.RegisterDefinition,
+        RegisterDefinitions,
+        TypeDefinitions,
+        "register_definitions",
+        "register_definition",
+        getTypeDefinitionsRegisterDefinitionIDs,
+        "register definition",
+    )
 
 
 def removeTypeDefinitionsRegisterFileDefinition(registerFileDefinitionID: str) -> bool:  # F.7.82.43
-    return detach_child_by_handle(registerFileDefinitionID)
+    """Remove an owned register file definition and invalidate its generated subtree.
+
+    Section: F.7.82.43.
+
+    Args:
+        registerFileDefinitionID: Handle to a register file definition element in typeDefinitions.
+
+    Returns:
+        True after removal; the last member also removes its optional holder.
+    """
+    return _remove_definition_collection_member(
+        registerFileDefinitionID,
+        RegisterFileDefinitions.RegisterFileDefinition,
+        RegisterFileDefinitions,
+        TypeDefinitions,
+        "register_file_definitions",
+        "register_file_definition",
+        getTypeDefinitionsRegisterFileDefinitionIDs,
+        "register file definition",
+    )
 
 
 def removeTypeDefinitionsResetType(resetTypeID: str) -> bool:  # F.7.82.44

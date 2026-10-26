@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Implement nine Type definitions collection removers with shared typed ownership checks, subtree invalidation and optional-holder pruning.
+
 - Implement view and external VLNV reference setters plus mode/reset/view collection removers with generated wrapper preservation, shared validation, typed ownership and empty-holder pruning.
 - Implement four mode/reset reference setters and three external-link removers with generated wrapper preservation, known local uniqueness, parsed ownership checks and empty-holder pruning.
 - Implement seven Type definitions view/reference lookups with required typed reference handles, validated stored VLNV, registered document resolution and local view target ownership.
