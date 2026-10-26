@@ -18,6 +18,9 @@ from org.accellera.ipxact.v1685_2022 import (
     AlternateRegisterRef,
     MemoryRemapRef,
     BitsInLau,
+    TransparentBridge,
+    FieldType,
+    FieldDefinitions,
     EndianessType,
 )
 from org.accellera.ipxact.v1685_2022.indirect_address_ref import IndirectAddressRef
@@ -31,12 +34,12 @@ from .port_map import _child, _child_id, _remove_child, _name
 from ._reference_choices import _reference_choice, _REFERENCE_CHOICE, _set_reference_choice
 from .component import _list_attr
 from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
-from .address_space import _register_owned_child
+from .address_space import _register_owned_child, _remove_owned
 from ._model import _reference_list, _owned_list_ids
 from .component import _register_graph
 from ._attribute_references import _reference_name, resolve_attribute_reference
 
-from ._interface_choices import _indirect_interface_choice
+from ._interface_choices import _indirect_interface_choice, _INTERFACE_CHOICE
 from .register_file import _numeric
 from .miscellaneous import getExpression
 
@@ -45,7 +48,6 @@ from .core import (
     TgiFaultCode,
     resolve_handle,
     get_handle,
-    register_parent,
     detach_child_by_handle,
 )
 
@@ -110,6 +112,11 @@ __all__ = [
     "getIndirectInterfaceIndirectDataRefID",
     "getIndirectInterfaceMemoryMapRefByID",
     "getIndirectInterfaceMemoryMapRefByName",
+    "getIndirectInterfaceTransparentBridgeIDs",
+    "removeIndirectInterfaceEndianness",
+    "removeIndirectInterfaceTransparentBridge",
+    "setIndirectInterfaceEndianness",
+    "setIndirectInterfaceMemoryMapRef",
     # EXTENDED (F.7.54)
     "addIndirectAddressRefBankRef",
     "addIndirectAddressRefRegisterFileRef",
@@ -640,34 +647,65 @@ def addIndirectInterfaceTransparentBridge(indirectInterfaceID: str, initiatorRef
 
     Section: F.7.54.5.
     """
-    ii = _resolve(indirectInterfaceID)
-    if ii is None:
-        raise TgiError("Invalid indirectInterface handle", TgiFaultCode.INVALID_ID)
-    from org.accellera.ipxact.v1685_2022.transparent_bridge import TransparentBridge
-
-    tb = TransparentBridge(initiator_ref=initiatorRef)
-    ii.transparent_bridge.append(tb)  # type: ignore[attr-defined]
-    register_parent(tb, ii, ("transparent_bridge",), "list")
-    return get_handle(tb)
+    owner = _indirect_interface(indirectInterfaceID)
+    name = _name(initiatorRef, "Name")
+    _, bridges = _indirect_interface_choice(owner)
+    for bridge in bridges:
+        if not isinstance(bridge.initiator_ref, str):
+            raise TgiError("Invalid transparent bridge reference", TgiFaultCode.INVALID_ID)
+        try:
+            current = _name(bridge.initiator_ref, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid transparent bridge reference", TgiFaultCode.INVALID_ID) from error
+        if current == name:
+            raise TgiError("Duplicate transparent bridge reference", TgiFaultCode.ALREADY_EXISTS)
+    getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID)
+    values = _list_attr(owner, _INTERFACE_CHOICE)
+    if values and isinstance(values[0], str):
+        values.clear()
+    bridge = TransparentBridge(initiator_ref=name)
+    values.append(bridge)
+    getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID)
+    return get_handle(bridge)
 
 
 # The following remove* functions act on handles of child elements
 
 
-def removeAliasOfMemoryRemapRef(aliasOfMemoryRemapRefID: str) -> bool:
-    """Remove aliasOfMemoryRemapRef (global element reference removal).
+def removeAliasOfMemoryRemapRef(aliasOfID: str) -> bool:
+    """Remove the optional memoryRemapRef from an aliasOf element.
 
     Section: F.7.54.6.
     """
-    return detach_child_by_handle(aliasOfMemoryRemapRefID)
+    owner = resolve_handle(aliasOfID)
+    if not isinstance(owner, FieldType.AliasOf):
+        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
+    child = _reference_choice(owner, FieldType.AliasOf.AddressSpaceRef, FieldType.AliasOf.MemoryMapRef)[2]
+    if child is None:
+        return False
+    _register_graph(child)
+    _list_attr(owner, _REFERENCE_CHOICE)
+    return detach_child_by_handle(get_handle(child))
 
 
-def removeBroadcastToAddressSpaceRef(broadcastToAddressSpaceRefID: str) -> bool:
-    """Remove broadcastToAddressSpaceRef.
+def removeBroadcastToAddressSpaceRef(broadcastToID: str) -> bool:
+    """Remove the optional addressSpaceRef from a broadcastTo element.
 
     Section: F.7.54.7.
     """
-    return detach_child_by_handle(broadcastToAddressSpaceRefID)
+    owner = resolve_handle(broadcastToID)
+    models = (
+        FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+        FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+    )
+    if not isinstance(owner, models):
+        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
+    child = _reference_choice(owner, type(owner).AddressSpaceRef, type(owner).MemoryMapRef)[0]
+    if child is None:
+        return False
+    _register_graph(child)
+    _list_attr(owner, _REFERENCE_CHOICE)
+    return detach_child_by_handle(get_handle(child))
 
 
 def removeIndirectAddressRefAddressBlockRef(indirectAddressRefID: str) -> bool:
@@ -1071,3 +1109,80 @@ def getIndirectInterfaceMemoryMapRefByName(indirectInterfaceID: str) -> str | No
     Section: F.7.53.45.
     """
     return _indirect_interface_choice(_indirect_interface(indirectInterfaceID))[0]
+
+
+def getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID: str) -> list[str]:
+    """Return ordered owned transparentBridge handles from the interface choice.
+
+    Section: F.7.53.46.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    _, bridges = _indirect_interface_choice(owner)
+    for bridge in bridges:
+        _register_graph(bridge)
+    return _owned_list_ids(owner, bridges, _INTERFACE_CHOICE)
+
+
+def removeIndirectInterfaceEndianness(indirectInterfaceID: str) -> bool:
+    """Remove an explicit endianness value, restoring the little endian default.
+
+    Section: F.7.54.24.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    getIndirectInterfaceEndianness(indirectInterfaceID)
+    if owner.endianness is None:
+        return False
+    owner.endianness = None
+    return True
+
+
+def removeIndirectInterfaceTransparentBridge(transparentBridgeID: str) -> bool:
+    """Remove an actual indirect-interface bridge and invalidate its descendants.
+
+    Section: F.7.54.25.
+    """
+    child = resolve_handle(transparentBridgeID)
+    if not isinstance(child, TransparentBridge):
+        raise TgiError("Invalid transparentBridge handle", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(child, IndirectInterface)
+    if not isinstance(owner, IndirectInterface):
+        raise TgiError("Bridge has no indirect interface owner", TgiFaultCode.INVALID_ID)
+    _, bridges = _indirect_interface_choice(owner)
+    if not any(bridge is child for bridge in bridges):
+        raise TgiError("Bridge is not in the owning interface choice", TgiFaultCode.INVALID_ID)
+    getIndirectInterfaceTransparentBridgeIDs(get_handle(owner))
+    _list_attr(owner, _INTERFACE_CHOICE)
+    return _remove_owned(transparentBridgeID, TransparentBridge, IndirectInterface, "transparent bridge")
+
+
+def setIndirectInterfaceEndianness(indirectInterfaceID: str, value: str) -> bool:
+    """Set a generated endianness enumeration after validating the input.
+
+    Section: F.7.54.40.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    if not isinstance(value, str):
+        raise TgiError("Invalid endianness value", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        endianness = EndianessType(value)
+    except ValueError as error:
+        raise TgiError("Invalid endianness value", TgiFaultCode.INVALID_ARGUMENT) from error
+    owner.endianness = endianness
+    return True
+
+
+def setIndirectInterfaceMemoryMapRef(indirectInterfaceID: str, memoryMapRef: str) -> bool:
+    """Set a memoryMapRef, invalidating transparent bridges removed from its choice.
+
+    Section: F.7.54.41.
+    """
+    owner = _indirect_interface(indirectInterfaceID)
+    name = _name(memoryMapRef, "Name")
+    _indirect_interface_choice(owner)
+    bridges = getIndirectInterfaceTransparentBridgeIDs(indirectInterfaceID)
+    if bridges:
+        _list_attr(owner, _INTERFACE_CHOICE)
+        for bridge_id in bridges:
+            removeIndirectInterfaceTransparentBridge(bridge_id)
+    owner.memory_map_ref_or_transparent_bridge = [name]
+    return True

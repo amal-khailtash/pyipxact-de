@@ -9,6 +9,8 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete Indirect interface bridge creation, traversal and removal, endianness mutation, memory-map choice replacement and alias/broadcast optional-reference removal.
+
 - Implement seven Indirect interface getters with standard defaults, shared constant evaluation, typed required references and scalar memory-map target resolution.
 
 - Implement eight Indirect interface named reference setters using shared Slice wrapper mutation with index and metadata preservation.
