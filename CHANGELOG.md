@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify seven Memory map/remap scalar, definition-reference, mode and subspace-address edits with exact standard signatures, owned choice replacement, scoped mode uniqueness and priorities, preserved wrappers, and signed 64-bit base-address expressions.
 - Verify six Bank metadata, base-address and definition-reference edits with instance-local scope, schema-ordered metadata, preserved volatility and address wrappers, unsigned 64-bit expression validation, and owned inline-content replacement that preserves instance addressing.
 - Verify nine Memory map AliasOf reference edits with normalized Names, preserved reference wrappers and indices, owned bank-path edits, choice replacement and descendant invalidation, and dependent remap removal.
 - Verify seven AddressBlock expression, array, index and definition-reference operations with unsigned schema bounds, deferred expressions, preserved wrappers and multidimensional data, owned inline-content replacement, and definition-handle assignment constrained to the retained external library.

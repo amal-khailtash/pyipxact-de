@@ -60,9 +60,10 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from .address_space import _register_owned_child, _remove_owned
+from .access_policy import _mode_ref_priority
 from .component import _list_attr, _register_graph
 from .bus_interface import _named_target
-from ._expressions import _integer
+from ._expressions import _integer, _xml_text
 from ._model import _walk_model, _reference_list
 from .port_map import _child, _name
 from ._reference_choices import _reference_choice, _set_reference_choice
@@ -191,10 +192,15 @@ __all__ = [
     "addMemoryMapBank",
     "addMemoryMapMemoryRemap",
     "addMemoryMapSubspaceMap",
+    "addMemoryRemapModeRef",
     "removeMemoryMapMemoryRemap",
+    "removeMemoryMapShared",
     "removeMemoryMapSubspaceMap",
+    "removeMemoryRemapModeRef",
     "setMemoryMapMemoryMapDefinitionRef",
     "setMemoryMapShared",
+    "setMemoryRemapRemapDefinitionRef",
+    "setSubSpaceMapBaseAddress",
     "removeBankUsage",
     "removeBankVolatility",
     "setBankBankDefinitionRef",
@@ -606,32 +612,81 @@ def removeMemoryMapSubspaceMap(subspaceMapID: str) -> bool:
     return detach_child_by_handle(subspaceMapID)
 
 
-def setMemoryMapMemoryMapDefinitionRef(memoryMapID: str, name: str | None) -> bool:
-    """Set or clear ``memoryMapDefinitionRef`` (named reference).
-
-    Section: F.7.58.67. Name corresponds to a memoryMapDefinition in typeDefinitions.
-    Passing None removes the element.
-    """
-    mm = _require_memory_map(memoryMapID)
-    if name is None:
-        mm.memory_map_definition_ref = None  # type: ignore[assignment]
-        return True
-    mm.memory_map_definition_ref = MemoryMapType.MemoryMapDefinitionRef(value=name, type_definitions="typeDefinitions")  # type: ignore[assignment]
+def removeMemoryMapShared(memoryMapID: str) -> bool:
+    """Remove an explicit ``shared`` value from an inline memory map (F.7.58.41)."""
+    memory_map = _require_memory_map(memoryMapID)
+    values = _memory_map_choice(memory_map)
+    if any(isinstance(item, MemoryMapType.MemoryMapDefinitionRef) for item in values):
+        return False
+    shared_index = next((index for index, item in enumerate(values) if isinstance(item, SharedType)), None)
+    if shared_index is None:
+        return False
+    if isinstance(values, tuple):
+        values = list(values)
+        memory_map.choice = values
+    del values[shared_index]
     return True
 
 
-def setMemoryMapShared(memoryMapID: str, shared: str | None) -> bool:
-    """Set or clear ``shared`` attribute value (string form).
+def setMemoryMapMemoryMapDefinitionRef(memoryMapID: str, value: str, typeDefinitions: str) -> bool:
+    """Set a named ``memoryMapDefinitionRef`` or replace the complete inline choice (F.7.58.67)."""
+    memory_map, reference = _memory_map_definition_reference(memoryMapID)
+    try:
+        definition_name = _name(value, "Name")
+        type_definitions_name = _name(typeDefinitions, "Name")
+    except TgiError as error:
+        raise TgiError("Invalid memoryMap definition reference Name", TgiFaultCode.INVALID_ARGUMENT) from error
 
-    Section: F.7.58.68. Accepts None to remove the element.
-    """
-    mm = _require_memory_map(memoryMapID)
-    if shared is None:
-        mm.shared = None  # type: ignore[assignment]
+    if reference is not None:
+        reference.value = definition_name
+        reference.type_definitions = type_definitions_name
         return True
-    from org.accellera.ipxact.v1685_2022.shared_type import SharedType
 
-    mm.shared = SharedType(value=shared)  # type: ignore[arg-type]
+    values = _memory_map_choice(memory_map)
+    for child in values:
+        if isinstance(child, SharedType):
+            continue
+        register_parent(child, memory_map, ("choice",), "list")
+        _register_graph(child)
+    memory_map.choice = list(values)  # type: ignore[assignment]
+    for child in values:
+        if isinstance(child, SharedType):
+            continue
+        if not detach_child_by_handle(get_handle(child)):
+            raise TgiError("Could not replace memoryMap inline definition", TgiFaultCode.INVALID_ID)
+
+    reference = MemoryMapType.MemoryMapDefinitionRef(value=definition_name, type_definitions=type_definitions_name)
+    memory_map.choice = [reference]  # type: ignore[assignment]
+    register_parent(reference, memory_map, ("choice",), "list")
+    return True
+
+
+def setMemoryMapShared(memoryMapID: str, shared: str) -> bool:
+    """Set the schema sharedness enum on an inline memory map (F.7.58.68)."""
+    memory_map = _require_memory_map(memoryMapID)
+    if type(shared) is not str:
+        raise TgiError("shared must be a string enum value", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        shared_value = SharedType(shared)
+    except ValueError as error:
+        raise TgiError("Invalid memoryMap shared value", TgiFaultCode.INVALID_ARGUMENT) from error
+
+    values = _memory_map_choice(memory_map)
+    if any(isinstance(item, MemoryMapType.MemoryMapDefinitionRef) for item in values):
+        raise TgiError("shared cannot be set on a memoryMapDefinitionRef", TgiFaultCode.INVALID_ARGUMENT)
+    shared_index = next((index for index, item in enumerate(values) if isinstance(item, SharedType)), None)
+    if isinstance(values, tuple):
+        values = list(values)
+        memory_map.choice = values
+    if shared_index is not None:
+        values[shared_index] = shared_value
+        return True
+
+    unit_index = next((index for index, item in enumerate(values) if isinstance(item, AddressUnitBits)), None)
+    if unit_index is not None:
+        values.insert(unit_index + 1, shared_value)
+    else:
+        values.append(shared_value)
     return True
 
 
@@ -1926,3 +1981,134 @@ def setAliasOfMemoryRemapRef(aliasOfID: str, memoryRemapRef: str) -> bool:
         FieldType.AliasOf.AddressSpaceRef,
         FieldType.AliasOf.MemoryMapRef,
     )
+
+
+def addMemoryRemapModeRef(memoryRemapID: str, modeRef: str, priority: int) -> str:
+    """Append an owned modeRef after checking its remap and map key scopes (F.7.58.17)."""
+    remap = _require_memory_remap(memoryRemapID)
+    refs = _remap_mode_refs(remap)
+    if type(priority) is not int or not 0 <= priority <= (1 << 63) - 1:
+        raise TgiError("priority must be a non-negative signed 64-bit integer", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        name = _name(modeRef, "Name")
+    except TgiError as error:
+        raise TgiError("Invalid memoryRemap modeRef Name", TgiFaultCode.INVALID_ARGUMENT) from error
+
+    priorities: set[int] = set()
+    names: set[str] = set()
+    for reference in refs:
+        current_priority = reference.priority
+        if type(current_priority) is not int or current_priority < 0 or current_priority in priorities:
+            raise TgiError("Invalid memoryRemap modeRef priorities", TgiFaultCode.INVALID_ID)
+        priorities.add(current_priority)
+        current_name = _stored_name(reference.value)
+        if current_name in names:
+            raise TgiError("Duplicate memoryRemap modeRef Names", TgiFaultCode.INVALID_ID)
+        names.add(current_name)
+    if name in names:
+        raise TgiError(f"modeRef {name!r} already exists in this memoryRemap", TgiFaultCode.INVALID_ARGUMENT)
+
+    # The TGI helper applies the shared per-element modeRef and priority checks.
+    _mode_ref_priority(refs, name, priority)
+    if priority in priorities:
+        raise TgiError(f"modeRef priority {priority} already exists in this memoryRemap", TgiFaultCode.INVALID_ARGUMENT)
+
+    memory_map = _register_owned_child(remap, MemoryMapType)
+    if memory_map is not None:
+        map_names = set(names)
+        for sibling in _memory_map_choice(memory_map):
+            if sibling is remap or not isinstance(sibling, (MemoryRemap, MemoryRemapType)):
+                continue
+            sibling_refs = _remap_mode_refs(sibling)
+            sibling_priorities: set[int] = set()
+            for sibling_ref in sibling_refs:
+                sibling_priority = sibling_ref.priority
+                sibling_name = _stored_name(sibling_ref.value)
+                if type(sibling_priority) is not int or sibling_priority < 0 or sibling_priority in sibling_priorities:
+                    raise TgiError("Invalid sibling memoryRemap modeRef priorities", TgiFaultCode.INVALID_ID)
+                if sibling_name == name:
+                    raise TgiError(
+                        f"modeRef {sibling_name!r} already exists in this memoryMap",
+                        TgiFaultCode.INVALID_ARGUMENT,
+                    )
+                if sibling_name in map_names:
+                    raise TgiError("Duplicate memoryRemap modeRef Names in this memoryMap", TgiFaultCode.INVALID_ID)
+                sibling_priorities.add(sibling_priority)
+                map_names.add(sibling_name)
+
+    reference = ModeRef(value=name, priority=priority)
+    _list_attr(remap, "mode_ref").append(reference)
+    register_parent(reference, remap, ("mode_ref",), "list")
+    _register_graph(reference)
+    return get_handle(reference)
+
+
+def removeMemoryRemapModeRef(modeRefID: str) -> bool:
+    """Remove a modeRef only when its registered owner actually contains it (F.7.58.45)."""
+    reference = resolve_handle(modeRefID) if isinstance(modeRefID, str) else None
+    if not isinstance(reference, ModeRef):
+        raise TgiError("Invalid memoryRemap modeRef handle", TgiFaultCode.INVALID_ID)
+    remap = _register_owned_child(reference, MemoryRemapType)
+    if remap is None:
+        raise TgiError("modeRef has no owning memoryRemap", TgiFaultCode.INVALID_ID)
+    refs = _remap_mode_refs(remap)
+    if not any(item is reference for item in refs):
+        raise TgiError("modeRef is not a member of its memoryRemap", TgiFaultCode.INVALID_ID)
+    _list_attr(remap, "mode_ref")
+    register_parent(reference, remap, ("mode_ref",), "list")
+    return _remove_owned(modeRefID, ModeRef, MemoryRemapType, "memoryRemap modeRef")
+
+
+def setMemoryRemapRemapDefinitionRef(memoryRemapID: str, value: str, typeDefinitions: str) -> bool:
+    """Set the named remap definition branch or replace the inline remap contents (F.7.58.69)."""
+    remap, reference = _remap_definition_reference(memoryRemapID)
+    definition_name, type_definitions_name = _type_definition_reference_names_for_input(value, typeDefinitions)
+    if reference is not None:
+        reference.value = definition_name
+        reference.type_definitions = type_definitions_name
+        return True
+
+    values = _list_attr(remap, "choice")
+    children = list(values)
+    for child in children:
+        register_parent(child, remap, ("choice",), "list")
+        _register_graph(child)
+    for child in children:
+        if not detach_child_by_handle(get_handle(child)):
+            raise TgiError("Could not replace memoryRemap inline definition", TgiFaultCode.INVALID_ID)
+
+    reference = MemoryRemapType.RemapDefinitionRef(
+        value=definition_name,
+        type_definitions=type_definitions_name,
+    )
+    remap.choice = [reference]
+    register_parent(reference, remap, ("choice",), "list")
+    return True
+
+
+def _signed_subspace_expression(source: str, current: SignedLongintExpression) -> str:
+    """Validate a signed baseAddress source and its current declared bounds without replacing its wrapper."""
+    _xml_text(source)
+    if not source.strip():
+        raise TgiError("baseAddress must be a non-empty expression", TgiFaultCode.INVALID_ARGUMENT)
+    minimum, maximum = current.minimum, current.maximum
+    if any(bound is not None and type(bound) is not int for bound in (minimum, maximum)):
+        raise TgiError("Invalid declared baseAddress bound", TgiFaultCode.INVALID_ID)
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise TgiError("Invalid declared baseAddress bounds", TgiFaultCode.INVALID_ID)
+    lower = max(-(1 << 63), minimum) if minimum is not None else -(1 << 63)
+    upper = min((1 << 63) - 1, maximum) if maximum is not None else (1 << 63) - 1
+    if lower > upper:
+        raise TgiError("baseAddress bounds do not intersect the signed 64-bit domain", TgiFaultCode.INVALID_ID)
+    value = _integer(source, (1 << 63) - 1, True, minimum=-(1 << 63))
+    if value is not None and ((minimum is not None and value < minimum) or (maximum is not None and value > maximum)):
+        raise TgiError("baseAddress outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return source
+
+
+def setSubSpaceMapBaseAddress(subSpaceMapID: str, baseAddress: str) -> bool:
+    """Set a required signed 64-bit subspace baseAddress in its existing wrapper (F.7.58.74)."""
+    node = _subspace_base(subSpaceMapID)
+    source = _signed_subspace_expression(baseAddress, node)
+    node.value = source
+    return True
