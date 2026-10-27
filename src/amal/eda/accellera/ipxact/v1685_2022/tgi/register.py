@@ -15,6 +15,7 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
+from org.accellera.ipxact.v1685_2022.address_block_ref import AddressBlockRef
 from org.accellera.ipxact.v1685_2022.alternate_register_ref import AlternateRegisterRef
 from org.accellera.ipxact.v1685_2022.field_ref import FieldRef
 from org.accellera.ipxact.v1685_2022.index import Index
@@ -1137,43 +1138,120 @@ def getAlternateRegisterVolatility(alternateRegisterID: str) -> bool | None:
 # BroadcastTo getters (grouped)
 
 
+def _broadcast_scalar_reference_id(broadcastToID: str, attribute: str, xml_name: str) -> str | None:
+    """Read a typed broadcast reference from its direct member or exclusive choice."""
+    from ._attribute_references import _reference_name
+    from ._reference_choices import _reference_choice
+    from .port_map import _child
+
+    broadcast = _register_broadcast(broadcastToID)
+    if attribute in ("address_space_ref", "memory_map_ref"):
+        address, memory_map, _remap = _reference_choice(
+            broadcast, type(broadcast).AddressSpaceRef, type(broadcast).MemoryMapRef
+        )
+        reference = address if attribute == "address_space_ref" else memory_map
+    else:
+        model_type = AddressBlockRef if attribute == "address_block_ref" else AlternateRegisterRef
+        reference = _child(broadcast, attribute, model_type)
+    if reference is None:
+        return None
+    reference_id = get_handle(reference)
+    _reference_name(reference_id, xml_name)
+    _register_graph(reference)
+    return reference_id
+
+
 def getBroadcastToAddressBlockRefByName(broadcastToID: str) -> str | None:
-    """Return addressBlockRef value (F.7.73.12)."""
-    b = _resolve(broadcastToID)
-    return _maybe_value(getattr(b, "address_block_ref", None))
+    """Return the broadcast addressBlockRef source Name (F.7.73.12).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The normalized source Name, or None when the reference is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(
+        _broadcast_scalar_reference_id(broadcastToID, "address_block_ref", "addressBlockRef"), "addressBlockRef"
+    )
 
 
 def getBroadcastToAddressBlockRefID(broadcastToID: str) -> str | None:
-    """Return handle of addressBlockRef (F.7.73.13)."""
-    b = _resolve(broadcastToID)
-    ref = getattr(b, "address_block_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Resolve the addressBlock targeted by the broadcast path (F.7.73.13).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The target addressBlock handle, or None when the reference is absent.
+    """
+    from ._attribute_references import resolve_attribute_reference
+    from ._reference_choices import _reference_choice
+
+    reference_id = _broadcast_scalar_reference_id(broadcastToID, "address_block_ref", "addressBlockRef")
+    if reference_id is None:
+        return None
+    broadcast = _register_broadcast(broadcastToID)
+    _reference_choice(broadcast, type(broadcast).AddressSpaceRef, type(broadcast).MemoryMapRef)
+    return resolve_attribute_reference(reference_id, "addressBlockRef")
 
 
 def getBroadcastToAddressSpaceRefByName(broadcastToID: str) -> str | None:
-    """Return addressSpaceRef value (F.7.73.14)."""
-    b = _resolve(broadcastToID)
-    return _maybe_value(getattr(b, "address_space_ref", None))
+    """Return the broadcast addressSpaceRef source Name (F.7.73.14).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The normalized source Name, or None when the reference is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(
+        _broadcast_scalar_reference_id(broadcastToID, "address_space_ref", "addressSpaceRef"), "addressSpaceRef"
+    )
 
 
 def getBroadcastToAddressSpaceRefID(broadcastToID: str) -> str | None:
-    """Return handle of addressSpaceRef (F.7.73.15)."""
-    b = _resolve(broadcastToID)
-    ref = getattr(b, "address_space_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the broadcast addressSpaceRef wrapper handle (F.7.73.15).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The owned reference handle, or None when absent.
+    """
+    return _broadcast_scalar_reference_id(broadcastToID, "address_space_ref", "addressSpaceRef")
 
 
 def getBroadcastToAlternateRegisterRefByName(broadcastToID: str) -> str | None:
-    """Return alternateRegisterRef value (F.7.73.16)."""
-    b = _resolve(broadcastToID)
-    return _maybe_value(getattr(b, "alternate_register_ref", None))
+    """Return the broadcast alternateRegisterRef source Name (F.7.73.16).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The normalized source Name, or None when the reference is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(
+        _broadcast_scalar_reference_id(broadcastToID, "alternate_register_ref", "alternateRegisterRef"),
+        "alternateRegisterRef",
+    )
 
 
 def getBroadcastToAlternateRegisterRefID(broadcastToID: str) -> str | None:
-    """Return handle of alternateRegisterRef (F.7.73.17)."""
-    b = _resolve(broadcastToID)
-    ref = getattr(b, "alternate_register_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the broadcast alternateRegisterRef wrapper handle (F.7.73.17).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The owned reference handle, or None when absent.
+    """
+    return _broadcast_scalar_reference_id(broadcastToID, "alternate_register_ref", "alternateRegisterRef")
 
 
 def getBroadcastToBankRefByNames(broadcastToID: str) -> list[str]:
@@ -1253,16 +1331,31 @@ def getBroadcastToFieldRefID(broadcastToID: str) -> str | None:
 
 
 def getBroadcastToMemoryMapRefByName(broadcastToID: str) -> str | None:
-    """Return memoryMapRef value (F.7.73.22)."""
-    b = _resolve(broadcastToID)
-    return _maybe_value(getattr(b, "memory_map_ref", None))
+    """Return the broadcast memoryMapRef source Name (F.7.73.22).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The normalized source Name, or None when this choice branch is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(
+        _broadcast_scalar_reference_id(broadcastToID, "memory_map_ref", "memoryMapRef"), "memoryMapRef"
+    )
 
 
 def getBroadcastToMemoryMapRefID(broadcastToID: str) -> str | None:
-    """Return handle of memoryMapRef (F.7.73.23)."""
-    b = _resolve(broadcastToID)
-    ref = getattr(b, "memory_map_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the broadcast memoryMapRef wrapper handle (F.7.73.23).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The owned reference handle, or None when this choice branch is absent.
+    """
+    return _broadcast_scalar_reference_id(broadcastToID, "memory_map_ref", "memoryMapRef")
 
 
 def getBroadcastToRegisterFileRefByNames(broadcastToID: str) -> list[str]:

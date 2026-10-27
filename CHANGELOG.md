@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete eight Broadcast scalar reference getters with typed source and choice traversal, owned reference handles, and address-block target resolution as specified by Annex F and the WSDL. Apply ordered Broadcast path qualifiers and normalized reference names during target lookup.
 - Complete six Register policy-holder and reference getter operations with typed choice traversal, owned removal, broadcast field sources and register-file offset handles. Repair field policy access and creation to use the owning generated field or field-definition model.
 - Complete six Register field-editing operations with metadata-preserving alias assignment, owned alias-reference/array/width removal, and enumeration usage removal that restores the schema default.
 - Complete nine Register field/register reference and index operations with typed name and target resolution, unsigned expression indices, validated ownership, parsed child removal, and empty-holder pruning. Normalize register-reference names consistently during target and path matching.

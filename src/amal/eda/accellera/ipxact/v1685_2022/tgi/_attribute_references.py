@@ -18,8 +18,11 @@ from dataclasses import fields, is_dataclass
 from typing import Any, overload
 
 from org.accellera.ipxact.v1685_2022 import (
+    AddressBlockRef,
     ComponentType,
+    FieldDefinitions,
     FieldMap,
+    FieldType,
     IndirectAddressRef,
     IndirectDataRef,
     IndirectInterface,
@@ -369,14 +372,30 @@ _FIELD_SLICE_LEVELS: dict[str, int] = {
 
 def _field_slice_context(
     source_path: tuple[object, ...],
-) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice | IndirectAddressRef | IndirectDataRef | None:
-    """Find a generated fieldSlice or indirect reference using fieldSliceReferenceGroup."""
+) -> (
+    ComponentType.Modes.Mode.FieldSlice
+    | FieldMap.FieldSlice
+    | IndirectAddressRef
+    | IndirectDataRef
+    | FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
+    | FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
+    | None
+):
+    """Find a generated slice, indirect path or broadcast with an ordered field reference group."""
     return next(
         (
             node
             for node in source_path
             if isinstance(
-                node, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice, IndirectAddressRef, IndirectDataRef)
+                node,
+                (
+                    ComponentType.Modes.Mode.FieldSlice,
+                    FieldMap.FieldSlice,
+                    IndirectAddressRef,
+                    IndirectDataRef,
+                    FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                    FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                ),
             )
         ),
         None,
@@ -401,13 +420,25 @@ def _reference_qualifiers(source_path: tuple[Any, ...], xml_name: str) -> list[t
             if field_slice is not None and qualifier_name in {"addressSpaceRef", "memoryMapRef", "memoryRemapRef"}:
                 values = node.address_space_ref_or_memory_map_ref_or_memory_remap_ref
             for item in values:
-                if isinstance(node, RegisterRef) and qualifier_name == "registerRef":
+                if (isinstance(node, RegisterRef) and qualifier_name == "registerRef") or (
+                    isinstance(node, AddressBlockRef) and qualifier_name == "addressBlockRef"
+                ):
                     name = _reference_name(get_handle(node), qualifier_name)
-                elif isinstance(item, RegisterRef) and qualifier_name == "registerRef":
+                elif (isinstance(item, RegisterRef) and qualifier_name == "registerRef") or (
+                    isinstance(item, AddressBlockRef) and qualifier_name == "addressBlockRef"
+                ):
                     name = _reference_name(get_handle(item), qualifier_name)
                 else:
                     name = item if isinstance(item, str) else _reference_value(item, qualifier_name)
                 if isinstance(name, str) and name.strip():
+                    if isinstance(
+                        field_slice,
+                        (
+                            FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                            FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                        ),
+                    ):
+                        name = _reference_name(get_handle(item), qualifier_name)
                     qualifiers.append((target_types, name))
     return qualifiers
 
@@ -582,6 +613,7 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
         (isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef")
         or (isinstance(element, MemoryRemapRef) and xml_name == "memoryRemapRef")
         or (isinstance(element, RegisterRef) and xml_name == "registerRef")
+        or (isinstance(element, AddressBlockRef) and xml_name == "addressBlockRef")
     )
     reference = _reference_name(elementID, xml_name) if normalized_reference else _reference_value(element, xml_name)
     if reference is None or not reference.strip():
