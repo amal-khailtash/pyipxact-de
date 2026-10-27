@@ -148,7 +148,7 @@ def test_absent_inline_defaults_do_not_materialize_nodes_and_definition_branch_i
     [
         None,
         {},
-        (object(),),
+        pytest.param((object(),), id="foreign-object"),
         (AddressUnitBits(value="8"), AddressUnitBits(value="16")),
         (MemoryMapType.MemoryMapDefinitionRef(value="def", type_definitions="ext"), block()),
     ],

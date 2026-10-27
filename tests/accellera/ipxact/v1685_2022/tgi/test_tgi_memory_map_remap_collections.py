@@ -142,7 +142,9 @@ def test_signatures_and_invalid_owner_handles(operation, parameter):
     assert error.value.fault_code == TgiFaultCode.INVALID_ID
 
 
-@pytest.mark.parametrize("values", [None, {}, (object(),), (SharedType.YES, SharedType.NO), ("yes",)])
+@pytest.mark.parametrize(
+    "values", [None, {}, pytest.param((object(),), id="foreign-object"), (SharedType.YES, SharedType.NO), ("yes",)]
+)
 def test_map_getters_reject_malformed_choice_before_modification(values):
     owner = MemoryMapType(name="map", choice=values)
     for op in (
@@ -162,7 +164,7 @@ def test_map_getters_reject_malformed_choice_before_modification(values):
     [
         None,
         {},
-        (object(),),
+        pytest.param((object(),), id="foreign-object"),
         (MemoryRemap(name="foreign"),),
         (MemoryRemapType.RemapDefinitionRef(value="def", type_definitions="defs"), block("bad")),
     ],

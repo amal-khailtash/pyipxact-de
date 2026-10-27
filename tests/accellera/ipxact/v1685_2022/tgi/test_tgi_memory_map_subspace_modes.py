@@ -163,7 +163,9 @@ def test_mode_targets_are_component_scoped_and_missing_ambiguous_or_foreign_hand
     assert error.value.fault_code == TgiFaultCode.INVALID_ARGUMENT
 
 
-@pytest.mark.parametrize("values", [None, {}, (object(),), (ModeRef(value="bad name", priority=0),)])
+@pytest.mark.parametrize(
+    "values", [None, {}, pytest.param((object(),), id="foreign-object"), (ModeRef(value="bad name", priority=0),)]
+)
 def test_mode_collections_reject_invalid_model_and_source(values):
     remap = MemoryRemap(name="remap", mode_ref=values)
     for op in (api.getMemoryRemapModeRefByNames, api.getMemoryRemapModeRefIDs):
