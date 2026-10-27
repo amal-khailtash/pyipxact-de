@@ -15,6 +15,9 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
+from org.accellera.ipxact.v1685_2022.alternate_register_ref import AlternateRegisterRef
+from org.accellera.ipxact.v1685_2022.field_ref import FieldRef
+from org.accellera.ipxact.v1685_2022.register_ref import RegisterRef
 from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegisters
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
 from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
@@ -182,6 +185,9 @@ __all__ = [
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
     "setRegisterFieldEnumeratedValues",
+    "setAliasOfAlternateRegisterRef",
+    "setAliasOfFieldRef",
+    "setAliasOfRegisterRef",
     "setRegisterFieldFieldDefinitionRef",
     "setRegisterFieldTypeIdentifier",
     "setRegisterFieldVolatility",
@@ -864,46 +870,169 @@ def _ns(**kwargs: Any) -> SimpleNamespace:
 # docstring referencing its Section number for traceability.
 
 
+def _register_alias(aliasOfID: str) -> FieldType.AliasOf:
+    """Resolve the generated alias owner using the shared Register file helper."""
+    from .register_file import _resolve_alias
+
+    if not isinstance(aliasOfID, str):
+        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
+    alias = _resolve_alias(aliasOfID)
+    for attribute, model_type in (
+        ("alternate_register_ref", AlternateRegisterRef),
+        ("field_ref", FieldRef),
+        ("register_ref", RegisterRef),
+    ):
+        child = getattr(alias, attribute, None)
+        if child is not None and not isinstance(child, model_type):
+            raise TgiError("Invalid alias reference model", TgiFaultCode.INVALID_ID)
+    return alias
+
+
+def _alias_reference_id(aliasOfID: str, attribute: str, xml_name: str) -> str | None:
+    """Read a typed owned alias path child and validate its stored Name."""
+    from ._attribute_references import _reference_name
+
+    alias = _register_alias(aliasOfID)
+    child = getattr(alias, attribute, None)
+    if child is None:
+        return None
+    child_id = get_handle(child)
+    _reference_name(child_id, xml_name)
+    register_parent(child, alias, (attribute,), "single")
+    _register_graph(child)
+    return child_id
+
+
+def _set_alias_reference(aliasOfID: str, value: str, attribute: str, model_type: type) -> bool:
+    """Assign a validated source Name while preserving an existing reference wrapper."""
+    alias = _register_alias(aliasOfID)
+    name = _schema_name(value, "Name")
+    child = getattr(alias, attribute, None)
+    if child is None:
+        child = model_type(**{attribute: name})
+        setattr(alias, attribute, child)
+    else:
+        setattr(child, attribute, name)
+    register_parent(child, alias, (attribute,), "single")
+    _register_graph(child)
+    return True
+
+
 def getAliasOfAlternateRegisterRefByName(aliasOfID: str) -> str | None:
-    """Return alternateRegisterRef value (F.7.73.1)."""
-    a = _resolve(aliasOfID)
-    ref = getattr(a, "alternate_register_ref", None)
-    return _maybe_value(ref)
+    """Return the stored alternateRegisterRef Name (F.7.73.1).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        The reference Name, or None when the reference is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(getAliasOfAlternateRegisterRefID(aliasOfID), "alternateRegisterRef")
 
 
 def getAliasOfAlternateRegisterRefID(aliasOfID: str) -> str | None:
-    """Return handle of alternateRegisterRef (F.7.73.2)."""
-    a = _resolve(aliasOfID)
-    ref = getattr(a, "alternate_register_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the owned alternateRegisterRef child handle (F.7.73.2).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        The typed reference handle, or None when absent.
+    """
+    return _alias_reference_id(aliasOfID, "alternate_register_ref", "alternateRegisterRef")
 
 
 def getAliasOfFieldRefByName(aliasOfID: str) -> str | None:
-    """Return fieldRef value (F.7.73.3)."""
-    a = _resolve(aliasOfID)
-    ref = getattr(a, "field_ref", None)
-    return _maybe_value(ref)
+    """Return the stored fieldRef Name (F.7.73.3).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        The reference Name, or None when the reference is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(getAliasOfFieldRefID(aliasOfID), "fieldRef")
 
 
 def getAliasOfFieldRefID(aliasOfID: str) -> str | None:
-    """Return handle of fieldRef (F.7.73.4)."""
-    a = _resolve(aliasOfID)
-    ref = getattr(a, "field_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the owned fieldRef child handle (F.7.73.4).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        The typed reference handle, or None when absent.
+    """
+    return _alias_reference_id(aliasOfID, "field_ref", "fieldRef")
 
 
 def getAliasOfRegisterRefByName(aliasOfID: str) -> str | None:
-    """Return registerRef value (F.7.73.5)."""
-    a = _resolve(aliasOfID)
-    ref = getattr(a, "register_ref", None)
-    return _maybe_value(ref)
+    """Return the stored registerRef Name (F.7.73.5).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        The reference Name, or None when the reference is absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(getAliasOfRegisterRefID(aliasOfID), "registerRef")
 
 
 def getAliasOfRegisterRefID(aliasOfID: str) -> str | None:
-    """Return handle of registerRef (F.7.73.6)."""
-    a = _resolve(aliasOfID)
-    ref = getattr(a, "register_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the owned registerRef child handle (F.7.73.6).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        The typed reference handle, or None when absent.
+    """
+    return _alias_reference_id(aliasOfID, "register_ref", "registerRef")
+
+
+def setAliasOfAlternateRegisterRef(aliasOfID: str, alternateRegisterRef: str) -> bool:
+    """Set the alternateRegisterRef Name (F.7.74.39).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+        alternateRegisterRef: Name of the referenced alternateregister.
+
+    Returns:
+        True after assigning the source Name, preserving existing child metadata.
+    """
+    return _set_alias_reference(aliasOfID, alternateRegisterRef, "alternate_register_ref", AlternateRegisterRef)
+
+
+def setAliasOfFieldRef(aliasOfID: str, fieldRef: str) -> bool:
+    """Set the fieldRef Name (F.7.74.40).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+        fieldRef: Name of the referenced field.
+
+    Returns:
+        True after assigning the source Name, preserving existing child metadata.
+    """
+    return _set_alias_reference(aliasOfID, fieldRef, "field_ref", FieldRef)
+
+
+def setAliasOfRegisterRef(aliasOfID: str, registerRef: str) -> bool:
+    """Set the registerRef Name (F.7.74.41).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+        registerRef: Name of the referenced register.
+
+    Returns:
+        True after assigning the source Name, preserving existing child metadata.
+    """
+    return _set_alias_reference(aliasOfID, registerRef, "register_ref", RegisterRef)
 
 
 def getAlternateRegisterFieldIDs(alternateRegisterID: str) -> list[str]:
@@ -1572,10 +1701,26 @@ def getRegisterAlternateRegisterIDs(registerID: str) -> list[str]:
 
 
 def getRegisterFieldAliasOfID(registerFieldID: str) -> str | None:
-    """Return aliasOf handle (F.7.73.49)."""
-    f = _resolve(registerFieldID)
-    ao = getattr(f, "alias_of", None)
-    return get_handle(ao) if ao is not None else None
+    """Return the field's owned aliasOf choice handle (F.7.73.49).
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        The aliasOf handle, or None for inline or definition-reference fields.
+    """
+    field, _reference = _resolve_register_field_definition_reference(registerFieldID)
+    _width, _reference, alias = _register_field_width_state(field)
+    if alias is None:
+        return None
+    if any(isinstance(child, (bool, FieldType.Resets)) for child in field.choice):
+        raise TgiError("Alias cannot coexist with inline field data", TgiFaultCode.INVALID_ID)
+    for model_type in (FieldType.FieldAccessPolicies, EnumeratedValues):
+        if sum(isinstance(child, model_type) for child in field.choice) > 1:
+            raise TgiError("Duplicate alias field data", TgiFaultCode.INVALID_ID)
+    register_parent(alias, field, ("choice",), "list")
+    _register_alias(get_handle(alias))
+    return get_handle(alias)
 
 
 def getRegisterFieldBitOffset(registerFieldID: str) -> int | None:
