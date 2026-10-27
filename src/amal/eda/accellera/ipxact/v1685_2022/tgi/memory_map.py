@@ -21,6 +21,7 @@ from org.accellera.ipxact.v1685_2022 import (
     BankRef,
     MemoryRemapRef,
     FieldType,
+    AlternateRegisters,
     Array,
     Index,
     Indices,
@@ -28,11 +29,14 @@ from org.accellera.ipxact.v1685_2022 import (
     AccessType,
     AddressBlockType,
     AddressBlockDefinitions,
+    RegisterDefinitions,
+    RegisterFileDefinitions,
     BaseAddress,
     Parameters,
     RegisterFile,
     UnsignedPositiveLongintExpression,
     UnsignedPositiveIntExpression,
+    UnsignedLongintExpression,
     UsageType,
     Volatile,
     ComponentType,
@@ -71,8 +75,9 @@ from .port_map import _child, _name
 from ._reference_choices import _reference_choice, _set_reference_choice
 from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
 from ._attribute_references import _reference_name, resolve_attribute_reference
-from .register_file import _child_ids, _numeric, _expression
+from .register_file import _child_ids, _numeric, _expression, _inline_choice
 from .register import (
+    _new_register_field,
     _type_definition_external,
     _type_definition_target,
     _type_definition_reference_names,
@@ -201,6 +206,10 @@ __all__ = [
     "addMemoryRemapBank",
     "addMemoryRemapSubspaceMap",
     "addMemoryRemapModeRef",
+    "addAccessPolicyModeRef",
+    "addAddressBlockRegister",
+    "addAddressBlockRegisterFile",
+    "addRegisterFileRegisterFile",
     "removeMemoryMapMemoryRemap",
     "removeMemoryMapAddressBlock",
     "removeMemoryMapBank",
@@ -210,6 +219,9 @@ __all__ = [
     "removeMemoryRemapMapAddressBlock",
     "removeMemoryRemapSubspaceMap",
     "removeMemoryRemapModeRef",
+    "removeAccessPolicyModeRef",
+    "removeAddressBlockRegister",
+    "removeAddressBlockRegisterFile",
     "setMemoryMapMemoryMapDefinitionRef",
     "setMemoryMapShared",
     "setMemoryRemapRemapDefinitionRef",
@@ -2253,6 +2265,211 @@ def removeAddressBlockVolatility(addressBlockID: str) -> bool:
     return _remove_address_block_scalar(addressBlockID, "volatile", Volatile)
 
 
+_ADDRESS_BLOCK_REGISTER_TYPES = (AddressBlockType.Register, BankedBlockType.Register)
+_ADDRESS_BLOCK_DATA_OWNERS = (AddressBlockType, BankedBlockType)
+
+
+def _address_block_data_collection(block: AddressBlockType | BankedBlockType) -> tuple[str, list | tuple, type]:
+    """Return the real generated registerData collection and its register model type."""
+    if isinstance(block, AddressBlockType):
+        values = _address_block_choice(block)
+        return "choice", values, AddressBlockType.Register
+    values = block.register_or_register_file
+    if not isinstance(values, (list, tuple)) or any(
+        not isinstance(item, (BankedBlockType.Register, RegisterFile)) for item in values
+    ):
+        raise TgiError("Invalid banked addressBlock register data", TgiFaultCode.INVALID_ID)
+    return "register_or_register_file", values, BankedBlockType.Register
+
+
+def _address_block_data_names(values: list | tuple, register_type: type) -> set[str]:
+    """Validate the shared register/registerFile/alternateRegister Name key scope."""
+    names: set[str] = set()
+    for child in values:
+        if not isinstance(child, (register_type, RegisterFile)):
+            continue
+        child_name = getattr(child, "name", None)
+        if not isinstance(child_name, str):
+            raise TgiError("Invalid addressBlock registerData Name", TgiFaultCode.INVALID_ID)
+        name = _map_child_name(child_name, existing=True)
+        if name in names:
+            raise TgiError("Duplicate addressBlock registerData Name", TgiFaultCode.INVALID_ID)
+        names.add(name)
+        if not isinstance(child, register_type):
+            continue
+        holder = child.alternate_registers
+        if holder is None:
+            continue
+        if not isinstance(holder, AlternateRegisters) or not isinstance(holder.alternate_register, (list, tuple)):
+            raise TgiError("Invalid addressBlock alternateRegisters collection", TgiFaultCode.INVALID_ID)
+        for alternate in holder.alternate_register:
+            if not isinstance(alternate, AlternateRegisters.AlternateRegister) or not isinstance(alternate.name, str):
+                raise TgiError("Invalid addressBlock alternateRegister", TgiFaultCode.INVALID_ID)
+            alternate_name = _map_child_name(alternate.name, existing=True)
+            if alternate_name in names:
+                raise TgiError("Duplicate addressBlock registerData Name", TgiFaultCode.INVALID_ID)
+            names.add(alternate_name)
+    return names
+
+
+def _address_block_register_data_state(
+    block: AddressBlockType | BankedBlockType,
+) -> tuple[str, list | tuple, type, set[str]]:
+    attribute, values, register_type = _address_block_data_collection(block)
+    if isinstance(block, AddressBlockType) and any(
+        isinstance(item, AddressBlockType.AddressBlockDefinitionRef) for item in values
+    ):
+        raise TgiError("Cannot add inline register data to a referenced addressBlock", TgiFaultCode.INVALID_ARGUMENT)
+    names = _address_block_data_names(values, register_type)
+    return attribute, values, register_type, names
+
+
+def addAddressBlockRegister(
+    addressBlockID: str,
+    name: str,
+    addressOffset: str,
+    size: str,
+    fieldName: str,
+    fieldOffset: str,
+    fieldWidth: str,
+) -> str:
+    """Add one inline register and field to an addressBlock (F.7.58.3)."""
+    block = _require_address_block(addressBlockID)
+    attribute, _values, register_type, names = _address_block_register_data_state(block)
+    register_name = _map_child_name(name)
+    if register_name in names:
+        raise TgiError(
+            f"register name {register_name!r} already exists in this addressBlock",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+    offset_source = _expression(addressOffset, "addressOffset", 0, _MAP_U64_MAX)
+    size_source = _expression(size, "size", 1, _MAP_U32_MAX)
+    field = _new_register_field(fieldName, fieldOffset, fieldWidth)
+    size_number = _integer(size_source, _MAP_U32_MAX, True)
+    field_offset_number = _integer(field.bit_offset.value, _MAP_U32_MAX, True)
+    field_width_number = _integer(field.choice[0].value, _MAP_U32_MAX, True)
+    if (
+        size_number is not None
+        and field_offset_number is not None
+        and field_width_number is not None
+        and field_offset_number + field_width_number > size_number
+    ):
+        raise TgiError("field bit range exceeds register size", TgiFaultCode.INVALID_ARGUMENT)
+    register = register_type(
+        name=register_name,
+        address_offset=UnsignedLongintExpression(value=offset_source),
+        choice=[UnsignedPositiveIntExpression(value=size_source), field],
+    )
+    _list_attr(block, attribute).append(register)
+    register_parent(register, block, (attribute,), "list")
+    _register_graph(register)
+    return get_handle(register)
+
+
+def addAddressBlockRegisterFile(addressBlockID: str, name: str, addressOffset: str, range: str) -> str:
+    """Add one inline registerFile to an addressBlock (F.7.58.4)."""
+    block = _require_address_block(addressBlockID)
+    attribute, _values, _register_type, names = _address_block_register_data_state(block)
+    register_file_name = _map_child_name(name)
+    if register_file_name in names:
+        raise TgiError(
+            f"registerFile name {register_file_name!r} already exists in this addressBlock",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+    offset_source = _expression(addressOffset, "addressOffset", 0, _MAP_U64_MAX)
+    range_source = _expression(range, "range", 1, _MAP_U64_MAX)
+    register_file = RegisterFile(
+        name=register_file_name,
+        address_offset=UnsignedLongintExpression(value=offset_source),
+        choice=[UnsignedPositiveLongintExpression(value=range_source)],
+    )
+    _list_attr(block, attribute).append(register_file)
+    register_parent(register_file, block, (attribute,), "list")
+    _register_graph(register_file)
+    return get_handle(register_file)
+
+
+def _address_block_data_owner(child_handle: str, expected: type | tuple[type, ...], label: str) -> tuple[Any, str]:
+    """Prove a direct registerData child has one live addressBlock owner edge."""
+    if not isinstance(child_handle, str):
+        raise TgiError(f"Invalid addressBlock {label} handle", TgiFaultCode.INVALID_ID)
+    child = resolve_handle(child_handle)
+    if not isinstance(child, expected):
+        raise TgiError(f"Invalid addressBlock {label} handle", TgiFaultCode.INVALID_ID)
+
+    def verify(owner: Any, path: tuple[str, ...], container: str) -> str:
+        if not isinstance(owner, _ADDRESS_BLOCK_DATA_OWNERS) or container != "list":
+            raise TgiError(f"Invalid addressBlock {label} owner", TgiFaultCode.INVALID_ID)
+        attribute, values, register_type = _address_block_data_collection(owner)
+        if path != (attribute,):
+            raise TgiError(f"Invalid addressBlock {label} parent path", TgiFaultCode.INVALID_ID)
+        if not isinstance(child, (register_type, RegisterFile)) or sum(item is child for item in values) != 1:
+            raise TgiError(f"{label} is not uniquely owned by its addressBlock", TgiFaultCode.INVALID_ID)
+        return attribute
+
+    def registered_edges() -> list[tuple[Any, str, str]]:
+        edges: list[tuple[Any, str, str]] = []
+        for root_id in registry.iter_by_predicate(lambda _root: True):
+            root = resolve_handle(root_id)
+            if root is None:
+                continue
+            for parent, _owner, _attribute, _container in _walk_model(root):
+                for attribute in getattr(parent, "__dataclass_fields__", {}):
+                    value = getattr(parent, attribute)
+                    if value is child:
+                        edges.append((parent, attribute, "single"))
+                    elif isinstance(value, (list, tuple)):
+                        edges.extend((parent, attribute, "list") for item in value if item is child)
+        return edges
+
+    info = get_parent_info(child_handle)
+    linked_owner = None
+    linked_attribute = None
+    if info is not None:
+        linked_owner = resolve_handle(info.parent_handle)
+        if linked_owner is None:
+            raise TgiError(f"Invalid addressBlock {label} parent", TgiFaultCode.INVALID_ID)
+        linked_attribute = verify(linked_owner, info.path, info.container)
+
+    matches: list[tuple[Any, str]] = []
+    found_elsewhere = False
+    for owner, attribute, container in registered_edges():
+        if not isinstance(owner, _ADDRESS_BLOCK_DATA_OWNERS):
+            found_elsewhere = True
+            continue
+        matches.append((owner, verify(owner, (attribute,), container)))
+    if found_elsewhere or len(matches) > 1:
+        raise TgiError(f"{label} has a forged or ambiguous addressBlock owner", TgiFaultCode.INVALID_ID)
+    if linked_owner is not None:
+        if matches and (matches[0][0] is not linked_owner or matches[0][1] != linked_attribute):
+            raise TgiError(f"{label} has a forged addressBlock owner link", TgiFaultCode.INVALID_ID)
+        return linked_owner, linked_attribute
+    if len(matches) != 1:
+        raise TgiError(f"{label} has no unique supported addressBlock owner", TgiFaultCode.INVALID_ID)
+    return matches[0]
+
+
+def _remove_address_block_data_child(child_handle: str, expected: type | tuple[type, ...], label: str) -> bool:
+    owner, attribute = _address_block_data_owner(child_handle, expected, label)
+    child = resolve_handle(child_handle)
+    _register_graph(child)
+    _list_attr(owner, attribute)
+    register_parent(child, owner, (attribute,), "list")
+    if not detach_child_by_handle(child_handle):
+        raise TgiError(f"Could not remove addressBlock {label}", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeAddressBlockRegister(registerID: str) -> bool:
+    """Remove one direct register from its owning addressBlock (F.7.58.23)."""
+    return _remove_address_block_data_child(registerID, _ADDRESS_BLOCK_REGISTER_TYPES, "register")
+
+
+def removeAddressBlockRegisterFile(registerFileID: str) -> bool:
+    """Remove one direct registerFile from its owning addressBlock (F.7.58.24)."""
+    return _remove_address_block_data_child(registerFileID, RegisterFile, "registerFile")
+
+
 def _set_address_block_scalar(
     addressBlockID: str, attribute: str, value: str | UsageType | bool, model_type: type
 ) -> bool:
@@ -2875,3 +3092,420 @@ def removeMemoryRemapBank(bankID: str) -> bool:
 def removeMemoryRemapSubspaceMap(subspaceMapID: str) -> bool:
     """Remove an inline subspaceMap from a memoryRemap (F.7.58.46)."""
     return _remove_memory_remap_child(subspaceMapID, SubspaceMap, "subspaceMap")
+
+
+_TGI_LONG_MAX = (1 << 63) - 1
+_TGI_U64_MAX = (1 << 64) - 1
+
+
+def _registered_model_edges(target: Any) -> list[tuple[Any, str, str]]:
+    """Find direct containment edges to ``target`` under registered IP-XACT documents."""
+    return _registered_model_edges_for((target,)).get(id(target), [])
+
+
+def _registered_model_edges_for(targets: Iterable[Any]) -> dict[int, list[tuple[Any, str, str]]]:
+    """Find direct registered-root edges for several children in one traversal."""
+    target_by_id = {id(target): target for target in targets}
+    matches: dict[int, list[tuple[Any, str, str]]] = {identity: [] for identity in target_by_id}
+    for root_handle in registry.iter_by_predicate(lambda _root: True):
+        root = resolve_handle(root_handle)
+        if root is None:
+            continue
+        for parent, _owner, _attribute, _container in _walk_model(root):
+            for attribute in getattr(parent, "__dataclass_fields__", {}):
+                value = getattr(parent, attribute)
+                identity = id(value)
+                if identity in target_by_id and value is target_by_id[identity]:
+                    matches[identity].append((parent, attribute, "single"))
+                elif isinstance(value, (list, tuple)):
+                    for child in value:
+                        identity = id(child)
+                        if identity in target_by_id and child is target_by_id[identity]:
+                            matches[identity].append((parent, attribute, "list"))
+    return matches
+
+
+def _same_model_edge(edge: tuple[Any, str, str], parent: Any, attribute: str, container: str) -> bool:
+    return edge[0] is parent and edge[1] == attribute and edge[2] == container
+
+
+def _verified_registered_model_child(child: Any, label: str) -> tuple[Any, str, str]:
+    """Verify one actual direct edge, using a registered root only when no link exists."""
+    info = get_parent_info(get_handle(child))
+    if info is not None:
+        parent = resolve_handle(info.parent_handle)
+        if parent is None or len(info.path) != 1:
+            raise TgiError(f"{label} has a stale owner link", TgiFaultCode.INVALID_ID)
+        attribute = info.path[0]
+        value = getattr(parent, attribute, None)
+        if info.container == "single":
+            valid = value is child
+        elif info.container == "list" and isinstance(value, (list, tuple)):
+            valid = sum(item is child for item in value) == 1
+        else:
+            valid = False
+        if not valid:
+            raise TgiError(f"{label} has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+        rooted = _registered_model_edges(child)
+        if rooted and (len(rooted) != 1 or not _same_model_edge(rooted[0], parent, attribute, info.container)):
+            raise TgiError(f"{label} has competing registered containment", TgiFaultCode.INVALID_ID)
+        return parent, attribute, info.container
+
+    matches = _registered_model_edges(child)
+    if len(matches) != 1:
+        raise TgiError(
+            f"{label} is not uniquely contained in a registered document",
+            TgiFaultCode.INVALID_ID,
+        )
+    parent, attribute, container = matches[0]
+    register_parent(child, parent, (attribute,), container)
+    return parent, attribute, container
+
+
+def _supported_access_policies_owner(parent: Any, holder: AccessPolicies, attribute: str, container: str) -> bool:
+    """Recognize schema owners and storage paths that contain accessPolicies."""
+    if isinstance(parent, (AddressBlockType, RegisterFile)):
+        if attribute != "choice" or container != "list":
+            return False
+        values = getattr(parent, attribute)
+        if not isinstance(values, (list, tuple)) or sum(item is holder for item in values) != 1:
+            return False
+        if isinstance(parent, AddressBlockType):
+            _address_block_choice(parent)
+        else:
+            _inline_choice(parent, "accessPolicy operation")
+            _register_file_existing_names(values)
+        return True
+
+    choice_owners = (
+        AddressBlockType.Register,
+        RegisterFile.Register,
+        BankedBlockType.Register,
+        AddressBlockDefinitions.AddressBlockDefinition.Register,
+        RegisterFileDefinitions.RegisterFileDefinition.Register,
+        *_BANK_CHILD_TYPES,
+    )
+    if isinstance(parent, choice_owners) and attribute == "choice" and container == "list":
+        values = getattr(parent, attribute)
+        return isinstance(values, (list, tuple)) and sum(item is holder for item in values) == 1
+
+    definition_owners = (
+        AddressBlockDefinitions.AddressBlockDefinition,
+        RegisterDefinitions.RegisterDefinition,
+        RegisterFileDefinitions.RegisterFileDefinition,
+        AlternateRegisters.AlternateRegister,
+        BankDefinitions.BankDefinition,
+    )
+    if isinstance(parent, definition_owners) and attribute == "access_policies" and container == "single":
+        return parent.access_policies is holder
+
+    if (
+        isinstance(parent, (BankedBlockType, *_LOCAL_BANK_TYPES))
+        and attribute == "access_policies"
+        and container == "single"
+    ):
+        return parent.access_policies is holder
+
+    if isinstance(parent, _BANK_TYPES) and attribute == "choice" and container == "list":
+        path, actual_container, _values = _bank_policy_holder(parent, holder)
+        return path == attribute and actual_container == container
+    return False
+
+
+def _verified_access_policy(accessPolicyID: str) -> tuple[AccessPolicies.AccessPolicy, AccessPolicies]:
+    """Resolve a real accessPolicy child from an accessPolicies holder."""
+    if not isinstance(accessPolicyID, str):
+        raise TgiError("Invalid accessPolicy handle", TgiFaultCode.INVALID_ID)
+    policy = resolve_handle(accessPolicyID)
+    if not isinstance(policy, AccessPolicies.AccessPolicy):
+        raise TgiError("Invalid accessPolicy handle", TgiFaultCode.INVALID_ID)
+    holder, attribute, container = _verified_registered_model_child(policy, "accessPolicy")
+    if not isinstance(holder, AccessPolicies) or attribute != "access_policy" or container != "list":
+        raise TgiError("accessPolicy is not owned by an accessPolicies holder", TgiFaultCode.INVALID_ID)
+    holder_owner, holder_attribute, holder_container = _verified_registered_model_child(holder, "accessPolicies")
+    if not _supported_access_policies_owner(holder_owner, holder, holder_attribute, holder_container):
+        raise TgiError("accessPolicies is not owned by a supported schema element", TgiFaultCode.INVALID_ID)
+    policies = holder.access_policy
+    if (
+        not isinstance(policies, (list, tuple))
+        or any(not isinstance(item, AccessPolicies.AccessPolicy) for item in policies)
+        or sum(item is policy for item in policies) != 1
+    ):
+        raise TgiError("Invalid or duplicate accessPolicy membership", TgiFaultCode.INVALID_ID)
+    return policy, holder
+
+
+def _access_policy_mode_refs(policy: AccessPolicies.AccessPolicy) -> list | tuple:
+    """Validate existing modeRefs without changing their sequence representation."""
+    mode_refs = policy.mode_ref
+    if not isinstance(mode_refs, (list, tuple)) or any(not isinstance(item, ModeRef) for item in mode_refs):
+        raise TgiError("Invalid accessPolicy modeRef collection", TgiFaultCode.INVALID_ID)
+    names: set[str] = set()
+    priorities: set[int] = set()
+    unregistered: list[ModeRef] = []
+    for mode_ref in mode_refs:
+        try:
+            name = _name(mode_ref.value, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid accessPolicy modeRef Name", TgiFaultCode.INVALID_ID) from error
+        priority = mode_ref.priority
+        if type(priority) is not int or priority < 0:
+            raise TgiError("Invalid accessPolicy modeRef priority", TgiFaultCode.INVALID_ID)
+        if name in names or priority in priorities:
+            raise TgiError("Duplicate accessPolicy modeRef Name or priority", TgiFaultCode.INVALID_ID)
+        names.add(name)
+        priorities.add(priority)
+        info = get_parent_info(get_handle(mode_ref))
+        if info is not None:
+            parent = resolve_handle(info.parent_handle)
+            if (
+                parent is not policy
+                or info.path != ("mode_ref",)
+                or info.container != "list"
+                or sum(item is mode_ref for item in mode_refs) != 1
+            ):
+                raise TgiError("modeRef is not owned by its accessPolicy", TgiFaultCode.INVALID_ID)
+        else:
+            if sum(item is mode_ref for item in mode_refs) != 1:
+                raise TgiError("modeRef has duplicate membership", TgiFaultCode.INVALID_ID)
+            unregistered.append(mode_ref)
+    rooted = _registered_model_edges_for(mode_refs)
+    for mode_ref in mode_refs:
+        edges = rooted[id(mode_ref)]
+        if edges and (len(edges) != 1 or not _same_model_edge(edges[0], policy, "mode_ref", "list")):
+            raise TgiError("modeRef has competing registered containment", TgiFaultCode.INVALID_ID)
+    for mode_ref in unregistered:
+        register_parent(mode_ref, policy, ("mode_ref",), "list")
+    return mode_refs
+
+
+def addAccessPolicyModeRef(accessPolicyID: str, modeRef: str, priority: int) -> str:
+    """Add a modeRef to an accessPolicy (F.7.58.1).
+
+    Args:
+        accessPolicyID: Handle to an accessPolicy element.
+        modeRef: Name of the referenced access mode.
+        priority: Non-negative modeRef priority in the TGI Long range.
+
+    Returns:
+        Handle to the added modeRef.
+
+    Section: F.7.58.1.
+    """
+    policy, _holder = _verified_access_policy(accessPolicyID)
+    source = _name(modeRef, "Name")
+    if type(priority) is not int or not 0 <= priority <= _TGI_LONG_MAX:
+        raise TgiError("priority must be a non-negative TGI Long", TgiFaultCode.INVALID_ARGUMENT)
+    mode_refs = _access_policy_mode_refs(policy)
+    existing_names = {_name(item.value, "Name") for item in mode_refs}
+    existing_priorities = {item.priority for item in mode_refs}
+    if source in existing_names:
+        raise TgiError(
+            f"modeRef {source!r} already exists in this accessPolicy",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+    if priority in existing_priorities:
+        raise TgiError(
+            f"modeRef priority {priority} already exists in this accessPolicy",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+
+    created = ModeRef(value=source, priority=priority)
+    if isinstance(mode_refs, list):
+        mode_refs.append(created)
+    else:
+        policy.mode_ref = [*mode_refs, created]
+    register_parent(created, policy, ("mode_ref",), "list")
+    return get_handle(created)
+
+
+def removeAccessPolicyModeRef(accessPolicyID: str, modeRef: str) -> bool:
+    """Remove an accessPolicy modeRef by its source Name (F.7.58.20).
+
+    Args:
+        accessPolicyID: Handle to an accessPolicy element.
+        modeRef: Name of the referenced access mode to remove.
+
+    Returns:
+        True when a matching modeRef was removed, or False when absent.
+
+    Section: F.7.58.20.
+    """
+    policy, _holder = _verified_access_policy(accessPolicyID)
+    source = _name(modeRef, "Name")
+    mode_refs = _access_policy_mode_refs(policy)
+    matches = [item for item in mode_refs if _name(item.value, "Name") == source]
+    if not matches:
+        return False
+    if len(matches) != 1:
+        raise TgiError("Duplicate accessPolicy modeRef source Name", TgiFaultCode.INVALID_ID)
+    removed = matches[0]
+    removed_handle = get_handle(removed)
+    if isinstance(mode_refs, tuple):
+        policy.mode_ref = list(mode_refs)
+    register_parent(removed, policy, ("mode_ref",), "list")
+    if not detach_child_by_handle(removed_handle):
+        raise TgiError("Could not remove accessPolicy modeRef", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def _register_file_existing_names(choice: list | tuple) -> set[str]:
+    """Validate inline choice children and their schema-scoped names."""
+    allowed = (
+        RegisterFile.RegisterFileDefinitionRef,
+        UnsignedPositiveLongintExpression,
+        AccessPolicies,
+        RegisterFile.Register,
+        RegisterFile,
+    )
+    names: set[str] = set()
+    singleton_types: set[type] = set()
+    for item in choice:
+        if isinstance(item, str):
+            if str in singleton_types:
+                raise TgiError("Multiple registerFile typeIdentifiers", TgiFaultCode.INVALID_ID)
+            singleton_types.add(str)
+            try:
+                _name(item, "Name")
+            except TgiError as error:
+                raise TgiError("Invalid registerFile typeIdentifier", TgiFaultCode.INVALID_ID) from error
+            continue
+        if not isinstance(item, allowed):
+            raise TgiError("Invalid registerFile definition choice", TgiFaultCode.INVALID_ID)
+        if isinstance(item, RegisterFile.RegisterFileDefinitionRef):
+            if RegisterFile.RegisterFileDefinitionRef in singleton_types:
+                raise TgiError("Multiple registerFileDefinitionRefs", TgiFaultCode.INVALID_ID)
+            singleton_types.add(RegisterFile.RegisterFileDefinitionRef)
+            continue
+        if isinstance(item, UnsignedPositiveLongintExpression):
+            if UnsignedPositiveLongintExpression in singleton_types:
+                raise TgiError("Multiple registerFile ranges", TgiFaultCode.INVALID_ID)
+            singleton_types.add(UnsignedPositiveLongintExpression)
+            continue
+        if isinstance(item, AccessPolicies):
+            if AccessPolicies in singleton_types:
+                raise TgiError("Multiple registerFile accessPolicies holders", TgiFaultCode.INVALID_ID)
+            singleton_types.add(AccessPolicies)
+            continue
+        if not isinstance(item, (RegisterFile, RegisterFile.Register)):
+            continue
+        try:
+            item_name = _name(item.name, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid registerFile child Name", TgiFaultCode.INVALID_ID) from error
+        if item_name in names:
+            raise TgiError("Duplicate registerFile child Name", TgiFaultCode.INVALID_ID)
+        names.add(item_name)
+        if isinstance(item, RegisterFile.Register) and item.alternate_registers is not None:
+            alternate_holder = item.alternate_registers
+            if not isinstance(alternate_holder, AlternateRegisters):
+                raise TgiError("Invalid alternateRegisters holder", TgiFaultCode.INVALID_ID)
+            alternates = alternate_holder.alternate_register
+            if not isinstance(alternates, (list, tuple)):
+                raise TgiError("Invalid alternateRegister collection", TgiFaultCode.INVALID_ID)
+            for alternate in alternates:
+                if not isinstance(alternate, AlternateRegisters.AlternateRegister):
+                    raise TgiError("Invalid alternateRegister model", TgiFaultCode.INVALID_ID)
+                try:
+                    alternate_name = _name(alternate.name, "Name")
+                except TgiError as error:
+                    raise TgiError("Invalid alternateRegister Name", TgiFaultCode.INVALID_ID) from error
+                if alternate_name in names:
+                    raise TgiError("Duplicate registerFile child Name", TgiFaultCode.INVALID_ID)
+                names.add(alternate_name)
+    return names
+
+
+def addRegisterFileRegisterFile(registerFileID: str, name: str, addressOffset: str, range: str) -> str:
+    """Add a nested inline registerFile (F.7.58.19).
+
+    Args:
+        registerFileID: Handle to the containing registerFile element.
+        name: Name of the new registerFile.
+        addressOffset: Register-file address offset expression.
+        range: Positive register-file range expression.
+
+    Returns:
+        Handle to the added registerFile.
+
+    Section: F.7.58.19.
+    """
+    if not isinstance(registerFileID, str):
+        raise TgiError("Invalid registerFile handle", TgiFaultCode.INVALID_ID)
+    register_file = resolve_handle(registerFileID)
+    if not isinstance(register_file, RegisterFile):
+        raise TgiError("Invalid registerFile handle", TgiFaultCode.INVALID_ID)
+    parent, attribute, container = _verified_registered_model_child(register_file, "registerFile")
+    supported_owner = False
+    if isinstance(parent, RegisterFile) and attribute == "choice" and container == "list":
+        values = parent.choice
+        if not isinstance(values, (list, tuple)) or sum(item is register_file for item in values) != 1:
+            raise TgiError("registerFile has duplicate or invalid parent membership", TgiFaultCode.INVALID_ID)
+        _inline_choice(parent, "registerFile ownership")
+        _register_file_existing_names(values)
+        supported_owner = True
+    elif isinstance(parent, AddressBlockType) and attribute == "choice" and container == "list":
+        values = _address_block_choice(parent)
+        if sum(item is register_file for item in values) != 1:
+            raise TgiError("registerFile has duplicate or invalid addressBlock membership", TgiFaultCode.INVALID_ID)
+        supported_owner = True
+    elif isinstance(parent, BankedBlockType) and attribute == "register_or_register_file" and container == "list":
+        _path, values, register_type = _address_block_data_collection(parent)
+        if sum(item is register_file for item in values) != 1:
+            raise TgiError("registerFile has duplicate or invalid banked block membership", TgiFaultCode.INVALID_ID)
+        _address_block_data_names(values, register_type)
+        supported_owner = True
+    elif (
+        isinstance(parent, AddressBlockDefinitions.AddressBlockDefinition)
+        and attribute == "register_or_register_file"
+        and container == "list"
+    ):
+        values = parent.register_or_register_file
+        allowed = (AddressBlockDefinitions.AddressBlockDefinition.Register, RegisterFile)
+        if (
+            not isinstance(values, (list, tuple))
+            or any(not isinstance(item, allowed) for item in values)
+            or sum(item is register_file for item in values) != 1
+        ):
+            raise TgiError("Invalid addressBlockDefinition registerFile membership", TgiFaultCode.INVALID_ID)
+        supported_owner = True
+    elif (
+        isinstance(parent, RegisterFileDefinitions.RegisterFileDefinition)
+        and attribute == "register_or_register_file"
+        and container == "list"
+    ):
+        values = parent.register_or_register_file
+        allowed = (RegisterFileDefinitions.RegisterFileDefinition.Register, RegisterFile)
+        if (
+            not isinstance(values, (list, tuple))
+            or any(not isinstance(item, allowed) for item in values)
+            or sum(item is register_file for item in values) != 1
+        ):
+            raise TgiError("Invalid registerFileDefinition registerFile membership", TgiFaultCode.INVALID_ID)
+        supported_owner = True
+    if not supported_owner:
+        raise TgiError("registerFile is not owned by a supported schema element", TgiFaultCode.INVALID_ID)
+    choice = register_file.choice
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid registerFile definition choice", TgiFaultCode.INVALID_ID)
+    names = _register_file_existing_names(choice)
+    _inline_choice(register_file, "addRegisterFileRegisterFile")
+    nested_name = _name(name, "Name")
+    if nested_name in names:
+        raise TgiError(
+            f"registerFile name {nested_name!r} already exists in this registerFile",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+    offset_source = _expression(addressOffset, "addressOffset", 0, _TGI_U64_MAX)
+    range_source = _expression(range, "range", 1, _TGI_U64_MAX)
+
+    child = RegisterFile(
+        name=nested_name,
+        address_offset=UnsignedLongintExpression(value=offset_source),
+        choice=[UnsignedPositiveLongintExpression(value=range_source)],
+    )
+    mutable_choice = _list_attr(register_file, "choice")
+    mutable_choice.append(child)
+    register_parent(child, register_file, ("choice",), "list")
+    _register_graph(child)
+    return get_handle(child)
