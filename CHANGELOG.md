@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete ten Register enumerated-value operations with typed expression and usage access, unsigned field-width conversion, shared choice and name validation, metadata-preserving setters, and owned removal with optional-holder pruning.
 - Complete nine Register field-reset lifecycle and field-definition metadata operations with generated reset holders, default HARD identity checks, owned removal and holder pruning, validated width expressions and names, and default-false volatility.
 - Complete nine Register reset value and mask operations with field-width unsigned bit conversion, arbitrary-precision results, preserved expression metadata and handles, and optional mask removal.
 - Complete six Register field and alternate-register child lifecycle operations with generated builders, shared validation, scoped identity checks, parsed ownership recovery, descendant invalidation, and empty-holder pruning.

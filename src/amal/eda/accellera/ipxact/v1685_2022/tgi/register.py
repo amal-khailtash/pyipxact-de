@@ -16,6 +16,9 @@ from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
 from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegisters
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
 from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
+from org.accellera.ipxact.v1685_2022.enumerated_value_type import EnumeratedValueType
+from org.accellera.ipxact.v1685_2022.enumerated_value_type_usage import EnumeratedValueTypeUsage
+from org.accellera.ipxact.v1685_2022.enumeration_definitions import EnumerationDefinitions
 from org.accellera.ipxact.v1685_2022.field_type import FieldType
 from org.accellera.ipxact.v1685_2022.field_definitions import FieldDefinitions
 from org.accellera.ipxact.v1685_2022.mode_ref import ModeRef
@@ -154,6 +157,7 @@ __all__ = [
     "removeBroadcastToMemoryMapRef",
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
+    "removeEnumeratedValuesEnumeratedValue",
     "removeRegisterAlternateRegister",
     "removeRegisterField",
     "removeRegisterFieldReset",
@@ -164,6 +168,8 @@ __all__ = [
     "removeResetMask",
     "setAlternateRegisterTypeIdentifier",
     "setAlternateRegisterVolatility",
+    "setEnumeratedValueUsage",
+    "setEnumeratedValueValue",
     "setFieldDefinitionBitWidth",
     "setFieldDefinitionTypeIdentifier",
     "setFieldDefinitionVolatile",
@@ -233,6 +239,127 @@ def _resolve_reset(resetID: str) -> Reset:
     if not isinstance(reset, Reset):
         raise TgiError("Invalid reset handle", TgiFaultCode.INVALID_ID)
     return reset
+
+
+def _resolve_enumerated_value(enumeratedValueID: str) -> EnumeratedValueType:
+    value = resolve_handle(enumeratedValueID) if isinstance(enumeratedValueID, str) else None
+    if not isinstance(value, EnumeratedValueType):
+        raise TgiError("Invalid enumeratedValue handle", TgiFaultCode.INVALID_ID)
+    _register_graph(value)
+    return value
+
+
+def _enumerated_value_expression(value: EnumeratedValueType) -> UnsignedBitVectorExpression:
+    expression = value.value
+    if not isinstance(expression, UnsignedBitVectorExpression) or not isinstance(expression.value, str):
+        raise TgiError("Invalid enumeratedValue value model", TgiFaultCode.INVALID_ID)
+    register_parent(expression, value, ("value",), "single")
+    _register_graph(expression)
+    return expression
+
+
+def _enumerated_value_width(value: EnumeratedValueType, *, deferred: bool) -> int | None:
+    """Return a known inline field or enumeration-definition width for a value."""
+    info = get_parent_info(get_handle(value))
+    parent = resolve_handle(info.parent_handle) if info is not None else None
+    owner_types = (EnumeratedValues, EnumerationDefinitions.EnumerationDefinition)
+    if not isinstance(parent, owner_types):
+        parent = _register_owned_child(value, owner_types)
+
+    if isinstance(parent, EnumeratedValues):
+        from .type_definitions import _field_enumeration_members
+
+        members = _field_enumeration_members(parent)
+        if not any(member is value for member in members):
+            raise TgiError("Enumerated value is not in its holder", TgiFaultCode.INVALID_ID)
+        owner = _register_owned_child(parent, (FieldType, FieldDefinitions.FieldDefinition))
+        if not isinstance(owner, (FieldType, FieldDefinitions.FieldDefinition)):
+            return None
+        return _enumerated_holder_width(parent, owner, deferred=deferred)
+    elif isinstance(parent, EnumerationDefinitions.EnumerationDefinition):
+        from .type_definitions import _definition_list_ids
+
+        members = getattr(parent, "enumerated_value", None)
+        if not isinstance(members, (list, tuple)) or not any(member is value for member in members):
+            raise TgiError("Enumerated value is not in its definition", TgiFaultCode.INVALID_ID)
+        _definition_list_ids(parent, "enumerated_value", EnumeratedValueType)
+        width = parent.width
+        if not isinstance(width, UnsignedPositiveIntExpression):
+            raise TgiError("Invalid enumeration-definition width model", TgiFaultCode.INVALID_ID)
+        register_parent(width, parent, ("width",), "single")
+        _register_graph(width)
+    else:
+        if parent is not None:
+            raise TgiError("Unsupported enumeratedValue owner", TgiFaultCode.INVALID_ID)
+        return None
+
+    source = _register_file_expression(width.value, "width", 1, _UINT32_MAX, width)
+    return _integer_expression(source, _UINT32_MAX, deferred, minimum=1)
+
+
+def _enumerated_holder_width(
+    holder: EnumeratedValues,
+    owner: FieldType | FieldDefinitions.FieldDefinition,
+    *,
+    deferred: bool,
+) -> int | None:
+    """Resolve an inline holder's field width after validating its typed owner path."""
+    holder_info = get_parent_info(get_handle(holder))
+    if holder_info is None or holder_info.parent_handle != get_handle(owner):
+        raise TgiError("enumeratedValues holder is not owned by its field", TgiFaultCode.INVALID_ID)
+    if isinstance(owner, FieldType):
+        if (
+            holder_info.path != ("choice",)
+            or holder_info.container != "list"
+            or not any(child is holder for child in owner.choice)
+        ):
+            raise TgiError("Invalid field enumeratedValues choice", TgiFaultCode.INVALID_ID)
+        width = _register_field_bit_width(owner)
+    else:
+        if (
+            holder_info.path != ("enumerated_values",)
+            or holder_info.container != "single"
+            or owner.enumerated_values is not holder
+        ):
+            raise TgiError("Invalid field-definition enumeratedValues owner", TgiFaultCode.INVALID_ID)
+        width = owner.bit_width
+        if not isinstance(width, UnsignedPositiveIntExpression):
+            raise TgiError("Invalid field-definition bitWidth model", TgiFaultCode.INVALID_ID)
+        register_parent(width, owner, ("bit_width",), "single")
+        _register_graph(width)
+    if width is None:
+        return None
+    source = _register_file_expression(width.value, "bitWidth", 1, _UINT32_MAX, width)
+    return _integer_expression(source, _UINT32_MAX, deferred, minimum=1)
+
+
+def _enumerated_value_source(source: str, width: int | None, *, deferred: bool) -> str:
+    """Validate an unsigned two-state bit-vector conversion before changing a value."""
+    _xml_text(source)
+    if not source.strip():
+        raise TgiError("Enumerated value must be a nonempty expression", TgiFaultCode.INVALID_ARGUMENT)
+    from amal.eda.systemverilog.expression_parser import SvExpressionParser
+
+    try:
+        SvExpressionParser().parse_bit_vector(source, width)
+    except SvExpressionError as error:
+        if deferred and _undeclared(error):
+            return source
+        raise TgiError("Invalid enumerated-value bit-vector expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    return source
+
+
+def _enumerated_value_numeric(value: EnumeratedValueType) -> int:
+    expression = _enumerated_value_expression(value)
+    width = _enumerated_value_width(value, deferred=False)
+    from amal.eda.systemverilog.expression_parser import SvExpressionParser
+
+    try:
+        return SvExpressionParser().parse_bit_vector(expression.value, width).as_python()
+    except SvExpressionError as error:
+        raise TgiError(
+            "Cannot resolve enumerated-value bit-vector expression", TgiFaultCode.INVALID_ARGUMENT
+        ) from error
 
 
 def _reset_field(reset: Reset) -> FieldType | FieldDefinitions.FieldDefinition | None:
@@ -909,43 +1036,101 @@ def getBroadcastToRegisterRefID(broadcastToID: str) -> str | None:
 # EnumeratedValue(s)
 
 
-def getEnumeratedValueExpression(enumeratedValueID: str) -> str | None:
-    """Return expression (F.7.73.28)."""
-    ev = _resolve(enumeratedValueID)
-    return _maybe_value(getattr(ev, "expression", None))
+def getEnumeratedValueExpression(enumeratedValueID: str) -> str:
+    """Return the stored unsigned bit-vector expression source.
+
+    Section: F.7.73.28.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        Exact source text from its required value element.
+    """
+    return _enumerated_value_expression(_resolve_enumerated_value(enumeratedValueID)).value
 
 
-def getEnumeratedValueUsage(enumeratedValueID: str) -> str | None:
-    """Return usage (F.7.73.29)."""
-    ev = _resolve(enumeratedValueID)
-    return _maybe_value(getattr(ev, "usage", None))
+def getEnumeratedValueUsage(enumeratedValueID: str) -> str:
+    """Return the enumerated value's access usage.
+
+    Section: F.7.73.29.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        ``read``, ``write`` or ``read-write``; the schema default is ``read-write``.
+    """
+    value = _resolve_enumerated_value(enumeratedValueID)
+    usage = value.usage
+    if usage is None:
+        return EnumeratedValueTypeUsage.READ_WRITE.value
+    if not isinstance(usage, EnumeratedValueTypeUsage):
+        raise TgiError("Invalid enumeratedValue usage", TgiFaultCode.INVALID_ID)
+    return usage.value
 
 
-def getEnumeratedValueValue(enumeratedValueID: str) -> int | None:
-    """Return numeric value (F.7.73.30)."""
-    ev = _resolve(enumeratedValueID)
-    val = getattr(getattr(ev, "value", None), "value", None)
-    return int(val) if isinstance(val, int | bool) else None
+def getEnumeratedValueValue(enumeratedValueID: str) -> int:
+    """Return the unsigned two-state value after assignment-width conversion.
+
+    Section: F.7.73.30.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        Resolved arbitrary-precision integer in the containing field or definition width.
+    """
+    return _enumerated_value_numeric(_resolve_enumerated_value(enumeratedValueID))
 
 
-def getEnumeratedValueValueExpression(enumeratedValueID: str) -> str | None:
-    """Return value expression (F.7.73.31)."""
-    ev = _resolve(enumeratedValueID)
-    value = getattr(ev, "value", None)
-    return getattr(value, "value_expression", None)
+def getEnumeratedValueValueExpression(enumeratedValueID: str) -> str:
+    """Return the stored value expression source.
+
+    Section: F.7.73.31.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        Exact source text from its required value element.
+    """
+    return _enumerated_value_expression(_resolve_enumerated_value(enumeratedValueID)).value
 
 
-def getEnumeratedValueValueID(enumeratedValueID: str) -> str | None:
-    """Return handle of value element (F.7.73.32)."""
-    ev = _resolve(enumeratedValueID)
-    value = getattr(ev, "value", None)
-    return get_handle(value) if value is not None else None
+def getEnumeratedValueValueID(enumeratedValueID: str) -> str:
+    """Return the owned handle of the required value expression.
+
+    Section: F.7.73.32.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        Handle to its value expression element.
+    """
+    value = _resolve_enumerated_value(enumeratedValueID)
+    return get_handle(_enumerated_value_expression(value))
 
 
 def getEnumeratedValuesEnumeratedValueIDs(enumeratedValuesID: str) -> list[str]:
-    """Return enumeratedValue handles (F.7.73.33)."""
-    evs = _resolve(enumeratedValuesID)
-    return _list_handles(evs, "enumerated_value")
+    """Return ordered inline enumerated-value handles.
+
+    Section: F.7.73.33.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+
+    Returns:
+        Handles for each inline enumeratedValue, or an empty list for a reference choice.
+    """
+    evs = resolve_handle(enumeratedValuesID) if isinstance(enumeratedValuesID, str) else None
+    if not isinstance(evs, EnumeratedValues):
+        raise TgiError("Invalid enumeratedValues handle", TgiFaultCode.INVALID_ID)
+    from .type_definitions import _field_enumeration_members
+
+    members = _field_enumeration_members(evs)
+    return [get_handle(member) for member in members if isinstance(member, EnumeratedValueType)]
 
 
 def getEnumeratedValuesEnumerationDefinitionRefByExternalTypeDefID(enumeratedValuesID: str) -> str | None:
@@ -1710,16 +1895,136 @@ def addBroadcastToRegisterFileRef(broadcastToID: str, registerFileRef: str) -> s
 
 
 def addEnumeratedValuesFieldEnumeratedValue(enumeratedValuesID: str, name: str, value: str) -> str:
-    """Add enumeratedValue (F.7.74.5)."""
-    evs = _resolve(enumeratedValuesID)
-    if evs is None:
+    """Add one inline value after checking its name and field-width conversion.
+
+    Section: F.7.74.5.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+        name: Unique XML Name for the new value.
+        value: Unsigned bit-vector expression source.
+
+    Returns:
+        Handle to the created enumeratedValue element.
+    """
+    evs = resolve_handle(enumeratedValuesID) if isinstance(enumeratedValuesID, str) else None
+    if not isinstance(evs, EnumeratedValues):
         raise TgiError("Invalid enumeratedValues handle", TgiFaultCode.INVALID_ID)
-    ev = _ns(name=name, value=_ns(value=_coerce_int(value)))
-    if not hasattr(evs, "enumerated_value"):
-        evs.enumerated_value = []  # type: ignore[attr-defined]
-    evs.enumerated_value.append(ev)  # type: ignore[attr-defined]
-    register_parent(ev, evs, ("enumerated_value",), "list")
-    return get_handle(ev)
+    from .type_definitions import _definition_new_name, _field_enumeration_members
+
+    members = _field_enumeration_members(evs)
+    if members and isinstance(members[0], EnumeratedValues.EnumerationDefinitionRef):
+        raise TgiError(
+            "Inline values cannot coexist with an enumeration definition reference", TgiFaultCode.INVALID_ARGUMENT
+        )
+    normalized_name = _definition_new_name(members, name)
+    owner = _register_owned_child(evs, (FieldType, FieldDefinitions.FieldDefinition))
+    width: int | None = None
+    if isinstance(owner, (FieldType, FieldDefinitions.FieldDefinition)):
+        width = _enumerated_holder_width(evs, owner, deferred=True)
+    source = _enumerated_value_source(value, width, deferred=True)
+    child = EnumeratedValueType(name=normalized_name, value=UnsignedBitVectorExpression(value=source))
+    _list_attr(evs, "enumeration_definition_ref_or_enumerated_value").append(child)
+    _field_enumeration_members(evs)
+    return get_handle(child)
+
+
+def removeEnumeratedValuesEnumeratedValue(enumeratedValueID: str) -> bool:
+    """Remove an inline value from its enumeratedValues holder.
+
+    Section: F.7.74.23.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        True when the owned value is removed.
+    """
+    value = _resolve_enumerated_value(enumeratedValueID)
+    holder = _register_owned_child(value, EnumeratedValues)
+    if not isinstance(holder, EnumeratedValues):
+        raise TgiError("Enumerated value is not owned by an enumeratedValues holder", TgiFaultCode.INVALID_ID)
+    from .type_definitions import _field_enumeration_members
+
+    members = _field_enumeration_members(holder)
+    if not any(member is value for member in members):
+        raise TgiError("Enumerated value is not in its owning holder", TgiFaultCode.INVALID_ID)
+    owner = _register_owned_child(holder, (FieldType, FieldDefinitions.FieldDefinition))
+    if isinstance(owner, FieldType):
+        _register_graph(owner)
+        holder_info = get_parent_info(get_handle(holder))
+        if (
+            holder_info is None
+            or holder_info.parent_handle != get_handle(owner)
+            or holder_info.path != ("choice",)
+            or holder_info.container != "list"
+            or not any(child is holder for child in owner.choice)
+        ):
+            raise TgiError("Holder is not owned by the field", TgiFaultCode.INVALID_ID)
+    elif isinstance(owner, FieldDefinitions.FieldDefinition):
+        _register_graph(owner)
+        holder_info = get_parent_info(get_handle(holder))
+        if (
+            holder_info is None
+            or holder_info.parent_handle != get_handle(owner)
+            or holder_info.path != ("enumerated_values",)
+            or holder_info.container != "single"
+            or owner.enumerated_values is not holder
+        ):
+            raise TgiError("Holder is not owned by the field definition", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, "enumeration_definition_ref_or_enumerated_value")
+    if not detach_child_by_handle(enumeratedValueID):
+        raise TgiError("Could not remove enumeratedValue", TgiFaultCode.INVALID_ID)
+    if (
+        not holder.enumeration_definition_ref_or_enumerated_value
+        and isinstance(owner, (FieldType, FieldDefinitions.FieldDefinition))
+        and not detach_child_by_handle(get_handle(holder))
+    ):
+        raise TgiError("Could not remove empty enumeratedValues holder", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def setEnumeratedValueUsage(enumeratedValueID: str, usage: str) -> bool:
+    """Set a schema-defined usage while preserving the generated value object.
+
+    Section: F.7.74.49.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+        usage: One of ``read``, ``write`` or ``read-write``.
+
+    Returns:
+        True when the usage is assigned.
+    """
+    value = _resolve_enumerated_value(enumeratedValueID)
+    if not isinstance(usage, str):
+        raise TgiError("Invalid enumeratedValue usage", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        normalized_usage = EnumeratedValueTypeUsage(usage)
+    except ValueError as error:
+        raise TgiError("Invalid enumeratedValue usage", TgiFaultCode.INVALID_ARGUMENT) from error
+    value.usage = normalized_usage
+    return True
+
+
+def setEnumeratedValueValue(enumeratedValueID: str, expression: str) -> bool:
+    """Set and validate an unsigned bit-vector source, retaining the value node.
+
+    Section: F.7.74.50.
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+        expression: New unsigned bit-vector expression source.
+
+    Returns:
+        True when the source is assigned; undeclared identifiers remain deferred.
+    """
+    value = _resolve_enumerated_value(enumeratedValueID)
+    node = _enumerated_value_expression(value)
+    width = _enumerated_value_width(value, deferred=True)
+    source = _enumerated_value_source(expression, width, deferred=True)
+    node.value = source
+    return True
 
 
 def addFieldRefIndex(fieldRefID: str, value: str) -> str:
