@@ -16,6 +16,10 @@ from collections.abc import Iterable
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
+    AddressBlockRef,
+    Array,
+    Index,
+    Indices,
     AccessPolicies,
     AddressBlockType,
     AddressBlockDefinitions,
@@ -50,9 +54,10 @@ from org.accellera.ipxact.v1685_2022 import (
 from .address_space import _register_owned_child
 from .bus_interface import _named_target
 from ._expressions import _integer
+from ._model import _walk_model
 from .port_map import _child, _name
 from .register_file import _child_ids, _numeric
-from .register import _type_definition_target, _type_definition_reference_names
+from .register import _type_definition_target, _type_definition_reference_names, _register_reference
 from .type_definitions import getTypeDefinitionsAddressBlockDefinitionIDs
 
 from .core import (
@@ -67,6 +72,14 @@ from .core import (
 __all__ = [
     # BASE (F.7.57.x) – ordering matches spec numbering groups
     # AddressBlock getters (1–21) - subset implemented (schema coverage pending)
+    "getAddressBlockAccessPolicyIDs",
+    "getAddressBlockArrayID",
+    "getAddressBlockRefIndexIDs",
+    "getAddressBlockRegisterFileIDs",
+    "getAddressBlockRegisterIDs",
+    "getAddressBlockTypeIdentifier",
+    "getAddressBlockUsage",
+    "getAddressBlockVolatility",
     "getAddressBlockBaseAddress",
     "getAddressBlockBaseAddressExpression",
     "getAddressBlockBaseAddressID",
@@ -629,46 +642,72 @@ def _require_address_block(addressBlockID: str, *, banked: bool = True) -> Addre
     return block
 
 
+type _BlockContent = AddressBlockType | BankedBlockType | AddressBlockDefinitions.AddressBlockDefinition
+
+
+def _address_block_content(block: AddressBlockType | BankedBlockType) -> _BlockContent:
+    """Validate inline content or resolve the declared external block definition."""
+    if isinstance(block, BankedBlockType):
+        return block
+    values = block.choice
+    allowed = (
+        str,
+        UnsignedPositiveLongintExpression,
+        UnsignedPositiveIntExpression,
+        UsageType,
+        Volatile,
+        AccessPolicies,
+        Parameters,
+        AddressBlockType.Register,
+        RegisterFile,
+        AddressBlockType.AddressBlockDefinitionRef,
+    )
+    if not isinstance(values, (list, tuple)) or any(not isinstance(item, allowed) for item in values):
+        raise TgiError("Invalid addressBlock choice", TgiFaultCode.INVALID_ID)
+    refs = [item for item in values if isinstance(item, AddressBlockType.AddressBlockDefinitionRef)]
+    if refs:
+        if len(values) != 1:
+            raise TgiError("Conflicting addressBlock definition and inline content", TgiFaultCode.INVALID_ID)
+        reference = refs[0]
+        register_parent(reference, block, ("choice",), "list")
+        name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+        target_id = _type_definition_target(block, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
+        definition = resolve_handle(target_id)
+        if not isinstance(definition, AddressBlockDefinitions.AddressBlockDefinition):
+            raise TgiError("Invalid addressBlockDefinition target", TgiFaultCode.INVALID_ID)
+        return definition
+    for scalar in (
+        str,
+        UnsignedPositiveLongintExpression,
+        UnsignedPositiveIntExpression,
+        UsageType,
+        Volatile,
+        AccessPolicies,
+        Parameters,
+    ):
+        if sum(isinstance(item, scalar) for item in values) > 1:
+            raise TgiError("Duplicate addressBlock scalar child", TgiFaultCode.INVALID_ID)
+    return block
+
+
+def _block_scalar[T](content: _BlockContent, attribute: str, model_type: type[T]) -> T | None:
+    if not isinstance(content, AddressBlockType):
+        if model_type is UsageType:
+            node = content.usage
+            if node is not None and not isinstance(node, UsageType):
+                raise TgiError("Invalid addressBlock usage value", TgiFaultCode.INVALID_ID)
+            return node
+        return _child(content, attribute, model_type)
+    node = next((item for item in content.choice if isinstance(item, model_type)), None)
+    if node is not None and model_type is not UsageType:
+        register_parent(node, content, ("choice",), "list")
+    return node
+
+
 def _address_block_size_node[T: UnsignedPositiveLongintExpression | UnsignedPositiveIntExpression](
     block: AddressBlockType | BankedBlockType, attribute: str, model_type: type[T]
 ) -> T:
-    if isinstance(block, BankedBlockType):
-        node = _child(block, attribute, model_type)
-    else:
-        values = block.choice
-        allowed = (
-            str,
-            UnsignedPositiveLongintExpression,
-            UnsignedPositiveIntExpression,
-            UsageType,
-            Volatile,
-            AccessPolicies,
-            Parameters,
-            AddressBlockType.Register,
-            RegisterFile,
-            AddressBlockType.AddressBlockDefinitionRef,
-        )
-        if not isinstance(values, (list, tuple)) or any(not isinstance(item, allowed) for item in values):
-            raise TgiError("Invalid addressBlock choice", TgiFaultCode.INVALID_ID)
-        refs = [item for item in values if isinstance(item, AddressBlockType.AddressBlockDefinitionRef)]
-        if refs:
-            if len(values) != 1:
-                raise TgiError("Conflicting addressBlock definition and inline content", TgiFaultCode.INVALID_ID)
-            reference = refs[0]
-            register_parent(reference, block, ("choice",), "list")
-            name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
-            target_id = _type_definition_target(block, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
-            definition = resolve_handle(target_id)
-            if not isinstance(definition, AddressBlockDefinitions.AddressBlockDefinition):
-                raise TgiError("Invalid addressBlockDefinition target", TgiFaultCode.INVALID_ID)
-            node = _child(definition, attribute, model_type)
-        else:
-            for scalar in (UnsignedPositiveLongintExpression, UnsignedPositiveIntExpression):
-                if sum(isinstance(item, scalar) for item in values) > 1:
-                    raise TgiError("Duplicate addressBlock size child", TgiFaultCode.INVALID_ID)
-            node = next((item for item in values if isinstance(item, model_type)), None)
-            if node is not None:
-                register_parent(node, block, ("choice",), "list")
+    node = _block_scalar(_address_block_content(block), attribute, model_type)
     if node is None:
         raise TgiError(f"Missing required addressBlock {attribute}", TgiFaultCode.INVALID_ID)
     return node
@@ -753,3 +792,104 @@ def getAddressBlockWidthID(addressBlockID: str) -> str:
     return get_handle(
         _address_block_size_node(_require_address_block(addressBlockID), "width", UnsignedPositiveIntExpression)
     )
+
+
+def _block_register_ids(content: _BlockContent, *, files: bool = False) -> list[str]:
+    """Return typed direct register or register-file handles from the actual content owner."""
+    if isinstance(content, AddressBlockType):
+        values, path, register_type = content.choice, "choice", AddressBlockType.Register
+    else:
+        values, path = content.register_or_register_file, "register_or_register_file"
+        register_type = (
+            BankedBlockType.Register
+            if isinstance(content, BankedBlockType)
+            else AddressBlockDefinitions.AddressBlockDefinition.Register
+        )
+        if not isinstance(values, (list, tuple)) or any(
+            not isinstance(item, (register_type, RegisterFile)) for item in values
+        ):
+            raise TgiError("Invalid addressBlock register collection", TgiFaultCode.INVALID_ID)
+    model_type = RegisterFile if files else register_type
+    return _child_ids(content, [item for item in values if isinstance(item, model_type)], (path,))
+
+
+def getAddressBlockAccessPolicyIDs(addressBlockID: str) -> list[str]:
+    """Return owned accessPolicy children from inline or referenced block content (F.7.57.1)."""
+    content = _address_block_content(_require_address_block(addressBlockID))
+    holder = _block_scalar(content, "access_policies", AccessPolicies)
+    if holder is None:
+        return []
+    values = holder.access_policy
+    if not isinstance(values, (list, tuple)) or any(
+        not isinstance(item, AccessPolicies.AccessPolicy) for item in values
+    ):
+        raise TgiError("Invalid addressBlock accessPolicy collection", TgiFaultCode.INVALID_ID)
+    return _child_ids(holder, values, ("access_policy",))
+
+
+def getAddressBlockArrayID(addressBlockID: str) -> str | None:
+    """Return the optional local array wrapper handle (F.7.57.6)."""
+    block = _require_address_block(addressBlockID)
+    if isinstance(block, BankedBlockType):
+        return None
+    array = _child(block, "array", Array)
+    return get_handle(array) if array is not None else None
+
+
+def getAddressBlockRefIndexIDs(addressBlockRefID: str) -> list[str]:
+    """Return ordered owned Index wrappers without evaluating their expressions (F.7.57.13)."""
+    reference = _register_reference(addressBlockRefID, AddressBlockRef)
+    indices = _child(reference, "indices", Indices)
+    if indices is None:
+        return []
+    values = indices.index
+    if not isinstance(values, (list, tuple)) or any(not isinstance(item, Index) for item in values):
+        raise TgiError("Invalid addressBlockRef indices", TgiFaultCode.INVALID_ID)
+    return _child_ids(indices, values, ("index",))
+
+
+def getAddressBlockRegisterFileIDs(addressBlockID: str) -> list[str]:
+    """Return ordered direct registerFile children from actual block content (F.7.57.14)."""
+    return _block_register_ids(_address_block_content(_require_address_block(addressBlockID)), files=True)
+
+
+def getAddressBlockRegisterIDs(addressBlockID: str) -> list[str]:
+    """Return ordered direct register children from actual block content (F.7.57.15)."""
+    return _block_register_ids(_address_block_content(_require_address_block(addressBlockID)))
+
+
+def getAddressBlockTypeIdentifier(addressBlockID: str) -> str | None:
+    """Return optional typeIdentifier Name; banked blocks have no such property (F.7.57.16)."""
+    content = _address_block_content(_require_address_block(addressBlockID))
+    if isinstance(content, BankedBlockType):
+        return None
+    value = (
+        next((item for item in content.choice if isinstance(item, str)), None)
+        if isinstance(content, AddressBlockType)
+        else content.type_identifier
+    )
+    return _stored_name(value) if value is not None else None
+
+
+def getAddressBlockUsage(addressBlockID: str) -> str:
+    """Return explicit usage or its standard register/reserved presumption (F.7.57.17)."""
+    content = _address_block_content(_require_address_block(addressBlockID))
+    usage = _block_scalar(content, "usage", UsageType)
+    if usage is not None:
+        return usage.value
+    direct = [resolve_handle(handle) for handle in _block_register_ids(content)]
+    files = [resolve_handle(handle) for handle in _block_register_ids(content, files=True)]
+    if direct or any(isinstance(obj, RegisterFile.Register) for file in files for obj, *_ in _walk_model(file)):
+        return UsageType.REGISTER.value
+    return UsageType.RESERVED.value
+
+
+def getAddressBlockVolatility(addressBlockID: str) -> bool | None:
+    """Return explicit volatility; absence is unspecified for address blocks (F.7.57.18)."""
+    content = _address_block_content(_require_address_block(addressBlockID))
+    node = _block_scalar(content, "volatile", Volatile)
+    if node is None:
+        return None
+    if type(node.value) is not bool:
+        raise TgiError("Invalid addressBlock volatile value", TgiFaultCode.INVALID_ID)
+    return node.value
