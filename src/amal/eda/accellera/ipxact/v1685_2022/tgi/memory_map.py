@@ -17,6 +17,8 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
     AddressBlockRef,
+    BankRef,
+    FieldType,
     Array,
     Index,
     Indices,
@@ -58,14 +60,17 @@ from org.accellera.ipxact.v1685_2022 import (
 from .address_space import _register_owned_child
 from .bus_interface import _named_target
 from ._expressions import _integer
-from ._model import _walk_model
+from ._model import _walk_model, _reference_list
 from .port_map import _child, _name
+from ._reference_choices import _reference_choice
+from ._attribute_references import _reference_name, resolve_attribute_reference
 from .register_file import _child_ids, _numeric
 from .register import (
     _type_definition_external,
     _type_definition_target,
     _type_definition_reference_names,
     _register_reference,
+    _register_alias,
 )
 from .type_definitions import (
     getTypeDefinitionsAddressBlockDefinitionIDs,
@@ -84,6 +89,15 @@ from .core import (
 )
 
 __all__ = [
+    "getAliasOfAddressBlockRefByName",
+    "getAliasOfAddressBlockRefID",
+    "getAliasOfBankRefByNames",
+    "getAliasOfBankRefIDs",
+    "getAliasOfMemoryMapRefByName",
+    "getAliasOfMemoryMapRefID",
+    "getAliasOfMemoryRemapRefByID",
+    "getAliasOfMemoryRemapRefByName",
+    "getAliasOfMemoryRemapRefID",
     "getBankBankDefinitionRefByExternalTypeDefID",
     "getBankBankDefinitionRefByID",
     "getBankBankDefinitionRefByName",
@@ -1258,3 +1272,74 @@ def getMemoryRemapRemapDefinitionRefID(memoryRemapID: str) -> str | None:
     if reference is None:
         return None
     return get_handle(reference)
+
+
+def _memory_alias_reference_id(aliasOfID: str, xml_name: str) -> str | None:
+    """Return a typed owned memory-path wrapper and validate its source Name."""
+    alias = _register_alias(aliasOfID)
+    if xml_name == "addressBlockRef":
+        reference = _child(alias, "address_block_ref", AddressBlockRef)
+    else:
+        _address, memory_map, remap = _reference_choice(
+            alias, FieldType.AliasOf.AddressSpaceRef, FieldType.AliasOf.MemoryMapRef
+        )
+        reference = memory_map if xml_name == "memoryMapRef" else remap
+    if reference is None:
+        return None
+    handle = get_handle(reference)
+    _reference_name(handle, xml_name)
+    return handle
+
+
+def getAliasOfAddressBlockRefByName(aliasOfID: str) -> str | None:
+    """Return the stored normalized addressBlock reference Name (F.7.57.22)."""
+    return _reference_name(_memory_alias_reference_id(aliasOfID, "addressBlockRef"), "addressBlockRef")
+
+
+def getAliasOfAddressBlockRefID(aliasOfID: str) -> str | None:
+    """Return the owned addressBlockRef wrapper, independent of target lookup (F.7.57.23)."""
+    return _memory_alias_reference_id(aliasOfID, "addressBlockRef")
+
+
+def getAliasOfBankRefByNames(aliasOfID: str) -> list[str]:
+    """Return the ordered normalized bank reference Names (F.7.57.24)."""
+    return [_reference_name(handle, "bankRef") for handle in getAliasOfBankRefIDs(aliasOfID)]
+
+
+def getAliasOfBankRefIDs(aliasOfID: str) -> list[str]:
+    """Return ordered owned bankRef wrappers, preserving source tuples (F.7.57.25)."""
+    alias = _register_alias(aliasOfID)
+    values = _reference_list(alias, "bank_ref", BankRef)
+    for reference in values:
+        _reference_name(get_handle(reference), "bankRef")
+    return _child_ids(alias, values, ("bank_ref",))
+
+
+def getAliasOfMemoryMapRefByName(aliasOfID: str) -> str | None:
+    """Return the stored normalized memoryMap reference Name (F.7.57.26)."""
+    return _reference_name(_memory_alias_reference_id(aliasOfID, "memoryMapRef"), "memoryMapRef")
+
+
+def getAliasOfMemoryMapRefID(aliasOfID: str) -> str | None:
+    """Return the owned memoryMapRef source wrapper (F.7.57.27)."""
+    return _memory_alias_reference_id(aliasOfID, "memoryMapRef")
+
+
+def getAliasOfMemoryRemapRefByID(aliasOfID: str) -> str | None:
+    """Resolve the actual memoryRemap selected by the alias memory-map path (F.7.57.28)."""
+    reference_id = getAliasOfMemoryRemapRefID(aliasOfID)
+    if reference_id is None:
+        return None
+    _reference_name(getAliasOfMemoryMapRefID(aliasOfID), "memoryMapRef")
+    getAliasOfBankRefIDs(aliasOfID)
+    return resolve_attribute_reference(reference_id, "memoryRemapRef")
+
+
+def getAliasOfMemoryRemapRefByName(aliasOfID: str) -> str | None:
+    """Return the stored normalized memoryRemap reference Name (F.7.57.29)."""
+    return _reference_name(getAliasOfMemoryRemapRefID(aliasOfID), "memoryRemapRef")
+
+
+def getAliasOfMemoryRemapRefID(aliasOfID: str) -> str | None:
+    """Return the owned memoryRemapRef source wrapper (F.7.57.30)."""
+    return _memory_alias_reference_id(aliasOfID, "memoryRemapRef")

@@ -32,6 +32,7 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from .core import TgiError, TgiFaultCode, get_handle, register_parent, registry, resolve_handle
+from .port_map import _name
 
 # For each XML attribute name, list the generated schema-module and class
 # name which represents its destination element. These predicates deliberately
@@ -375,13 +376,14 @@ def _field_slice_context(
 ) -> (
     ComponentType.Modes.Mode.FieldSlice
     | FieldMap.FieldSlice
+    | FieldType.AliasOf
     | IndirectAddressRef
     | IndirectDataRef
     | FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
     | FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
     | None
 ):
-    """Find a generated slice, indirect path or broadcast with an ordered field reference group."""
+    """Find a generated slice, alias, indirect path or broadcast with an ordered field reference group."""
     return next(
         (
             node
@@ -391,6 +393,7 @@ def _field_slice_context(
                 (
                     ComponentType.Modes.Mode.FieldSlice,
                     FieldMap.FieldSlice,
+                    FieldType.AliasOf,
                     IndirectAddressRef,
                     IndirectDataRef,
                     FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
@@ -434,6 +437,7 @@ def _reference_qualifiers(source_path: tuple[Any, ...], xml_name: str) -> list[t
                     if isinstance(
                         field_slice,
                         (
+                            FieldType.AliasOf,
                             FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
                             FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
                         ),
@@ -449,13 +453,25 @@ def _matches_reference_context(
     qualifiers: list[tuple[tuple[tuple[str, str], ...], str]],
     *,
     ordered: bool = False,
+    normalize_names: bool = False,
 ) -> bool:
+    def candidate_name(candidate: object) -> str | None:
+        value = _model_name(candidate)
+        if not normalize_names:
+            return value
+        try:
+            return _name(value, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid referenced target Name", TgiFaultCode.INVALID_ID) from error
+
     lineage = (*ancestors, obj)
     if ordered:
         for xml_name in ("bankRef", "registerFileRef"):
             target_types = _TARGET_TYPES[xml_name]
             expected = [name for types, name in qualifiers if types == target_types]
-            actual = [_model_name(candidate) for candidate in lineage if _is_qualified_target(candidate, target_types)]
+            actual = [
+                candidate_name(candidate) for candidate in lineage if _is_qualified_target(candidate, target_types)
+            ]
             if actual != expected:
                 return False
     positions: dict[tuple[tuple[str, str], ...], int] = {}
@@ -465,7 +481,7 @@ def _matches_reference_context(
             (
                 index
                 for index in range(start, len(lineage))
-                if _is_qualified_target(lineage[index], target_types) and _model_name(lineage[index]) == name
+                if _is_qualified_target(lineage[index], target_types) and candidate_name(lineage[index]) == name
             ),
             None,
         )
@@ -662,7 +678,13 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
         candidates = [
             pair
             for pair in candidates
-            if _matches_reference_context(pair[0], pair[1], qualifiers, ordered=field_slice is not None)
+            if _matches_reference_context(
+                pair[0],
+                pair[1],
+                qualifiers,
+                ordered=field_slice is not None,
+                normalize_names=isinstance(field_slice, FieldType.AliasOf),
+            )
         ]
 
     if not candidates:
