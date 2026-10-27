@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete six Register policy-holder and reference getter operations with typed choice traversal, owned removal, broadcast field sources and register-file offset handles. Repair field policy access and creation to use the owning generated field or field-definition model.
 - Complete six Register field-editing operations with metadata-preserving alias assignment, owned alias-reference/array/width removal, and enumeration usage removal that restores the schema default.
 - Complete nine Register field/register reference and index operations with typed name and target resolution, unsigned expression indices, validated ownership, parsed child removal, and empty-holder pruning. Normalize register-reference names consistently during target and path matching.
 - Complete ten Register alias-reference operations with typed source and handle getters, validated name setters, preserved reference wrappers and indices, owned child creation, and schema-aware field alias choices.

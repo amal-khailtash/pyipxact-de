@@ -172,6 +172,7 @@ __all__ = [
     "removeRegisterField",
     "removeRegisterFieldArray",
     "removeRegisterFieldBitWidth",
+    "removeRegisterFieldFieldAccessPolicices",
     "removeUsageAttribute",
     "removeRegisterFieldEnumeratedValues",
     "removeRegisterFieldReset",
@@ -192,6 +193,7 @@ __all__ = [
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
     "setRegisterFieldAliasOf",
+    "setRegisterFieldFieldAccessPolicies",
     "setRegisterFieldEnumeratedValues",
     "setAliasOfAlternateRegisterRef",
     "setAliasOfFieldRef",
@@ -1080,9 +1082,18 @@ def getAlternateRegisterModeRefIDs(alternateRegisterID: str) -> list[str]:
 
 
 def getAlternateRegisterRefAlternateRegisterRefByName(alternateRegisterRefID: str) -> str | None:
-    """Return alternateRegisterRef value (F.7.73.9)."""
-    r = _resolve(alternateRegisterRefID)
-    return _maybe_value(getattr(r, "alternate_register_ref", None))
+    """Return the stored alternateRegisterRef Name (F.7.73.9).
+
+    Args:
+        alternateRegisterRefID: Handle to an alternateRegisterRef element.
+
+    Returns:
+        The validated source Name of the referenced alternate register.
+    """
+    from ._attribute_references import _reference_name
+
+    _register_reference(alternateRegisterRefID, AlternateRegisterRef)
+    return _reference_name(alternateRegisterRefID, "alternateRegisterRef")
 
 
 def getAlternateRegisterTypeIdentifier(alternateRegisterID: str) -> str | None:
@@ -1183,17 +1194,62 @@ def getBroadcastToBankRefIDs(broadcastToID: str) -> list[str]:
     return _list_handles(b, "bank_ref")
 
 
+type _BroadcastTo = (
+    FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
+    | FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
+)
+
+
+def _register_broadcast(broadcastToID: str) -> _BroadcastTo:
+    """Resolve either generated field-owned broadcast path model."""
+    model_types = (
+        FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+        FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+    )
+    if not isinstance(broadcastToID, str):
+        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
+    broadcast = resolve_handle(broadcastToID)
+    if not isinstance(broadcast, model_types):
+        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
+    return broadcast
+
+
 def getBroadcastToFieldRefByName(broadcastToID: str) -> str | None:
-    """Return fieldRef value (F.7.73.20)."""
-    b = _resolve(broadcastToID)
-    return _maybe_value(getattr(b, "field_ref", None))
+    """Return the broadcast path's fieldRef Name (F.7.73.20).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The stored field Name, or None when the fieldRef is absent during editing.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(getBroadcastToFieldRefID(broadcastToID), "fieldRef")
 
 
 def getBroadcastToFieldRefID(broadcastToID: str) -> str | None:
-    """Return handle of fieldRef (F.7.73.21)."""
-    b = _resolve(broadcastToID)
-    ref = getattr(b, "field_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the broadcast path's owned fieldRef handle (F.7.73.21).
+
+    Args:
+        broadcastToID: Handle to a field or field-definition broadcastTo element.
+
+    Returns:
+        The typed fieldRef handle, or None when absent during editing.
+    """
+    from ._attribute_references import _reference_name
+
+    broadcast = _register_broadcast(broadcastToID)
+    reference = broadcast.field_ref
+    if reference is None:
+        return None
+    if not isinstance(reference, FieldRef):
+        raise TgiError("Invalid broadcast fieldRef model", TgiFaultCode.INVALID_ID)
+    reference_id = get_handle(reference)
+    _reference_name(reference_id, "fieldRef")
+    register_parent(reference, broadcast, ("field_ref",), "single")
+    _register_graph(reference)
+    return reference_id
 
 
 def getBroadcastToMemoryMapRefByName(broadcastToID: str) -> str | None:
@@ -1622,8 +1678,8 @@ def getFieldDefinitionVolatile(fieldDefinitionID: str) -> bool:
     return False if value is None else value
 
 
-def _register_reference[T: FieldRef | RegisterRef](reference_id: str, model_type: type[T]) -> T:
-    """Resolve a generated field/register reference before source or index access."""
+def _register_reference[T](reference_id: str, model_type: type[T]) -> T:
+    """Resolve a generated reference before source or index access."""
     if not isinstance(reference_id, str):
         raise TgiError("Invalid reference handle", TgiFaultCode.INVALID_ID)
     reference = resolve_handle(reference_id)
@@ -2085,10 +2141,23 @@ def getRegisterFieldVolatility(registerFieldID: str) -> bool | None:
 
 
 def getRegisterFileAddressOffsetID(registerFileID: str) -> str | None:
-    """Return addressOffset handle (F.7.73.65)."""
-    rf = _resolve(registerFileID)
-    off = getattr(rf, "address_offset", None)
-    return get_handle(off) if off is not None else None
+    """Return the register file's required addressOffset child handle (F.7.73.65).
+
+    Args:
+        registerFileID: Handle to a registerFile element.
+
+    Returns:
+        The owned unsignedLongintExpression addressOffset handle.
+    """
+    from .register_file import _offset, _resolve_rf
+
+    if not isinstance(registerFileID, str):
+        raise TgiError("Invalid registerFile handle", TgiFaultCode.INVALID_ID)
+    register_file = _resolve_rf(registerFileID)
+    offset = _offset(register_file)
+    register_parent(offset, register_file, ("address_offset",), "single")
+    _register_graph(offset)
+    return get_handle(offset)
 
 
 # RegisterRef
@@ -3985,4 +4054,70 @@ def setRegisterFieldAliasOf(registerFieldID: str, fieldRef: str) -> bool:
     choice.insert(position, alias)
     register_parent(alias, field, ("choice",), "list")
     _register_graph(alias)
+    return True
+
+
+def _register_field_access_policies(field: FieldType) -> FieldType.FieldAccessPolicies | None:
+    """Validate and register the optional fieldData access-policy holder."""
+    width, reference, alias = _register_field_width_state(field)
+    holders = [child for child in field.choice if isinstance(child, FieldType.FieldAccessPolicies)]
+    if len(holders) > 1 or (holders and (reference is not None or (width is None and alias is None))):
+        raise TgiError("Invalid register field access-policy choice", TgiFaultCode.INVALID_ID)
+    if not holders:
+        return None
+    holder = holders[0]
+    children = holder.field_access_policy
+    if not isinstance(children, (list, tuple)) or any(
+        not isinstance(child, FieldType.FieldAccessPolicies.FieldAccessPolicy) for child in children
+    ):
+        raise TgiError("Invalid register field access-policy collection", TgiFaultCode.INVALID_ID)
+    register_parent(holder, field, ("choice",), "list")
+    _register_graph(holder)
+    return holder
+
+
+def setRegisterFieldFieldAccessPolicies(registerFieldID: str) -> bool:
+    """Ensure a field's optional access-policy holder exists (F.7.74.60).
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        True after preserving or creating the holder for subsequent policy additions.
+    """
+    field, reference = _resolve_register_field_definition_reference(registerFieldID)
+    holder = _register_field_access_policies(field)
+    if holder is not None:
+        return True
+    width, _reference, alias = _register_field_width_state(field)
+    if reference is not None:
+        raise TgiError("A definition reference cannot contain field access policies", TgiFaultCode.INVALID_ARGUMENT)
+    if width is None and alias is None:
+        raise TgiError("Invalid register field definition choice", TgiFaultCode.INVALID_ID)
+    _register_field_enumerated_values(field)
+    holder = FieldType.FieldAccessPolicies()
+    choice = _list_attr(field, "choice")
+    position = next((i for i, child in enumerate(choice) if isinstance(child, EnumeratedValues)), len(choice))
+    choice.insert(position, holder)
+    register_parent(holder, field, ("choice",), "list")
+    _register_graph(holder)
+    return True
+
+
+def removeRegisterFieldFieldAccessPolicices(registerFieldID: str) -> bool:
+    """Remove the field's optional access-policy subtree (F.7.74.30).
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        True when removed, or False when absent; the published Policices spelling is retained.
+    """
+    field, _reference = _resolve_register_field_definition_reference(registerFieldID)
+    holder = _register_field_access_policies(field)
+    if holder is None:
+        return False
+    _list_attr(field, "choice")
+    if not detach_child_by_handle(get_handle(holder)):
+        raise TgiError("Could not remove field access policies", TgiFaultCode.INVALID_ID)
     return True
