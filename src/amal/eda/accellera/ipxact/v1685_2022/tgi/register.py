@@ -3306,54 +3306,6 @@ def removeAlternaterRegisterModeRef(modeRefID: str) -> bool:
     return True
 
 
-def removeBroadcastToAddressBlockRef(broadcastToID: str) -> bool:
-    """Remove addressBlockRef (F.7.74.17)."""
-    b = _resolve(broadcastToID)
-    if b is None:
-        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
-    if getattr(b, "address_block_ref", None) is None:
-        return False
-    b.address_block_ref = None  # type: ignore[attr-defined]
-    return True
-
-
-def removeBroadcastToAlternateRegisterRef(broadcastToID: str) -> bool:
-    """Remove alternateRegisterRef (F.7.74.18)."""
-    b = _resolve(broadcastToID)
-    if b is None:
-        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
-    if getattr(b, "alternate_register_ref", None) is None:
-        return False
-    b.alternate_register_ref = None  # type: ignore[attr-defined]
-    return True
-
-
-def removeBroadcastToBankRef(bankRefID: str) -> bool:
-    """Remove bankRef by element handle (F.7.74.19)."""
-    return detach_child_by_handle(bankRefID)
-
-
-def removeBroadcastToMemoryMapRef(broadcastToID: str) -> bool:
-    """Remove memoryMapRef (F.7.74.20)."""
-    b = _resolve(broadcastToID)
-    if b is None:
-        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
-    if getattr(b, "memory_map_ref", None) is None:
-        return False
-    b.memory_map_ref = None  # type: ignore[attr-defined]
-    return True
-
-
-def removeBroadcastToRegisterFileRef(registerRefID: str) -> bool:
-    """Remove registerFileRef (F.7.74.21)."""
-    return detach_child_by_handle(registerRefID)
-
-
-def removeBroadcastToRegisterRef(registerRefID: str) -> bool:
-    """Remove registerRef (F.7.74.22)."""
-    return detach_child_by_handle(registerRefID)
-
-
 def removeRegisterFieldEnumeratedValues(registerFieldID: str) -> bool:
     """Remove the field's optional enumeratedValues subtree.
 
@@ -4271,3 +4223,122 @@ def _broadcast_path_reference_ids[T: BankRef | RegisterFileRef](
         _reference_name(handle, xml_name)
         _register_graph(resolve_handle(handle))
     return handles
+
+
+def _remove_broadcast_direct(broadcastToID: str, attribute: str, model_type: type) -> bool:
+    """Remove a typed optional path wrapper while retaining the target document model."""
+    from .port_map import _child
+
+    broadcast = _register_broadcast(broadcastToID)
+    child = _child(broadcast, attribute, model_type)
+    if child is None:
+        return False
+    if not detach_child_by_handle(get_handle(child)):
+        raise TgiError("Could not remove broadcast reference", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def _remove_broadcast_path[T: BankRef | RegisterFileRef](
+    reference_id: str, attribute: str, model_type: type[T]
+) -> bool:
+    """Require actual BroadcastTo path ownership before invalidating a reference subtree."""
+    from ._reference_paths import _remove_reference_path
+
+    reference = _register_reference(reference_id, model_type)
+    broadcast = _register_owned_child(
+        reference,
+        (
+            FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+            FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+        ),
+    )
+    if broadcast is None:
+        raise TgiError("Reference has no owning broadcastTo", TgiFaultCode.INVALID_ID)
+    _register_graph(reference)
+    return _remove_reference_path(broadcast, reference_id, attribute, model_type)
+
+
+def removeBroadcastToMemoryMapRef(broadcastToID: str) -> bool:
+    """Remove the memory-map branch and its dependent remap (F.7.74.20).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        True when the branch was removed, or False when it was absent.
+    """
+    from ._reference_choices import _REFERENCE_CHOICE, _reference_choice
+
+    broadcast = _register_broadcast(broadcastToID)
+    _address, memory_map, remap = _reference_choice(
+        broadcast, type(broadcast).AddressSpaceRef, type(broadcast).MemoryMapRef
+    )
+    if memory_map is None:
+        return False
+    _list_attr(broadcast, _REFERENCE_CHOICE)
+    for child in (remap, memory_map):
+        if child is not None:
+            _register_graph(child)
+            if not detach_child_by_handle(get_handle(child)):
+                raise TgiError("Could not remove broadcast memory-map branch", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeBroadcastToAddressBlockRef(broadcastToID: str) -> bool:
+    """Remove the optional broadcast addressblock reference (F.7.74.17).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        True when the owned reference was removed, or False when absent.
+    """
+    return _remove_broadcast_direct(broadcastToID, "address_block_ref", AddressBlockRef)
+
+
+def removeBroadcastToAlternateRegisterRef(broadcastToID: str) -> bool:
+    """Remove the optional broadcast alternateregister reference (F.7.74.18).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        True when the owned reference was removed, or False when absent.
+    """
+    return _remove_broadcast_direct(broadcastToID, "alternate_register_ref", AlternateRegisterRef)
+
+
+def removeBroadcastToRegisterRef(broadcastToID: str) -> bool:
+    """Remove the optional broadcast register reference (F.7.74.22).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        True when the owned reference was removed, or False when absent.
+    """
+    return _remove_broadcast_direct(broadcastToID, "register_ref", RegisterRef)
+
+
+def removeBroadcastToBankRef(bankRefID: str) -> bool:
+    """Remove a bank path segment from its broadcast owner (F.7.74.19).
+
+    Args:
+        bankRefID: Handle to the bankRef element in a broadcastTo path.
+
+    Returns:
+        True after owned subtree removal; published parameter spelling is retained.
+    """
+    return _remove_broadcast_path(bankRefID, "bank_ref", BankRef)
+
+
+def removeBroadcastToRegisterFileRef(registerRefID: str) -> bool:
+    """Remove a registerfile path segment from its broadcast owner (F.7.74.21).
+
+    Args:
+        registerRefID: Handle to the registerfileRef element in a broadcastTo path.
+
+    Returns:
+        True after owned subtree removal; published parameter spelling is retained.
+    """
+    return _remove_broadcast_path(registerRefID, "register_file_ref", RegisterFileRef)

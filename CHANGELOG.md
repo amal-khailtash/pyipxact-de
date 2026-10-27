@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete six Broadcast reference removers with typed ownership, descendant handle invalidation, ordered path preservation, and dependent memory-remap removal.
 - Complete eight Broadcast ordered-path getters and adders with generated reference wrappers, validated Names, preserved indices and metadata, typed ownership, and atomic tuple normalization.
 - Complete eight Broadcast scalar reference getters with typed source and choice traversal, owned reference handles, and address-block target resolution as specified by Annex F and the WSDL. Apply ordered Broadcast path qualifiers and normalized reference names during target lookup.
 - Complete six Register policy-holder and reference getter operations with typed choice traversal, owned removal, broadcast field sources and register-file offset handles. Repair field policy access and creation to use the owning generated field or field-definition model.
