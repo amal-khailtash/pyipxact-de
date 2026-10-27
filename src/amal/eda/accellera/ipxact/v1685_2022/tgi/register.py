@@ -16,6 +16,8 @@ from typing import Any
 from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
 from org.accellera.ipxact.v1685_2022.address_block_ref import AddressBlockRef
+from org.accellera.ipxact.v1685_2022.bank_ref import BankRef
+from org.accellera.ipxact.v1685_2022.register_file_ref import RegisterFileRef
 from org.accellera.ipxact.v1685_2022.alternate_register_ref import AlternateRegisterRef
 from org.accellera.ipxact.v1685_2022.field_ref import FieldRef
 from org.accellera.ipxact.v1685_2022.index import Index
@@ -1151,7 +1153,11 @@ def _broadcast_scalar_reference_id(broadcastToID: str, attribute: str, xml_name:
         )
         reference = address if attribute == "address_space_ref" else memory_map
     else:
-        model_type = AddressBlockRef if attribute == "address_block_ref" else AlternateRegisterRef
+        model_type = {
+            "address_block_ref": AddressBlockRef,
+            "alternate_register_ref": AlternateRegisterRef,
+            "register_ref": RegisterRef,
+        }[attribute]
         reference = _child(broadcast, attribute, model_type)
     if reference is None:
         return None
@@ -1255,21 +1261,29 @@ def getBroadcastToAlternateRegisterRefID(broadcastToID: str) -> str | None:
 
 
 def getBroadcastToBankRefByNames(broadcastToID: str) -> list[str]:
-    """Return list of bankRef values (F.7.73.18)."""
-    b = _resolve(broadcastToID)
-    vals = getattr(b, "bank_ref", []) if b else []
-    result: list[str] = []
-    for v in vals:
-        val = getattr(v, "value", v)
-        if val is not None:
-            result.append(str(val))
-    return result
+    """Return the ordered broadcast bankRef source Names (F.7.73.18).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        Stored normalized reference Names in path order, or an empty list.
+    """
+    from ._attribute_references import _reference_name
+
+    return [_reference_name(handle, "bankRef") for handle in getBroadcastToBankRefIDs(broadcastToID)]
 
 
 def getBroadcastToBankRefIDs(broadcastToID: str) -> list[str]:
-    """Return handles of bankRef elements (F.7.73.19)."""
-    b = _resolve(broadcastToID)
-    return _list_handles(b, "bank_ref")
+    """Return ordered owned broadcast bankRef wrappers (F.7.73.19).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        Reference handles in path order, or an empty list.
+    """
+    return _broadcast_path_reference_ids(_register_broadcast(broadcastToID), "bank_ref", BankRef, "bankRef")
 
 
 type _BroadcastTo = (
@@ -1359,37 +1373,57 @@ def getBroadcastToMemoryMapRefID(broadcastToID: str) -> str | None:
 
 
 def getBroadcastToRegisterFileRefByNames(broadcastToID: str) -> list[str]:
-    """Return registerFileRef names (F.7.73.24)."""
-    b = _resolve(broadcastToID)
-    refs = getattr(b, "register_file_ref", []) if b else []
-    out: list[str] = []
-    for r in refs:
-        val = getattr(r, "value", r)
-        if val is not None:
-            out.append(str(val))
-    return out
+    """Return the ordered broadcast registerFileRef source Names (F.7.73.24).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        Stored normalized reference Names in path order, or an empty list.
+    """
+    from ._attribute_references import _reference_name
+
+    return [_reference_name(handle, "registerFileRef") for handle in getBroadcastToRegisterFileRefIDs(broadcastToID)]
 
 
 def getBroadcastToRegisterFileRefIDs(broadcastToID: str) -> list[str]:
-    """Return handles of registerFileRef elements (F.7.73.25)."""
-    b = _resolve(broadcastToID)
-    return _list_handles(b, "register_file_ref")
+    """Return ordered owned broadcast registerFileRef wrappers (F.7.73.25).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        Reference handles in path order, or an empty list.
+    """
+    return _broadcast_path_reference_ids(
+        _register_broadcast(broadcastToID), "register_file_ref", RegisterFileRef, "registerFileRef"
+    )
 
 
 def getBroadcastToRegisterRefByName(broadcastToID: str) -> str | None:
-    """Return registerRef value (F.7.73.26)."""
-    b = _resolve(broadcastToID)
-    return _maybe_value(getattr(b, "register_ref", None))
+    """Return the broadcast registerRef source Name (F.7.73.26).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+
+    Returns:
+        The normalized register Name, or None when absent.
+    """
+    from ._attribute_references import _reference_name
+
+    return _reference_name(getBroadcastToRegisterRefID(broadcastToID), "registerRef")
 
 
 def getBroadcastToRegisterRefID(broadcastToID: str) -> str | None:
-    """Return handle of registerRef (F.7.73.27)."""
-    b = _resolve(broadcastToID)
-    ref = getattr(b, "register_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the owned broadcast registerRef wrapper handle (F.7.73.27).
 
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
 
-# EnumeratedValue(s)
+    Returns:
+        The reference handle, or None when absent.
+    """
+    return _broadcast_scalar_reference_id(broadcastToID, "register_ref", "registerRef")
 
 
 def getEnumeratedValueExpression(enumeratedValueID: str) -> str:
@@ -2684,29 +2718,37 @@ def addAlternaterRegisterModeRef(alternateRegisterID: str, modeRef: str, priorit
 
 
 def addBroadcastToBankRef(broadcastToID: str, bankRef: str) -> str:
-    """Add bankRef to broadcastTo (F.7.74.3)."""
-    b = _resolve(broadcastToID)
-    if b is None:
-        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
-    br = _ns(value=bankRef)
-    if not hasattr(b, "bank_ref"):
-        b.bank_ref = []  # type: ignore[attr-defined]
-    b.bank_ref.append(br)  # type: ignore[attr-defined]
-    register_parent(br, b, ("bank_ref",), "list")
-    return get_handle(br)
+    """Append a named broadcast bankRef path segment (F.7.74.3).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+        bankRef: XML Name of the referenced bank.
+
+    Returns:
+        Handle to the created reference wrapper.
+    """
+    from ._reference_paths import _append_reference_path
+
+    broadcast = _register_broadcast(broadcastToID)
+    _broadcast_path_reference_ids(broadcast, "bank_ref", BankRef, "bankRef")
+    return _append_reference_path(broadcast, bankRef, "bank_ref", BankRef)
 
 
 def addBroadcastToRegisterFileRef(broadcastToID: str, registerFileRef: str) -> str:
-    """Add registerFileRef (F.7.74.4)."""
-    b = _resolve(broadcastToID)
-    if b is None:
-        raise TgiError("Invalid broadcastTo handle", TgiFaultCode.INVALID_ID)
-    rf = _ns(value=registerFileRef)
-    if not hasattr(b, "register_file_ref"):
-        b.register_file_ref = []  # type: ignore[attr-defined]
-    b.register_file_ref.append(rf)  # type: ignore[attr-defined]
-    register_parent(rf, b, ("register_file_ref",), "list")
-    return get_handle(rf)
+    """Append a named broadcast registerFileRef path segment (F.7.74.4).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+        registerFileRef: XML Name of the referenced registerfile.
+
+    Returns:
+        Handle to the created reference wrapper.
+    """
+    from ._reference_paths import _append_reference_path
+
+    broadcast = _register_broadcast(broadcastToID)
+    _broadcast_path_reference_ids(broadcast, "register_file_ref", RegisterFileRef, "registerFileRef")
+    return _append_reference_path(broadcast, registerFileRef, "register_file_ref", RegisterFileRef)
 
 
 def addEnumeratedValuesFieldEnumeratedValue(enumeratedValuesID: str, name: str, value: str) -> str:
@@ -4214,3 +4256,18 @@ def removeRegisterFieldFieldAccessPolicices(registerFieldID: str) -> bool:
     if not detach_child_by_handle(get_handle(holder)):
         raise TgiError("Could not remove field access policies", TgiFaultCode.INVALID_ID)
     return True
+
+
+def _broadcast_path_reference_ids[T: BankRef | RegisterFileRef](
+    broadcast: _BroadcastTo, attribute: str, model_type: type[T], xml_name: str
+) -> list[str]:
+    """Validate ordered path Names and restore wrapper/descendant ownership."""
+    from ._attribute_references import _reference_name
+    from ._model import _owned_list_ids, _reference_list
+
+    children = _reference_list(broadcast, attribute, model_type)
+    handles = _owned_list_ids(broadcast, children, attribute)
+    for handle in handles:
+        _reference_name(handle, xml_name)
+        _register_graph(resolve_handle(handle))
+    return handles
