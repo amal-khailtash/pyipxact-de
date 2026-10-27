@@ -17,16 +17,25 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
     AddressBlock,
+    AddressBankType,
+    BankedBankType,
+    BankedBlockType,
+    BankedSubspaceType,
     AddressUnitBits,
     Bank,
     LocalAddressBankType,
     LocalMemoryMapType,
     MemoryMapType,
     MemoryRemap,
+    MemoryRemapType,
     SharedType,
     SubspaceMap,
     AddressSpaces,
 )
+
+from .address_space import _register_owned_child
+from .port_map import _child
+from .register_file import _child_ids, _numeric
 
 from .core import (
     TgiError,
@@ -54,6 +63,11 @@ __all__ = [
     "getMemoryMapMemoryRemapIDs",
     "getMemoryMapRemapIDs",
     # (Minimal name/displayName/description/shared retained for convenience if spec maps earlier numbers)
+    "getMemoryMapSubspaceMapIDs",
+    "getMemoryRemapAddressBlockIDs",
+    "getMemoryRemapBankIDs",
+    "getMemoryRemapElementIDs",
+    "getMemoryRemapSubspaceMapIDs",
     "getMemoryMapShared",  # reuse previous, spec 68 setter counterpart
     # EXTENDED (F.7.58) - subset focusing on core structural adds/removes + key setters
     "addMemoryMapAddressBlock",
@@ -116,8 +130,6 @@ def _memory_map_choice(memory_map: MemoryMapType) -> list | tuple:
 
 def _memory_map_elements(memory_map: MemoryMapType | LocalMemoryMapType) -> list[str]:
     """Return ordered direct block/bank/subspace handles from the actual schema container."""
-    from .register_file import _child_ids
-
     if isinstance(memory_map, MemoryMapType):
         values = _memory_map_choice(memory_map)
         children = [item for item in values if isinstance(item, (AddressBlock, Bank, SubspaceMap))]
@@ -141,9 +153,6 @@ def _require_map_or_local(handle: str) -> MemoryMapType | LocalMemoryMapType:
 
 def _memory_map_unit(owner: MemoryMapType | LocalMemoryMapType) -> AddressUnitBits | None:
     """Read the explicit unit node; local maps use their actual containing address space."""
-    from .address_space import _register_owned_child
-    from .port_map import _child
-
     if isinstance(owner, LocalMemoryMapType):
         address_space = _register_owned_child(owner, AddressSpaces.AddressSpace)
         if address_space is None or address_space.local_memory_map is not owner:
@@ -168,8 +177,6 @@ def getMemoryMapAddressUnitBits(memoryMapOrLocalMemoryMapID: str) -> int | None:
     Local maps use the containing addressSpace. Definition-reference values require
     definition expansion and remain unavailable when no inline value is stored.
     """
-    from .register_file import _numeric
-
     owner = _require_map_or_local(memoryMapOrLocalMemoryMapID)
     node = _memory_map_unit(owner)
     if node is None:
@@ -212,13 +219,6 @@ def getMemoryMapElementIDs(memoryMapOrLocalMemoryMapID: str) -> list[str]:
 
 def getMemoryMapElementType(memoryMapElementID: str) -> str:
     """Return addressBlock, bank or subSpaceMap for a typed element handle (F.7.57.50)."""
-    from org.accellera.ipxact.v1685_2022 import (
-        AddressBankType,
-        BankedBankType,
-        BankedBlockType,
-        BankedSubspaceType,
-    )
-
     if not isinstance(memoryMapElementID, str):
         raise TgiError("Invalid memory-map element handle", TgiFaultCode.INVALID_ID)
     element = resolve_handle(memoryMapElementID)
@@ -271,29 +271,102 @@ def getMemoryMapMemoryMapDefinitionRefID(memoryMapID: str) -> str | None:
     return get_handle(mm.memory_map_definition_ref)
 
 
+def _map_collection_ids[T](owner: MemoryMapType, model_type: type[T]) -> list[str]:
+    """Return typed direct children with immediate choice ownership and descendant handles."""
+    values = _memory_map_choice(owner)
+    return _child_ids(owner, [item for item in values if isinstance(item, model_type)], ("choice",))
+
+
+def _require_memory_remap(memoryRemapID: str) -> MemoryRemapType:
+    if not isinstance(memoryRemapID, str):
+        raise TgiError("Invalid memoryRemap handle", TgiFaultCode.INVALID_ID)
+    remap = resolve_handle(memoryRemapID)
+    if not isinstance(remap, MemoryRemapType):
+        raise TgiError("Invalid memoryRemap handle", TgiFaultCode.INVALID_ID)
+    return remap
+
+
+def _remap_elements(remap: MemoryRemapType) -> list[str]:
+    """Read ordered inline remap children, rejecting conflicting definition branches."""
+    values = remap.choice
+    if not isinstance(values, (list, tuple)):
+        raise TgiError("Invalid memoryRemap choice", TgiFaultCode.INVALID_ID)
+    references = [item for item in values if isinstance(item, MemoryRemapType.RemapDefinitionRef)]
+    if references:
+        if len(values) != 1:
+            raise TgiError("Conflicting remap definition and inline content", TgiFaultCode.INVALID_ID)
+        return []
+    if any(not isinstance(item, (AddressBlock, Bank, SubspaceMap)) for item in values):
+        raise TgiError("Invalid memoryRemap choice child", TgiFaultCode.INVALID_ID)
+    return _child_ids(remap, values, ("choice",))
+
+
 def getMemoryMapMemoryRemapIDs(memoryMapID: str) -> list[str]:
-    """Return handles of ``memoryRemap`` children.
+    """Return ordered direct memoryRemap handles from a memoryMap (F.7.57.55)."""
+    return _map_collection_ids(_require_memory_map(memoryMapID), MemoryRemap)
 
-    Section: F.7.57.55.
+
+def getMemoryMapRemapIDs(memoryMapOrLocalMemoryMapID: str) -> list[str]:
+    """Return direct remap handles; the local-map schema contains no remaps (F.7.57.56)."""
+    owner = _require_map_or_local(memoryMapOrLocalMemoryMapID)
+    if isinstance(owner, LocalMemoryMapType):
+        _memory_map_elements(owner)
+        return []
+    return _map_collection_ids(owner, MemoryRemap)
+
+
+def getMemoryMapShared(memoryMapOrLocalMemoryMapID: str) -> str | None:
+    """Return stored shared value or the inline memory-map default undefined (F.7.57.57).
+
+    Local maps have no shared property in the schema. Definition-reference values
+    require definition expansion; both return None rather than inventing content.
     """
-    mm = _require_memory_map(memoryMapID)
-    return _ids(getattr(mm, "memory_remap", []))
-
-
-def getMemoryMapRemapIDs(memoryMapID: str) -> list[str]:
-    """Alias for memory remap IDs (compat name per spec F.7.57.56)."""
-    return getMemoryMapMemoryRemapIDs(memoryMapID)
-
-
-def getMemoryMapShared(memoryMapID: str) -> str | None:
-    """Return shared attribute value (if present).
-
-    Section: F.7.57 (paired with setter F.7.58.68). Returns None if not set.
-    """
-    mm = _resolve_memory_map(memoryMapID)
-    if mm is None or mm.shared is None:
+    owner = _require_map_or_local(memoryMapOrLocalMemoryMapID)
+    if isinstance(owner, LocalMemoryMapType):
+        _memory_map_elements(owner)
         return None
-    return getattr(mm.shared, "value", None)
+    values = _memory_map_choice(owner)
+    if any(isinstance(item, MemoryMapType.MemoryMapDefinitionRef) for item in values):
+        return None
+    shared = next((item for item in values if isinstance(item, SharedType)), SharedType.UNDEFINED)
+    return shared.value
+
+
+def getMemoryMapSubspaceMapIDs(memoryMapID: str) -> list[str]:
+    """Return ordered direct subspaceMap handles from a memoryMap (F.7.57.58)."""
+    return _map_collection_ids(_require_memory_map(memoryMapID), SubspaceMap)
+
+
+def getMemoryRemapAddressBlockIDs(memoryRemapID: str) -> list[str]:
+    """Return ordered direct addressBlock handles from a memoryRemap (F.7.57.59)."""
+    return [
+        handle
+        for handle in _remap_elements(_require_memory_remap(memoryRemapID))
+        if isinstance(resolve_handle(handle), AddressBlock)
+    ]
+
+
+def getMemoryRemapBankIDs(memoryRemapID: str) -> list[str]:
+    """Return ordered direct bank handles from a memoryRemap (F.7.57.60)."""
+    return [
+        handle
+        for handle in _remap_elements(_require_memory_remap(memoryRemapID))
+        if isinstance(resolve_handle(handle), Bank)
+    ]
+
+
+def getMemoryRemapElementIDs(memoryRemapID: str) -> list[str]:
+    """Return ordered direct banks, addressBlocks and subspaceMaps from a remap (F.7.57.61)."""
+    return _remap_elements(_require_memory_remap(memoryRemapID))
+
+
+def getMemoryRemapSubspaceMapIDs(memoryRemapID: str) -> list[str]:
+    """Return ordered direct subspaceMap handles from a memoryRemap (F.7.57.69)."""
+    return [
+        handle
+        for handle in _remap_elements(_require_memory_remap(memoryRemapID))
+        if isinstance(resolve_handle(handle), SubspaceMap)
+    ]
 
 
 # ---------------------------------------------------------------------------

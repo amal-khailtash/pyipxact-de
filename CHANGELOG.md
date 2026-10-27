@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify eight Memory map/remap collection and shared-value getters with ordered typed choices, owned descendant handles, correct local-map applicability and defaults, and distinct memory-map versus remap scopes. Move Memory map getter helper imports to module scope after checking dependencies.
 - Verify seven Memory map core getters with ordered generated choices, typed child ownership, local-map address units, standard absent-value defaults, constant-expression evaluation, and exact Annex argument and element-type names.
 - Finish all 152 Register TGI contracts with five Broadcast reference setters, validated Names and field-handle assignment, preserved wrappers and indices, and schema-aware memory-map choice replacement.
 - Complete six Broadcast reference removers with typed ownership, descendant handle invalidation, ordered path preservation, and dependent memory-remap removal.
