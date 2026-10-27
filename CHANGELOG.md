@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify nine Memory map AliasOf reference edits with normalized Names, preserved reference wrappers and indices, owned bank-path edits, choice replacement and descendant invalidation, and dependent remap removal.
 - Verify seven AddressBlock expression, array, index and definition-reference operations with unsigned schema bounds, deferred expressions, preserved wrappers and multidimensional data, owned inline-content replacement, and definition-handle assignment constrained to the retained external library.
 - Verify eight AddressBlock editing operations with schema-ordered metadata setters, identity-preserving volatility updates, instance-local removers, owned array/index invalidation, empty indices pruning, and definition-reference protection.
 - Complete the nine remaining Memory map BASE AliasOf getters with normalized source Names, ordered owned bank and scalar reference wrappers, qualified runtime remap target resolution, and strict choice/handle validation.

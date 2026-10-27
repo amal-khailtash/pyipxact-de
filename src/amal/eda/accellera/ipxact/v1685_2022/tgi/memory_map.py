@@ -19,6 +19,7 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressBlockRef,
     Dim,
     BankRef,
+    MemoryRemapRef,
     FieldType,
     Array,
     Index,
@@ -58,13 +59,14 @@ from org.accellera.ipxact.v1685_2022 import (
     AddressSpaces,
 )
 
-from .address_space import _register_owned_child
+from .address_space import _register_owned_child, _remove_owned
 from .component import _list_attr, _register_graph
 from .bus_interface import _named_target
 from ._expressions import _integer
 from ._model import _walk_model, _reference_list
 from .port_map import _child, _name
-from ._reference_choices import _reference_choice
+from ._reference_choices import _reference_choice, _set_reference_choice
+from ._reference_paths import _append_reference_path, _remove_reference_path, _set_named_reference
 from ._attribute_references import _reference_name, resolve_attribute_reference
 from .register_file import _child_ids, _numeric, _expression
 from .register import (
@@ -193,6 +195,15 @@ __all__ = [
     "removeMemoryMapSubspaceMap",
     "setMemoryMapMemoryMapDefinitionRef",
     "setMemoryMapShared",
+    "addAliasOfBankRef",
+    "removeAliasOfAddressBlockRef",
+    "removeAliasOfAddressSpaceRef",
+    "removeAliasOfBankRef",
+    "removeAliasOfMemoryMapRef",
+    "setAliasOfAddressBlockRef",
+    "setAliasOfAddressSpaceRef",
+    "setAliasOfMemoryMapRef",
+    "setAliasOfMemoryRemapRef",
 ]
 
 
@@ -1613,3 +1624,112 @@ def setAddressBlockDefinitionRef(addressBlockDefinitionRefID: str, value: str) -
         raise TgiError("Definition is outside the reference's declared library", TgiFaultCode.INVALID_ARGUMENT)
     reference.value = name
     return True
+
+
+# ---------------------------------------------------------------------------
+# EXTENDED (F.7.58) – memory map AliasOf reference edits
+# ---------------------------------------------------------------------------
+
+
+def addAliasOfBankRef(aliasOfID: str, bankRef: str) -> str:
+    """Append a named bankRef to an aliasOf element (F.7.58.5)."""
+    alias = _register_alias(aliasOfID)
+    return _append_reference_path(alias, bankRef, "bank_ref", BankRef)
+
+
+def _remove_alias_choice_reference(alias: FieldType.AliasOf, child: Any, label: str) -> bool:
+    """Detach a selected addressSpaceRef or memoryMapRef choice branch."""
+    values = _list_attr(alias, "address_space_ref_or_memory_map_ref_or_memory_remap_ref")
+    if not any(value is child for value in values):
+        raise TgiError("Alias reference is not owned by its choice", TgiFaultCode.INVALID_ID)
+    return _remove_owned(get_handle(child), type(child), FieldType.AliasOf, label)
+
+
+def removeAliasOfAddressBlockRef(aliasOfID: str) -> bool:
+    """Remove addressBlockRef and its owned index descendants (F.7.58.28)."""
+    alias = _register_alias(aliasOfID)
+    reference = _child(alias, "address_block_ref", AddressBlockRef)
+    if reference is None:
+        return False
+    return _remove_owned(get_handle(reference), AddressBlockRef, FieldType.AliasOf, "addressBlockRef")
+
+
+def removeAliasOfAddressSpaceRef(aliasOfID: str) -> bool:
+    """Remove addressSpaceRef while leaving unrelated AliasOf references intact (F.7.58.29)."""
+    alias = _register_alias(aliasOfID)
+    address_space, _memory_map, _remap = _reference_choice(
+        alias, FieldType.AliasOf.AddressSpaceRef, FieldType.AliasOf.MemoryMapRef
+    )
+    if address_space is None:
+        return False
+    return _remove_alias_choice_reference(alias, address_space, "addressSpaceRef")
+
+
+def removeAliasOfBankRef(bankrefID: str) -> bool:
+    """Remove a bankRef from its owning aliasOf element (F.7.58.30)."""
+    reference = resolve_handle(bankrefID) if isinstance(bankrefID, str) else None
+    if not isinstance(reference, BankRef):
+        raise TgiError("Invalid bankRef handle", TgiFaultCode.INVALID_ID)
+    alias = _register_owned_child(reference, FieldType.AliasOf)
+    if alias is None:
+        raise TgiError("bankRef has no owning aliasOf", TgiFaultCode.INVALID_ID)
+    return _remove_reference_path(alias, bankrefID, "bank_ref", BankRef)
+
+
+def removeAliasOfMemoryMapRef(aliasOfID: str) -> bool:
+    """Remove memoryMapRef together with its dependent memoryRemapRef (F.7.58.31)."""
+    alias = _register_alias(aliasOfID)
+    _address_space, memory_map, remap = _reference_choice(
+        alias, FieldType.AliasOf.AddressSpaceRef, FieldType.AliasOf.MemoryMapRef
+    )
+    if memory_map is None:
+        return False
+    if remap is not None:
+        _remove_alias_choice_reference(alias, remap, "memoryRemapRef")
+    return _remove_alias_choice_reference(alias, memory_map, "memoryMapRef")
+
+
+def setAliasOfAddressBlockRef(aliasOfID: str, addressBlockRef: str) -> bool:
+    """Set the normalized addressBlockRef while preserving its wrapper and indices (F.7.58.58)."""
+    alias = _register_alias(aliasOfID)
+    replacement = AddressBlockRef(address_block_ref=_name(addressBlockRef, "Name"))
+    return _set_named_reference(alias, "address_block_ref", replacement)
+
+
+def setAliasOfAddressSpaceRef(aliasOfID: str, addressSpaceRef: str) -> bool:
+    """Set the addressSpaceRef choice branch and invalidate incompatible alternatives (F.7.58.59)."""
+    alias = _register_alias(aliasOfID)
+    replacement = FieldType.AliasOf.AddressSpaceRef(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_reference_choice(
+        alias,
+        replacement,
+        "address_space_ref",
+        FieldType.AliasOf.AddressSpaceRef,
+        FieldType.AliasOf.MemoryMapRef,
+    )
+
+
+def setAliasOfMemoryMapRef(aliasOfID: str, memoryMapRef: str) -> bool:
+    """Set memoryMapRef while preserving an existing remap on the map branch (F.7.58.60)."""
+    alias = _register_alias(aliasOfID)
+    replacement = FieldType.AliasOf.MemoryMapRef(memory_map_ref=_name(memoryMapRef, "Name"))
+    return _set_reference_choice(
+        alias,
+        replacement,
+        "memory_map_ref",
+        FieldType.AliasOf.AddressSpaceRef,
+        FieldType.AliasOf.MemoryMapRef,
+    )
+
+
+def setAliasOfMemoryRemapRef(aliasOfID: str, memoryRemapRef: str) -> bool:
+    """Set memoryRemapRef on an existing map branch (F.7.58.61)."""
+    alias = _register_alias(aliasOfID)
+    replacement = MemoryRemapRef(memory_remap_ref=_name(memoryRemapRef, "Name"))
+    return _set_reference_choice(
+        alias,
+        replacement,
+        "memory_remap_ref",
+        FieldType.AliasOf.AddressSpaceRef,
+        FieldType.AliasOf.MemoryMapRef,
+    )
