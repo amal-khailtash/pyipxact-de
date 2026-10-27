@@ -16,6 +16,10 @@ from collections.abc import Iterable
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
+    ComponentType,
+    ModeRef,
+    SignedLongintExpression,
+    SubspaceRefType,
     AddressBlock,
     AddressBankType,
     BankedBankType,
@@ -34,7 +38,9 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from .address_space import _register_owned_child
-from .port_map import _child
+from .bus_interface import _named_target
+from ._expressions import _integer
+from .port_map import _child, _name
 from .register_file import _child_ids, _numeric
 
 from .core import (
@@ -68,6 +74,13 @@ __all__ = [
     "getMemoryRemapBankIDs",
     "getMemoryRemapElementIDs",
     "getMemoryRemapSubspaceMapIDs",
+    "getMemoryRemapModeRefByID",
+    "getMemoryRemapModeRefByNames",
+    "getMemoryRemapModeRefIDs",
+    "getSubspaceMapBaseAddress",
+    "getSubspaceMapBaseAddressExpression",
+    "getSubspaceMapBaseAddressID",
+    "getSubspaceMapSegmentRefByName",
     "getMemoryMapShared",  # reuse previous, spec 68 setter counterpart
     # EXTENDED (F.7.58) - subset focusing on core structural adds/removes + key setters
     "addMemoryMapAddressBlock",
@@ -487,3 +500,99 @@ def setMemoryMapShared(memoryMapID: str, shared: str | None) -> bool:
 
     mm.shared = SharedType(value=shared)  # type: ignore[arg-type]
     return True
+
+
+def _stored_name(source: str) -> str:
+    """Validate and normalize a stored XML Name without modifying the source."""
+    try:
+        return _name(source, "Name")
+    except TgiError as error:
+        raise TgiError("Invalid stored reference Name", TgiFaultCode.INVALID_ID) from error
+
+
+def _remap_mode_refs(remap: MemoryRemapType) -> list | tuple:
+    values = remap.mode_ref
+    if not isinstance(values, (list, tuple)) or any(not isinstance(item, ModeRef) for item in values):
+        raise TgiError("Invalid memoryRemap modeRef collection", TgiFaultCode.INVALID_ID)
+    for item in values:
+        _stored_name(item.value)
+    return values
+
+
+def getMemoryRemapModeRefIDs(memoryRemapID: str) -> list[str]:
+    """Return ordered owned modeRef handles (F.7.57.64)."""
+    remap = _require_memory_remap(memoryRemapID)
+    return _child_ids(remap, _remap_mode_refs(remap), ("mode_ref",))
+
+
+def getMemoryRemapModeRefByNames(memoryRemapID: str) -> list[str]:
+    """Return ordered referenced mode Names without modifying their sources (F.7.57.63)."""
+    remap = _require_memory_remap(memoryRemapID)
+    return [_stored_name(item.value) for item in _remap_mode_refs(remap)]
+
+
+def getMemoryRemapModeRefByID(memoryRemapID: str, modeRef: str) -> str:
+    """Resolve an owned modeRef HANDLE to its containing component's mode (F.7.57.62)."""
+    remap = _require_memory_remap(memoryRemapID)
+    if not isinstance(modeRef, str):
+        raise TgiError("Invalid memoryRemap modeRef handle", TgiFaultCode.INVALID_ID)
+    reference = resolve_handle(modeRef)
+    refs = _remap_mode_refs(remap)
+    if not isinstance(reference, ModeRef) or not any(item is reference for item in refs):
+        raise TgiError("modeRef does not belong to memoryRemap", TgiFaultCode.INVALID_ID)
+    _child_ids(remap, refs, ("mode_ref",))
+    target = _named_target(remap, "modes.mode", "name", _stored_name(reference.value))
+    if not isinstance(target, ComponentType.Modes.Mode):
+        raise TgiError("Invalid referenced component mode", TgiFaultCode.INVALID_ID)
+    return get_handle(target)
+
+
+def _require_subspace(handle: str) -> SubspaceRefType:
+    if not isinstance(handle, str):
+        raise TgiError("Invalid subspaceMap handle", TgiFaultCode.INVALID_ID)
+    subspace = resolve_handle(handle)
+    if not isinstance(subspace, SubspaceRefType):
+        raise TgiError("Invalid subspaceMap handle", TgiFaultCode.INVALID_ID)
+    return subspace
+
+
+def _subspace_base(handle: str) -> SignedLongintExpression:
+    subspace = _require_subspace(handle)
+    node = _child(subspace, "base_address", SignedLongintExpression)
+    if node is None:
+        raise TgiError("Missing required subspace baseAddress", TgiFaultCode.INVALID_ID)
+    return node
+
+
+def getSubspaceMapBaseAddress(subSpaceMapID: str) -> int:
+    """Evaluate the signed 64-bit subspace baseAddress and declared bounds (F.7.57.70)."""
+    node = _subspace_base(subSpaceMapID)
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid subspace baseAddress source", TgiFaultCode.INVALID_ID)
+    value = _integer(node.value, (1 << 63) - 1, minimum=-(1 << 63))
+    assert value is not None
+    for bound in (node.minimum, node.maximum):
+        if bound is not None and type(bound) is not int:
+            raise TgiError("Invalid declared baseAddress bound", TgiFaultCode.INVALID_ID)
+    if (node.minimum is not None and value < node.minimum) or (node.maximum is not None and value > node.maximum):
+        raise TgiError("baseAddress outside declared bounds", TgiFaultCode.INVALID_ARGUMENT)
+    return value
+
+
+def getSubspaceMapBaseAddressExpression(subSpaceMapID: str) -> str:
+    """Return original subspace baseAddress source without evaluation (F.7.57.71)."""
+    node = _subspace_base(subSpaceMapID)
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid subspace baseAddress source", TgiFaultCode.INVALID_ID)
+    return node.value
+
+
+def getSubspaceMapBaseAddressID(subspaceMapID: str) -> str:
+    """Return the owned required signed baseAddress wrapper handle (F.7.57.72)."""
+    return get_handle(_subspace_base(subspaceMapID))
+
+
+def getSubspaceMapSegmentRefByName(subSpaceID: str) -> str | None:
+    """Return optional segmentRef XML Name source on a subspace element (F.7.57.73)."""
+    subspace = _require_subspace(subSpaceID)
+    return _stored_name(subspace.segment_ref) if subspace.segment_ref is not None else None
