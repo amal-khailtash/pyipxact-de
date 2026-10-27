@@ -17,6 +17,7 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
     AddressBlockRef,
+    Dim,
     BankRef,
     FieldType,
     Array,
@@ -65,7 +66,7 @@ from ._model import _walk_model, _reference_list
 from .port_map import _child, _name
 from ._reference_choices import _reference_choice
 from ._attribute_references import _reference_name, resolve_attribute_reference
-from .register_file import _child_ids, _numeric
+from .register_file import _child_ids, _numeric, _expression
 from .register import (
     _type_definition_external,
     _type_definition_target,
@@ -73,6 +74,7 @@ from .register import (
     _register_reference,
     _register_alias,
     _remove_register_reference_index,
+    _add_register_reference_index,
 )
 from .type_definitions import (
     getTypeDefinitionsAddressBlockDefinitionIDs,
@@ -91,6 +93,13 @@ from .core import (
 )
 
 __all__ = [
+    "setAddressBlockDefinitionRef",
+    "addAddressBlockRefIndex",
+    "setAddressBlockAddressBlockDefinitionRef",
+    "setAddressBlockArray",
+    "setAddressBlockBaseAddress",
+    "setAddressBlockRange",
+    "setAddressBlockWidth",
     "removeAddressBlockArray",
     "removeAddressBlockRefIndex",
     "removeAddressBlockTypeIdentifier",
@@ -1504,3 +1513,103 @@ def setAddressBlockVolatility(addressBlockID: str, _volatile: bool) -> bool:
     if type(_volatile) is not bool:
         raise TgiError("_volatile must be a boolean", TgiFaultCode.INVALID_ARGUMENT)
     return _set_address_block_scalar(addressBlockID, "volatile", _volatile, Volatile)
+
+
+def addAddressBlockRefIndex(addressBlockRefID: str, value: str) -> str:
+    """Append an owned unsigned 32-bit expression index (F.7.58.2)."""
+    reference = _register_reference(addressBlockRefID, AddressBlockRef)
+    return _add_register_reference_index(reference, value)
+
+
+def setAddressBlockAddressBlockDefinitionRef(addressBlockID: str, value: str, typeDefinitions: str) -> bool:
+    """Replace inline block content with a reference or update its owned wrapper (F.7.58.49)."""
+    block, reference = _address_block_definition_reference(addressBlockID)
+    if isinstance(block, BankedBlockType):
+        raise TgiError("Banked addressBlock has no definition reference", TgiFaultCode.INVALID_ARGUMENT)
+    name, external = _type_definition_reference_names(value, typeDefinitions)
+    if reference is not None:
+        reference.value, reference.type_definitions = name, external
+        return True
+    values = _list_attr(block, "choice")
+    for child in tuple(values):
+        if isinstance(child, (str, UsageType)):
+            continue
+        register_parent(child, block, ("choice",), "list")
+        _register_graph(child)
+        if not detach_child_by_handle(get_handle(child)):
+            raise TgiError("Could not replace addressBlock inline definition", TgiFaultCode.INVALID_ID)
+    reference = AddressBlockType.AddressBlockDefinitionRef(value=name, type_definitions=external)
+    block.choice = [reference]
+    register_parent(reference, block, ("choice",), "list")
+    return True
+
+
+def setAddressBlockArray(addressBlockID: str, dim: str) -> bool:
+    """Create an instance array or update its first dimension, preserving other data (F.7.58.50)."""
+    block = _require_address_block(addressBlockID, banked=False)
+    array = _child(block, "array", Array)
+    values = array.dim if array is not None else []
+    if not isinstance(values, (list, tuple)) or any(not isinstance(item, Dim) for item in values):
+        raise TgiError("Invalid addressBlock array dimensions", TgiFaultCode.INVALID_ID)
+    current = values[0] if values else None
+    source = _expression(dim, "dim", 1, (1 << 64) - 1, current)
+    if array is None:
+        array = Array(dim=[Dim(value=source)])
+        block.array = array
+        register_parent(array, block, ("array",), "single")
+    elif current is None:
+        array.dim = [Dim(value=source)]
+    else:
+        current.value = source
+    _child_ids(array, array.dim, ("dim",))
+    return True
+
+
+def setAddressBlockBaseAddress(addressBlockID: str, baseAddress: str) -> bool:
+    """Set local unsigned 64-bit baseAddress while preserving its wrapper (F.7.58.51)."""
+    node = _address_block_base(addressBlockID)
+    node.value = _expression(baseAddress, "baseAddress", 0, (1 << 64) - 1, node)
+    return True
+
+
+def _set_address_block_size(addressBlockID: str, source: str, attribute: str, model_type: type, maximum: int) -> bool:
+    block = _require_address_block(addressBlockID)
+    _owner, reference = _address_block_definition_reference(addressBlockID)
+    if reference is not None:
+        raise TgiError("Cannot set inline size on a referenced addressBlock", TgiFaultCode.INVALID_ARGUMENT)
+    node = _block_scalar(block, attribute, model_type)
+    if node is None:
+        raise TgiError("Missing required addressBlock size", TgiFaultCode.INVALID_ID)
+    node.value = _expression(source, attribute, 1, maximum, node)
+    return True
+
+
+def setAddressBlockRange(addressBlockID: str, range: str) -> bool:
+    """Set instance range within the positive unsigned 64-bit domain (F.7.58.53)."""
+    return _set_address_block_size(addressBlockID, range, "range", UnsignedPositiveLongintExpression, (1 << 64) - 1)
+
+
+def setAddressBlockWidth(addressBlockID: str, width: str) -> bool:
+    """Set instance width within the positive unsigned 32-bit domain (F.7.58.57)."""
+    return _set_address_block_size(addressBlockID, width, "width", UnsignedPositiveIntExpression, (1 << 32) - 1)
+
+
+def setAddressBlockDefinitionRef(addressBlockDefinitionRefID: str, value: str) -> bool:
+    """Assign a definition handle's Name within the reference's declared library (F.7.58.52)."""
+    reference = _register_reference(addressBlockDefinitionRefID, AddressBlockType.AddressBlockDefinitionRef)
+    target = resolve_handle(value) if isinstance(value, str) else None
+    if not isinstance(target, AddressBlockDefinitions.AddressBlockDefinition):
+        raise TgiError("Invalid addressBlockDefinition value handle", TgiFaultCode.INVALID_ID)
+    block = _register_owned_child(reference, AddressBlockType)
+    if block is None:
+        raise TgiError("Reference has no owning addressBlock", TgiFaultCode.INVALID_ID)
+    _block, owned_reference = _address_block_definition_reference(get_handle(block))
+    if owned_reference is not reference:
+        raise TgiError("Reference is not owned by its addressBlock", TgiFaultCode.INVALID_ID)
+    _old_name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    name = _stored_name(target.name)
+    target_id = _type_definition_target(block, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
+    if resolve_handle(target_id) is not target:
+        raise TgiError("Definition is outside the reference's declared library", TgiFaultCode.INVALID_ARGUMENT)
+    reference.value = name
+    return True

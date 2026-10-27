@@ -1838,7 +1838,7 @@ def _register_reference_indices(reference: FieldRef | RegisterRef | AddressBlock
     return holder
 
 
-def _add_register_reference_index(reference: FieldRef | RegisterRef, value: str) -> str:
+def _add_register_reference_index(reference: FieldRef | RegisterRef | AddressBlockRef, value: str) -> str:
     """Append an unsigned 32-bit expression index after validating its holder."""
     holder = _register_reference_indices(reference)
     source = _register_file_expression(value, "value", 0, _UINT32_MAX)
