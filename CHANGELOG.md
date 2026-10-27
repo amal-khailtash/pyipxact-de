@@ -7,6 +7,49 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+### Fixed
+
+- Complete all 147 Memory map TGI contracts with seven array, field-offset, and Broadcast setters/removers; preserve dimensions, expression metadata and handles, validate typed ownership, and invalidate replaced subtrees.
+- Verify seven Memory map register and policy lifecycle operations with seeded normal/banked registers, nested register files, source-Name mode removal, expression bounds, schema round trips, and typed ownership with subtree invalidation.
+- Verify six MemoryRemap child lifecycle operations with exact signatures, typed block/bank/subspace builders, staged Bank completion, signed addressing, preserved mode references and metadata, and owned subtree removal.
+- Verify nine Memory map/local map child lifecycle operations with exact standard signatures, complete seeded blocks/banks/remaps, signed subspace addressing, scoped Name and mode keys, schema-ordered choices, and owned subtree removal.
+- Verify eight Bank child and access-policy lifecycle operations with typed schema-ordered builders, expression and enum validation, seeded nested banks, owned removal and descendant invalidation, and empty access-policy holder pruning.
+- Verify seven Memory map/remap scalar, definition-reference, mode and subspace-address edits with exact standard signatures, owned choice replacement, scoped mode uniqueness and priorities, preserved wrappers, and signed 64-bit base-address expressions.
+- Verify six Bank metadata, base-address and definition-reference edits with instance-local scope, schema-ordered metadata, preserved volatility and address wrappers, unsigned 64-bit expression validation, and owned inline-content replacement that preserves instance addressing.
+- Verify nine Memory map AliasOf reference edits with normalized Names, preserved reference wrappers and indices, owned bank-path edits, choice replacement and descendant invalidation, and dependent remap removal.
+- Verify seven AddressBlock expression, array, index and definition-reference operations with unsigned schema bounds, deferred expressions, preserved wrappers and multidimensional data, owned inline-content replacement, and definition-handle assignment constrained to the retained external library.
+- Verify eight AddressBlock editing operations with schema-ordered metadata setters, identity-preserving volatility updates, instance-local removers, owned array/index invalidation, empty indices pruning, and definition-reference protection.
+- Complete the nine remaining Memory map BASE AliasOf getters with normalized source Names, ordered owned bank and scalar reference wrappers, qualified runtime remap target resolution, and strict choice/handle validation.
+- Verify eight Bank and Remap definition-reference getters with distinct local declaration, resolved definition, normalized source Name and owned wrapper handles; target-independent source access; strict model/choice validation; and scoped external-library resolution.
+- Verify nine Bank getters with ordered owned block/bank/subspace children, scoped referenced-definition content, unsigned local base-address expressions, model-specific input scopes, and unspecified absent usage and volatility.
+- Stabilize four Memory map test parameter IDs that embedded process-specific object addresses and prevented four-worker coverage collection.
+- Verify eight AddressBlock and MemoryMap definition-reference getters with separate local declaration, resolved definition, source Name and owned wrapper results, scoped registered-library resolution, strict choice validation, and target-independent source access.
+- Verify eight AddressBlock structure and metadata getters with owned access-policy, array, index, register and register-file handles; scoped referenced-definition content; preserved Name/enum metadata; inferred usage defaults; and unspecified absent volatility.
+- Verify nine AddressBlock base-address, range, and width getters with unsigned expression bounds, typed local/banked storage, source and handle preservation, required-node checks, and scoped external address-block definition resolution.
+- Verify seven Memory map subspace and remap-mode getters with signed 64-bit address expressions and declared bounds, preserved source wrappers, optional segment Names, ordered owned mode references, and component-scoped mode target resolution.
+- Verify eight Memory map/remap collection and shared-value getters with ordered typed choices, owned descendant handles, correct local-map applicability and defaults, and distinct memory-map versus remap scopes. Move Memory map getter helper imports to module scope after checking dependencies.
+- Verify seven Memory map core getters with ordered generated choices, typed child ownership, local-map address units, standard absent-value defaults, constant-expression evaluation, and exact Annex argument and element-type names.
+- Finish all 152 Register TGI contracts with five Broadcast reference setters, validated Names and field-handle assignment, preserved wrappers and indices, and schema-aware memory-map choice replacement.
+- Complete six Broadcast reference removers with typed ownership, descendant handle invalidation, ordered path preservation, and dependent memory-remap removal.
+- Complete eight Broadcast ordered-path getters and adders with generated reference wrappers, validated Names, preserved indices and metadata, typed ownership, and atomic tuple normalization.
+- Complete eight Broadcast scalar reference getters with typed source and choice traversal, owned reference handles, and address-block target resolution as specified by Annex F and the WSDL. Apply ordered Broadcast path qualifiers and normalized reference names during target lookup.
+- Complete six Register policy-holder and reference getter operations with typed choice traversal, owned removal, broadcast field sources and register-file offset handles. Repair field policy access and creation to use the owning generated field or field-definition model.
+- Complete six Register field-editing operations with metadata-preserving alias assignment, owned alias-reference/array/width removal, and enumeration usage removal that restores the schema default.
+- Complete nine Register field/register reference and index operations with typed name and target resolution, unsigned expression indices, validated ownership, parsed child removal, and empty-holder pruning. Normalize register-reference names consistently during target and path matching.
+- Complete ten Register alias-reference operations with typed source and handle getters, validated name setters, preserved reference wrappers and indices, owned child creation, and schema-aware field alias choices.
+- Complete ten Register field-definition and register-definition reference operations with document-scoped imports, registered-library target resolution, validated deferred references, preserved metadata and handles, and owned choice replacement.
+- Complete nine Register enumeration-reference and holder operations with document-scoped external declarations, registered-library target resolution, validated reference replacement, typed field holders, and owned subtree removal.
+- Complete ten Register enumerated-value operations with typed expression and usage access, unsigned field-width conversion, shared choice and name validation, metadata-preserving setters, and owned removal with optional-holder pruning.
+- Complete nine Register field-reset lifecycle and field-definition metadata operations with generated reset holders, default HARD identity checks, owned removal and holder pruning, validated width expressions and names, and default-false volatility.
+- Complete nine Register reset value and mask operations with field-width unsigned bit conversion, arbitrary-precision results, preserved expression metadata and handles, and optional mask removal.
+- Complete six Register field and alternate-register child lifecycle operations with generated builders, shared validation, scoped identity checks, parsed ownership recovery, descendant invalidation, and empty-holder pruning.
+- Complete seven Alternate register field and mode-reference lifecycle operations with generated builders, expression and identity validation, parsed ownership recovery, descendant invalidation, and scoped mode priority edits.
+- Complete six Alternate register type-identifier and volatility operations with typed models, validated values, preserved wrapper ownership, removal invalidation, and unspecified absent-volatility semantics.
+- Complete six Register field type-identifier and volatility operations with validated ordered choices, inline default-false semantics, preserved alias/reference branches and sibling data, and exact setter keywords.
+- Complete six Register type-identifier and volatility getters, setters and removals with ordered schema choices, validated names and Boolean values, preserved wrapper identity, and explicit absent-volatility semantics.
+- Complete eight Register field offset and width operations with typed expression children, preserved metadata and handles, validated scalar containment, and schema-valid alias/reference replacement.
+- Complete eight Register address-offset and size TGI operations using generated models, constant-expression validation, owned handles and metadata-preserving edits. Validate scalar field containment before resizing and support inline definition choice replacement.
+
 ## [0.9.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.8.0...v0.9.0) (2026-10-26)
 
 

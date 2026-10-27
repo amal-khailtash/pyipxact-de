@@ -1576,11 +1576,24 @@ def getRegisterFieldFieldAccessPoliciesID(registerFieldID: str) -> str | None:  
     Returns:
         fieldAccessPoliciesID (str | None): Handle to the fieldAccessPolicies element
     """
-    f = resolve_handle(registerFieldID)
-    if f is None:
+    from org.accellera.ipxact.v1685_2022.field_definitions import FieldDefinitions
+    from org.accellera.ipxact.v1685_2022.field_type import FieldType
+
+    from .register import _register_field_access_policies, _resolve_register_field_definition_reference
+
+    if not isinstance(registerFieldID, str):
         raise TgiError("Invalid registerField handle", TgiFaultCode.INVALID_ID)
-    cont = getattr(f, "field_access_policies", None)
-    return _child_handle(cont, f, ("field_access_policies",)) if cont is not None else None
+    field = resolve_handle(registerFieldID)
+    if isinstance(field, FieldType):
+        field, _reference = _resolve_register_field_definition_reference(registerFieldID)
+        holder = _register_field_access_policies(field)
+        return get_handle(holder) if holder is not None else None
+    if not isinstance(field, FieldDefinitions.FieldDefinition):
+        raise TgiError("Invalid registerField handle", TgiFaultCode.INVALID_ID)
+    holder = field.field_access_policies
+    if holder is not None and not isinstance(holder, FieldDefinitions.FieldDefinition.FieldAccessPolicies):
+        raise TgiError("Invalid field access-policy holder", TgiFaultCode.INVALID_ID)
+    return _child_handle(holder, field, ("field_access_policies",)) if holder is not None else None
 
 
 def getTypeDefinitionsFieldAccessPolicyDefinitionIDs(typeDefinitionsID: str) -> list[str]:  # F.7.9.41
@@ -1945,15 +1958,25 @@ def addFieldAccessPoliciesFieldAccessPolicy(fieldAccessPoliciesID: str) -> str: 
     Returns:
         fieldAccessPolicyID (str): the fieldAccessPolicy identifier
     """
-    cont = resolve_handle(fieldAccessPoliciesID)
-    if cont is None or not hasattr(cont, "field_access_policy"):
-        raise TgiError("Invalid fieldAccessPolicies handle", TgiFaultCode.INVALID_ID)
     from org.accellera.ipxact.v1685_2022.field_definitions import FieldDefinitions
+    from org.accellera.ipxact.v1685_2022.field_type import FieldType
 
-    pol = FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy()
-    cont.field_access_policy.append(pol)  # type: ignore[attr-defined]
-    register_parent(pol, cont, ("field_access_policy",), "list")
-    return get_handle(pol)
+    from .component import _list_attr
+
+    if not isinstance(fieldAccessPoliciesID, str):
+        raise TgiError("Invalid fieldAccessPolicies handle", TgiFaultCode.INVALID_ID)
+    container = resolve_handle(fieldAccessPoliciesID)
+    if not isinstance(container, (FieldType.FieldAccessPolicies, FieldDefinitions.FieldDefinition.FieldAccessPolicies)):
+        raise TgiError("Invalid fieldAccessPolicies handle", TgiFaultCode.INVALID_ID)
+    model_type = _field_policy_model_for_container(container)
+    children = container.field_access_policy
+    if not isinstance(children, (list, tuple)) or any(not isinstance(child, model_type) for child in children):
+        raise TgiError("Invalid fieldAccessPolicies collection", TgiFaultCode.INVALID_ID)
+    policy = model_type()
+    _list_attr(container, "field_access_policy").append(policy)
+    register_parent(policy, container, ("field_access_policy",), "list")
+    _register_model_graph(container)
+    return get_handle(policy)
 
 
 def addFieldAccessPolicyAccessRestriction(fieldAccessPolicyID: str) -> str:  # F.7.10.6

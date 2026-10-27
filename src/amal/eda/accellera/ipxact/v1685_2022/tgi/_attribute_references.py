@@ -18,16 +18,21 @@ from dataclasses import fields, is_dataclass
 from typing import Any, overload
 
 from org.accellera.ipxact.v1685_2022 import (
+    AddressBlockRef,
     ComponentType,
+    FieldDefinitions,
     FieldMap,
+    FieldType,
     IndirectAddressRef,
     IndirectDataRef,
     IndirectInterface,
     MemoryRemapRef,
+    RegisterRef,
     ViewLinks,
 )
 
 from .core import TgiError, TgiFaultCode, get_handle, register_parent, registry, resolve_handle
+from .port_map import _name
 
 # For each XML attribute name, list the generated schema-module and class
 # name which represents its destination element. These predicates deliberately
@@ -368,14 +373,32 @@ _FIELD_SLICE_LEVELS: dict[str, int] = {
 
 def _field_slice_context(
     source_path: tuple[object, ...],
-) -> ComponentType.Modes.Mode.FieldSlice | FieldMap.FieldSlice | IndirectAddressRef | IndirectDataRef | None:
-    """Find a generated fieldSlice or indirect reference using fieldSliceReferenceGroup."""
+) -> (
+    ComponentType.Modes.Mode.FieldSlice
+    | FieldMap.FieldSlice
+    | FieldType.AliasOf
+    | IndirectAddressRef
+    | IndirectDataRef
+    | FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
+    | FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo
+    | None
+):
+    """Find a generated slice, alias, indirect path or broadcast with an ordered field reference group."""
     return next(
         (
             node
             for node in source_path
             if isinstance(
-                node, (ComponentType.Modes.Mode.FieldSlice, FieldMap.FieldSlice, IndirectAddressRef, IndirectDataRef)
+                node,
+                (
+                    ComponentType.Modes.Mode.FieldSlice,
+                    FieldMap.FieldSlice,
+                    FieldType.AliasOf,
+                    IndirectAddressRef,
+                    IndirectDataRef,
+                    FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                    FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                ),
             )
         ),
         None,
@@ -400,8 +423,26 @@ def _reference_qualifiers(source_path: tuple[Any, ...], xml_name: str) -> list[t
             if field_slice is not None and qualifier_name in {"addressSpaceRef", "memoryMapRef", "memoryRemapRef"}:
                 values = node.address_space_ref_or_memory_map_ref_or_memory_remap_ref
             for item in values:
-                name = item if isinstance(item, str) else _reference_value(item, qualifier_name)
+                if (isinstance(node, RegisterRef) and qualifier_name == "registerRef") or (
+                    isinstance(node, AddressBlockRef) and qualifier_name == "addressBlockRef"
+                ):
+                    name = _reference_name(get_handle(node), qualifier_name)
+                elif (isinstance(item, RegisterRef) and qualifier_name == "registerRef") or (
+                    isinstance(item, AddressBlockRef) and qualifier_name == "addressBlockRef"
+                ):
+                    name = _reference_name(get_handle(item), qualifier_name)
+                else:
+                    name = item if isinstance(item, str) else _reference_value(item, qualifier_name)
                 if isinstance(name, str) and name.strip():
+                    if isinstance(
+                        field_slice,
+                        (
+                            FieldType.AliasOf,
+                            FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                            FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+                        ),
+                    ):
+                        name = _reference_name(get_handle(item), qualifier_name)
                     qualifiers.append((target_types, name))
     return qualifiers
 
@@ -412,13 +453,25 @@ def _matches_reference_context(
     qualifiers: list[tuple[tuple[tuple[str, str], ...], str]],
     *,
     ordered: bool = False,
+    normalize_names: bool = False,
 ) -> bool:
+    def candidate_name(candidate: object) -> str | None:
+        value = _model_name(candidate)
+        if not normalize_names:
+            return value
+        try:
+            return _name(value, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid referenced target Name", TgiFaultCode.INVALID_ID) from error
+
     lineage = (*ancestors, obj)
     if ordered:
         for xml_name in ("bankRef", "registerFileRef"):
             target_types = _TARGET_TYPES[xml_name]
             expected = [name for types, name in qualifiers if types == target_types]
-            actual = [_model_name(candidate) for candidate in lineage if _is_qualified_target(candidate, target_types)]
+            actual = [
+                candidate_name(candidate) for candidate in lineage if _is_qualified_target(candidate, target_types)
+            ]
             if actual != expected:
                 return False
     positions: dict[tuple[tuple[str, str], ...], int] = {}
@@ -428,7 +481,7 @@ def _matches_reference_context(
             (
                 index
                 for index in range(start, len(lineage))
-                if _is_qualified_target(lineage[index], target_types) and _model_name(lineage[index]) == name
+                if _is_qualified_target(lineage[index], target_types) and candidate_name(lineage[index]) == name
             ),
             None,
         )
@@ -572,8 +625,11 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
     element = resolve_handle(elementID)
     if element is None:
         raise TgiError("Invalid element handle", TgiFaultCode.INVALID_ID)
-    normalized_reference = (isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef") or (
-        isinstance(element, MemoryRemapRef) and xml_name == "memoryRemapRef"
+    normalized_reference = (
+        (isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef")
+        or (isinstance(element, MemoryRemapRef) and xml_name == "memoryRemapRef")
+        or (isinstance(element, RegisterRef) and xml_name == "registerRef")
+        or (isinstance(element, AddressBlockRef) and xml_name == "addressBlockRef")
     )
     reference = _reference_name(elementID, xml_name) if normalized_reference else _reference_value(element, xml_name)
     if reference is None or not reference.strip():
@@ -622,7 +678,13 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
         candidates = [
             pair
             for pair in candidates
-            if _matches_reference_context(pair[0], pair[1], qualifiers, ordered=field_slice is not None)
+            if _matches_reference_context(
+                pair[0],
+                pair[1],
+                qualifiers,
+                ordered=field_slice is not None,
+                normalize_names=isinstance(field_slice, FieldType.AliasOf),
+            )
         ]
 
     if not candidates:
