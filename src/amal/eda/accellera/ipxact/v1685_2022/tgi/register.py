@@ -8,6 +8,8 @@ with appropriate :class:`TgiFaultCode` values. Schema coverage remains partial.
 """
 
 # ruff: noqa: I001
+from collections.abc import Callable
+from dataclasses import is_dataclass
 from types import SimpleNamespace
 from typing import Any
 
@@ -180,8 +182,10 @@ __all__ = [
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
     "setRegisterFieldEnumeratedValues",
+    "setRegisterFieldFieldDefinitionRef",
     "setRegisterFieldTypeIdentifier",
     "setRegisterFieldVolatility",
+    "setRegisterRegisterDefinitionRef",
     "setRegisterSize",
     "setRegisterTypeIdentifier",
     "setRegisterVolatility",
@@ -525,6 +529,48 @@ def _register_field_width_state(
     return (widths[0] if widths else None, references[0] if references else None, aliases[0] if aliases else None)
 
 
+def _register_field_definition_reference(field: FieldType) -> FieldType.FieldDefinitionRef | None:
+    """Validate and register the reference-only fieldDefinitionRef choice."""
+    choice = getattr(field, "choice", None)
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    allowed = (
+        str,
+        bool,
+        UnsignedPositiveIntExpression,
+        FieldType.FieldDefinitionRef,
+        FieldType.Resets,
+        FieldType.AliasOf,
+        FieldType.FieldAccessPolicies,
+        EnumeratedValues,
+    )
+    if any(not isinstance(child, allowed) for child in choice):
+        raise TgiError("Invalid register field choice child", TgiFaultCode.INVALID_ID)
+    _width, reference, _alias = _register_field_width_state(field)
+    if reference is None:
+        _register_field_type_identifier(field)
+        _register_field_volatile(field)
+        return None
+    if len(choice) != 1 or choice[0] is not reference:
+        raise TgiError("fieldDefinitionRef cannot coexist with inline field data", TgiFaultCode.INVALID_ID)
+    if not isinstance(reference.value, str) or not isinstance(reference.type_definitions, str):
+        raise TgiError("Invalid fieldDefinitionRef content", TgiFaultCode.INVALID_ID)
+    _type_definition_reference_names(reference.value, reference.type_definitions)
+    register_parent(reference, field, ("choice",), "list")
+    _register_graph(reference)
+    return reference
+
+
+def _resolve_register_field_definition_reference(
+    registerFieldID: str,
+) -> tuple[FieldType, FieldType.FieldDefinitionRef | None]:
+    """Resolve a field reference handle while validating its generated model choice."""
+    if not isinstance(registerFieldID, str):
+        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
+    field, _register = _resolve_register_field(registerFieldID)
+    return field, _register_field_definition_reference(field)
+
+
 def _register_field_type_identifier(field: FieldType) -> str | None:
     identifiers = [child for child in getattr(field, "choice", ()) if isinstance(child, str)]
     if len(identifiers) > 1:
@@ -668,12 +714,32 @@ def _check_new_field_containment(register: _Register, field: FieldType) -> None:
 
 
 def _register_definition_reference(register: _Register) -> _RegisterDefinitionRef | None:
-    references = [
-        child for child in getattr(register, "choice", ()) if isinstance(child, _REGISTER_DEFINITION_REF_TYPES)
-    ]
+    choice = getattr(register, "choice", ())
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid register choice model", TgiFaultCode.INVALID_ID)
+    references = [child for child in choice if isinstance(child, _REGISTER_DEFINITION_REF_TYPES)]
     if len(references) > 1:
         raise TgiError("Multiple register definition references", TgiFaultCode.INVALID_ID)
-    return references[0] if references else None
+    if not references:
+        return None
+    reference = references[0]
+    expected_type = type(register).RegisterDefinitionRef
+    if len(choice) != 1 or not isinstance(reference, expected_type):
+        raise TgiError("Invalid register definition choice", TgiFaultCode.INVALID_ID)
+    if not isinstance(reference.value, str) or not isinstance(reference.type_definitions, str):
+        raise TgiError("Invalid registerDefinitionRef model", TgiFaultCode.INVALID_ID)
+    _type_definition_reference_names(reference.value, reference.type_definitions)
+    register_parent(reference, register, ("choice",), "list")
+    return reference
+
+
+def _resolve_register_definition_reference(registerID: str) -> tuple[_Register, _RegisterDefinitionRef | None]:
+    """Resolve a Register handle and validate its registerDefinition choice."""
+    register = resolve_handle(registerID) if isinstance(registerID, str) else None
+    if not isinstance(register, _REGISTER_TYPES):
+        raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
+    _register_graph(register)
+    return register, _register_definition_reference(register)
 
 
 def _register_type_identifier(register: _Register) -> str | None:
@@ -1159,23 +1225,33 @@ def _validated_enumeration_reference_names(
     reference: EnumeratedValues.EnumerationDefinitionRef,
 ) -> tuple[str, str]:
     """Validate stored xs:Name values and map malformed XML content to INVALID_ID."""
+    return _type_definition_reference_names(reference.value, reference.type_definitions)
+
+
+def _type_definition_reference_names(value: str, typeDefinitions: str) -> tuple[str, str]:
+    """Read schema Name values from a stored type-definition reference."""
     try:
-        return _schema_name(reference.value, "Name"), _schema_name(reference.type_definitions, "Name")
+        return _schema_name(value, "Name"), _schema_name(typeDefinitions, "Name")
     except TgiError as error:
-        raise TgiError("Invalid enumerationDefinitionRef Name content", TgiFaultCode.INVALID_ID) from error
+        raise TgiError("Invalid type-definition reference Name content", TgiFaultCode.INVALID_ID) from error
 
 
 def _enumeration_reference_external(
     evs: EnumeratedValues, reference: EnumeratedValues.EnumerationDefinitionRef
 ) -> ExternalTypeDefinitions:
     """Find the referenced externalTypeDefinitions declaration in this XML document."""
+    _definition_name, external_name = _validated_enumeration_reference_names(reference)
+    return _type_definition_external(evs, external_name)
+
+
+def _type_definition_external(source: object, external_name: str) -> ExternalTypeDefinitions:
+    """Find a named external declaration within the source's owning document."""
     from ._attribute_references import _root_for
     from .core import register_parent
     from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
     from org.accellera.ipxact.v1685_2022.component_type import ComponentType
 
-    _definition_name, external_name = _validated_enumeration_reference_names(reference)
-    root = _root_for(evs)
+    root = _root_for(source)
     definitions = root if isinstance(root, TypeDefinitions) else getattr(root, "type_definitions", None)
     if definitions is None:
         raise TgiError("Referenced externalTypeDefinitions declaration was not found", TgiFaultCode.NOT_FOUND)
@@ -1208,6 +1284,33 @@ def _enumeration_reference_external(
     return external
 
 
+def _type_definition_target(
+    source: object,
+    definition_name: str,
+    external_name: str,
+    ids_getter: Callable[[str], list[str]],
+) -> str:
+    """Resolve a named definition in the registered library selected by a local declaration."""
+    from .type_definitions import getExternalTypeDefinitionsTypeDefinitionsRefByID
+
+    external = _type_definition_external(source, external_name)
+    target_id = getExternalTypeDefinitionsTypeDefinitionsRefByID(get_handle(external))
+    matches: list[str] = []
+    for item_id in ids_getter(target_id):
+        item = resolve_handle(item_id)
+        try:
+            candidate_name = _schema_name(item.name, "Name")
+        except (AttributeError, TgiError) as error:
+            raise TgiError("Invalid type-definition Name content", TgiFaultCode.INVALID_ID) from error
+        if candidate_name == definition_name:
+            matches.append(item_id)
+    if len(matches) > 1:
+        raise TgiError(f"Ambiguous type-definition reference {definition_name!r}", TgiFaultCode.INVALID_ARGUMENT)
+    if not matches:
+        raise TgiError(f"Referenced type definition {definition_name!r} was not found", TgiFaultCode.NOT_FOUND)
+    return matches[0]
+
+
 def getEnumeratedValuesEnumerationDefinitionRefByExternalTypeDefID(enumeratedValuesID: str) -> str | None:
     """Return the local externalTypeDefinitions declaration named by the reference.
 
@@ -1237,32 +1340,13 @@ def getEnumeratedValuesEnumerationDefinitionRefByID(enumeratedValuesID: str) -> 
     Returns:
         Handle to the matching enumerationDefinition; declared but unavailable targets raise NOT_FOUND.
     """
-    _evs, reference = _enumerated_values_reference(enumeratedValuesID)
+    evs, reference = _enumerated_values_reference(enumeratedValuesID)
     if reference is None:
         return None
-    external_id = getEnumeratedValuesEnumerationDefinitionRefByExternalTypeDefID(enumeratedValuesID)
-    assert external_id is not None
-    from .type_definitions import getExternalTypeDefinitionsTypeDefinitionsRefByID
     from .type_definitions import getTypeDefinitionsEnumerationDefinitionIDs
 
-    target_id = getExternalTypeDefinitionsTypeDefinitionsRefByID(external_id)
-    definition_ids = getTypeDefinitionsEnumerationDefinitionIDs(target_id)
-    matches = [resolve_handle(item_id) for item_id in definition_ids]
-    definition_name, _external_name = _validated_enumeration_reference_names(reference)
-    named_matches = []
-    for item in matches:
-        try:
-            candidate_name = _schema_name(item.name, "Name")
-        except (AttributeError, TgiError) as error:
-            raise TgiError("Invalid enumerationDefinition Name content", TgiFaultCode.INVALID_ID) from error
-        if candidate_name == definition_name:
-            named_matches.append(item)
-    matches = named_matches
-    if len(matches) > 1:
-        raise TgiError(f"Ambiguous enumerationDefinition reference {definition_name!r}", TgiFaultCode.INVALID_ARGUMENT)
-    if not matches:
-        raise TgiError(f"Referenced enumerationDefinition {definition_name!r} was not found", TgiFaultCode.NOT_FOUND)
-    return get_handle(matches[0])
+    definition_name, external_name = _validated_enumeration_reference_names(reference)
+    return _type_definition_target(evs, definition_name, external_name, getTypeDefinitionsEnumerationDefinitionIDs)
 
 
 def getEnumeratedValuesEnumerationDefinitionRefByName(enumeratedValuesID: str) -> str | None:
@@ -1620,31 +1704,74 @@ def getRegisterFieldEnumeratedValuesID(registerFieldID: str) -> str | None:
 
 
 def getRegisterFieldFieldDefinitionRefByExternalTypeDefID(registerFieldID: str) -> str | None:
-    """Return externalTypeDefinitions handle (F.7.73.57)."""
-    f = _resolve(registerFieldID)
-    ref = getattr(getattr(f, "field_definition_ref", None), "external_type_definitions", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the declared externalTypeDefinitions element for a field reference.
+
+    Section: F.7.73.57.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        Handle to the local externalTypeDefinitions declaration, or None when the field has no reference.
+    """
+    field, reference = _resolve_register_field_definition_reference(registerFieldID)
+    if reference is None:
+        return None
+    _definition_name, external_name = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return get_handle(_type_definition_external(field, external_name))
 
 
 def getRegisterFieldFieldDefinitionRefByID(registerFieldID: str) -> str | None:
-    """Return fieldDefinition handle (F.7.73.58)."""
-    f = _resolve(registerFieldID)
-    ref = getattr(getattr(f, "field_definition_ref", None), "field_definition", None)
-    return get_handle(ref) if ref is not None else None
+    """Resolve the fieldDefinition named by the field reference.
+
+    Section: F.7.73.58.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        Handle to the referenced fieldDefinition, or None when the field has no reference.
+    """
+    field, reference = _resolve_register_field_definition_reference(registerFieldID)
+    if reference is None:
+        return None
+    definition_name, external_name = _type_definition_reference_names(reference.value, reference.type_definitions)
+    from .type_definitions import getTypeDefinitionsFieldDefinitionIDs
+
+    return _type_definition_target(field, definition_name, external_name, getTypeDefinitionsFieldDefinitionIDs)
 
 
 def getRegisterFieldFieldDefinitionRefByName(registerFieldID: str) -> str | None:
-    """Return fieldDefinitionRef value (F.7.73.59)."""
-    f = _resolve(registerFieldID)
-    ref = getattr(f, "field_definition_ref", None)
-    return _maybe_value(ref)
+    """Return the referenced fieldDefinition Name.
+
+    Section: F.7.73.59.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        The referenced fieldDefinition Name, or None when the field has no reference.
+    """
+    _field, reference = _resolve_register_field_definition_reference(registerFieldID)
+    if reference is None:
+        return None
+    definition_name, _external_name = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return definition_name
 
 
 def getRegisterFieldFieldDefinitionRefID(registerFieldID: str) -> str | None:
-    """Return fieldDefinitionRef handle (F.7.73.60)."""
-    f = _resolve(registerFieldID)
-    ref = getattr(f, "field_definition_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the handle of the field's fieldDefinitionRef choice.
+
+    Section: F.7.73.60.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        Handle to the fieldDefinitionRef choice, or None when the field has no reference.
+    """
+    _field, reference = _resolve_register_field_definition_reference(registerFieldID)
+    return get_handle(reference) if reference is not None else None
 
 
 def getRegisterFieldIDs(registerID: str) -> list[str]:
@@ -1755,31 +1882,120 @@ def getRegisterRefRegisterRefByName(registerRefID: str) -> str | None:
 
 
 def getRegisterRegisterDefinitionRefByExternalTypeDefID(registerID: str) -> str | None:
-    """Return externalTypeDefinitions handle (F.7.73.69)."""
-    r = _resolve(registerID)
-    ref = getattr(getattr(r, "register_definition_ref", None), "external_type_definitions", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the locally declared externalTypeDefinitions target of the register reference.
+
+    Section: F.7.73.69.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handle to the owning document's matching externalTypeDefinitions declaration, or None without a reference.
+    """
+    register, reference = _resolve_register_definition_reference(registerID)
+    if reference is None:
+        return None
+    _definition_name, external_name = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return get_handle(_type_definition_external(register, external_name))
 
 
 def getRegisterRegisterDefinitionRefByID(registerID: str) -> str | None:
-    """Return registerDefinition handle (F.7.73.70)."""
-    r = _resolve(registerID)
-    ref = getattr(getattr(r, "register_definition_ref", None), "register_definition", None)
-    return get_handle(ref) if ref is not None else None
+    """Resolve the referenced registerDefinition in its declared external type library.
+
+    Section: F.7.73.70.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handle to the matching registerDefinition, or None when the register uses an inline definition.
+    """
+    register, reference = _resolve_register_definition_reference(registerID)
+    if reference is None:
+        return None
+    from .type_definitions import getTypeDefinitionsRegisterDefinitionIDs
+
+    definition_name, external_name = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return _type_definition_target(register, definition_name, external_name, getTypeDefinitionsRegisterDefinitionIDs)
 
 
 def getRegisterRegisterDefinitionRefByName(registerID: str) -> str | None:
-    """Return registerDefinitionRef value (F.7.73.71)."""
-    r = _resolve(registerID)
-    ref = getattr(r, "register_definition_ref", None)
-    return _maybe_value(ref)
+    """Return the registerDefinitionRef Name value.
+
+    Section: F.7.73.71.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Referenced registerDefinition name, or None for an inline register definition.
+    """
+    _register, reference = _resolve_register_definition_reference(registerID)
+    if reference is None:
+        return None
+    definition_name, _external_name = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return definition_name
 
 
 def getRegisterRegisterDefinitionRefID(registerID: str) -> str | None:
-    """Return registerDefinitionRef handle (F.7.73.72)."""
-    r = _resolve(registerID)
-    ref = getattr(r, "register_definition_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the owned registerDefinitionRef handle.
+
+    Section: F.7.73.72.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handle to the typed reference, or None for an inline register definition.
+    """
+    _register, reference = _resolve_register_definition_reference(registerID)
+    return get_handle(reference) if reference is not None else None
+
+
+def setRegisterRegisterDefinitionRef(registerID: str, value: str, typeDefinitions: str) -> bool:
+    """Replace a register's inline definition with a reference or update its existing reference.
+
+    Section: F.7.74.64.
+
+    Args:
+        registerID: Handle to a register element.
+        value: Name of the referenced registerDefinition.
+        typeDefinitions: Name of the local externalTypeDefinitions declaration.
+
+    Returns:
+        True after the registerDefinitionRef choice has been assigned.
+    """
+    register, reference = _resolve_register_definition_reference(registerID)
+    definition_name = _schema_name(value, "Name")
+    external_name = _schema_name(typeDefinitions, "Name")
+    if reference is not None:
+        reference.value = definition_name
+        reference.type_definitions = external_name
+        return True
+
+    choice = getattr(register, "choice", ())
+    _register_fields(register)
+    _register_size(register)
+    _register_type_identifier(register)
+    _register_volatile(register)
+    access_policies = [child for child in choice if isinstance(child, AccessPolicies)]
+    if len(access_policies) > 1:
+        raise TgiError("Invalid inline register definition choice", TgiFaultCode.INVALID_ID)
+
+    _register_graph(register)
+    if not isinstance(register.choice, list):
+        register.choice = list(choice)
+    for child in tuple(register.choice):
+        if isinstance(child, str):
+            continue
+        if not detach_child_by_handle(get_handle(child)):
+            raise TgiError("Could not replace inline register definition", TgiFaultCode.INVALID_ID)
+
+    register.choice.clear()
+    reference = type(register).RegisterDefinitionRef(value=definition_name, type_definitions=external_name)
+    register.choice.append(reference)
+    register_parent(reference, register, ("choice",), "list")
+    return True
 
 
 # Size / type / volatility
@@ -3023,6 +3239,48 @@ def setFieldDefinitionVolatile(fieldDefinitionID: str, value: bool) -> bool:
     if not isinstance(value, bool):
         raise TgiError("Field definition volatility must be a Boolean", TgiFaultCode.INVALID_ARGUMENT)
     field.volatile = value
+    return True
+
+
+def setRegisterFieldFieldDefinitionRef(registerFieldID: str, value: str, typeDefinitions: str) -> bool:
+    """Set a field's external fieldDefinition reference.
+
+    Section: F.7.74.61.
+
+    Args:
+        registerFieldID: Handle to a field element on a register.
+        value: Name of the referenced fieldDefinition.
+        typeDefinitions: Name of the local externalTypeDefinitions declaration.
+
+    Returns:
+        True after assigning the validated reference.
+    """
+    field, reference = _resolve_register_field_definition_reference(registerFieldID)
+    definition_name = _schema_name(value, "Name")
+    external_name = _schema_name(typeDefinitions, "Name")
+    if reference is not None:
+        reference.value = definition_name
+        reference.type_definitions = external_name
+        return True
+
+    _register_field_resets(field)
+    _register_field_enumerated_values(field)
+    _register_graph(field)
+    choice = _list_attr(field, "choice")
+    invalidated: set[str] = set()
+    for child in tuple(choice):
+        if is_dataclass(child):
+            child_id = get_handle(child)
+            if child_id in invalidated:
+                continue
+            if not detach_child_by_handle(child_id):
+                raise TgiError("Could not replace register field choice", TgiFaultCode.INVALID_ID)
+            invalidated.add(child_id)
+    choice.clear()
+    reference = FieldType.FieldDefinitionRef(value=definition_name, type_definitions=external_name)
+    choice.append(reference)
+    register_parent(reference, field, ("choice",), "list")
+    _register_graph(reference)
     return True
 
 
