@@ -17,18 +17,21 @@ from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
     AddressBlockRef,
+    AddressBlockDefinitions,
     Dim,
     BankRef,
     MemoryRemapRef,
     FieldType,
+    FieldDefinitions,
     AlternateRegisters,
     Array,
+    Stride,
+    BitStride,
     Index,
     Indices,
     AccessPolicies,
     AccessType,
     AddressBlockType,
-    AddressBlockDefinitions,
     RegisterDefinitions,
     RegisterFileDefinitions,
     BaseAddress,
@@ -36,6 +39,7 @@ from org.accellera.ipxact.v1685_2022 import (
     RegisterFile,
     UnsignedPositiveLongintExpression,
     UnsignedPositiveIntExpression,
+    UnsignedIntExpression,
     UnsignedLongintExpression,
     UsageType,
     Volatile,
@@ -83,6 +87,8 @@ from .register import (
     _type_definition_reference_names,
     _register_reference,
     _register_alias,
+    _register_broadcast,
+    _register_field_width_state,
     _remove_register_reference_index,
     _add_register_reference_index,
 )
@@ -249,6 +255,13 @@ __all__ = [
     "setAliasOfAddressSpaceRef",
     "setAliasOfMemoryMapRef",
     "setAliasOfMemoryRemapRef",
+    "removeRegisterArray",
+    "removeRegisterFileArray",
+    "setRegisterArray",
+    "setRegisterFieldArray",
+    "setRegisterFieldBitOffset",
+    "setRegisterFileArray",
+    "setBroadcastToAddressSpaceRef",
 ]
 
 
@@ -3094,6 +3107,182 @@ def removeMemoryRemapSubspaceMap(subspaceMapID: str) -> bool:
     return _remove_memory_remap_child(subspaceMapID, SubspaceMap, "subspaceMap")
 
 
+_REGISTER_ARRAY_REGISTER_TYPES = (
+    AddressBlockType.Register,
+    BankedBlockType.Register,
+    RegisterFile.Register,
+    AddressBlockDefinitions.AddressBlockDefinition.Register,
+    RegisterFileDefinitions.RegisterFileDefinition.Register,
+)
+_REGISTER_ARRAY_PARENT_PATHS = (
+    (AddressBlockType, "choice"),
+    (BankedBlockType, "register_or_register_file"),
+    (RegisterFile, "choice"),
+    (AddressBlockDefinitions.AddressBlockDefinition, "register_or_register_file"),
+    (RegisterFileDefinitions.RegisterFileDefinition, "register_or_register_file"),
+)
+
+
+def _array_data_membership(target: Any, parent: Any, attribute: str, container: str, label: str) -> None:
+    """Check the schema-owned registerData path and exact object identity edge."""
+    if container != "list":
+        raise TgiError(f"{label} has an invalid registerData container", TgiFaultCode.INVALID_ID)
+    parent_attribute = next(
+        (path for owner_type, path in _REGISTER_ARRAY_PARENT_PATHS if isinstance(parent, owner_type)), None
+    )
+    if parent_attribute != attribute:
+        raise TgiError(f"{label} is not contained by a supported registerData owner", TgiFaultCode.INVALID_ID)
+
+    if isinstance(parent, (AddressBlockType, BankedBlockType)):
+        actual_attribute, values, register_type = _address_block_data_collection(parent)
+        if actual_attribute != attribute:
+            raise TgiError(f"{label} has an invalid addressBlock registerData path", TgiFaultCode.INVALID_ID)
+        allowed = (register_type, RegisterFile)
+        if not isinstance(target, allowed):
+            raise TgiError(f"{label} has an invalid addressBlock registerData type", TgiFaultCode.INVALID_ID)
+    elif isinstance(parent, RegisterFile):
+        values = parent.choice
+        allowed = (RegisterFile.Register, RegisterFile)
+        if not isinstance(target, allowed):
+            raise TgiError(f"{label} has an invalid registerFile registerData type", TgiFaultCode.INVALID_ID)
+        if not isinstance(values, (list, tuple)):
+            raise TgiError("Invalid registerFile registerData collection", TgiFaultCode.INVALID_ID)
+        _register_file_existing_names(values)
+        _inline_choice(parent, "array data ownership")
+    elif isinstance(parent, AddressBlockDefinitions.AddressBlockDefinition):
+        values = parent.register_or_register_file
+        allowed = (AddressBlockDefinitions.AddressBlockDefinition.Register, RegisterFile)
+        if not isinstance(target, allowed):
+            raise TgiError(f"{label} has an invalid addressBlockDefinition registerData type", TgiFaultCode.INVALID_ID)
+        if isinstance(values, (list, tuple)) and any(not isinstance(item, allowed) for item in values):
+            raise TgiError("Invalid addressBlockDefinition registerData collection", TgiFaultCode.INVALID_ID)
+    elif isinstance(parent, RegisterFileDefinitions.RegisterFileDefinition):
+        values = parent.register_or_register_file
+        allowed = (RegisterFileDefinitions.RegisterFileDefinition.Register, RegisterFile)
+        if not isinstance(target, allowed):
+            raise TgiError(f"{label} has an invalid registerFileDefinition registerData type", TgiFaultCode.INVALID_ID)
+        if isinstance(values, (list, tuple)) and any(not isinstance(item, allowed) for item in values):
+            raise TgiError("Invalid registerFileDefinition registerData collection", TgiFaultCode.INVALID_ID)
+    else:
+        raise TgiError(f"{label} has an unsupported registerData owner", TgiFaultCode.INVALID_ID)
+
+    if not isinstance(values, (list, tuple)) or sum(item is target for item in values) != 1:
+        raise TgiError(f"{label} is not uniquely contained by its registerData owner", TgiFaultCode.INVALID_ID)
+
+
+def _owned_array_data_target(target_id: str, *, register_file: bool) -> Any:
+    """Resolve a register or registerFile with one typed, actual schema owner edge."""
+    label = "registerFile" if register_file else "register"
+    if not isinstance(target_id, str):
+        raise TgiError(f"Invalid {label} handle", TgiFaultCode.INVALID_ID)
+    target = resolve_handle(target_id)
+    expected = RegisterFile if register_file else _REGISTER_ARRAY_REGISTER_TYPES
+    if not isinstance(target, expected):
+        raise TgiError(f"Invalid {label} handle", TgiFaultCode.INVALID_ID)
+
+    parent_info = get_parent_info(target_id)
+    if parent_info is None:
+        rooted = _registered_model_edges(target)
+        if len(rooted) != 1:
+            raise TgiError(f"{label} has no unique actual registerData owner", TgiFaultCode.INVALID_ID)
+        _array_data_membership(target, *rooted[0], label)
+
+    parent, attribute, container = _verified_registered_model_child(target, label)
+    _array_data_membership(target, parent, attribute, container, label)
+    return target
+
+
+def _ensure_array_model_edge(child: Any, parent: Any, attribute: str, container: str, label: str) -> None:
+    """Validate or recover one direct array subtree edge without losing competing links."""
+    child_id = get_handle(child)
+    if get_parent_info(child_id) is None:
+        rooted = _registered_model_edges(child)
+        if rooted and (len(rooted) != 1 or not _same_model_edge(rooted[0], parent, attribute, container)):
+            raise TgiError(f"{label} has competing or forged containment", TgiFaultCode.INVALID_ID)
+        register_parent(child, parent, (attribute,), container)
+    actual_parent, actual_attribute, actual_container = _verified_registered_model_child(child, label)
+    if not _same_model_edge((actual_parent, actual_attribute, actual_container), parent, attribute, container):
+        raise TgiError(f"{label} has a forged owner link", TgiFaultCode.INVALID_ID)
+
+
+def _register_array_model(target: Any, label: str) -> tuple[Array | None, list | tuple]:
+    """Validate an existing optional register/registerFile array and its owned children."""
+    array = getattr(target, "array", None)
+    if array is None:
+        return None, ()
+    if not isinstance(array, Array):
+        raise TgiError(f"Invalid {label} array model", TgiFaultCode.INVALID_ID)
+    _ensure_array_model_edge(array, target, "array", "single", f"{label} array")
+    dimensions = array.dim
+    if not isinstance(dimensions, (list, tuple)) or any(not isinstance(item, Dim) for item in dimensions):
+        raise TgiError(f"Invalid {label} array dimensions", TgiFaultCode.INVALID_ID)
+    for dimension in dimensions:
+        _ensure_array_model_edge(dimension, array, "dim", "list", f"{label} array dimension")
+    stride = array.stride
+    if stride is not None:
+        if not isinstance(stride, Stride):
+            raise TgiError(f"Invalid {label} array stride", TgiFaultCode.INVALID_ID)
+        _ensure_array_model_edge(stride, array, "stride", "single", f"{label} array stride")
+    return array, dimensions
+
+
+def _set_register_data_array(target_id: str, dim_value: str, *, register_file: bool) -> bool:
+    label = "registerFile" if register_file else "register"
+    target = _owned_array_data_target(target_id, register_file=register_file)
+    array, dimensions = _register_array_model(target, label)
+    current = dimensions[0] if dimensions else None
+    source = _expression(dim_value, "dimValue", 1, _TGI_U64_MAX, current)
+    if array is None:
+        dimension = Dim(value=source)
+        array = Array(dim=[dimension])
+        target.array = array
+        register_parent(array, target, ("array",), "single")
+    elif current is None:
+        dimension = Dim(value=source)
+        array.dim = [dimension]
+        register_parent(dimension, array, ("dim",), "list")
+    else:
+        current.value = source
+    _child_ids(array, array.dim, ("dim",))
+    return True
+
+
+def setRegisterArray(registerID: str, dimValue: str) -> bool:
+    """Set the first dimension of an owned register array (F.7.58.70)."""
+    return _set_register_data_array(registerID, dimValue, register_file=False)
+
+
+def setRegisterFileArray(registerFileID: str, dimValue: str) -> bool:
+    """Set the first dimension of an owned registerFile array (F.7.58.73)."""
+    return _set_register_data_array(registerFileID, dimValue, register_file=True)
+
+
+def _remove_register_data_array(target_id: str, *, register_file: bool) -> bool:
+    label = "registerFile" if register_file else "register"
+    target = _owned_array_data_target(target_id, register_file=register_file)
+    array = getattr(target, "array", None)
+    if array is None:
+        return False
+    array, _dimensions = _register_array_model(target, label)
+    if array is None:
+        return False
+    _register_graph(array)
+    _ensure_array_model_edge(array, target, "array", "single", f"{label} array")
+    if not detach_child_by_handle(get_handle(array)):
+        raise TgiError(f"Could not remove {label} array", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeRegisterArray(registerID: str) -> bool:
+    """Remove the optional array subtree from an owned register (F.7.58.47)."""
+    return _remove_register_data_array(registerID, register_file=False)
+
+
+def removeRegisterFileArray(registerFileID: str) -> bool:
+    """Remove the optional array subtree from an owned registerFile (F.7.58.48)."""
+    return _remove_register_data_array(registerFileID, register_file=True)
+
+
 _TGI_LONG_MAX = (1 << 63) - 1
 _TGI_U64_MAX = (1 << 64) - 1
 
@@ -3509,3 +3698,338 @@ def addRegisterFileRegisterFile(registerFileID: str, name: str, addressOffset: s
     register_parent(child, register_file, ("choice",), "list")
     _register_graph(child)
     return get_handle(child)
+
+
+# ---------------------------------------------------------------------------
+# EXTENDED (F.7.58) - Broadcast and register-field edits
+# ---------------------------------------------------------------------------
+
+
+_FIELD_REGISTER_TYPES = (
+    AddressBlockType.Register,
+    AddressBlockDefinitions.AddressBlockDefinition.Register,
+    BankedBlockType.Register,
+    RegisterFile.Register,
+    RegisterFileDefinitions.RegisterFileDefinition.Register,
+)
+_BROADCAST_TO_TYPES = (
+    FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+    FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+)
+
+
+def _memory_map_edge(child: Any, label: str) -> tuple[Any, str, str]:
+    """Return one real child edge, rejecting forged, stale and competing paths."""
+    return _verified_registered_model_child(child, label)
+
+
+def _memory_map_member(
+    child: Any,
+    parent: Any,
+    attribute: str,
+    container: str,
+    label: str,
+) -> None:
+    info = get_parent_info(get_handle(child))
+    if info is None:
+        value = getattr(parent, attribute, None)
+        if container == "single":
+            valid = value is child
+        elif container == "list" and isinstance(value, (list, tuple)):
+            valid = sum(item is child for item in value) == 1
+        else:
+            valid = False
+        if not valid:
+            raise TgiError(f"{label} is not a unique actual child", TgiFaultCode.INVALID_ID)
+        rooted = _registered_model_edges(child)
+        expected = (parent, attribute, container)
+        if rooted and (len(rooted) != 1 or not _same_model_edge(rooted[0], *expected)):
+            raise TgiError(f"{label} has competing registered containment", TgiFaultCode.INVALID_ID)
+        register_parent(child, parent, (attribute,), container)
+        actual_parent, actual_attribute, actual_container = expected
+    else:
+        actual_parent, actual_attribute, actual_container = _memory_map_edge(child, label)
+    if actual_parent is not parent or actual_attribute != attribute or actual_container != container:
+        raise TgiError(f"Invalid {label} ownership path", TgiFaultCode.INVALID_ID)
+
+
+def _memory_map_register_field(registerFieldID: str) -> tuple[FieldType, Any]:
+    """Resolve an instance field and its unique concrete or alternate register owner."""
+    if not isinstance(registerFieldID, str):
+        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
+    field = resolve_handle(registerFieldID)
+    if not isinstance(field, FieldType):
+        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
+
+    parent, attribute, container = _memory_map_edge(field, "register field")
+    if isinstance(parent, _FIELD_REGISTER_TYPES):
+        if attribute != "choice" or container != "list":
+            raise TgiError("Register field has an invalid register choice path", TgiFaultCode.INVALID_ID)
+        values = getattr(parent, "choice", None)
+        if not isinstance(values, (list, tuple)) or sum(child is field for child in values) != 1:
+            raise TgiError("Register field is not a unique register choice member", TgiFaultCode.INVALID_ID)
+        reference_type = type(parent).RegisterDefinitionRef
+        if any(isinstance(child, reference_type) for child in values):
+            raise TgiError("Register fields cannot coexist with registerDefinitionRef", TgiFaultCode.INVALID_ID)
+        register = parent
+    elif isinstance(parent, AlternateRegisters.AlternateRegister):
+        if attribute != "field_value" or container != "list":
+            raise TgiError("Alternate register field has an invalid path", TgiFaultCode.INVALID_ID)
+        values = parent.field_value
+        if not isinstance(values, (list, tuple)) or sum(child is field for child in values) != 1:
+            raise TgiError("Alternate register field is not a unique member", TgiFaultCode.INVALID_ID)
+        holder, holder_attribute, holder_container = _memory_map_edge(parent, "alternateRegister")
+        if (
+            not isinstance(holder, AlternateRegisters)
+            or holder_attribute != "alternate_register"
+            or holder_container != "list"
+            or not isinstance(holder.alternate_register, (list, tuple))
+            or sum(child is parent for child in holder.alternate_register) != 1
+        ):
+            raise TgiError("Alternate register is not uniquely contained", TgiFaultCode.INVALID_ID)
+        register, register_attribute, register_container = _memory_map_edge(holder, "alternateRegisters")
+        if (
+            not isinstance(register, _FIELD_REGISTER_TYPES)
+            or register_attribute != "alternate_registers"
+            or register_container != "single"
+            or register.alternate_registers is not holder
+        ):
+            raise TgiError("Alternate register has no supported owning register", TgiFaultCode.INVALID_ID)
+    else:
+        raise TgiError("Register field is not owned by a supported register", TgiFaultCode.INVALID_ID)
+
+    return field, register
+
+
+def _memory_map_field_width(field: FieldType) -> UnsignedPositiveIntExpression | None:
+    """Validate the selected field width branch and return its inline width, if any."""
+    width, reference, alias = _register_field_width_state(field)
+    if width is not None:
+        _memory_map_member(width, field, "choice", "list", "register field bitWidth")
+    if reference is not None:
+        _memory_map_member(reference, field, "choice", "list", "register field fieldDefinitionRef")
+    if alias is not None:
+        _memory_map_member(alias, field, "choice", "list", "register field aliasOf")
+    return width
+
+
+def _memory_map_register_size(register: Any) -> UnsignedPositiveIntExpression | None:
+    """Return a structurally valid inline size without resolving a definition reference."""
+    choice = getattr(register, "choice", None)
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid register choice model", TgiFaultCode.INVALID_ID)
+    sizes = [child for child in choice if isinstance(child, UnsignedPositiveIntExpression)]
+    reference_type = type(register).RegisterDefinitionRef
+    references = [child for child in choice if isinstance(child, reference_type)]
+    if len(sizes) > 1 or len(references) > 1 or (sizes and references):
+        raise TgiError("Invalid register size choice", TgiFaultCode.INVALID_ID)
+    if references:
+        if len(choice) != 1:
+            raise TgiError("Register definition reference is mixed with inline data", TgiFaultCode.INVALID_ID)
+        _memory_map_member(references[0], register, "choice", "list", "registerDefinitionRef")
+        return None
+    if not sizes:
+        return None
+    size = sizes[0]
+    _memory_map_member(size, register, "choice", "list", "register size")
+    return size
+
+
+def _check_memory_map_field_containment(
+    field: FieldType,
+    register: Any,
+    offset_source: str,
+    width: UnsignedPositiveIntExpression | None,
+) -> None:
+    """Check the first inline field instance against a known inline register size."""
+    array = _memory_map_field_array(field)
+    if array is not None and not array.dim:
+        raise TgiError("Register field array requires at least one dimension", TgiFaultCode.INVALID_ID)
+    if width is None:
+        return
+    size = _memory_map_register_size(register)
+    if size is None:
+        return
+    size_source = _expression(size.value, "size", 1, _MAP_U32_MAX, size)
+    width_source = _expression(width.value, "bitWidth", 1, _MAP_U32_MAX, width)
+    size_number = _integer(size_source, _MAP_U32_MAX, True, minimum=1)
+    width_number = _integer(width_source, _MAP_U32_MAX, True, minimum=1)
+    offset_number = _integer(offset_source, _MAP_U32_MAX, True, minimum=0)
+    if (
+        size_number is not None
+        and width_number is not None
+        and offset_number is not None
+        and offset_number + width_number > size_number
+    ):
+        raise TgiError("Register field would extend beyond the register size", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _memory_map_field_offset(field: FieldType) -> UnsignedIntExpression:
+    offset = getattr(field, "bit_offset", None)
+    if not isinstance(offset, UnsignedIntExpression):
+        raise TgiError("Invalid register field bitOffset model", TgiFaultCode.INVALID_ID)
+    _memory_map_member(offset, field, "bit_offset", "single", "register field bitOffset")
+    return offset
+
+
+def _memory_map_field_array(field: FieldType) -> FieldType.Array | None:
+    array = getattr(field, "array", None)
+    if array is None:
+        return None
+    if not isinstance(array, FieldType.Array):
+        raise TgiError("Invalid register field array model", TgiFaultCode.INVALID_ID)
+    _memory_map_member(array, field, "array", "single", "register field array")
+    dimensions = getattr(array, "dim", None)
+    if not isinstance(dimensions, (list, tuple)) or any(not isinstance(dim, Dim) for dim in dimensions):
+        raise TgiError("Invalid register field array dimensions", TgiFaultCode.INVALID_ID)
+    if len({id(dim) for dim in dimensions}) != len(dimensions):
+        raise TgiError("Duplicate register field array dimension", TgiFaultCode.INVALID_ID)
+    for dimension in dimensions:
+        _memory_map_member(dimension, array, "dim", "list", "register field array dimension")
+    stride = getattr(array, "bit_stride", None)
+    if stride is not None:
+        if not isinstance(stride, BitStride):
+            raise TgiError("Invalid register field bitStride model", TgiFaultCode.INVALID_ID)
+        _memory_map_member(stride, array, "bit_stride", "single", "register field bitStride")
+    return array
+
+
+def setRegisterFieldArray(registerFieldID: str, value: str) -> bool:
+    """Set the first positive U64 dimension of a field array (F.7.58.71)."""
+    field, _register = _memory_map_register_field(registerFieldID)
+    array = _memory_map_field_array(field)
+    dimensions = array.dim if array is not None else []
+    current = dimensions[0] if dimensions else None
+    source = _expression(value, "value", 1, _TGI_U64_MAX, current)
+    if array is None:
+        array = FieldType.Array(dim=[Dim(value=source)])
+        field.array = array
+        register_parent(array, field, ("array",), "single")
+        register_parent(array.dim[0], array, ("dim",), "list")
+    elif current is None:
+        array.dim = [Dim(value=source)]
+        register_parent(array.dim[0], array, ("dim",), "list")
+    else:
+        current.value = source
+    return True
+
+
+def setRegisterFieldBitOffset(registerFieldID: str, bitOffset: str) -> bool:
+    """Set an instance field's unsigned bit offset while checking known containment (F.7.58.72)."""
+    field, register = _memory_map_register_field(registerFieldID)
+    offset = _memory_map_field_offset(field)
+    width = _memory_map_field_width(field)
+    source = _expression(bitOffset, "bitOffset", 0, _MAP_U32_MAX, offset)
+    _check_memory_map_field_containment(field, register, source, width)
+    offset.value = source
+    return True
+
+
+def _memory_map_broadcast_owner(broadcast: Any) -> None:
+    """Validate the typed policy path for either schema-generated BroadcastTo model."""
+    if not isinstance(broadcast, _BROADCAST_TO_TYPES):
+        raise TgiError("Invalid broadcastTo model", TgiFaultCode.INVALID_ID)
+    field_definition = isinstance(
+        broadcast,
+        FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts.BroadcastTo,
+    )
+    if field_definition:
+        broadcasts_type = FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy.Broadcasts
+        policy_type = FieldDefinitions.FieldDefinition.FieldAccessPolicies.FieldAccessPolicy
+        holder_type = FieldDefinitions.FieldDefinition.FieldAccessPolicies
+    else:
+        broadcasts_type = FieldType.FieldAccessPolicies.FieldAccessPolicy.Broadcasts
+        policy_type = FieldType.FieldAccessPolicies.FieldAccessPolicy
+        holder_type = FieldType.FieldAccessPolicies
+
+    broadcasts, attribute, container = _memory_map_edge(broadcast, "broadcastTo")
+    if (
+        not isinstance(broadcasts, broadcasts_type)
+        or attribute != "broadcast_to"
+        or container != "list"
+        or not isinstance(broadcasts.broadcast_to, (list, tuple))
+        or sum(child is broadcast for child in broadcasts.broadcast_to) != 1
+    ):
+        raise TgiError("broadcastTo is not uniquely contained by broadcasts", TgiFaultCode.INVALID_ID)
+
+    policy, attribute, container = _memory_map_edge(broadcasts, "broadcasts")
+    if (
+        not isinstance(policy, policy_type)
+        or attribute != "broadcasts"
+        or container != "single"
+        or policy.broadcasts is not broadcasts
+    ):
+        raise TgiError("broadcasts has an invalid fieldAccessPolicy owner", TgiFaultCode.INVALID_ID)
+
+    holder, attribute, container = _memory_map_edge(policy, "fieldAccessPolicy")
+    if not isinstance(holder, holder_type):
+        raise TgiError("fieldAccessPolicy has an unsupported holder", TgiFaultCode.INVALID_ID)
+    if field_definition:
+        values = holder.field_access_policy
+        if (
+            attribute != "field_access_policy"
+            or container != "list"
+            or not isinstance(values, (list, tuple))
+            or sum(child is policy for child in values) != 1
+        ):
+            raise TgiError("FieldDefinition fieldAccessPolicy has invalid membership", TgiFaultCode.INVALID_ID)
+        field, attribute, container = _memory_map_edge(holder, "fieldAccessPolicies")
+        if (
+            not isinstance(field, FieldDefinitions.FieldDefinition)
+            or attribute != "field_access_policies"
+            or container != "single"
+            or field.field_access_policies is not holder
+        ):
+            raise TgiError("FieldDefinition policy holder has invalid ownership", TgiFaultCode.INVALID_ID)
+    else:
+        values = holder.field_access_policy
+        if (
+            attribute != "field_access_policy"
+            or container != "list"
+            or not isinstance(values, (list, tuple))
+            or sum(child is policy for child in values) != 1
+        ):
+            raise TgiError("fieldAccessPolicy has invalid field membership", TgiFaultCode.INVALID_ID)
+        field, attribute, container = _memory_map_edge(holder, "fieldAccessPolicies")
+        if (
+            not isinstance(field, FieldType)
+            or attribute != "choice"
+            or container != "list"
+            or not isinstance(field.choice, (list, tuple))
+            or sum(child is holder for child in field.choice) != 1
+        ):
+            raise TgiError("FieldType policy holder has invalid choice membership", TgiFaultCode.INVALID_ID)
+
+
+def setBroadcastToAddressSpaceRef(broadcastToID: str, addressSpaceRef: str) -> bool:
+    """Set the named addressSpace reference and remove incompatible map/remap choices (F.7.58.66)."""
+    broadcast = _register_broadcast(broadcastToID)
+    _memory_map_broadcast_owner(broadcast)
+    model = type(broadcast)
+    choice_name = "address_space_ref_or_memory_map_ref_or_memory_remap_ref"
+    values = getattr(broadcast, choice_name, None)
+    if not isinstance(values, (list, tuple)):
+        raise TgiError("Invalid broadcastTo reference choice", TgiFaultCode.INVALID_ID)
+    if not values:
+        choice_children: tuple[Any, ...] = ()
+    elif len(values) == 1 and isinstance(values[0], model.AddressSpaceRef):
+        choice_children = (values[0],)
+    elif (
+        len(values) in (1, 2)
+        and isinstance(values[0], model.MemoryMapRef)
+        and (len(values) == 1 or isinstance(values[1], MemoryRemapRef))
+    ):
+        choice_children = tuple(values)
+    else:
+        raise TgiError("Invalid broadcastTo reference choice", TgiFaultCode.INVALID_ID)
+    for child in choice_children:
+        _memory_map_member(child, broadcast, choice_name, "list", "broadcastTo reference choice")
+    address_space, memory_map, remap = _reference_choice(broadcast, model.AddressSpaceRef, model.MemoryMapRef)
+    replacement = model.AddressSpaceRef(address_space_ref=_name(addressSpaceRef, "Name"))
+    return _set_reference_choice(
+        broadcast,
+        replacement,
+        "address_space_ref",
+        model.AddressSpaceRef,
+        model.MemoryMapRef,
+    )

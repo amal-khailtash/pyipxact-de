@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete all 147 Memory map TGI contracts with seven array, field-offset, and Broadcast setters/removers; preserve dimensions, expression metadata and handles, validate typed ownership, and invalidate replaced subtrees.
 - Verify seven Memory map register and policy lifecycle operations with seeded normal/banked registers, nested register files, source-Name mode removal, expression bounds, schema round trips, and typed ownership with subtree invalidation.
 - Verify six MemoryRemap child lifecycle operations with exact signatures, typed block/bank/subspace builders, staged Bank completion, signed addressing, preserved mode references and metadata, and owned subtree removal.
 - Verify nine Memory map/local map child lifecycle operations with exact standard signatures, complete seeded blocks/banks/remaps, signed subspace addressing, scoped Name and mode keys, schema-ordered choices, and owned subtree removal.
