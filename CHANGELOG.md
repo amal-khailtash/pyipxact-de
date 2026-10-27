@@ -7,6 +7,13 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.9.0...v0.10.0) (2026-10-27)
+
+
+### Features
+
+* **tgi:** complete Register and Memory map operations ([3f03ab3](https://github.com/amal-khailtash/pyipxact-de/commit/3f03ab3c0280bf0fc97a37de16d7cd4ddce42e52))
+
 ### Fixed
 
 - Complete all 147 Memory map TGI contracts with seven array, field-offset, and Broadcast setters/removers; preserve dimensions, expression metadata and handles, validate typed ownership, and invalidate replaced subtrees.
