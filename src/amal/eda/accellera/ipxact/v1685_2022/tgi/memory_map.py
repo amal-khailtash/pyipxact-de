@@ -25,6 +25,7 @@ from org.accellera.ipxact.v1685_2022 import (
     Index,
     Indices,
     AccessPolicies,
+    AccessType,
     AddressBlockType,
     AddressBlockDefinitions,
     BaseAddress,
@@ -47,6 +48,7 @@ from org.accellera.ipxact.v1685_2022 import (
     BankedBankType,
     BankedBlockType,
     BankedSubspaceType,
+    BankAlignmentType,
     AddressUnitBits,
     Bank,
     LocalAddressBankType,
@@ -90,6 +92,7 @@ from .core import (
     TgiError,
     TgiFaultCode,
     get_handle,
+    get_parent_info,
     resolve_handle,
     register_parent,
     detach_child_by_handle,
@@ -203,6 +206,14 @@ __all__ = [
     "setSubSpaceMapBaseAddress",
     "removeBankUsage",
     "removeBankVolatility",
+    "addBankAccessPolicy",
+    "addBankAddressBlock",
+    "addBankBank",
+    "addBankSubspaceMap",
+    "removeBankAccessPolicy",
+    "removeBankAddressBlock",
+    "removeBankBank",
+    "removeBankSubspaceMap",
     "setBankBankDefinitionRef",
     "setBankBaseAddress",
     "setBankUsage",
@@ -688,6 +699,186 @@ def setMemoryMapShared(memoryMapID: str, shared: str) -> bool:
     else:
         values.append(shared_value)
     return True
+
+
+def _bank_builder_storage(bankID: str) -> tuple[_Bank, list | tuple, str, tuple[type, ...]]:
+    """Validate an editable, nonlocal inline bank and its existing name-key hierarchy."""
+    bank = _require_bank(bankID)
+    values, path, child_types, ref_type = _bank_storage(bank)
+    reference = next((item for item in values if ref_type is not None and isinstance(item, ref_type)), None)
+    if reference is not None:
+        _type_definition_reference_names(reference.value, reference.type_definitions)
+        raise TgiError("Cannot edit a bankDefinitionRef", TgiFaultCode.INVALID_ARGUMENT)
+
+    _bank_edit_metadata(bank, "usage", UsageType)
+
+    names: set[str] = set()
+    for child in values:
+        if isinstance(child, BankedSubspaceType):
+            source = child.name
+            if source is None:
+                continue
+        elif isinstance(child, (BankedBlockType, *_BANK_TYPES, *_BANK_CHILD_TYPES)):
+            source = getattr(child, "name", None)
+            if not isinstance(source, str):
+                raise TgiError("Invalid bank child name", TgiFaultCode.INVALID_ID)
+            alignment = getattr(child, "bank_alignment", None)
+            if isinstance(child, _BANK_TYPES + _BANK_CHILD_TYPES) and not isinstance(alignment, BankAlignmentType):
+                raise TgiError("Invalid nested bank alignment", TgiFaultCode.INVALID_ID)
+        else:
+            continue
+        if not isinstance(source, str):
+            raise TgiError("Invalid bank child name", TgiFaultCode.INVALID_ID)
+        name = _stored_name(source)
+        if name in names:
+            raise TgiError("Duplicate bank child Name", TgiFaultCode.INVALID_ID)
+        names.add(name)
+    return bank, values, path, child_types
+
+
+def _bank_child_name_available(values: list | tuple, name: str) -> None:
+    for child in values:
+        source = getattr(child, "name", None)
+        if isinstance(source, str) and _stored_name(source) == name:
+            raise TgiError("Duplicate bank child Name", TgiFaultCode.INVALID_ARGUMENT)
+
+
+def _insert_bank_structural_child(bank: _Bank, values: list | tuple, path: str, child: Any) -> str:
+    """Insert a fully constructed structural child before ordered memoryBlockData."""
+    mutable = values if isinstance(values, list) else list(values)
+    index = next(
+        (
+            index
+            for index, item in enumerate(mutable)
+            if isinstance(item, (UsageType, Volatile, AccessPolicies, Parameters))
+        ),
+        len(mutable),
+    )
+    mutable.insert(index, child)
+    if mutable is not values:
+        setattr(bank, path, mutable)
+    register_parent(child, bank, (path,), "list")
+    _register_graph(child)
+    return get_handle(child)
+
+
+def _bank_access_policies(holder: AccessPolicies) -> list | tuple:
+    """Validate an existing nonempty accessPolicies subtree without normalizing it."""
+    policies = holder.access_policy
+    if (
+        not isinstance(policies, (list, tuple))
+        or not policies
+        or any(not isinstance(item, AccessPolicies.AccessPolicy) for item in policies)
+    ):
+        raise TgiError("Invalid bank accessPolicy collection", TgiFaultCode.INVALID_ID)
+    for policy in policies:
+        if policy.access is not None and not isinstance(policy.access, AccessType):
+            raise TgiError("Invalid bank access value", TgiFaultCode.INVALID_ID)
+        if not isinstance(policy.mode_ref, (list, tuple)) or any(
+            not isinstance(item, ModeRef) for item in policy.mode_ref
+        ):
+            raise TgiError("Invalid bank accessPolicy modeRef collection", TgiFaultCode.INVALID_ID)
+        for mode_ref in policy.mode_ref:
+            _stored_name(mode_ref.value)
+    return policies
+
+
+def addBankAccessPolicy(bankID: str, access: str) -> str:
+    """Add a bank access policy (F.7.58.6)."""
+    if not isinstance(access, str):
+        raise TgiError("access must be a string enum value", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        access_value = AccessType(access)
+    except ValueError as error:
+        raise TgiError("Invalid bank access value", TgiFaultCode.INVALID_ARGUMENT) from error
+
+    bank, values, path, _child_types = _bank_builder_storage(bankID)
+    holder = next((item for item in values if isinstance(item, AccessPolicies)), None)
+    policy = AccessPolicies.AccessPolicy(access=access_value)
+    if holder is None:
+        holder = AccessPolicies(access_policy=[policy])
+        mutable = values if isinstance(values, list) else list(values)
+        index = next(
+            (index for index, item in enumerate(mutable) if isinstance(item, Parameters)),
+            len(mutable),
+        )
+        mutable.insert(index, holder)
+        if mutable is not values:
+            setattr(bank, path, mutable)
+        register_parent(holder, bank, (path,), "list")
+        _register_graph(holder)
+    else:
+        policies = _bank_access_policies(holder)
+        mutable_policies = policies if isinstance(policies, list) else list(policies)
+        mutable_policies.append(policy)
+        if mutable_policies is not policies:
+            holder.access_policy = mutable_policies
+        register_parent(holder, bank, (path,), "list")
+        register_parent(policy, holder, ("access_policy",), "list")
+        _register_graph(policy)
+    return get_handle(policy)
+
+
+def addBankAddressBlock(bankID: str, name: str, range: str, width: str) -> str:
+    """Add a named, ranged banked addressBlock (F.7.58.7)."""
+    normalized_name = _name(name, "Name")
+    range_source = _expression(range, "range", 1, (1 << 64) - 1)
+    width_source = _expression(width, "width", 1, (1 << 32) - 1)
+    bank, values, path, _child_types = _bank_builder_storage(bankID)
+    _bank_child_name_available(values, normalized_name)
+    child = BankedBlockType(
+        name=normalized_name,
+        range=UnsignedPositiveLongintExpression(value=range_source),
+        width=UnsignedPositiveIntExpression(value=width_source),
+    )
+    return _insert_bank_structural_child(bank, values, path, child)
+
+
+def addBankBank(
+    bankID: str,
+    name: str,
+    bankAlignment: str,
+    addressBlockName: str,
+    addressBlockRange: str,
+    addressBlockWidth: str,
+) -> str:
+    """Add a seeded nested bank where generated child bindings represent its content (F.7.58.8)."""
+    normalized_name = _name(name, "Name")
+    block_name = _name(addressBlockName, "Name")
+    range_source = _expression(addressBlockRange, "addressBlockRange", 1, (1 << 64) - 1)
+    width_source = _expression(addressBlockWidth, "addressBlockWidth", 1, (1 << 32) - 1)
+    if not isinstance(bankAlignment, str):
+        raise TgiError("bankAlignment must be a string enum value", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        alignment = BankAlignmentType(bankAlignment)
+    except ValueError as error:
+        raise TgiError("Invalid bankAlignment value", TgiFaultCode.INVALID_ARGUMENT) from error
+
+    bank, values, path, _child_types = _bank_builder_storage(bankID)
+    _bank_child_name_available(values, normalized_name)
+    if isinstance(bank, AddressBankType):
+        nested_type = AddressBankType.Bank
+    elif isinstance(bank, AddressBankDefinitionType):
+        nested_type = AddressBankDefinitionType.Bank
+    else:
+        raise TgiError("Generated nested bank type cannot hold seeded content", TgiFaultCode.INVALID_ID)
+    block = BankedBlockType(
+        name=block_name,
+        range=UnsignedPositiveLongintExpression(value=range_source),
+        width=UnsignedPositiveIntExpression(value=width_source),
+    )
+    child = nested_type(name=normalized_name, bank_alignment=alignment, choice=[block])
+    return _insert_bank_structural_child(bank, values, path, child)
+
+
+def addBankSubspaceMap(bankID: str, initiatorRef: str) -> str:
+    """Add a name-less banked subspaceMap by initiatorRef (F.7.58.9)."""
+    normalized_ref = _name(initiatorRef, "Name")
+    bank, values, path, _child_types = _bank_builder_storage(bankID)
+    if isinstance(bank, (AddressBankDefinitionType, BankedDefinitionBankType)):
+        raise TgiError("Bank definitions do not contain subspaceMap elements", TgiFaultCode.INVALID_ARGUMENT)
+    child = BankedSubspaceType(initiator_ref=normalized_ref)
+    return _insert_bank_structural_child(bank, values, path, child)
 
 
 def _stored_name(source: str) -> str:
@@ -2112,3 +2303,154 @@ def setSubSpaceMapBaseAddress(subSpaceMapID: str, baseAddress: str) -> bool:
     source = _signed_subspace_expression(baseAddress, node)
     node.value = source
     return True
+
+
+# ---------------------------------------------------------------------------
+# Bank child removers (F.7.58.32-F.7.58.35)
+# ---------------------------------------------------------------------------
+
+
+_BANK_OWNER_TYPES = _BANK_TYPES + _LOCAL_BANK_TYPES
+_BANK_POLICY_OWNER_TYPES = _BANK_TYPES + _LOCAL_BANK_TYPES
+_NESTED_BANK_TYPES = _BANK_CHILD_TYPES + (LocalBankedBankType,)
+
+
+def _bank_child_owner(child: Any, child_types: tuple[type, ...]) -> tuple[Any, str, str, list | tuple]:
+    """Recover the owner, then prove the child occupies its actual bank content list."""
+    if not isinstance(child, child_types):
+        raise TgiError("Invalid bank child model", TgiFaultCode.INVALID_ID)
+    original_info = get_parent_info(get_handle(child))
+    parent = _register_owned_child(child, _BANK_OWNER_TYPES)
+    if parent is None:
+        raise TgiError("Bank child has no bank owner", TgiFaultCode.INVALID_ID)
+    values, path, valid_types, _ref_type = _bank_storage(parent)
+    if not isinstance(child, valid_types) or sum(item is child for item in values) != 1:
+        raise TgiError("Bank child is not uniquely owned by its bank", TgiFaultCode.INVALID_ID)
+    info = get_parent_info(get_handle(child))
+    if original_info is not None and (
+        original_info.parent_handle != get_handle(parent)
+        or original_info.path != (path,)
+        or original_info.container != "list"
+    ):
+        raise TgiError("Bank child has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+    if info is None or (info.parent_handle != get_handle(parent) or info.path != (path,) or info.container != "list"):
+        raise TgiError("Bank child has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+    return parent, path, "list", values
+
+
+def _remove_bank_child(handle: str, expected: tuple[type, ...], label: str) -> bool:
+    """Remove an exactly owned bank child, invalidating its complete TGI subtree."""
+    child = resolve_handle(handle) if isinstance(handle, str) else None
+    if not isinstance(child, expected):
+        raise TgiError(f"Invalid {label} handle", TgiFaultCode.INVALID_ID)
+    parent, path, container, values = _bank_child_owner(child, expected)
+    # Validate the complete containing choice before normalizing tuple-backed input.
+    _list_attr(parent, path)
+    _register_graph(child)
+    register_parent(child, parent, (path,), container)
+    if not detach_child_by_handle(handle):
+        raise TgiError(f"Could not remove {label}", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def _bank_policy_holder(owner: Any, holder: AccessPolicies) -> tuple[str, str, list | tuple]:
+    """Return an accessPolicies holder's actual bank path after validating the choice."""
+    if isinstance(owner, _LOCAL_BANK_TYPES):
+        _bank_storage(owner)
+        if owner.access_policies is not holder:
+            raise TgiError("AccessPolicies holder is not owned by its bank", TgiFaultCode.INVALID_ID)
+        return "access_policies", "single", ()
+    values, path, _types, _ref_type = _bank_storage(owner)
+    if sum(item is holder for item in values) != 1:
+        raise TgiError("AccessPolicies holder is not uniquely owned by its bank", TgiFaultCode.INVALID_ID)
+    return path, "list", values
+
+
+def _bank_access_policy_owner(policy: Any) -> tuple[Any, AccessPolicies, str, str, list | tuple, list | tuple]:
+    """Prove a policy and its holder are actual members of an inline bank instance."""
+    if not isinstance(policy, AccessPolicies.AccessPolicy):
+        raise TgiError("Invalid bank accessPolicy model", TgiFaultCode.INVALID_ID)
+    original_policy_info = get_parent_info(get_handle(policy))
+    holder = _register_owned_child(policy, AccessPolicies)
+    if not isinstance(holder, AccessPolicies):
+        raise TgiError("AccessPolicy has no accessPolicies holder", TgiFaultCode.INVALID_ID)
+    policies = holder.access_policy
+    if not isinstance(policies, (list, tuple)) or any(
+        not isinstance(item, AccessPolicies.AccessPolicy) for item in policies
+    ):
+        raise TgiError("Invalid bank accessPolicies collection", TgiFaultCode.INVALID_ID)
+    if sum(item is policy for item in policies) != 1:
+        raise TgiError("AccessPolicy is not uniquely owned by its holder", TgiFaultCode.INVALID_ID)
+
+    original_holder_info = get_parent_info(get_handle(holder))
+    owner = _register_owned_child(holder, _BANK_POLICY_OWNER_TYPES)
+    if owner is None:
+        raise TgiError("AccessPolicies holder has no bank owner", TgiFaultCode.INVALID_ID)
+    owner_path, owner_container, owner_values = _bank_policy_holder(owner, holder)
+    holder_info = get_parent_info(get_handle(holder))
+    if original_holder_info is not None and (
+        original_holder_info.parent_handle != get_handle(owner)
+        or original_holder_info.path != (owner_path,)
+        or original_holder_info.container != owner_container
+    ):
+        raise TgiError("AccessPolicies holder has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+    if holder_info is None or (
+        holder_info.parent_handle != get_handle(owner)
+        or holder_info.path != (owner_path,)
+        or holder_info.container != owner_container
+    ):
+        raise TgiError("AccessPolicies holder has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+    policy_info = get_parent_info(get_handle(policy))
+    if original_policy_info is not None and (
+        original_policy_info.parent_handle != get_handle(holder)
+        or original_policy_info.path != ("access_policy",)
+        or original_policy_info.container != "list"
+    ):
+        raise TgiError("AccessPolicy has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+    if policy_info is None or (
+        policy_info.parent_handle != get_handle(holder)
+        or policy_info.path != ("access_policy",)
+        or policy_info.container != "list"
+    ):
+        raise TgiError("AccessPolicy has a forged or stale owner link", TgiFaultCode.INVALID_ID)
+    return owner, holder, owner_path, owner_container, owner_values, policies
+
+
+def removeBankAccessPolicy(accessPolicyID: str) -> bool:
+    """Remove a bank-owned policy and prune its empty holder (F.7.58.32)."""
+    policy = resolve_handle(accessPolicyID) if isinstance(accessPolicyID, str) else None
+    if not isinstance(policy, AccessPolicies.AccessPolicy):
+        raise TgiError("Invalid bank accessPolicy handle", TgiFaultCode.INVALID_ID)
+    owner, holder, owner_path, owner_container, owner_values, policies = _bank_access_policy_owner(policy)
+    holder.access_policy = list(policies)
+    _register_graph(policy)
+    register_parent(policy, holder, ("access_policy",), "list")
+    if not detach_child_by_handle(accessPolicyID):
+        raise TgiError("Could not remove bank accessPolicy", TgiFaultCode.INVALID_ID)
+    if holder.access_policy:
+        return True
+
+    _register_graph(holder)
+    if owner_container == "single":
+        register_parent(holder, owner, (owner_path,), "single")
+    else:
+        _list_attr(owner, owner_path)
+        register_parent(holder, owner, (owner_path,), "list")
+    if not detach_child_by_handle(get_handle(holder)):
+        raise TgiError("Could not prune empty bank accessPolicies holder", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeBankAddressBlock(addressBlockID: str) -> bool:
+    """Remove a banked addressBlock from its containing bank (F.7.58.33)."""
+    return _remove_bank_child(addressBlockID, (BankedBlockType,), "bank addressBlock")
+
+
+def removeBankBank(bankOrLocalBankID: str) -> bool:
+    """Remove a nested bank or localBank from its containing bank (F.7.58.34)."""
+    return _remove_bank_child(bankOrLocalBankID, _NESTED_BANK_TYPES, "bank bank")
+
+
+def removeBankSubspaceMap(subspaceMapID: str) -> bool:
+    """Remove a banked subspaceMap from its containing bank (F.7.58.35)."""
+    return _remove_bank_child(subspaceMapID, (BankedSubspaceType,), "bank subspaceMap")
