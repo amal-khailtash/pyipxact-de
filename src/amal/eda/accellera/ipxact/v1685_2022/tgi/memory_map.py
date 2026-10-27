@@ -96,6 +96,7 @@ from .core import (
     resolve_handle,
     register_parent,
     detach_child_by_handle,
+    registry,
 )
 
 __all__ = [
@@ -193,10 +194,13 @@ __all__ = [
     # EXTENDED (F.7.58) - subset focusing on core structural adds/removes + key setters
     "addMemoryMapAddressBlock",
     "addMemoryMapBank",
+    "addLocalMemoryMapBank",
     "addMemoryMapMemoryRemap",
     "addMemoryMapSubspaceMap",
     "addMemoryRemapModeRef",
     "removeMemoryMapMemoryRemap",
+    "removeMemoryMapAddressBlock",
+    "removeMemoryMapBank",
     "removeMemoryMapShared",
     "removeMemoryMapSubspaceMap",
     "removeMemoryRemapModeRef",
@@ -537,90 +541,334 @@ def getMemoryRemapSubspaceMapIDs(memoryRemapID: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def addMemoryMapAddressBlock(memoryMapID: str, name: str) -> str:
-    """Create a new ``addressBlock`` under a memory map.
-
-    Section: F.7.58.11 (core portion). Only name is required here; additional
-    properties can be assigned via dedicated setters (range, width, baseAddress, etc.).
-    """
-    mm = _require_memory_map(memoryMapID)
-    from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
-
-    ab = AddressBlockType(name=name)
-    mm.address_block.append(ab)  # type: ignore[attr-defined]
-    register_parent(ab, mm, ("address_block",), "list")
-    return get_handle(ab)
+_MAP_U64_MAX = (1 << 64) - 1
+_MAP_U32_MAX = (1 << 32) - 1
+_MAP_LONG_MAX = (1 << 63) - 1
 
 
-def addMemoryMapBank(memoryMapID: str, name: str) -> str:
-    """Add a ``bank`` to the memory map.
-
-    Section: F.7.58.12.
-    """
-    mm = _require_memory_map(memoryMapID)
-    from org.accellera.ipxact.v1685_2022.bank import Bank
-
-    bk = Bank(name=name)
-    mm.bank.append(bk)  # type: ignore[attr-defined]
-    register_parent(bk, mm, ("bank",), "list")
-    return get_handle(bk)
+def _map_child_name(value: Any, *, existing: bool = False) -> str:
+    try:
+        return _name(value, "Name")
+    except TgiError as error:
+        if existing:
+            raise TgiError("Invalid memoryMap child Name", TgiFaultCode.INVALID_ID) from error
+        raise TgiError("Invalid memoryMap child Name", TgiFaultCode.INVALID_ARGUMENT) from error
 
 
-def addMemoryMapMemoryRemap(memoryMapID: str, name: str) -> str:
-    """Add a ``memoryRemap`` element.
+def _memory_map_builder_state(memory_map: MemoryMapType) -> tuple[list | tuple, set[str], set[str]]:
+    """Validate the raw memoryMap branch, schema order, and sibling Name keys."""
+    values = _memory_map_choice(memory_map)
+    if any(isinstance(item, MemoryMapType.MemoryMapDefinitionRef) for item in values):
+        raise TgiError("Cannot add inline children to a referenced memoryMap", TgiFaultCode.INVALID_ARGUMENT)
 
-    Section: F.7.58.13.
-    """
-    mm = _require_memory_map(memoryMapID)
-    from org.accellera.ipxact.v1685_2022.memory_remap_type import MemoryRemapType
+    ranks = (AddressBlock, Bank, SubspaceMap, MemoryRemap, AddressUnitBits, SharedType)
+    prior_rank = -1
+    names: set[str] = set()
+    modes: set[str] = set()
+    for item in values:
+        rank = next((0 if index < 3 else index - 2 for index, model in enumerate(ranks) if isinstance(item, model)), -1)
+        if rank < 0:
+            raise TgiError("Invalid memoryMap choice child", TgiFaultCode.INVALID_ID)
+        if rank < prior_rank:
+            raise TgiError("memoryMap children violate schema order", TgiFaultCode.INVALID_ID)
+        prior_rank = rank
 
-    remap = MemoryRemapType(name=name)
-    mm.memory_remap.append(remap)  # type: ignore[attr-defined]
-    register_parent(remap, mm, ("memory_remap",), "list")
-    return get_handle(remap)
+        if isinstance(item, (AddressBlock, Bank, SubspaceMap, MemoryRemap)):
+            name = _map_child_name(item.name, existing=True)
+            if name in names:
+                raise TgiError("Duplicate memoryMap child Name", TgiFaultCode.INVALID_ID)
+            names.add(name)
+        if isinstance(item, MemoryRemap):
+            mode_refs = item.mode_ref
+            if not isinstance(mode_refs, (list, tuple)) or not mode_refs:
+                raise TgiError("Invalid memoryRemap modeRef collection", TgiFaultCode.INVALID_ID)
+            priorities: set[int] = set()
+            for mode_ref in mode_refs:
+                if not isinstance(mode_ref, ModeRef) or type(mode_ref.priority) is not int:
+                    raise TgiError("Invalid memoryRemap modeRef", TgiFaultCode.INVALID_ID)
+                if mode_ref.priority < 0 or mode_ref.priority in priorities:
+                    raise TgiError("Invalid memoryRemap modeRef priority", TgiFaultCode.INVALID_ID)
+                priorities.add(mode_ref.priority)
+                mode_name = _map_child_name(mode_ref.value, existing=True)
+                if mode_name in modes:
+                    raise TgiError("Duplicate memoryRemap modeRef Name", TgiFaultCode.INVALID_ID)
+                modes.add(mode_name)
+    return values, names, modes
 
 
-def addMemoryMapSubspaceMap(memoryMapID: str, name: str, addressOffset: int | None = None) -> str:
-    """Add a ``subspaceMap`` to the memory map.
+def _local_map_builder_state(local_map: LocalMemoryMapType) -> tuple[list | tuple, set[str]]:
+    values = local_map.address_block_or_bank
+    if not isinstance(values, (list, tuple)) or any(
+        not isinstance(item, (AddressBlock, LocalAddressBankType)) for item in values
+    ):
+        raise TgiError("Invalid localMemoryMap children", TgiFaultCode.INVALID_ID)
+    names: set[str] = set()
+    for item in values:
+        name = _map_child_name(item.name, existing=True)
+        if name in names:
+            raise TgiError("Duplicate localMemoryMap child Name", TgiFaultCode.INVALID_ID)
+        names.add(name)
+    return values, names
 
-    Section: F.7.58.14. Supports optional base address offset.
-    """
-    mm = _require_memory_map(memoryMapID)
-    from org.accellera.ipxact.v1685_2022.subspace_map import SubspaceMap
-    from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import UnsignedLongintExpression
 
-    sm = SubspaceMap(name=name)
-    if addressOffset is not None:
-        sm.base_address = UnsignedLongintExpression(value=str(addressOffset))  # type: ignore[arg-type]
-    mm.subspace_map.append(sm)  # type: ignore[attr-defined]
-    register_parent(sm, mm, ("subspace_map",), "list")
-    return get_handle(sm)
+def _map_address_block(name: str, base_address: str, address_range: str, width: str) -> AddressBlock:
+    block_name = _map_child_name(name)
+    base = _expression(base_address, "baseAddress", 0, _MAP_U64_MAX)
+    range_value = _expression(address_range, "range", 1, _MAP_U64_MAX)
+    width_value = _expression(width, "width", 1, _MAP_U32_MAX)
+    return AddressBlock(
+        name=block_name,
+        base_address=BaseAddress(value=base),
+        choice=[UnsignedPositiveLongintExpression(value=range_value), UnsignedPositiveIntExpression(value=width_value)],
+    )
+
+
+def _map_banked_block(name: str, address_range: str, width: str) -> BankedBlockType:
+    block_name = _map_child_name(name)
+    range_value = _expression(address_range, "addressBlockRange", 1, _MAP_U64_MAX)
+    width_value = _expression(width, "addressBlockWidth", 1, _MAP_U32_MAX)
+    return BankedBlockType(
+        name=block_name,
+        range=UnsignedPositiveLongintExpression(value=range_value),
+        width=UnsignedPositiveIntExpression(value=width_value),
+    )
+
+
+def _map_alignment(value: str) -> BankAlignmentType:
+    if not isinstance(value, str):
+        raise TgiError("Invalid bankAlignment", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        return BankAlignmentType(value)
+    except ValueError as error:
+        raise TgiError("Invalid bankAlignment", TgiFaultCode.INVALID_ARGUMENT) from error
+
+
+def _insert_memory_map_child(memory_map: MemoryMapType, values: list | tuple, child: Any) -> str:
+    children = _list_attr(memory_map, "choice")
+    rank = 1 if isinstance(child, MemoryRemap) else 0
+    position = next(
+        (
+            index
+            for index, item in enumerate(values)
+            if isinstance(item, (AddressUnitBits, SharedType)) or (rank == 0 and isinstance(item, MemoryRemap))
+        ),
+        len(children),
+    )
+    children.insert(position, child)
+    register_parent(child, memory_map, ("choice",), "list")
+    _register_graph(child)
+    return get_handle(child)
+
+
+def _insert_local_map_child(local_map: LocalMemoryMapType, child: Any) -> str:
+    _list_attr(local_map, "address_block_or_bank").append(child)
+    register_parent(child, local_map, ("address_block_or_bank",), "list")
+    _register_graph(child)
+    return get_handle(child)
+
+
+def addMemoryMapAddressBlock(memoryMapID: str, name: str, baseAddress: str, range: str, width: str) -> str:
+    """Create a sized addressBlock in a non-local memoryMap (F.7.58.11)."""
+    memory_map = _require_memory_map(memoryMapID)
+    values, names, _modes = _memory_map_builder_state(memory_map)
+    block = _map_address_block(name, baseAddress, range, width)
+    if block.name in names:
+        raise TgiError("Duplicate memoryMap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    return _insert_memory_map_child(memory_map, values, block)
+
+
+def addMemoryMapBank(
+    memoryMapID: str,
+    name: str,
+    bankAlignment: str,
+    baseAddress: str,
+    addressBlockName: str,
+    addressBlockRange: str,
+    addressBlockWidth: str,
+) -> str:
+    """Create a seeded addressable bank in a non-local memoryMap (F.7.58.12)."""
+    memory_map = _require_memory_map(memoryMapID)
+    values, names, _modes = _memory_map_builder_state(memory_map)
+    bank_name = _map_child_name(name)
+    if bank_name in names:
+        raise TgiError("Duplicate memoryMap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    alignment = _map_alignment(bankAlignment)
+    base = _expression(baseAddress, "baseAddress", 0, _MAP_U64_MAX)
+    seed = _map_banked_block(addressBlockName, addressBlockRange, addressBlockWidth)
+    bank = Bank(name=bank_name, bank_alignment=alignment, base_address=BaseAddress(value=base), choice=[seed])
+    return _insert_memory_map_child(memory_map, values, bank)
+
+
+def addLocalMemoryMapBank(
+    localMemoryMapID: str,
+    name: str,
+    bankAlignment: str,
+    baseAddress: str,
+    addressBlockName: str,
+    addressBlockRange: str,
+    addressBlockWidth: str,
+) -> str:
+    """Create a seeded localAddressBank in its localMemoryMap (F.7.58.10)."""
+    owner = _require_map_or_local(localMemoryMapID)
+    if not isinstance(owner, LocalMemoryMapType):
+        raise TgiError("Invalid localMemoryMap handle", TgiFaultCode.INVALID_ID)
+    _values, names = _local_map_builder_state(owner)
+    bank_name = _map_child_name(name)
+    if bank_name in names:
+        raise TgiError("Duplicate localMemoryMap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    alignment = _map_alignment(bankAlignment)
+    base = _expression(baseAddress, "baseAddress", 0, _MAP_U64_MAX)
+    seed = _map_banked_block(addressBlockName, addressBlockRange, addressBlockWidth)
+    bank = LocalAddressBankType(
+        name=bank_name,
+        bank_alignment=alignment,
+        base_address=BaseAddress(value=base),
+        address_block_or_bank=[seed],
+    )
+    return _insert_local_map_child(owner, bank)
+
+
+def addMemoryMapMemoryRemap(memoryMapID: str, name: str, modeRef: str, priority: int) -> str:
+    """Create a named memoryRemap with its required modeRef (F.7.58.13)."""
+    memory_map = _require_memory_map(memoryMapID)
+    values, names, modes = _memory_map_builder_state(memory_map)
+    remap_name = _map_child_name(name)
+    if remap_name in names:
+        raise TgiError("Duplicate memoryMap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    mode_name = _map_child_name(modeRef)
+    if mode_name in modes:
+        raise TgiError("Duplicate memoryRemap modeRef Name", TgiFaultCode.INVALID_ARGUMENT)
+    if type(priority) is not int or not 0 <= priority <= _MAP_LONG_MAX:
+        raise TgiError("priority must be an xs:long value", TgiFaultCode.INVALID_ARGUMENT)
+    priority_value = _mode_ref_priority([], mode_name, priority)
+    remap = MemoryRemap(name=remap_name, mode_ref=[ModeRef(value=mode_name, priority=priority_value)])
+    return _insert_memory_map_child(memory_map, values, remap)
+
+
+def addMemoryMapSubspaceMap(memoryMapID: str, name: str, initiatorRef: str, baseAddress: str) -> str:
+    """Create a named subspaceMap with its required signed baseAddress (F.7.58.14)."""
+    memory_map = _require_memory_map(memoryMapID)
+    values, names, _modes = _memory_map_builder_state(memory_map)
+    subspace_name = _map_child_name(name)
+    if subspace_name in names:
+        raise TgiError("Duplicate memoryMap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    initiator_name = _map_child_name(initiatorRef)
+    signed_base = SignedLongintExpression(value="0")
+    base = _signed_subspace_expression(baseAddress, signed_base)
+    subspace = SubspaceMap(
+        name=subspace_name,
+        initiator_ref=initiator_name,
+        base_address=SignedLongintExpression(value=base),
+    )
+    return _insert_memory_map_child(memory_map, values, subspace)
+
+
+def _memory_map_remove_owner(
+    child_handle: str,
+    expected: type | tuple[type, ...],
+    owner_types: type | tuple[type, ...],
+    label: str,
+) -> tuple[Any, Any, tuple[str, ...]]:
+    """Find and verify one supported map-owned child without priming ownership links."""
+    if not isinstance(child_handle, str):
+        raise TgiError(f"Invalid {label} handle", TgiFaultCode.INVALID_ID)
+    child = resolve_handle(child_handle)
+    if not isinstance(child, expected):
+        raise TgiError(f"Invalid {label} handle", TgiFaultCode.INVALID_ID)
+
+    def verify(owner: Any, path: tuple[str, ...], container: str) -> None:
+        if isinstance(owner, MemoryMapType):
+            if path != ("choice",) or container != "list":
+                raise TgiError(f"Invalid {label} parent path", TgiFaultCode.INVALID_ID)
+            values = _memory_map_choice(owner)
+        elif isinstance(owner, LocalMemoryMapType):
+            if path != ("address_block_or_bank",) or container != "list":
+                raise TgiError(f"Invalid {label} parent path", TgiFaultCode.INVALID_ID)
+            values = owner.address_block_or_bank
+            if not isinstance(values, (list, tuple)) or any(
+                not isinstance(item, (AddressBlock, LocalAddressBankType)) for item in values
+            ):
+                raise TgiError("Invalid localMemoryMap children", TgiFaultCode.INVALID_ID)
+        else:
+            raise TgiError(f"Invalid {label} owner", TgiFaultCode.INVALID_ID)
+        if sum(item is child for item in values) != 1:
+            raise TgiError(f"{label} is not uniquely owned by its containing map", TgiFaultCode.INVALID_ID)
+
+    info = get_parent_info(child_handle)
+    if info is not None:
+        owner = resolve_handle(info.parent_handle)
+        if owner is None or not isinstance(owner, owner_types):
+            raise TgiError(f"Invalid {label} parent", TgiFaultCode.INVALID_ID)
+        verify(owner, info.path, info.container)
+        return child, owner, info.path
+
+    # Parsed roots may have no parent index yet. Search only in that case, and
+    # accept a result only when its actual generated-model edge is unambiguous.
+    matches: list[tuple[Any, tuple[str, ...], str]] = []
+    found_elsewhere = False
+    for root_id in registry.iter_by_predicate(lambda _root: True):
+        root = resolve_handle(root_id)
+        if root is None:
+            continue
+        for candidate, parent, attribute, container in _walk_model(root):
+            if candidate is not child:
+                continue
+            if parent is None or attribute is None or not isinstance(parent, owner_types):
+                found_elsewhere = True
+                continue
+            matches.append((parent, (attribute,), container))
+    if found_elsewhere or len(matches) != 1:
+        raise TgiError(f"{label} has no unique supported owning container", TgiFaultCode.INVALID_ID)
+    owner, path, container = matches[0]
+    verify(owner, path, container)
+    return child, owner, path
+
+
+def _remove_memory_map_child(
+    child_handle: str,
+    expected: type | tuple[type, ...],
+    owner_types: type | tuple[type, ...],
+    label: str,
+) -> bool:
+    """Remove a verified direct map child and invalidate its complete model subtree."""
+    child, owner, path = _memory_map_remove_owner(child_handle, expected, owner_types, label)
+    attribute = path[-1]
+    _register_graph(child)
+    _list_attr(owner, attribute)
+    register_parent(child, owner, path, "list")
+    if not detach_child_by_handle(child_handle):
+        raise TgiError(f"Could not remove {label}", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeMemoryMapAddressBlock(addressBlockID: str) -> bool:
+    """Remove an addressBlock directly owned by a memoryMap or localMemoryMap (F.7.58.38)."""
+    return _remove_memory_map_child(
+        addressBlockID,
+        AddressBlock,
+        (MemoryMapType, LocalMemoryMapType),
+        "addressBlock",
+    )
+
+
+def removeMemoryMapBank(bankOrLocalBankID: str) -> bool:
+    """Remove a bank directly owned by a memoryMap or localMemoryMap (F.7.58.39)."""
+    return _remove_memory_map_child(
+        bankOrLocalBankID,
+        (Bank, LocalAddressBankType),
+        (MemoryMapType, LocalMemoryMapType),
+        "bank",
+    )
 
 
 def removeMemoryMapMemoryRemap(memoryRemapID: str) -> bool:
-    """Remove a ``memoryRemap`` element.
-
-    Section: F.7.58.40.
-    """
-    obj = resolve_handle(memoryRemapID)
-    from org.accellera.ipxact.v1685_2022.memory_remap_type import MemoryRemapType
-
-    if not isinstance(obj, MemoryRemapType):
-        raise TgiError("Invalid memoryRemap handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(memoryRemapID)
+    """Remove a memoryRemap directly owned by a memoryMap (F.7.58.40)."""
+    return _remove_memory_map_child(memoryRemapID, MemoryRemapType, MemoryMapType, "memoryRemap")
 
 
-def removeMemoryMapSubspaceMap(subspaceMapID: str) -> bool:
-    """Remove a ``subspaceMap`` element.
-
-    Section: F.7.58.42.
-    """
-    obj = resolve_handle(subspaceMapID)
-    from org.accellera.ipxact.v1685_2022.subspace_map import SubspaceMap
-
-    if not isinstance(obj, SubspaceMap):
-        raise TgiError("Invalid subspaceMap handle", TgiFaultCode.INVALID_ID)
-    return detach_child_by_handle(subspaceMapID)
+def removeMemoryMapSubspaceMap(subSpaceMapID: str) -> bool:
+    """Remove a subspaceMap directly owned by a memoryMap (F.7.58.42)."""
+    return _remove_memory_map_child(subSpaceMapID, SubspaceMap, MemoryMapType, "subspaceMap")
 
 
 def removeMemoryMapShared(memoryMapID: str) -> bool:
