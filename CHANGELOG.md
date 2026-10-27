@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Finish all 152 Register TGI contracts with five Broadcast reference setters, validated Names and field-handle assignment, preserved wrappers and indices, and schema-aware memory-map choice replacement.
 - Complete six Broadcast reference removers with typed ownership, descendant handle invalidation, ordered path preservation, and dependent memory-remap removal.
 - Complete eight Broadcast ordered-path getters and adders with generated reference wrappers, validated Names, preserved indices and metadata, typed ownership, and atomic tuple normalization.
 - Complete eight Broadcast scalar reference getters with typed source and choice traversal, owned reference handles, and address-block target resolution as specified by Annex F and the WSDL. Apply ordered Broadcast path qualifiers and normalized reference names during target lookup.

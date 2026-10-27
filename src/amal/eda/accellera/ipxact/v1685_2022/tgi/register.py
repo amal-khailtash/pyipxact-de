@@ -186,6 +186,11 @@ __all__ = [
     "removeResetMask",
     "setAlternateRegisterTypeIdentifier",
     "setAlternateRegisterVolatility",
+    "setBroadcastToAddressBlockRef",
+    "setBroadcastToAlternateRegisterRef",
+    "setBroadcastToFieldRef",
+    "setBroadcastToMemoryMapRef",
+    "setBroadcastToRegisterRef",
     "setEnumeratedValuesEnumerationDefinitionRef",
     "setEnumeratedValueUsage",
     "setEnumeratedValueValue",
@@ -4342,3 +4347,61 @@ def removeBroadcastToRegisterFileRef(registerRefID: str) -> bool:
         True after owned subtree removal; published parameter spelling is retained.
     """
     return _remove_broadcast_path(registerRefID, "register_file_ref", RegisterFileRef)
+
+
+def _set_broadcast_named_reference(broadcastToID: str, source: str, attribute: str, model_type: type) -> bool:
+    """Validate a source Name before updating the typed Broadcast reference wrapper."""
+    from ._reference_paths import _set_named_reference
+
+    broadcast = _register_broadcast(broadcastToID)
+    replacement = model_type(**{attribute: _schema_name(source, "Name")})
+    return _set_named_reference(broadcast, attribute, replacement)
+
+
+def setBroadcastToAddressBlockRef(broadcastToID: str, addressBlockRef: str) -> bool:
+    """Set the referenced address-block Name, preserving indices and metadata (F.7.74.44)."""
+    return _set_broadcast_named_reference(broadcastToID, addressBlockRef, "address_block_ref", AddressBlockRef)
+
+
+def setBroadcastToAlternateRegisterRef(broadcastToID: str, alternateRegisterRef: str) -> bool:
+    """Set the referenced alternate-register Name, preserving its wrapper (F.7.74.45)."""
+    return _set_broadcast_named_reference(
+        broadcastToID, alternateRegisterRef, "alternate_register_ref", AlternateRegisterRef
+    )
+
+
+def setBroadcastToFieldRef(broadcastToID: str, fieldRef: str) -> bool:
+    """Set the field reference from a target field handle (F.7.74.46).
+
+    Args:
+        broadcastToID: Handle to a broadcastTo element.
+        fieldRef: Handle to a register field or field-definition element whose Name is stored.
+
+    Returns:
+        True after assignment, preserving an existing reference wrapper and its indices.
+    """
+    broadcast = _register_broadcast(broadcastToID)
+    if not isinstance(fieldRef, str):
+        raise TgiError("Invalid broadcast target field handle", TgiFaultCode.INVALID_ID)
+    field = resolve_handle(fieldRef)
+    if not isinstance(field, (FieldType, FieldDefinitions.FieldDefinition)):
+        raise TgiError("Invalid broadcast target field handle", TgiFaultCode.INVALID_ID)
+    from ._reference_paths import _set_named_reference
+
+    replacement = FieldRef(field_ref=_schema_name(field.name, "Name"))
+    return _set_named_reference(broadcast, "field_ref", replacement)
+
+
+def setBroadcastToMemoryMapRef(broadcastToID: str, memoryMapRef: str) -> bool:
+    """Set the memory-map Name, retaining a remap and replacing the address-space branch (F.7.74.47)."""
+    from ._reference_choices import _set_reference_choice
+
+    broadcast = _register_broadcast(broadcastToID)
+    model = type(broadcast)
+    replacement = model.MemoryMapRef(memory_map_ref=_schema_name(memoryMapRef, "Name"))
+    return _set_reference_choice(broadcast, replacement, "memory_map_ref", model.AddressSpaceRef, model.MemoryMapRef)
+
+
+def setBroadcastToRegisterRef(broadcastToID: str, registerRef: str) -> bool:
+    """Set the referenced register Name, preserving indices and metadata (F.7.74.48)."""
+    return _set_broadcast_named_reference(broadcastToID, registerRef, "register_ref", RegisterRef)
