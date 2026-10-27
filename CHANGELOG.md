@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify six MemoryRemap child lifecycle operations with exact signatures, typed block/bank/subspace builders, staged Bank completion, signed addressing, preserved mode references and metadata, and owned subtree removal.
 - Verify nine Memory map/local map child lifecycle operations with exact standard signatures, complete seeded blocks/banks/remaps, signed subspace addressing, scoped Name and mode keys, schema-ordered choices, and owned subtree removal.
 - Verify eight Bank child and access-policy lifecycle operations with typed schema-ordered builders, expression and enum validation, seeded nested banks, owned removal and descendant invalidation, and empty access-policy holder pruning.
 - Verify seven Memory map/remap scalar, definition-reference, mode and subspace-address edits with exact standard signatures, owned choice replacement, scoped mode uniqueness and priorities, preserved wrappers, and signed 64-bit base-address expressions.

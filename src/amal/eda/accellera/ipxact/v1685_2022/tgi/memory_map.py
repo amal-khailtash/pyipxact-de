@@ -197,12 +197,18 @@ __all__ = [
     "addLocalMemoryMapBank",
     "addMemoryMapMemoryRemap",
     "addMemoryMapSubspaceMap",
+    "addMemoryRemapAddressBlock",
+    "addMemoryRemapBank",
+    "addMemoryRemapSubspaceMap",
     "addMemoryRemapModeRef",
     "removeMemoryMapMemoryRemap",
     "removeMemoryMapAddressBlock",
     "removeMemoryMapBank",
     "removeMemoryMapShared",
     "removeMemoryMapSubspaceMap",
+    "removeMemoryRemapBank",
+    "removeMemoryRemapMapAddressBlock",
+    "removeMemoryRemapSubspaceMap",
     "removeMemoryRemapModeRef",
     "setMemoryMapMemoryMapDefinitionRef",
     "setMemoryMapShared",
@@ -761,6 +767,114 @@ def addMemoryMapSubspaceMap(memoryMapID: str, name: str, initiatorRef: str, base
         base_address=SignedLongintExpression(value=base),
     )
     return _insert_memory_map_child(memory_map, values, subspace)
+
+
+def _memory_remap_builder_state(remap: MemoryRemapType) -> tuple[list | tuple, set[str]]:
+    """Validate inline remap content and sibling Name keys across all child kinds."""
+    values = _remap_choice(remap)
+    if any(isinstance(item, MemoryRemapType.RemapDefinitionRef) for item in values):
+        raise TgiError("Cannot add inline children to a referenced memoryRemap", TgiFaultCode.INVALID_ARGUMENT)
+    names: set[str] = set()
+    for item in values:
+        name = _map_child_name(item.name, existing=True)
+        if name in names:
+            raise TgiError("Duplicate memoryRemap child Name", TgiFaultCode.INVALID_ID)
+        names.add(name)
+    return values, names
+
+
+def _insert_memory_remap_child(remap: MemoryRemapType, values: list | tuple, child: Any) -> str:
+    """Append one inline child, replacing a tuple only after all validation succeeds."""
+    children = values if isinstance(values, list) else list(values)
+    children.append(child)
+    if children is not values:
+        remap.choice = children
+    register_parent(child, remap, ("choice",), "list")
+    _register_graph(child)
+    return get_handle(child)
+
+
+def _memory_remap_or_map_builder_state(
+    memoryRemapID: str,
+) -> tuple[MemoryRemapType | MemoryMapType, list | tuple, set[str]]:
+    """Resolve the two owner types permitted by F.7.58.16, without resolving references."""
+    if not isinstance(memoryRemapID, str):
+        raise TgiError("Invalid memoryRemap or memoryMap handle", TgiFaultCode.INVALID_ID)
+    owner = resolve_handle(memoryRemapID)
+    if isinstance(owner, MemoryRemapType):
+        values, names = _memory_remap_builder_state(owner)
+        return owner, values, names
+    if isinstance(owner, MemoryMapType):
+        values, names, _modes = _memory_map_builder_state(owner)
+        return owner, values, names
+    raise TgiError("Invalid memoryRemap or memoryMap handle", TgiFaultCode.INVALID_ID)
+
+
+def _insert_remap_or_map_child(
+    owner: MemoryRemapType | MemoryMapType,
+    values: list | tuple,
+    child: Any,
+) -> str:
+    if isinstance(owner, MemoryMapType):
+        return _insert_memory_map_child(owner, values, child)
+    return _insert_memory_remap_child(owner, values, child)
+
+
+def addMemoryRemapAddressBlock(
+    memoryRemapID: str,
+    name: str,
+    baseAddress: str,
+    range: str,
+    width: str,
+) -> str:
+    """Create a concrete addressBlock inside a memoryRemap (F.7.58.15)."""
+    remap = _require_memory_remap(memoryRemapID)
+    values, names = _memory_remap_builder_state(remap)
+    block = _map_address_block(name, baseAddress, range, width)
+    if block.name in names:
+        raise TgiError("Duplicate memoryRemap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    return _insert_memory_remap_child(remap, values, block)
+
+
+def addMemoryRemapBank(
+    memoryRemapID: str,
+    name: str,
+    baseAddress: str,
+    bankAlignment: str,
+) -> str:
+    """Create an empty concrete bank in a remap or memoryMap (F.7.58.16)."""
+    owner, values, names = _memory_remap_or_map_builder_state(memoryRemapID)
+    bank_name = _map_child_name(name)
+    if bank_name in names:
+        label = "memoryMap" if isinstance(owner, MemoryMapType) else "memoryRemap"
+        raise TgiError(f"Duplicate {label} child Name", TgiFaultCode.INVALID_ARGUMENT)
+    base = _expression(baseAddress, "baseAddress", 0, _MAP_U64_MAX)
+    alignment = _map_alignment(bankAlignment)
+    bank = Bank(name=bank_name, base_address=BaseAddress(value=base), bank_alignment=alignment, choice=[])
+    return _insert_remap_or_map_child(owner, values, bank)
+
+
+def addMemoryRemapSubspaceMap(
+    memoryRemapID: str,
+    name: str,
+    initiatorRef: str,
+    baseAddress: str,
+) -> str:
+    """Create a concrete subspaceMap inside a memoryRemap (F.7.58.18)."""
+    remap = _require_memory_remap(memoryRemapID)
+    values, names = _memory_remap_builder_state(remap)
+    subspace_name = _map_child_name(name)
+    if subspace_name in names:
+        raise TgiError("Duplicate memoryRemap child Name", TgiFaultCode.INVALID_ARGUMENT)
+    initiator_name = _map_child_name(initiatorRef)
+    signed_base = SignedLongintExpression(value="0")
+    base = _signed_subspace_expression(baseAddress, signed_base)
+    subspace = SubspaceMap(
+        name=subspace_name,
+        initiator_ref=initiator_name,
+        base_address=SignedLongintExpression(value=base),
+    )
+    return _insert_memory_remap_child(remap, values, subspace)
 
 
 def _memory_map_remove_owner(
@@ -2702,3 +2816,62 @@ def removeBankBank(bankOrLocalBankID: str) -> bool:
 def removeBankSubspaceMap(subspaceMapID: str) -> bool:
     """Remove a banked subspaceMap from its containing bank (F.7.58.35)."""
     return _remove_bank_child(subspaceMapID, (BankedSubspaceType,), "bank subspaceMap")
+
+
+def _memory_remap_child_owner(child_handle: str, expected: type, label: str) -> tuple[Any, MemoryRemapType]:
+    """Prove an inline remap child has one live choice edge from its actual memoryRemap."""
+    if not isinstance(child_handle, str):
+        raise TgiError(f"Invalid memoryRemap {label} handle", TgiFaultCode.INVALID_ID)
+    child = resolve_handle(child_handle)
+    if not isinstance(child, expected):
+        raise TgiError(f"Invalid memoryRemap {label} handle", TgiFaultCode.INVALID_ID)
+
+    original_info = get_parent_info(child_handle)
+    if original_info is not None:
+        remap = resolve_handle(original_info.parent_handle)
+        if not isinstance(remap, MemoryRemapType):
+            raise TgiError(f"Invalid memoryRemap {label} parent", TgiFaultCode.INVALID_ID)
+        if original_info.path != ("choice",) or original_info.container != "list":
+            raise TgiError(f"Invalid memoryRemap {label} parent path", TgiFaultCode.INVALID_ID)
+    else:
+        remap = _register_owned_child(child, MemoryRemapType)
+        if not isinstance(remap, MemoryRemapType):
+            raise TgiError(f"{label} has no owning memoryRemap", TgiFaultCode.INVALID_ID)
+
+    values = _remap_choice(remap)
+    if sum(item is child for item in values) != 1:
+        raise TgiError(f"{label} is not uniquely owned by its memoryRemap", TgiFaultCode.INVALID_ID)
+    current_info = get_parent_info(child_handle)
+    if current_info is None or (
+        current_info.parent_handle != get_handle(remap)
+        or current_info.path != ("choice",)
+        or current_info.container != "list"
+    ):
+        raise TgiError(f"Invalid memoryRemap {label} parent link", TgiFaultCode.INVALID_ID)
+    return child, remap
+
+
+def _remove_memory_remap_child(child_handle: str, expected: type, label: str) -> bool:
+    """Remove one inline remap child after validating its source collection and ownership link."""
+    child, remap = _memory_remap_child_owner(child_handle, expected, label)
+    _register_graph(child)
+    _list_attr(remap, "choice")
+    register_parent(child, remap, ("choice",), "list")
+    if not detach_child_by_handle(child_handle):
+        raise TgiError(f"Could not remove memoryRemap {label}", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeMemoryRemapMapAddressBlock(addressBlockID: str) -> bool:
+    """Remove an inline addressBlock from a memoryRemap (F.7.58.44)."""
+    return _remove_memory_remap_child(addressBlockID, AddressBlock, "addressBlock")
+
+
+def removeMemoryRemapBank(bankID: str) -> bool:
+    """Remove an inline bank from a memoryRemap (F.7.58.43)."""
+    return _remove_memory_remap_child(bankID, Bank, "bank")
+
+
+def removeMemoryRemapSubspaceMap(subspaceMapID: str) -> bool:
+    """Remove an inline subspaceMap from a memoryRemap (F.7.58.46)."""
+    return _remove_memory_remap_child(subspaceMapID, SubspaceMap, "subspaceMap")
