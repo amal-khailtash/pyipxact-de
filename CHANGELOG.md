@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify nine Bank getters with ordered owned block/bank/subspace children, scoped referenced-definition content, unsigned local base-address expressions, model-specific input scopes, and unspecified absent usage and volatility.
 - Stabilize four Memory map test parameter IDs that embedded process-specific object addresses and prevented four-worker coverage collection.
 - Verify eight AddressBlock and MemoryMap definition-reference getters with separate local declaration, resolved definition, source Name and owned wrapper results, scoped registered-library resolution, strict choice validation, and target-independent source access.
 - Verify eight AddressBlock structure and metadata getters with owned access-policy, array, index, register and register-file handles; scoped referenced-definition content; preserved Name/enum metadata; inferred usage defaults; and unspecified absent volatility.

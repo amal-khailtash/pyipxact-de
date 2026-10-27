@@ -36,6 +36,10 @@ from org.accellera.ipxact.v1685_2022 import (
     SubspaceRefType,
     AddressBlock,
     AddressBankType,
+    AddressBankDefinitionType,
+    BankedDefinitionBankType,
+    BankDefinitions,
+    LocalBankedBankType,
     BankedBankType,
     BankedBlockType,
     BankedSubspaceType,
@@ -63,7 +67,11 @@ from .register import (
     _type_definition_reference_names,
     _register_reference,
 )
-from .type_definitions import getTypeDefinitionsAddressBlockDefinitionIDs, getTypeDefinitionsMemoryMapDefinitionIDs
+from .type_definitions import (
+    getTypeDefinitionsAddressBlockDefinitionIDs,
+    getTypeDefinitionsMemoryMapDefinitionIDs,
+    getTypeDefinitionsBankDefinitionIDs,
+)
 
 from .core import (
     TgiError,
@@ -75,6 +83,15 @@ from .core import (
 )
 
 __all__ = [
+    "getBankAddressBlockIDs",
+    "getBankBankIDs",
+    "getBankBaseAddress",
+    "getBankBaseAddressExpression",
+    "getBankBaseAddressID",
+    "getBankBlockAndSubspaceElementIDs",
+    "getBankSubspaceMapIDs",
+    "getBankUsage",
+    "getBankVolatility",
     # BASE (F.7.57.x) – ordering matches spec numbering groups
     # AddressBlock getters (1–21) - subset implemented (schema coverage pending)
     "getAddressBlockAddressBlockDefinitionRefByExternalTypeDefID",
@@ -280,7 +297,7 @@ def getMemoryMapElementType(memoryMapElementID: str) -> str:
     element = resolve_handle(memoryMapElementID)
     if isinstance(element, (AddressBlock, BankedBlockType)):
         return "addressBlock"
-    if isinstance(element, (AddressBankType, BankedBankType, LocalAddressBankType)):
+    if isinstance(element, _BANK_TYPES + _BANK_CHILD_TYPES + _LOCAL_BANK_TYPES):
         return "bank"
     if isinstance(element, (SubspaceMap, BankedSubspaceType)):
         return "subSpaceMap"
@@ -957,3 +974,171 @@ def getAddressBlockAddressBlockDefinitionRefID(addressBlockID: str) -> str | Non
     """Return the owned reference wrapper handle, independent of target availability (F.7.57.5)."""
     _owner, reference = _address_block_definition_reference(addressBlockID)
     return get_handle(reference) if reference is not None else None
+
+
+type _Bank = (
+    AddressBankType
+    | BankedBankType
+    | AddressBankDefinitionType
+    | BankedDefinitionBankType
+    | BankedBankType.Bank
+    | BankedDefinitionBankType.Bank
+    | LocalAddressBankType
+    | LocalBankedBankType
+)
+type _BankContent = _Bank | BankDefinitions.BankDefinition
+
+
+_BANK_TYPES = (AddressBankType, BankedBankType, AddressBankDefinitionType, BankedDefinitionBankType)
+_LOCAL_BANK_TYPES = (LocalAddressBankType, LocalBankedBankType)
+_BANK_CHILD_TYPES = (
+    AddressBankType.Bank,
+    BankedBankType.Bank,
+    AddressBankDefinitionType.Bank,
+    BankedDefinitionBankType.Bank,
+    BankDefinitions.BankDefinition.Bank,
+)
+
+
+def _require_bank(handle: str, *, local: bool = False) -> _Bank:
+    bank = resolve_handle(handle) if isinstance(handle, str) else None
+    allowed = _BANK_TYPES + _BANK_CHILD_TYPES + (_LOCAL_BANK_TYPES if local else ())
+    if not isinstance(bank, allowed):
+        raise TgiError("Invalid bank handle", TgiFaultCode.INVALID_ID)
+    return bank
+
+
+def _bank_storage(bank: _BankContent) -> tuple[list | tuple, str, tuple[type, ...], type | None]:
+    """Validate the actual bank container and its model-specific choice branches."""
+    if isinstance(bank, _LOCAL_BANK_TYPES):
+        path, bank_type, ref_type = "address_block_or_bank", LocalBankedBankType, None
+        allowed = (BankedBlockType, bank_type)
+    elif isinstance(bank, BankDefinitions.BankDefinition):
+        path, bank_type, ref_type = "address_block_or_bank", BankDefinitions.BankDefinition.Bank, None
+        allowed = (BankedBlockType, bank_type)
+    else:
+        model = next((model for model in _BANK_TYPES if isinstance(bank, model)), None)
+        if model is None:
+            raise TgiError("Bank model has no content container", TgiFaultCode.INVALID_ID)
+        path, bank_type, ref_type = "choice", model.Bank, model.BankDefinitionRef
+        allowed = (ref_type, BankedBlockType, bank_type, UsageType, Volatile, AccessPolicies, Parameters)
+        if model in (AddressBankType, BankedBankType):
+            allowed += (BankedSubspaceType,)
+    values = getattr(bank, path)
+    if not isinstance(values, (list, tuple)) or any(not isinstance(item, allowed) for item in values):
+        raise TgiError("Invalid bank content", TgiFaultCode.INVALID_ID)
+    if ref_type is not None and any(isinstance(item, ref_type) for item in values) and len(values) != 1:
+        raise TgiError("Conflicting bank definition and inline content", TgiFaultCode.INVALID_ID)
+    for scalar in (UsageType, Volatile, AccessPolicies, Parameters):
+        if sum(isinstance(item, scalar) for item in values) > 1:
+            raise TgiError("Duplicate bank scalar child", TgiFaultCode.INVALID_ID)
+    return values, path, (BankedBlockType, bank_type, BankedSubspaceType), ref_type
+
+
+def _bank_content(bank: _Bank) -> _BankContent:
+    values, path, _types, ref_type = _bank_storage(bank)
+    reference = next((item for item in values if ref_type is not None and isinstance(item, ref_type)), None)
+    if reference is None:
+        return bank
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    register_parent(reference, bank, (path,), "list")
+    target = resolve_handle(_type_definition_target(bank, name, external, getTypeDefinitionsBankDefinitionIDs))
+    if not isinstance(target, BankDefinitions.BankDefinition):
+        raise TgiError("Invalid bankDefinition target", TgiFaultCode.INVALID_ID)
+    _bank_storage(target)
+    return target
+
+
+def _bank_element_ids(bank: _Bank) -> list[str]:
+    content = _bank_content(bank)
+    values, path, types, _ref_type = _bank_storage(content)
+    return _child_ids(content, [item for item in values if isinstance(item, types)], (path,))
+
+
+def getBankAddressBlockIDs(bankID: str) -> list[str]:
+    """Return owned direct inline or referenced block handles (F.7.57.31)."""
+    return [
+        handle
+        for handle in _bank_element_ids(_require_bank(bankID))
+        if isinstance(resolve_handle(handle), BankedBlockType)
+    ]
+
+
+def getBankBankIDs(bankID: str) -> list[str]:
+    """Return owned direct nested bank handles in stored order (F.7.57.36)."""
+    return [
+        handle
+        for handle in _bank_element_ids(_require_bank(bankID))
+        if isinstance(resolve_handle(handle), _BANK_TYPES + _BANK_CHILD_TYPES)
+    ]
+
+
+def _bank_base(handle: str, *, local: bool) -> BaseAddress:
+    bank = _require_bank(handle, local=local)
+    if not isinstance(bank, (AddressBankType, AddressBankDefinitionType, LocalAddressBankType)):
+        raise TgiError("Bank model has no baseAddress", TgiFaultCode.INVALID_ID)
+    node = _child(bank, "base_address", BaseAddress)
+    if node is None:
+        raise TgiError("Missing required bank baseAddress", TgiFaultCode.INVALID_ID)
+    return node
+
+
+def getBankBaseAddress(bankOrLocalBankID: str) -> int:
+    """Evaluate the explicit unsigned 64-bit bank baseAddress (F.7.57.37)."""
+    return _block_expression_value(_bank_base(bankOrLocalBankID, local=True), "baseAddress", 0, (1 << 64) - 1)
+
+
+def getBankBaseAddressExpression(bankOrLocalBankID: str) -> str:
+    """Return the original bank baseAddress source (F.7.57.38)."""
+    return _block_expression_source(_bank_base(bankOrLocalBankID, local=True))
+
+
+def getBankBaseAddressID(bankID: str) -> str:
+    """Return the owned explicit nonlocal bank baseAddress wrapper (F.7.57.39)."""
+    return get_handle(_bank_base(bankID, local=False))
+
+
+def getBankBlockAndSubspaceElementIDs(bankOrLocalBankID: str) -> list[str]:
+    """Return owned direct bank/block/subspace handles in stored order (F.7.57.40)."""
+    return _bank_element_ids(_require_bank(bankOrLocalBankID, local=True))
+
+
+def getBankSubspaceMapIDs(bankID: str) -> list[str]:
+    """Return direct banked subspace handles; definitions have none (F.7.57.41)."""
+    return [
+        handle
+        for handle in _bank_element_ids(_require_bank(bankID))
+        if isinstance(resolve_handle(handle), BankedSubspaceType)
+    ]
+
+
+def _bank_scalar[T](bank: _Bank, attribute: str, model_type: type[T]) -> T | None:
+    content = _bank_content(bank)
+    if isinstance(content, _LOCAL_BANK_TYPES + (BankDefinitions.BankDefinition,)):
+        if model_type is UsageType:
+            value = content.usage
+            if value is not None and not isinstance(value, UsageType):
+                raise TgiError("Invalid bank usage", TgiFaultCode.INVALID_ID)
+            return value
+        return _child(content, attribute, model_type)
+    values, path, _types, _ref_type = _bank_storage(content)
+    node = next((item for item in values if isinstance(item, model_type)), None)
+    if node is not None and model_type is not UsageType:
+        register_parent(node, content, (path,), "list")
+    return node
+
+
+def getBankUsage(bankOrLocalBankID: str) -> str | None:
+    """Return explicit bank usage; absence permits mixed child usage (F.7.57.42)."""
+    node = _bank_scalar(_require_bank(bankOrLocalBankID, local=True), "usage", UsageType)
+    return node.value if node is not None else None
+
+
+def getBankVolatility(bankOrLocalBankID: str) -> bool | None:
+    """Return explicit bank volatility; absence is unspecified (F.7.57.43)."""
+    node = _bank_scalar(_require_bank(bankOrLocalBankID, local=True), "volatile", Volatile)
+    if node is None:
+        return None
+    if type(node.value) is not bool:
+        raise TgiError("Invalid bank volatile value", TgiFaultCode.INVALID_ID)
+    return node.value
