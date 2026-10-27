@@ -195,6 +195,12 @@ __all__ = [
     "removeMemoryMapSubspaceMap",
     "setMemoryMapMemoryMapDefinitionRef",
     "setMemoryMapShared",
+    "removeBankUsage",
+    "removeBankVolatility",
+    "setBankBankDefinitionRef",
+    "setBankBaseAddress",
+    "setBankUsage",
+    "setBankVolatility",
     "addAliasOfBankRef",
     "removeAliasOfAddressBlockRef",
     "removeAliasOfAddressSpaceRef",
@@ -1091,7 +1097,10 @@ def _bank_storage(bank: _BankContent) -> tuple[list | tuple, str, tuple[type, ..
         allowed = (ref_type, BankedBlockType, bank_type, UsageType, Volatile, AccessPolicies, Parameters)
         if model in (AddressBankType, BankedBankType):
             allowed += (BankedSubspaceType,)
-    values = getattr(bank, path)
+    try:
+        values = getattr(bank, path)
+    except AttributeError as error:
+        raise TgiError("Bank model has no supported content container", TgiFaultCode.INVALID_ID) from error
     if not isinstance(values, (list, tuple)) or any(not isinstance(item, allowed) for item in values):
         raise TgiError("Invalid bank content", TgiFaultCode.INVALID_ID)
     if ref_type is not None and any(isinstance(item, ref_type) for item in values) and len(values) != 1:
@@ -1232,6 +1241,190 @@ def getBankVolatility(bankOrLocalBankID: str) -> bool | None:
     if type(node.value) is not bool:
         raise TgiError("Invalid bank volatile value", TgiFaultCode.INVALID_ID)
     return node.value
+
+
+def _bank_edit_metadata(bank: _Bank, attribute: str, model_type: type) -> tuple[Any | None, str, str]:
+    """Validate and return an instance-local metadata node and its storage path."""
+    values, path, _types, ref_type = _bank_storage(bank)
+    if isinstance(bank, _LOCAL_BANK_TYPES):
+        value = getattr(bank, attribute, None)
+        expected = UsageType if model_type is UsageType else Volatile
+        if value is not None and not isinstance(value, expected):
+            raise TgiError(f"Invalid bank {attribute}", TgiFaultCode.INVALID_ID)
+        return value, attribute, "single"
+
+    # Validate reference Names without resolving the target definition. Metadata
+    # belongs to the addressed instance and is absent on a reference branch.
+    reference = next((item for item in values if ref_type is not None and isinstance(item, ref_type)), None)
+    if reference is not None:
+        _type_definition_reference_names(reference.value, reference.type_definitions)
+        return None, path, "list"
+
+    # Generated choice storage can be supplied directly by callers. Reject a
+    # malformed ordering before editing so the operation remains atomic.
+    ranks = (UsageType, Volatile, AccessPolicies, Parameters)
+    rank_by_type = {kind: rank + 1 for rank, kind in enumerate(ranks)}
+    last_rank = 0
+    for item in values:
+        rank = next((rank_by_type[kind] for kind in ranks if isinstance(item, kind)), 0)
+        if rank < last_rank:
+            raise TgiError("Invalid bank metadata order", TgiFaultCode.INVALID_ID)
+        last_rank = rank
+    current = next((item for item in values if isinstance(item, model_type)), None)
+    return current, path, "list"
+
+
+def _set_bank_metadata(bankID: str, attribute: str, value: str | bool, model_type: type) -> bool:
+    bank = _require_bank(bankID, local=True)
+    current, path, container = _bank_edit_metadata(bank, attribute, model_type)
+    values: list | tuple = []
+    content_types: tuple[type, ...] = ()
+    if container == "list":
+        values, _path, content_types, ref_type = _bank_storage(bank)
+        if ref_type is not None and any(isinstance(item, ref_type) for item in values):
+            raise TgiError("Cannot set instance metadata on a referenced bank", TgiFaultCode.INVALID_ARGUMENT)
+
+    replacement = UsageType(value) if model_type is UsageType else value
+    if model_type is Volatile:
+        if current is not None:
+            if type(current.value) is not bool:
+                raise TgiError("Invalid bank volatile value", TgiFaultCode.INVALID_ID)
+            _register_graph(current)
+            register_parent(current, bank, (path,), container)
+            current.value = replacement
+            return True
+        replacement = Volatile(value=replacement)
+    elif current == replacement:
+        return True
+
+    if container == "single":
+        setattr(bank, attribute, replacement)
+        if model_type is Volatile:
+            register_parent(replacement, bank, (attribute,), "single")
+        return True
+
+    values = _list_attr(bank, path)
+    if current is not None:
+        position = next(index for index, item in enumerate(values) if isinstance(item, model_type))
+        values[position] = replacement
+    else:
+        ranks = (UsageType, Volatile, AccessPolicies, Parameters)
+        rank = ranks.index(model_type)
+        position = len(values)
+        for index, item in enumerate(values):
+            item_rank = (
+                -1
+                if isinstance(item, content_types)
+                else next((i for i, kind in enumerate(ranks) if isinstance(item, kind)), len(ranks))
+            )
+            if item_rank > rank:
+                position = index
+                break
+        values.insert(position, replacement)
+    if model_type is Volatile:
+        register_parent(replacement, bank, (path,), "list")
+    return True
+
+
+def removeBankUsage(bankID: str) -> bool:
+    """Remove explicit usage from a bank instance without editing its target (F.7.58.36)."""
+    bank = _require_bank(bankID)
+    current, path, container = _bank_edit_metadata(bank, "usage", UsageType)
+    if container == "list" and _bank_reference_present(bank):
+        return False
+    if current is None:
+        return False
+    if container == "single":
+        bank.usage = None
+    else:
+        values = _list_attr(bank, path)
+        del values[next(index for index, item in enumerate(values) if isinstance(item, UsageType))]
+    return True
+
+
+def removeBankVolatility(bankID: str) -> bool:
+    """Remove explicit volatility and invalidate its wrapper handle (F.7.58.37)."""
+    bank = _require_bank(bankID)
+    current, path, container = _bank_edit_metadata(bank, "volatile", Volatile)
+    if container == "list" and _bank_reference_present(bank):
+        return False
+    if current is None:
+        return False
+    if type(current.value) is not bool:
+        raise TgiError("Invalid bank volatile value", TgiFaultCode.INVALID_ID)
+    if container == "list":
+        _list_attr(bank, path)
+    _register_graph(current)
+    if container == "single":
+        register_parent(current, bank, (path,), "single")
+    else:
+        register_parent(current, bank, (path,), "list")
+    if not detach_child_by_handle(get_handle(current)):
+        raise TgiError("Could not remove bank volatility", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def _bank_reference_present(bank: _Bank) -> bool:
+    values, _path, _types, ref_type = _bank_storage(bank)
+    return ref_type is not None and any(isinstance(item, ref_type) for item in values)
+
+
+def setBankUsage(bankID: str, usage: str) -> bool:
+    """Set the exact schema bank usage on an inline bank or localBank (F.7.58.64)."""
+    if not isinstance(usage, str):
+        raise TgiError("usage must be a schema usage string", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        value = UsageType(usage)
+    except ValueError as error:
+        raise TgiError("Invalid bank usage", TgiFaultCode.INVALID_ARGUMENT) from error
+    return _set_bank_metadata(bankID, "usage", value.value, UsageType)
+
+
+def setBankVolatility(bankOrLocalBankID: str, _volatile: bool) -> bool:
+    """Set explicit volatility on an inline bank or localBank (F.7.58.65)."""
+    if type(_volatile) is not bool:
+        raise TgiError("_volatile must be a boolean", TgiFaultCode.INVALID_ARGUMENT)
+    return _set_bank_metadata(bankOrLocalBankID, "volatile", _volatile, Volatile)
+
+
+def setBankBaseAddress(bankID: str, baseAddress: str) -> bool:
+    """Set a nonlocal addressed bank's unsigned 64-bit baseAddress (F.7.58.63)."""
+    node = _bank_base(bankID, local=False)
+    node.value = _expression(baseAddress, "baseAddress", 0, (1 << 64) - 1, node)
+    return True
+
+
+def setBankBankDefinitionRef(bankID: str, value: str, typeDefinitions: str) -> bool:
+    """Replace inline bank content with literal Name values or update its reference (F.7.58.62)."""
+    bank, reference = _bank_definition_reference(bankID)
+    name, external = _type_definition_reference_names_for_input(value, typeDefinitions)
+    values, path, _types, ref_type = _bank_storage(bank)
+    if ref_type is None:
+        raise TgiError("Bank model has no definition reference", TgiFaultCode.INVALID_ARGUMENT)
+    if reference is not None:
+        reference.value, reference.type_definitions = name, external
+        return True
+
+    values = _list_attr(bank, path)
+    children = [item for item in values if not isinstance(item, UsageType)]
+    for child in children:
+        register_parent(child, bank, (path,), "list")
+        _register_graph(child)
+    for child in children:
+        if not detach_child_by_handle(get_handle(child)):
+            raise TgiError("Could not replace bank inline definition", TgiFaultCode.INVALID_ID)
+    replacement = ref_type(value=name, type_definitions=external)
+    bank.choice = [replacement]
+    register_parent(replacement, bank, (path,), "list")
+    return True
+
+
+def _type_definition_reference_names_for_input(value: str, typeDefinitions: str) -> tuple[str, str]:
+    """Validate TGI Name arguments, reporting invalid caller input as INVALID_ARGUMENT."""
+    try:
+        return _name(value, "Name"), _name(typeDefinitions, "Name")
+    except TgiError as error:
+        raise TgiError("Invalid bank definition reference Name", TgiFaultCode.INVALID_ARGUMENT) from error
 
 
 def getBankBankDefinitionRefByExternalTypeDefID(bankID: str) -> str | None:
