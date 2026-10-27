@@ -24,6 +24,7 @@ from org.accellera.ipxact.v1685_2022 import (
     IndirectDataRef,
     IndirectInterface,
     MemoryRemapRef,
+    RegisterRef,
     ViewLinks,
 )
 
@@ -400,7 +401,12 @@ def _reference_qualifiers(source_path: tuple[Any, ...], xml_name: str) -> list[t
             if field_slice is not None and qualifier_name in {"addressSpaceRef", "memoryMapRef", "memoryRemapRef"}:
                 values = node.address_space_ref_or_memory_map_ref_or_memory_remap_ref
             for item in values:
-                name = item if isinstance(item, str) else _reference_value(item, qualifier_name)
+                if isinstance(node, RegisterRef) and qualifier_name == "registerRef":
+                    name = _reference_name(get_handle(node), qualifier_name)
+                elif isinstance(item, RegisterRef) and qualifier_name == "registerRef":
+                    name = _reference_name(get_handle(item), qualifier_name)
+                else:
+                    name = item if isinstance(item, str) else _reference_value(item, qualifier_name)
                 if isinstance(name, str) and name.strip():
                     qualifiers.append((target_types, name))
     return qualifiers
@@ -572,8 +578,10 @@ def resolve_attribute_reference(elementID: str, xml_name: str) -> str | None:
     element = resolve_handle(elementID)
     if element is None:
         raise TgiError("Invalid element handle", TgiFaultCode.INVALID_ID)
-    normalized_reference = (isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef") or (
-        isinstance(element, MemoryRemapRef) and xml_name == "memoryRemapRef"
+    normalized_reference = (
+        (isinstance(element, ViewLinks.ViewLink.ViewReference) and xml_name == "viewRef")
+        or (isinstance(element, MemoryRemapRef) and xml_name == "memoryRemapRef")
+        or (isinstance(element, RegisterRef) and xml_name == "registerRef")
     )
     reference = _reference_name(elementID, xml_name) if normalized_reference else _reference_value(element, xml_name)
     if reference is None or not reference.strip():

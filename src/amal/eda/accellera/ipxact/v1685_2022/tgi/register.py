@@ -17,6 +17,8 @@ from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
 from org.accellera.ipxact.v1685_2022.alternate_register_ref import AlternateRegisterRef
 from org.accellera.ipxact.v1685_2022.field_ref import FieldRef
+from org.accellera.ipxact.v1685_2022.index import Index
+from org.accellera.ipxact.v1685_2022.indices import Indices
 from org.accellera.ipxact.v1685_2022.register_ref import RegisterRef
 from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegisters
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
@@ -164,6 +166,8 @@ __all__ = [
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
     "removeEnumeratedValuesEnumeratedValue",
+    "removeFieldRefIndex",
+    "removeRegisterRefIndex",
     "removeRegisterAlternateRegister",
     "removeRegisterField",
     "removeRegisterFieldEnumeratedValues",
@@ -1614,16 +1618,98 @@ def getFieldDefinitionVolatile(fieldDefinitionID: str) -> bool:
     return False if value is None else value
 
 
+def _register_reference[T: FieldRef | RegisterRef](reference_id: str, model_type: type[T]) -> T:
+    """Resolve a generated field/register reference before source or index access."""
+    if not isinstance(reference_id, str):
+        raise TgiError("Invalid reference handle", TgiFaultCode.INVALID_ID)
+    reference = resolve_handle(reference_id)
+    if not isinstance(reference, model_type):
+        raise TgiError("Invalid reference handle", TgiFaultCode.INVALID_ID)
+    return reference
+
+
+def _register_reference_indices(reference: FieldRef | RegisterRef) -> Indices | None:
+    """Validate index wrappers and restore their immediate schema ownership."""
+    from ._model import _owned_list_ids
+
+    holder = reference.indices
+    if holder is None:
+        return None
+    if not isinstance(holder, Indices) or not isinstance(holder.index, (list, tuple)):
+        raise TgiError("Invalid reference indices model", TgiFaultCode.INVALID_ID)
+    if any(not isinstance(index, Index) for index in holder.index):
+        raise TgiError("Invalid reference index model", TgiFaultCode.INVALID_ID)
+    if len({id(index) for index in holder.index}) != len(holder.index):
+        raise TgiError("Duplicate reference index objects", TgiFaultCode.INVALID_ID)
+    register_parent(holder, reference, ("indices",), "single")
+    _owned_list_ids(holder, holder.index, "index")
+    return holder
+
+
+def _add_register_reference_index(reference: FieldRef | RegisterRef, value: str) -> str:
+    """Append an unsigned 32-bit expression index after validating its holder."""
+    holder = _register_reference_indices(reference)
+    source = _register_file_expression(value, "value", 0, _UINT32_MAX)
+    index = Index(value=source)
+    if holder is None:
+        holder = Indices(index=[])
+        reference.indices = holder
+        register_parent(holder, reference, ("indices",), "single")
+    _list_attr(holder, "index").append(index)
+    register_parent(index, holder, ("index",), "list")
+    _register_graph(index)
+    return get_handle(index)
+
+
+def _remove_register_reference_index(indexID: str, model_type: type[FieldRef] | type[RegisterRef]) -> bool:
+    """Remove an index only from its actual reference family, pruning an empty holder."""
+    if not isinstance(indexID, str):
+        raise TgiError("Invalid index handle", TgiFaultCode.INVALID_ID)
+    index = resolve_handle(indexID)
+    if not isinstance(index, Index):
+        raise TgiError("Invalid index handle", TgiFaultCode.INVALID_ID)
+    holder = _register_owned_child(index, Indices)
+    reference = _register_owned_child(holder, model_type) if holder is not None else None
+    if reference is None or reference.indices is not holder:
+        raise TgiError("Index has no owning reference of the required type", TgiFaultCode.INVALID_ID)
+    _register_reference_indices(reference)
+    if not any(child is index for child in holder.index):
+        raise TgiError("Index is not in its owning reference", TgiFaultCode.INVALID_ID)
+    _list_attr(holder, "index")
+    if not detach_child_by_handle(indexID):
+        raise TgiError("Could not remove reference index", TgiFaultCode.INVALID_ID)
+    if not holder.index and not detach_child_by_handle(get_handle(holder)):
+        raise TgiError("Could not remove empty indices", TgiFaultCode.INVALID_ID)
+    return True
+
+
 def getFieldRefFieldRefByName(fieldRefID: str) -> str | None:
-    """Return fieldRef value (F.7.73.43)."""
-    fr = _resolve(fieldRefID)
-    return _maybe_value(getattr(fr, "field_ref", None))
+    """Return the fieldRef source Name (F.7.73.43).
+
+    Args:
+        fieldRefID: Handle to a fieldRef element.
+
+    Returns:
+        The stored XML Name of the referenced field.
+    """
+    from ._attribute_references import _reference_name
+
+    _register_reference(fieldRefID, FieldRef)
+    return _reference_name(fieldRefID, "fieldRef")
 
 
 def getFieldRefIndexIDs(fieldRefID: str) -> list[str]:
-    """Return index handles (F.7.73.44)."""
-    fr = _resolve(fieldRefID)
-    return _list_handles(fr, "index")
+    """Return ordered owned fieldRef index handles (F.7.73.44).
+
+    Args:
+        fieldRefID: Handle to a fieldRef element.
+
+    Returns:
+        Stored index handles, or an empty list when indices are absent.
+    """
+    reference = _register_reference(fieldRefID, FieldRef)
+    holder = _register_reference_indices(reference)
+    return [get_handle(index) for index in holder.index] if holder is not None else []
 
 
 # Register (address / size / type)
@@ -2005,22 +2091,47 @@ def getRegisterFileAddressOffsetID(registerFileID: str) -> str | None:
 
 
 def getRegisterRefAttributeByID(registerRefID: str) -> str | None:
-    """Return referenced register handle (F.7.73.66)."""
-    rr = _resolve(registerRefID)
-    reg = getattr(rr, "register", None)
-    return get_handle(reg) if reg is not None else None
+    """Resolve the register targeted by a registerRef (F.7.73.66).
+
+    Args:
+        registerRefID: Handle to a registerRef element.
+
+    Returns:
+        The referenced register handle in its standard document/path context.
+    """
+    from ._attribute_references import resolve_attribute_reference
+
+    getRegisterRefRegisterRefByName(registerRefID)
+    return resolve_attribute_reference(registerRefID, "registerRef")
 
 
 def getRegisterRefIndexIDs(registerRefID: str) -> list[str]:
-    """Return index handles (F.7.73.67)."""
-    rr = _resolve(registerRefID)
-    return _list_handles(rr, "index")
+    """Return ordered owned registerRef index handles (F.7.73.67).
+
+    Args:
+        registerRefID: Handle to a registerRef element.
+
+    Returns:
+        Stored index handles, or an empty list when indices are absent.
+    """
+    reference = _register_reference(registerRefID, RegisterRef)
+    holder = _register_reference_indices(reference)
+    return [get_handle(index) for index in holder.index] if holder is not None else []
 
 
 def getRegisterRefRegisterRefByName(registerRefID: str) -> str | None:
-    """Return registerRef value (F.7.73.68)."""
-    rr = _resolve(registerRefID)
-    return _maybe_value(getattr(rr, "register_ref", None))
+    """Return the registerRef source Name (F.7.73.68).
+
+    Args:
+        registerRefID: Handle to a registerRef element.
+
+    Returns:
+        The stored XML Name of the referenced register.
+    """
+    from ._attribute_references import _reference_name
+
+    _register_reference(registerRefID, RegisterRef)
+    return _reference_name(registerRefID, "registerRef")
 
 
 # Register definition references
@@ -2605,16 +2716,16 @@ def setEnumeratedValuesEnumerationDefinitionRef(
 
 
 def addFieldRefIndex(fieldRefID: str, value: str) -> str:
-    """Add index to fieldRef (F.7.74.6)."""
-    fr = _resolve(fieldRefID)
-    if fr is None:
-        raise TgiError("Invalid fieldRef handle", TgiFaultCode.INVALID_ID)
-    idx = _ns(value=_coerce_int(value))
-    if not hasattr(fr, "index"):
-        fr.index = []  # type: ignore[attr-defined]
-    fr.index.append(idx)  # type: ignore[attr-defined]
-    register_parent(idx, fr, ("index",), "list")
-    return get_handle(idx)
+    """Append a field reference index expression (F.7.74.6).
+
+    Args:
+        fieldRefID: Handle to a fieldRef element.
+        value: Unsigned 32-bit index expression source.
+
+    Returns:
+        Handle to the generated owned Index element.
+    """
+    return _add_register_reference_index(_register_reference(fieldRefID, FieldRef), value)
 
 
 def addRegisterAlternateRegister(
@@ -2761,19 +2872,16 @@ def addRegisterFieldReset(registerFieldID: str, value: str) -> str:
 
 
 def addRegisterRefIndex(registerRefID: str, value: str) -> str:
-    """Add index to registerRef (F.7.74.10)."""
-    rr = _resolve(registerRefID)
-    if rr is None:
-        raise TgiError("Invalid registerRef handle", TgiFaultCode.INVALID_ID)
-    idx = _ns(value=_coerce_int(value))
-    if not hasattr(rr, "index"):
-        rr.index = []  # type: ignore[attr-defined]
-    rr.index.append(idx)  # type: ignore[attr-defined]
-    register_parent(idx, rr, ("index",), "list")
-    return get_handle(idx)
+    """Append a register reference index expression (F.7.74.10).
 
+    Args:
+        registerRefID: Handle to a registerRef element.
+        value: Unsigned 32-bit index expression source.
 
-# Removes
+    Returns:
+        Handle to the generated owned Index element.
+    """
+    return _add_register_reference_index(_register_reference(registerRefID, RegisterRef), value)
 
 
 def removeAliasOfAlternateRegisterRef(aliasOfID: str) -> bool:
@@ -3734,3 +3842,27 @@ def setResetValue(resetID: str, value: str) -> bool:
     register_parent(current, reset, ("value",), "single")
     _register_graph(current)
     return True
+
+
+def removeFieldRefIndex(indexID: str) -> bool:
+    """Remove an index from its containing fieldRef (F.7.74.24).
+
+    Args:
+        indexID: Handle to an index in a fieldRef indices holder.
+
+    Returns:
+        True after removal and optional empty-holder pruning.
+    """
+    return _remove_register_reference_index(indexID, FieldRef)
+
+
+def removeRegisterRefIndex(indexID: str) -> bool:
+    """Remove an index from its containing registerRef (F.7.74.34).
+
+    Args:
+        indexID: Handle to an index in a registerRef indices holder.
+
+    Returns:
+        True after removal and optional empty-holder pruning.
+    """
+    return _remove_register_reference_index(indexID, RegisterRef)

@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete nine Register field/register reference and index operations with typed name and target resolution, unsigned expression indices, validated ownership, parsed child removal, and empty-holder pruning. Normalize register-reference names consistently during target and path matching.
 - Complete ten Register alias-reference operations with typed source and handle getters, validated name setters, preserved reference wrappers and indices, owned child creation, and schema-aware field alias choices.
 - Complete ten Register field-definition and register-definition reference operations with document-scoped imports, registered-library target resolution, validated deferred references, preserved metadata and handles, and owned choice replacement.
 - Complete nine Register enumeration-reference and holder operations with document-scoped external declarations, registered-library target resolution, validated reference replacement, typed field holders, and owned subtree removal.
