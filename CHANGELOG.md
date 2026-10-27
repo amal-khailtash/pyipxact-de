@@ -5,6 +5,13 @@ This document lists notable changes for each release and follows:
 - Keep a Changelog: <https://keepachangelog.com>
 - Semantic Versioning: <https://semver.org>
 
+## [0.10.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.9.0...v0.10.0) (2026-10-27)
+
+
+### Features
+
+* **tgi:** complete Register and Memory map operations ([3f03ab3](https://github.com/amal-khailtash/pyipxact-de/commit/3f03ab3c0280bf0fc97a37de16d7cd4ddce42e52))
+
 ## [Unreleased]
 
 ### Fixed
