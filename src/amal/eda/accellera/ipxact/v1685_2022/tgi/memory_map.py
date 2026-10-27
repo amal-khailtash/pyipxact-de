@@ -15,7 +15,18 @@ return None (or empty lists) per TGI semantics. Invalid handles raise
 from collections.abc import Iterable
 from typing import Any
 
-from org.accellera.ipxact.v1685_2022 import MemoryMapType
+from org.accellera.ipxact.v1685_2022 import (
+    AddressBlock,
+    AddressUnitBits,
+    Bank,
+    LocalAddressBankType,
+    LocalMemoryMapType,
+    MemoryMapType,
+    MemoryRemap,
+    SharedType,
+    SubspaceMap,
+    AddressSpaces,
+)
 
 from .core import (
     TgiError,
@@ -60,7 +71,10 @@ __all__ = [
 # Internal helpers (non-spec)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_memory_map(memoryMapID: str) -> MemoryMapType | None:
+    if not isinstance(memoryMapID, str):
+        return None
     obj = resolve_handle(memoryMapID)
     return obj if isinstance(obj, MemoryMapType) else None
 
@@ -80,97 +94,141 @@ def _ids(items: Iterable[Any]) -> list[str]:  # helper for list of handles
 # BASE (F.7.57)
 # ---------------------------------------------------------------------------
 
+
+def _memory_map_choice(memory_map: MemoryMapType) -> list | tuple:
+    """Validate stored inline/reference branches without normalizing their containers."""
+    values = memory_map.choice
+    allowed = (AddressBlock, Bank, SubspaceMap, MemoryRemap, AddressUnitBits, SharedType)
+    if not isinstance(values, (list, tuple)):
+        raise TgiError("Invalid memoryMap choice", TgiFaultCode.INVALID_ID)
+    references = [item for item in values if isinstance(item, MemoryMapType.MemoryMapDefinitionRef)]
+    if references:
+        if len(values) != 1:
+            raise TgiError("Conflicting memoryMap definition and inline content", TgiFaultCode.INVALID_ID)
+        return values
+    if any(not isinstance(item, allowed) for item in values):
+        raise TgiError("Invalid memoryMap choice child", TgiFaultCode.INVALID_ID)
+    for scalar in (AddressUnitBits, SharedType):
+        if sum(isinstance(item, scalar) for item in values) > 1:
+            raise TgiError("Duplicate memoryMap scalar child", TgiFaultCode.INVALID_ID)
+    return values
+
+
+def _memory_map_elements(memory_map: MemoryMapType | LocalMemoryMapType) -> list[str]:
+    """Return ordered direct block/bank/subspace handles from the actual schema container."""
+    from .register_file import _child_ids
+
+    if isinstance(memory_map, MemoryMapType):
+        values = _memory_map_choice(memory_map)
+        children = [item for item in values if isinstance(item, (AddressBlock, Bank, SubspaceMap))]
+        return _child_ids(memory_map, children, ("choice",))
+    values = memory_map.address_block_or_bank
+    if not isinstance(values, (list, tuple)) or any(
+        not isinstance(item, (AddressBlock, LocalAddressBankType)) for item in values
+    ):
+        raise TgiError("Invalid localMemoryMap children", TgiFaultCode.INVALID_ID)
+    return _child_ids(memory_map, values, ("address_block_or_bank",))
+
+
+def _require_map_or_local(handle: str) -> MemoryMapType | LocalMemoryMapType:
+    if not isinstance(handle, str):
+        raise TgiError("Invalid memoryMap or localMemoryMap handle", TgiFaultCode.INVALID_ID)
+    owner = resolve_handle(handle)
+    if not isinstance(owner, (MemoryMapType, LocalMemoryMapType)):
+        raise TgiError("Invalid memoryMap or localMemoryMap handle", TgiFaultCode.INVALID_ID)
+    return owner
+
+
+def _memory_map_unit(owner: MemoryMapType | LocalMemoryMapType) -> AddressUnitBits | None:
+    """Read the explicit unit node; local maps use their actual containing address space."""
+    from .address_space import _register_owned_child
+    from .port_map import _child
+
+    if isinstance(owner, LocalMemoryMapType):
+        address_space = _register_owned_child(owner, AddressSpaces.AddressSpace)
+        if address_space is None or address_space.local_memory_map is not owner:
+            raise TgiError("localMemoryMap has no containing addressSpace", TgiFaultCode.INVALID_ID)
+        return _child(address_space, "address_unit_bits", AddressUnitBits)
+    values = _memory_map_choice(owner)
+    node = next((item for item in values if isinstance(item, AddressUnitBits)), None)
+    if node is not None:
+        register_parent(node, owner, ("choice",), "list")
+    return node
+
+
 def getMemoryMapAddressBlockIDs(memoryMapID: str) -> list[str]:
-    """Return handles of all ``addressBlock`` children.
+    """Return owned direct addressBlock handles in stored order (F.7.57.44)."""
+    owner = _require_memory_map(memoryMapID)
+    return [handle for handle in _memory_map_elements(owner) if isinstance(resolve_handle(handle), AddressBlock)]
 
-    Section: F.7.57.44.
+
+def getMemoryMapAddressUnitBits(memoryMapOrLocalMemoryMapID: str) -> int | None:
+    """Evaluate explicit addressUnitBits or the absent inline default of eight (F.7.57.45).
+
+    Local maps use the containing addressSpace. Definition-reference values require
+    definition expansion and remain unavailable when no inline value is stored.
     """
-    mm = _require_memory_map(memoryMapID)
-    return _ids(getattr(mm, "address_block", []))
+    from .register_file import _numeric
+
+    owner = _require_map_or_local(memoryMapOrLocalMemoryMapID)
+    node = _memory_map_unit(owner)
+    if node is None:
+        if isinstance(owner, MemoryMapType) and any(
+            isinstance(item, MemoryMapType.MemoryMapDefinitionRef) for item in owner.choice
+        ):
+            return None
+        return 8
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid addressUnitBits source", TgiFaultCode.INVALID_ID)
+    return _numeric(node, "addressUnitBits", minimum=1, maximum=(1 << 63) - 1)
 
 
-def getMemoryMapAddressUnitBits(memoryMapID: str) -> int | None:
-    """Return the numeric value of ``addressUnitBits``.
-
-    Section: F.7.57.45. Returns None if element absent or not numeric.
-    """
-    mm = _resolve_memory_map(memoryMapID)
-    if mm is None or mm.address_unit_bits is None:
+def getMemoryMapAddressUnitBitsExpression(memoryMapOrLocalMemoryMapID: str) -> str | None:
+    """Return explicit address-unit source without creating a default node (F.7.57.46)."""
+    node = _memory_map_unit(_require_map_or_local(memoryMapOrLocalMemoryMapID))
+    if node is None:
         return None
-    val = getattr(mm.address_unit_bits, "value", None)
-    try:
-        return int(val) if val is not None else None
-    except (TypeError, ValueError):  # fall back to None on expression
-        return None
-
-
-def getMemoryMapAddressUnitBitsExpression(memoryMapID: str) -> str | None:
-    """Return expression text of ``addressUnitBits`` if present.
-
-    Section: F.7.57.46. Returns None if no element.
-    """
-    mm = _resolve_memory_map(memoryMapID)
-    if mm is None or mm.address_unit_bits is None:
-        return None
-    return getattr(mm.address_unit_bits, "value", None)
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid addressUnitBits source", TgiFaultCode.INVALID_ID)
+    return node.value
 
 
 def getMemoryMapAddressUnitBitsID(memoryMapID: str) -> str | None:
-    """Return handle of ``addressUnitBits`` element.
-
-    Section: F.7.57.47. Returns None if absent.
-    """
-    mm = _resolve_memory_map(memoryMapID)
-    if mm is None or mm.address_unit_bits is None:
-        return None
-    return get_handle(mm.address_unit_bits)
+    """Return the explicit owned addressUnitBits handle, or None when absent (F.7.57.47)."""
+    node = _memory_map_unit(_require_memory_map(memoryMapID))
+    return get_handle(node) if node is not None else None
 
 
 def getMemoryMapBankIDs(memoryMapID: str) -> list[str]:
-    """Return handles of ``bank`` children.
-
-    Section: F.7.57.48.
-    """
-    mm = _require_memory_map(memoryMapID)
-    return _ids(getattr(mm, "bank", []))
+    """Return owned direct bank handles in stored order (F.7.57.48)."""
+    owner = _require_memory_map(memoryMapID)
+    return [handle for handle in _memory_map_elements(owner) if isinstance(resolve_handle(handle), Bank)]
 
 
-def getMemoryMapElementIDs(memoryMapID: str) -> list[str]:
-    """Return handles of all direct memory map elements (addressBlocks, banks, subspaceMaps, memoryRemaps).
-
-    Section: F.7.57.49.
-    """
-    mm = _require_memory_map(memoryMapID)
-    ids: list[str] = []
-    ids.extend(_ids(getattr(mm, "address_block", [])))
-    ids.extend(_ids(getattr(mm, "bank", [])))
-    ids.extend(_ids(getattr(mm, "subspace_map", [])))
-    ids.extend(_ids(getattr(mm, "memory_remap", [])))
-    return ids
+def getMemoryMapElementIDs(memoryMapOrLocalMemoryMapID: str) -> list[str]:
+    """Return ordered direct banks, blocks and subspace maps, excluding remaps (F.7.57.49)."""
+    return _memory_map_elements(_require_map_or_local(memoryMapOrLocalMemoryMapID))
 
 
-def getMemoryMapElementType(elementID: str) -> str | None:
-    """Return the element type name for a memory map child handle.
+def getMemoryMapElementType(memoryMapElementID: str) -> str:
+    """Return addressBlock, bank or subSpaceMap for a typed element handle (F.7.57.50)."""
+    from org.accellera.ipxact.v1685_2022 import (
+        AddressBankType,
+        BankedBankType,
+        BankedBlockType,
+        BankedSubspaceType,
+    )
 
-    Section: F.7.57.50. Returns the local element type string or None if the
-    handle does not reference a known memory map element type.
-    """
-    obj = resolve_handle(elementID)
-    # Import types lazily to avoid heavy upfront imports
-    from org.accellera.ipxact.v1685_2022.address_block import AddressBlock
-    from org.accellera.ipxact.v1685_2022.bank import Bank
-    from org.accellera.ipxact.v1685_2022.subspace_map import SubspaceMap
-    from org.accellera.ipxact.v1685_2022.memory_remap_type import MemoryRemapType
-
-    if isinstance(obj, AddressBlock):
+    if not isinstance(memoryMapElementID, str):
+        raise TgiError("Invalid memory-map element handle", TgiFaultCode.INVALID_ID)
+    element = resolve_handle(memoryMapElementID)
+    if isinstance(element, (AddressBlock, BankedBlockType)):
         return "addressBlock"
-    if isinstance(obj, Bank):
+    if isinstance(element, (AddressBankType, BankedBankType, LocalAddressBankType)):
         return "bank"
-    if isinstance(obj, SubspaceMap):
-        return "subspaceMap"
-    if isinstance(obj, MemoryRemapType):
-        return "memoryRemap"
-    return None
+    if isinstance(element, (SubspaceMap, BankedSubspaceType)):
+        return "subSpaceMap"
+    raise TgiError("Invalid memory-map element handle", TgiFaultCode.INVALID_ID)
 
 
 def getMemoryMapMemoryMapDefinitionRefByExternalTypeDefID(
@@ -242,6 +300,7 @@ def getMemoryMapShared(memoryMapID: str) -> str | None:
 # EXTENDED (F.7.58)
 # ---------------------------------------------------------------------------
 
+
 def addMemoryMapAddressBlock(memoryMapID: str, name: str) -> str:
     """Create a new ``addressBlock`` under a memory map.
 
@@ -309,6 +368,7 @@ def removeMemoryMapMemoryRemap(memoryRemapID: str) -> bool:
     """
     obj = resolve_handle(memoryRemapID)
     from org.accellera.ipxact.v1685_2022.memory_remap_type import MemoryRemapType
+
     if not isinstance(obj, MemoryRemapType):
         raise TgiError("Invalid memoryRemap handle", TgiFaultCode.INVALID_ID)
     return detach_child_by_handle(memoryRemapID)
@@ -321,6 +381,7 @@ def removeMemoryMapSubspaceMap(subspaceMapID: str) -> bool:
     """
     obj = resolve_handle(subspaceMapID)
     from org.accellera.ipxact.v1685_2022.subspace_map import SubspaceMap
+
     if not isinstance(obj, SubspaceMap):
         raise TgiError("Invalid subspaceMap handle", TgiFaultCode.INVALID_ID)
     return detach_child_by_handle(subspaceMapID)
@@ -336,9 +397,7 @@ def setMemoryMapMemoryMapDefinitionRef(memoryMapID: str, name: str | None) -> bo
     if name is None:
         mm.memory_map_definition_ref = None  # type: ignore[assignment]
         return True
-    mm.memory_map_definition_ref = MemoryMapType.MemoryMapDefinitionRef(
-        value=name, type_definitions="typeDefinitions"
-    )  # type: ignore[assignment]
+    mm.memory_map_definition_ref = MemoryMapType.MemoryMapDefinitionRef(value=name, type_definitions="typeDefinitions")  # type: ignore[assignment]
     return True
 
 
@@ -355,4 +414,3 @@ def setMemoryMapShared(memoryMapID: str, shared: str | None) -> bool:
 
     mm.shared = SharedType(value=shared)  # type: ignore[arg-type]
     return True
-
