@@ -170,6 +170,9 @@ __all__ = [
     "removeRegisterRefIndex",
     "removeRegisterAlternateRegister",
     "removeRegisterField",
+    "removeRegisterFieldArray",
+    "removeRegisterFieldBitWidth",
+    "removeUsageAttribute",
     "removeRegisterFieldEnumeratedValues",
     "removeRegisterFieldReset",
     "removeRegisterFieldTypeIdentifier",
@@ -188,6 +191,7 @@ __all__ = [
     "setModeRefPriority",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
+    "setRegisterFieldAliasOf",
     "setRegisterFieldEnumeratedValues",
     "setAliasOfAlternateRegisterRef",
     "setAliasOfFieldRef",
@@ -2884,26 +2888,41 @@ def addRegisterRefIndex(registerRefID: str, value: str) -> str:
     return _add_register_reference_index(_register_reference(registerRefID, RegisterRef), value)
 
 
-def removeAliasOfAlternateRegisterRef(aliasOfID: str) -> bool:
-    """Remove alternateRegisterRef (F.7.74.11)."""
-    a = _resolve(aliasOfID)
-    if a is None:
-        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
-    if getattr(a, "alternate_register_ref", None) is None:
+def _remove_register_alias_reference(aliasOfID: str, attribute: str) -> bool:
+    """Detach an optional alias path wrapper and invalidate its owned descendants."""
+    alias = _register_alias(aliasOfID)
+    child = getattr(alias, attribute)
+    if child is None:
         return False
-    a.alternate_register_ref = None  # type: ignore[attr-defined]
+    register_parent(child, alias, (attribute,), "single")
+    _register_graph(child)
+    if not detach_child_by_handle(get_handle(child)):
+        raise TgiError("Could not remove alias reference", TgiFaultCode.INVALID_ID)
     return True
+
+
+def removeAliasOfAlternateRegisterRef(aliasOfID: str) -> bool:
+    """Remove an alias's optional alternateRegisterRef (F.7.74.11).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        True when the owned reference was removed, or False when absent.
+    """
+    return _remove_register_alias_reference(aliasOfID, "alternate_register_ref")
 
 
 def removeAliasOfRegisterRef(aliasOfID: str) -> bool:
-    """Remove registerRef (F.7.74.12)."""
-    a = _resolve(aliasOfID)
-    if a is None:
-        raise TgiError("Invalid aliasOf handle", TgiFaultCode.INVALID_ID)
-    if getattr(a, "register_ref", None) is None:
-        return False
-    a.register_ref = None  # type: ignore[attr-defined]
-    return True
+    """Remove an alias's optional registerRef and its indices (F.7.74.12).
+
+    Args:
+        aliasOfID: Handle to a field aliasOf element.
+
+    Returns:
+        True when the owned reference was removed, or False when absent.
+    """
+    return _remove_register_alias_reference(aliasOfID, "register_ref")
 
 
 def removeAlternateRegisterField(regFieldID: str) -> bool:
@@ -3866,3 +3885,104 @@ def removeRegisterRefIndex(indexID: str) -> bool:
         True after removal and optional empty-holder pruning.
     """
     return _remove_register_reference_index(indexID, RegisterRef)
+
+
+def removeRegisterFieldArray(registerFieldID: str) -> bool:
+    """Remove the optional field array and its descendants (F.7.74.27).
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        True when the array was removed, or False when absent.
+    """
+    if not isinstance(registerFieldID, str):
+        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
+    field = _resolve_field(registerFieldID)
+    array = field.array
+    if array is None:
+        return False
+    if not isinstance(array, FieldType.Array):
+        raise TgiError("Invalid register field array model", TgiFaultCode.INVALID_ID)
+    register_parent(array, field, ("array",), "single")
+    _register_graph(array)
+    if not detach_child_by_handle(get_handle(array)):
+        raise TgiError("Could not remove field array", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeRegisterFieldBitWidth(registerFieldID: str) -> bool:
+    """Remove the inline width without inventing a replacement branch (F.7.74.28).
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        True when the width was removed, or False for absent/alias/reference widths.
+    """
+    field, _reference = _resolve_register_field_definition_reference(registerFieldID)
+    width = _register_field_bit_width(field)
+    if width is None:
+        return False
+    _list_attr(field, "choice")
+    _register_graph(width)
+    if not detach_child_by_handle(get_handle(width)):
+        raise TgiError("Could not remove field width", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeUsageAttribute(enumeratedValueID: str) -> bool:
+    """Remove stored enumeration usage, restoring its schema default (F.7.74.38).
+
+    Args:
+        enumeratedValueID: Handle to an enumeratedValue element.
+
+    Returns:
+        True when a stored usage was removed, or False when already None.
+    """
+    value = _resolve_enumerated_value(enumeratedValueID)
+    if value.usage is None:
+        return False
+    if not isinstance(value.usage, EnumeratedValueTypeUsage):
+        raise TgiError("Invalid enumeratedValue usage", TgiFaultCode.INVALID_ID)
+    value.usage = None
+    return True
+
+
+def setRegisterFieldAliasOf(registerFieldID: str, fieldRef: str) -> bool:
+    """Set a field alias source, preserving fieldData and existing alias paths (F.7.74.57).
+
+    Args:
+        registerFieldID: Handle to a register field element.
+        fieldRef: Name of the referenced field.
+
+    Returns:
+        True after assigning the alias; target resolution may be deferred.
+    """
+    field, _reference = _resolve_register_field_definition_reference(registerFieldID)
+    source = _schema_name(fieldRef, "Name")
+    _width, reference, alias = _register_field_width_state(field)
+    if alias is not None:
+        alias_id = getRegisterFieldAliasOfID(registerFieldID)
+        assert alias_id is not None
+        return setAliasOfFieldRef(alias_id, source)
+
+    _register_field_resets(field)
+    policies = [child for child in field.choice if isinstance(child, FieldType.FieldAccessPolicies)]
+    if len(policies) > 1:
+        raise TgiError("Duplicate register field access policies", TgiFaultCode.INVALID_ID)
+    _register_field_enumerated_values(field)
+    _register_graph(field)
+    choice = _list_attr(field, "choice")
+    for child in tuple(choice):
+        if isinstance(child, (UnsignedPositiveIntExpression, FieldType.FieldDefinitionRef, FieldType.Resets)):
+            if not detach_child_by_handle(get_handle(child)):
+                raise TgiError("Could not replace field definition branch", TgiFaultCode.INVALID_ID)
+        elif isinstance(child, bool):
+            choice.remove(child)
+    alias = FieldType.AliasOf(field_ref=FieldRef(field_ref=source))
+    position = next((i for i, child in enumerate(choice) if not isinstance(child, str)), len(choice))
+    choice.insert(position, alias)
+    register_parent(alias, field, ("choice",), "list")
+    _register_graph(alias)
+    return True
