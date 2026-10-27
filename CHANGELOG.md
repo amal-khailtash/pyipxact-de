@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete nine Register reset value and mask operations with field-width unsigned bit conversion, arbitrary-precision results, preserved expression metadata and handles, and optional mask removal.
 - Complete six Register field and alternate-register child lifecycle operations with generated builders, shared validation, scoped identity checks, parsed ownership recovery, descendant invalidation, and empty-holder pruning.
 - Complete seven Alternate register field and mode-reference lifecycle operations with generated builders, expression and identity validation, parsed ownership recovery, descendant invalidation, and scoped mode priority edits.
 - Complete six Alternate register type-identifier and volatility operations with typed models, validated values, preserved wrapper ownership, removal invalidation, and unspecified absent-volatility semantics.

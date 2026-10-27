@@ -79,3 +79,43 @@ def test_string_context_resolves_named_constants() -> None:
 def test_invalid_string_assignment_context(expression: str) -> None:
     with pytest.raises(SvExpressionError):
         SvExpressionParser().parse_string(expression)
+
+
+@pytest.mark.parametrize(
+    "expression,width,expected",
+    [
+        ("-1", 8, 255),
+        ("256", 8, 0),
+        ("8'bx1z0", 8, 4),
+        ("3.5", 8, 4),
+        ('"AB"', 8, 66),
+        ("128'hffffffffffffffffffffffffffffffff", 128, 2**128 - 1),
+        ("8'shff", None, 255),
+    ],
+)
+def test_bit_vector_assignment_context(expression: str, width: int | None, expected: int) -> None:
+    result = SvExpressionParser().parse_bit_vector(expression, width)
+    assert result.as_python() == expected
+    assert result.bit_width == (8 if width is None else width)
+    assert result.is_signed is False
+    assert result.has_unknown is False
+    assert result.expression == expression
+
+
+@pytest.mark.parametrize("width", [0, -1, True, 1.5, "8"])
+def test_invalid_bit_vector_width(width) -> None:
+    with pytest.raises(SvExpressionError, match="positive integer"):
+        SvExpressionParser().parse_bit_vector("1", width)
+
+
+@pytest.mark.parametrize("expression", ["3.5", "string'(65)"])
+def test_nonintegral_bit_vector_requires_width(expression: str) -> None:
+    with pytest.raises(SvExpressionError, match="explicit bit vector width"):
+        SvExpressionParser().parse_bit_vector(expression)
+
+
+def test_bit_vector_named_constants_and_invalid_expression() -> None:
+    parser = SvExpressionParser({"WIDTH": 8, "VALUE": -1})
+    assert parser.parse_bit_vector("VALUE", 8).as_python() == 255
+    with pytest.raises(SvExpressionError):
+        parser.parse_bit_vector("MISSING", 8)

@@ -17,16 +17,20 @@ from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegiste
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
 from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
 from org.accellera.ipxact.v1685_2022.field_type import FieldType
+from org.accellera.ipxact.v1685_2022.field_definitions import FieldDefinitions
 from org.accellera.ipxact.v1685_2022.mode_ref import ModeRef
 from org.accellera.ipxact.v1685_2022.register_file import RegisterFile
 from org.accellera.ipxact.v1685_2022.register_file_definitions import RegisterFileDefinitions
+from org.accellera.ipxact.v1685_2022.reset import Reset
 from org.accellera.ipxact.v1685_2022.unsigned_int_expression import UnsignedIntExpression
+from org.accellera.ipxact.v1685_2022.unsigned_bit_vector_expression import UnsignedBitVectorExpression
 from org.accellera.ipxact.v1685_2022.unsigned_longint_expression import UnsignedLongintExpression
 from org.accellera.ipxact.v1685_2022.unsigned_positive_int_expression import UnsignedPositiveIntExpression
 from org.accellera.ipxact.v1685_2022.volatile import Volatile
 
 from .component import _list_attr, _register_graph, _register_owner_for
 from .address_space import _register_owned_child
+from ._expressions import SvExpressionError, _undeclared, _xml_text
 from .core import (
     TgiError,
     TgiFaultCode,
@@ -156,6 +160,7 @@ __all__ = [
     "removeRegisterFieldVolatility",
     "removeRegisterTypeIdentifier",
     "removeRegisterVolatility",
+    "removeResetMask",
     "setAlternateRegisterTypeIdentifier",
     "setAlternateRegisterVolatility",
     "setModeRefPriority",
@@ -166,6 +171,8 @@ __all__ = [
     "setRegisterSize",
     "setRegisterTypeIdentifier",
     "setRegisterVolatility",
+    "setResetMask",
+    "setResetValue",
 ]
 
 type _Register = (
@@ -215,6 +222,84 @@ def _resolve_alternate_register(alternateRegisterID: str) -> _AlternateRegister:
         raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
     _register_graph(alternate_register)
     return alternate_register
+
+
+def _resolve_reset(resetID: str) -> Reset:
+    reset = resolve_handle(resetID) if isinstance(resetID, str) else None
+    if not isinstance(reset, Reset):
+        raise TgiError("Invalid reset handle", TgiFaultCode.INVALID_ID)
+    return reset
+
+
+def _reset_field(reset: Reset) -> FieldType | FieldDefinitions.FieldDefinition | None:
+    """Return the containing field when reset ownership is known to the handle manager."""
+    current: Any = reset
+    seen: set[int] = set()
+    while id(current) not in seen:
+        seen.add(id(current))
+        info = get_parent_info(get_handle(current))
+        if info is None:
+            return None
+        parent = resolve_handle(info.parent_handle)
+        if isinstance(parent, (FieldType, FieldDefinitions.FieldDefinition)):
+            _register_graph(parent)
+            return parent
+        if parent is None:
+            return None
+        current = parent
+    return None
+
+
+def _reset_field_width(reset: Reset, *, deferred: bool) -> int | None:
+    """Resolve the inline field width used as the reset bit-vector context."""
+    field = _reset_field(reset)
+    if field is None:
+        return None
+    width = _register_field_bit_width(field) if isinstance(field, FieldType) else field.bit_width
+    if width is None:
+        return None
+    source = _register_file_expression(width.value, "bitWidth", 1, _UINT32_MAX, width)
+    return _integer_expression(source, _UINT32_MAX, deferred, minimum=1)
+
+
+def _reset_expression(reset: Reset, name: str, *, required: bool) -> UnsignedBitVectorExpression | None:
+    expression = getattr(reset, name, None)
+    if expression is None and not required:
+        return None
+    if not isinstance(expression, UnsignedBitVectorExpression):
+        raise TgiError(f"Invalid reset {name} model", TgiFaultCode.INVALID_ID)
+    register_parent(expression, reset, (name,), "single")
+    _register_graph(expression)
+    if not isinstance(expression.value, str):
+        raise TgiError(f"Invalid reset {name} source", TgiFaultCode.INVALID_ID)
+    return expression
+
+
+def _reset_expression_source(source: str, width: int | None) -> str:
+    """Validate a bit-vector expression, deferring only undeclared identifiers."""
+    _xml_text(source)
+    if not source.strip():
+        raise TgiError("Reset bit-vector expression must be nonempty", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        from amal.eda.systemverilog.expression_parser import SvExpressionParser
+
+        SvExpressionParser().parse_bit_vector(source, width)
+    except SvExpressionError as error:
+        if _undeclared(error):
+            return source
+        raise TgiError("Invalid reset bit-vector expression", TgiFaultCode.INVALID_ARGUMENT) from error
+    return source
+
+
+def _reset_resolved_value(reset: Reset, expression: UnsignedBitVectorExpression) -> int:
+    """Resolve the reset source in field-width bit context or its inferred width."""
+    from amal.eda.systemverilog.expression_parser import SvExpressionParser
+
+    try:
+        result = SvExpressionParser().parse_bit_vector(expression.value, _reset_field_width(reset, deferred=False))
+        return result.as_python()
+    except SvExpressionError as error:
+        raise TgiError("Cannot resolve reset bit-vector expression", TgiFaultCode.INVALID_ARGUMENT) from error
 
 
 def _resolve_field(fieldID: str) -> FieldType:
@@ -1336,47 +1421,100 @@ def getRegisterVolatility(registerID: str) -> bool | None:
 
 
 def getResetMask(resetID: str) -> int | None:
-    """Return reset mask resolved value (F.7.73.78)."""
-    rst = _resolve(resetID)
-    m = getattr(rst, "mask", None)
-    val = getattr(m, "value", None)
-    return int(val) if isinstance(val, int) else None
+    """Return the resolved reset mask value.
+
+    Section: F.7.73.78.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        Resolved mask integer, or None when no explicit mask element is stored.
+    """
+    reset = _resolve_reset(resetID)
+    mask = _reset_expression(reset, "mask", required=False)
+    return _reset_resolved_value(reset, mask) if mask is not None else None
 
 
 def getResetMaskExpression(resetID: str) -> str | None:
-    """Return reset mask expression (F.7.73.79)."""
-    rst = _resolve(resetID)
-    m = getattr(rst, "mask", None)
-    return getattr(m, "value_expression", None)
+    """Return the stored reset mask expression source.
+
+    Section: F.7.73.79.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        Exact mask source text, or None when the optional mask is absent.
+    """
+    expression = _reset_expression(_resolve_reset(resetID), "mask", required=False)
+    return expression.value if expression is not None else None
 
 
 def getResetMaskID(resetID: str) -> str | None:
-    """Return mask handle (F.7.73.80)."""
-    rst = _resolve(resetID)
-    m = getattr(rst, "mask", None)
-    return get_handle(m) if m is not None else None
+    """Return the owned reset mask expression handle.
+
+    Section: F.7.73.80.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        Handle to the mask expression, or None when the optional mask is absent.
+    """
+    reset = _resolve_reset(resetID)
+    expression = _reset_expression(reset, "mask", required=False)
+    return get_handle(expression) if expression is not None else None
 
 
-def getResetValue(resetID: str) -> int | None:
-    """Return reset value (F.7.73.81)."""
-    rst = _resolve(resetID)
-    v = getattr(rst, "value", None)
-    val = getattr(v, "value", None)
-    return int(val) if isinstance(val, int) else None
+def getResetValue(resetID: str) -> int:
+    """Return the resolved reset value.
+
+    Section: F.7.73.81.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        Resolved reset value as an arbitrary-precision integer.
+    """
+    reset = _resolve_reset(resetID)
+    expression = _reset_expression(reset, "value", required=True)
+    assert expression is not None
+    return _reset_resolved_value(reset, expression)
 
 
-def getResetValueExpression(resetID: str) -> str | None:
-    """Return reset value expression (F.7.73.82)."""
-    rst = _resolve(resetID)
-    v = getattr(rst, "value", None)
-    return getattr(v, "value_expression", None)
+def getResetValueExpression(resetID: str) -> str:
+    """Return the stored reset value expression source.
+
+    Section: F.7.73.82.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        Exact reset value source text.
+    """
+    expression = _reset_expression(_resolve_reset(resetID), "value", required=True)
+    assert expression is not None
+    return expression.value
 
 
-def getResetValueID(resetID: str) -> str | None:
-    """Return reset value handle (F.7.73.83)."""
-    rst = _resolve(resetID)
-    v = getattr(rst, "value", None)
-    return get_handle(v) if v is not None else None
+def getResetValueID(resetID: str) -> str:
+    """Return the owned reset value expression handle.
+
+    Section: F.7.73.83.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        Handle to the mandatory value expression.
+    """
+    reset = _resolve_reset(resetID)
+    expression = _reset_expression(reset, "value", required=True)
+    assert expression is not None
+    return get_handle(expression)
 
 
 # ---------------------------------------------------------------------------
@@ -1980,6 +2118,27 @@ def removeRegisterVolatility(registerID: str) -> bool:
     return True
 
 
+def removeResetMask(resetID: str) -> bool:
+    """Remove the optional mask from a reset.
+
+    Section: F.7.74.37.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        True when an explicit mask was removed, otherwise False.
+    """
+    reset = _resolve_reset(resetID)
+    mask = _reset_expression(reset, "mask", required=False)
+    if mask is None:
+        return False
+    mask_id = get_handle(mask)
+    if not detach_child_by_handle(mask_id):
+        raise TgiError("Could not remove reset mask", TgiFaultCode.INVALID_ID)
+    return True
+
+
 def setAlternateRegisterTypeIdentifier(alternateRegisterID: str, typeIdentifier: str) -> bool:
     """Set alternate register typeIdentifier.
 
@@ -2315,5 +2474,54 @@ def setRegisterVolatility(registerID: str, volatile: bool) -> bool:
     else:
         current.value = volatile
     register_parent(current, register, ("choice",), "list")
+    _register_graph(current)
+    return True
+
+
+def setResetMask(resetID: str, mask: str) -> bool:
+    """Set the optional mask expression on a reset.
+
+    Section: F.7.74.68.
+
+    Args:
+        resetID: Handle to a reset element.
+        mask: SystemVerilog expression for the reset mask.
+
+    Returns:
+        True after setting the mask source.
+    """
+    reset = _resolve_reset(resetID)
+    width = _reset_field_width(reset, deferred=True)
+    source = _reset_expression_source(mask, width)
+    current = _reset_expression(reset, "mask", required=False)
+    if current is None:
+        current = UnsignedBitVectorExpression(value=source)
+        reset.mask = current
+    else:
+        current.value = source
+    register_parent(current, reset, ("mask",), "single")
+    _register_graph(current)
+    return True
+
+
+def setResetValue(resetID: str, value: str) -> bool:
+    """Set the mandatory reset value expression.
+
+    Section: F.7.74.69.
+
+    Args:
+        resetID: Handle to a reset element.
+        value: SystemVerilog expression for the reset value.
+
+    Returns:
+        True after setting the value source.
+    """
+    reset = _resolve_reset(resetID)
+    width = _reset_field_width(reset, deferred=True)
+    source = _reset_expression_source(value, width)
+    current = _reset_expression(reset, "value", required=True)
+    assert current is not None
+    current.value = source
+    register_parent(current, reset, ("value",), "single")
     _register_graph(current)
     return True

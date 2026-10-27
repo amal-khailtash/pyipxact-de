@@ -92,6 +92,21 @@ class SvExpressionParser:
         """
         return self._parse(expression, "string ")
 
+    def parse_bit_vector(self, expression: str, width: int | None = None) -> SvExpressionResult:
+        """Resolve an expression as an unsigned two-state packed bit vector.
+
+        Assignment conversion applies the supplied width, including truncation,
+        sign extension, rounding and X/Z conversion. Without a width, an integral
+        expression supplies its own width; other types require an explicit width.
+        """
+        if width is not None and (isinstance(width, bool) or not isinstance(width, int) or width <= 0):
+            raise SvExpressionError("Bit vector width must be a positive integer")
+        if width is None:
+            width = self.parse(expression).bit_width
+            if width is None:
+                raise SvExpressionError("A non-integral expression requires an explicit bit vector width")
+        return self._parse(expression, f"bit [{width - 1}:0] ")
+
     def _parse(self, expression: str, result_type: str) -> SvExpressionResult:
         if not expression.strip():
             raise SvExpressionError("Expression must not be empty")
