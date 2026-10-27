@@ -156,6 +156,7 @@ __all__ = [
     "removeBroadcastToRegisterRef",
     "removeRegisterAlternateRegister",
     "removeRegisterField",
+    "removeRegisterFieldReset",
     "removeRegisterFieldTypeIdentifier",
     "removeRegisterFieldVolatility",
     "removeRegisterTypeIdentifier",
@@ -163,6 +164,9 @@ __all__ = [
     "removeResetMask",
     "setAlternateRegisterTypeIdentifier",
     "setAlternateRegisterVolatility",
+    "setFieldDefinitionBitWidth",
+    "setFieldDefinitionTypeIdentifier",
+    "setFieldDefinitionVolatile",
     "setModeRefPriority",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
@@ -289,6 +293,38 @@ def _reset_expression_source(source: str, width: int | None) -> str:
             return source
         raise TgiError("Invalid reset bit-vector expression", TgiFaultCode.INVALID_ARGUMENT) from error
     return source
+
+
+def _register_field_resets(field: FieldType) -> tuple[FieldType.Resets | None, set[str]]:
+    """Validate and register the optional resets group on an inline register field."""
+    choice = getattr(field, "choice", None)
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    holders = [child for child in choice if isinstance(child, FieldType.Resets)]
+    if len(holders) > 1:
+        raise TgiError("Multiple register field resets groups", TgiFaultCode.INVALID_ID)
+    holder = holders[0] if holders else None
+    width, reference, alias = _register_field_width_state(field)
+    if holder is not None and width is None:
+        raise TgiError("Register field resets require an inline bitWidth", TgiFaultCode.INVALID_ID)
+    if holder is None:
+        if width is None and reference is None and alias is None:
+            raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+        return None, set()
+
+    resets = getattr(holder, "reset", None)
+    if not isinstance(resets, (list, tuple)) or not resets or any(not isinstance(reset, Reset) for reset in resets):
+        raise TgiError("Invalid register field reset collection", TgiFaultCode.INVALID_ID)
+    register_parent(holder, field, ("choice",), "list")
+    _register_graph(holder)
+    identities: set[str] = set()
+    for reset in resets:
+        reset_type_ref = getattr(reset, "reset_type_ref", None)
+        identity = "HARD" if reset_type_ref is None else _schema_name(reset_type_ref, "Name")
+        if identity in identities:
+            raise TgiError("Duplicate resetTypeRef in register field", TgiFaultCode.INVALID_ID)
+        identities.add(identity)
+    return holder, identities
 
 
 def _reset_resolved_value(reset: Reset, expression: UnsignedBitVectorExpression) -> int:
@@ -958,11 +994,34 @@ def getFieldBitOffsetID(fieldID: str) -> str | None:
     return get_handle(_register_field_bit_offset(field))
 
 
-def getFieldDefinitionBitWidthID(fieldDefinitionID: str) -> str | None:
-    """Return bitWidth handle (F.7.73.39)."""
-    fd = _resolve(fieldDefinitionID)
-    bw = getattr(fd, "bit_width", None)
-    return get_handle(bw) if bw is not None else None
+def _resolve_field_definition(fieldDefinitionID: str) -> FieldDefinitions.FieldDefinition:
+    field = resolve_handle(fieldDefinitionID) if isinstance(fieldDefinitionID, str) else None
+    if not isinstance(field, FieldDefinitions.FieldDefinition):
+        raise TgiError("Invalid field definition handle", TgiFaultCode.INVALID_ID)
+    return field
+
+
+def _field_definition_width(field: FieldDefinitions.FieldDefinition) -> UnsignedPositiveIntExpression:
+    width = field.bit_width
+    if not isinstance(width, UnsignedPositiveIntExpression):
+        raise TgiError("Invalid field definition bitWidth model", TgiFaultCode.INVALID_ID)
+    register_parent(width, field, ("bit_width",), "single")
+    _register_graph(width)
+    return width
+
+
+def getFieldDefinitionBitWidthID(fieldDefinitionID: str) -> str:
+    """Return the field definition's required bitWidth handle.
+
+    Section: F.7.73.39.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+
+    Returns:
+        Handle to the owned bitWidth expression.
+    """
+    return get_handle(_field_definition_width(_resolve_field_definition(fieldDefinitionID)))
 
 
 def getFieldDefinitionEnumeratedValueIDs(fieldDefinitionID: str) -> list[str]:
@@ -972,16 +1031,37 @@ def getFieldDefinitionEnumeratedValueIDs(fieldDefinitionID: str) -> list[str]:
 
 
 def getFieldDefinitionTypeIdentifier(fieldDefinitionID: str) -> str | None:
-    """Return typeIdentifier (F.7.73.41)."""
-    fd = _resolve(fieldDefinitionID)
-    return _maybe_value(getattr(fd, "type_identifier", None))
+    """Return the stored field definition typeIdentifier.
+
+    Section: F.7.73.41.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+
+    Returns:
+        The typeIdentifier string, or None when absent.
+    """
+    value = _resolve_field_definition(fieldDefinitionID).type_identifier
+    if value is not None and not isinstance(value, str):
+        raise TgiError("Invalid field definition typeIdentifier model", TgiFaultCode.INVALID_ID)
+    return value
 
 
-def getFieldDefinitionVolatile(fieldDefinitionID: str) -> bool | None:
-    """Return volatile flag (F.7.73.42)."""
-    fd = _resolve(fieldDefinitionID)
-    val = getattr(getattr(fd, "volatile", None), "value", None)
-    return val if isinstance(val, bool) else None
+def getFieldDefinitionVolatile(fieldDefinitionID: str) -> bool:
+    """Return field definition volatility, defaulting to false when absent.
+
+    Section: F.7.73.42.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+
+    Returns:
+        The stored Boolean, or False when the optional element is absent.
+    """
+    value = _resolve_field_definition(fieldDefinitionID).volatile
+    if value is not None and not isinstance(value, bool):
+        raise TgiError("Invalid field definition volatile model", TgiFaultCode.INVALID_ID)
+    return False if value is None else value
 
 
 def getFieldRefFieldRefByName(fieldRefID: str) -> str | None:
@@ -1222,9 +1302,21 @@ def getRegisterFieldIDs(registerID: str) -> list[str]:
 
 
 def getRegisterFieldResetIDs(registerFieldID: str) -> list[str]:
-    """Return reset handles (F.7.73.62)."""
-    f = _resolve(registerFieldID)
-    return _list_handles(f, "reset")
+    """Return reset handles for an inline register field (F.7.73.62).
+
+    Section: F.7.73.62.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+
+    Returns:
+        Handles to the field's reset elements in schema order, or an empty list when absent.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    holder, _ = _register_field_resets(field)
+    if holder is None:
+        return []
+    return _register_file_child_ids(holder, holder.reset, ("reset",))
 
 
 def getRegisterFieldTypeIdentifier(registerFieldID: str) -> str | None:
@@ -1738,16 +1830,52 @@ def addRegisterField(registerID: str, name: str, offset: str, width: str) -> str
 
 
 def addRegisterFieldReset(registerFieldID: str, value: str) -> str:
-    """Add reset to register field (F.7.74.9)."""
-    f = _resolve(registerFieldID)
-    if f is None:
-        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
-    rst = _ns(value=_ns(value=_coerce_int(value)))
-    if not hasattr(f, "reset"):
-        f.reset = []  # type: ignore[attr-defined]
-    f.reset.append(rst)  # type: ignore[attr-defined]
-    register_parent(rst, f, ("reset",), "list")
-    return get_handle(rst)
+    """Add a HARD reset to an inline register field (F.7.74.9).
+
+    Section: F.7.74.9.
+
+    Args:
+        registerFieldID: Handle to a register field element.
+        value: Unsigned bit-vector expression for the reset value.
+
+    Returns:
+        Handle to the added reset element.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    width, reference, alias = _register_field_width_state(field)
+    if width is None:
+        if reference is not None or alias is not None:
+            raise TgiError("Reset requires an inline register field", TgiFaultCode.INVALID_ARGUMENT)
+        raise TgiError("Invalid register field choice model", TgiFaultCode.INVALID_ID)
+    holder, identities = _register_field_resets(field)
+    if "HARD" in identities:
+        raise TgiError("A HARD reset already exists on this register field", TgiFaultCode.INVALID_ARGUMENT)
+
+    width_source = _register_file_expression(width.value, "bitWidth", 1, _UINT32_MAX, width)
+    resolved_width = _integer_expression(width_source, _UINT32_MAX, True, minimum=1)
+    source = _reset_expression_source(value, resolved_width)
+    reset = Reset(value=UnsignedBitVectorExpression(value=source))
+
+    if holder is None:
+        holder = FieldType.Resets(reset=[reset])
+        items = _list_attr(field, "choice")
+        field_data_index = next(
+            (
+                index
+                for index, child in enumerate(items)
+                if isinstance(child, (FieldType.FieldAccessPolicies, EnumeratedValues))
+            ),
+            len(items),
+        )
+        items.insert(field_data_index, holder)
+        register_parent(holder, field, ("choice",), "list")
+        _register_graph(holder)
+    else:
+        resets = _list_attr(holder, "reset")
+        resets.append(reset)
+        register_parent(reset, holder, ("reset",), "list")
+        _register_graph(reset)
+    return get_handle(reset)
 
 
 def addRegisterRefIndex(registerRefID: str, value: str) -> str:
@@ -2013,6 +2141,57 @@ def removeBroadcastToRegisterRef(registerRefID: str) -> bool:
     return detach_child_by_handle(registerRefID)
 
 
+def removeRegisterFieldReset(resetID: str) -> bool:
+    """Remove a reset from its owning inline register field (F.7.74.31).
+
+    Section: F.7.74.31.
+
+    Args:
+        resetID: Handle to a reset element.
+
+    Returns:
+        True when the reset was removed.
+    """
+    reset = _resolve_reset(resetID)
+    _register_owner_for(reset)
+    holder = _register_owned_child(reset, FieldType.Resets)
+    if holder is None:
+        raise TgiError("Reset has no register field resets owner", TgiFaultCode.INVALID_ID)
+    reset_info = get_parent_info(resetID)
+    if (
+        reset_info is None
+        or reset_info.path != ("reset",)
+        or reset_info.container != "list"
+        or not any(item is reset for item in getattr(holder, "reset", ()))
+    ):
+        raise TgiError("Reset is not contained by its register field resets owner", TgiFaultCode.INVALID_ID)
+
+    field = _register_owned_child(holder, FieldType)
+    holder_info = get_parent_info(get_handle(holder))
+    if (
+        field is None
+        or holder_info is None
+        or holder_info.path != ("choice",)
+        or holder_info.container != "list"
+        or not any(item is holder for item in getattr(field, "choice", ()))
+    ):
+        raise TgiError("Reset has no register field owner", TgiFaultCode.INVALID_ID)
+    field, _ = _resolve_register_field(get_handle(field))
+    _register_graph(field)
+    current_holder, _ = _register_field_resets(field)
+    if current_holder is not holder:
+        raise TgiError("Reset owner choice changed during removal", TgiFaultCode.INVALID_ID)
+    resets = _list_attr(holder, "reset")
+    if not any(item is reset for item in resets):
+        raise TgiError("Reset is not in its register field resets group", TgiFaultCode.INVALID_ID)
+
+    if not detach_child_by_handle(resetID):
+        raise TgiError("Could not remove register field reset", TgiFaultCode.INVALID_ID)
+    if not holder.reset and not detach_child_by_handle(get_handle(holder)):
+        raise TgiError("Could not remove empty register field resets holder", TgiFaultCode.INVALID_ID)
+    return True
+
+
 def removeRegisterFieldTypeIdentifier(registerFieldID: str) -> bool:
     """Remove a register field typeIdentifier (F.7.74.32).
 
@@ -2246,6 +2425,62 @@ def setRegisterAddressOffset(registerID: str, value: str) -> bool:
     source = _register_file_expression(value, "addressOffset", 0, _UINT64_MAX, offset)
     offset.value = source
     register_parent(offset, register, ("address_offset",), "single")
+    return True
+
+
+def setFieldDefinitionBitWidth(fieldDefinitionID: str, value: str) -> bool:
+    """Set a field definition's positive unsigned 32-bit bitWidth expression.
+
+    Section: F.7.74.52.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+        value: New bitWidth expression source.
+
+    Returns:
+        True after updating the existing expression wrapper.
+    """
+    field = _resolve_field_definition(fieldDefinitionID)
+    width = _field_definition_width(field)
+    source = _register_file_expression(value, "bitWidth", 1, _UINT32_MAX, width)
+    width.value = source
+    return True
+
+
+def setFieldDefinitionTypeIdentifier(fieldDefinitionID: str, value: str) -> bool:
+    """Set a field definition's typeIdentifier name.
+
+    Section: F.7.74.53.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+        value: XML Name for the typeIdentifier.
+
+    Returns:
+        True after setting the typeIdentifier string.
+    """
+    field = _resolve_field_definition(fieldDefinitionID)
+    source = _schema_name(value, "Name")
+    field.type_identifier = source
+    return True
+
+
+def setFieldDefinitionVolatile(fieldDefinitionID: str, value: bool) -> bool:
+    """Set a field definition's volatile Boolean.
+
+    Section: F.7.74.54.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+        value: New volatility Boolean.
+
+    Returns:
+        True after setting the volatile element.
+    """
+    field = _resolve_field_definition(fieldDefinitionID)
+    if not isinstance(value, bool):
+        raise TgiError("Field definition volatility must be a Boolean", TgiFaultCode.INVALID_ARGUMENT)
+    field.volatile = value
     return True
 
 
