@@ -71,6 +71,7 @@ from .type_definitions import (
     getTypeDefinitionsAddressBlockDefinitionIDs,
     getTypeDefinitionsMemoryMapDefinitionIDs,
     getTypeDefinitionsBankDefinitionIDs,
+    getTypeDefinitionsMemoryRemapDefinitionIDs,
 )
 
 from .core import (
@@ -83,6 +84,14 @@ from .core import (
 )
 
 __all__ = [
+    "getBankBankDefinitionRefByExternalTypeDefID",
+    "getBankBankDefinitionRefByID",
+    "getBankBankDefinitionRefByName",
+    "getBankBankDefinitionRefID",
+    "getMemoryRemapRemapDefinitionRefByExternalTypeDefID",
+    "getMemoryRemapRemapDefinitionRefByID",
+    "getMemoryRemapRemapDefinitionRefByName",
+    "getMemoryRemapRemapDefinitionRefID",
     "getBankAddressBlockIDs",
     "getBankBankIDs",
     "getBankBaseAddress",
@@ -365,8 +374,8 @@ def _require_memory_remap(memoryRemapID: str) -> MemoryRemapType:
     return remap
 
 
-def _remap_elements(remap: MemoryRemapType) -> list[str]:
-    """Read ordered inline remap children, rejecting conflicting definition branches."""
+def _remap_choice(remap: MemoryRemapType) -> list | tuple:
+    """Validate stored remap branches without resolving external definitions."""
     values = remap.choice
     if not isinstance(values, (list, tuple)):
         raise TgiError("Invalid memoryRemap choice", TgiFaultCode.INVALID_ID)
@@ -374,9 +383,17 @@ def _remap_elements(remap: MemoryRemapType) -> list[str]:
     if references:
         if len(values) != 1:
             raise TgiError("Conflicting remap definition and inline content", TgiFaultCode.INVALID_ID)
-        return []
+        return values
     if any(not isinstance(item, (AddressBlock, Bank, SubspaceMap)) for item in values):
         raise TgiError("Invalid memoryRemap choice child", TgiFaultCode.INVALID_ID)
+    return values
+
+
+def _remap_elements(remap: MemoryRemapType) -> list[str]:
+    """Read ordered inline remap children, rejecting conflicting definition branches."""
+    values = _remap_choice(remap)
+    if any(isinstance(item, MemoryRemapType.RemapDefinitionRef) for item in values):
+        return []
     return _child_ids(remap, values, ("choice",))
 
 
@@ -986,6 +1003,12 @@ type _Bank = (
     | LocalAddressBankType
     | LocalBankedBankType
 )
+type _BankReference = (
+    AddressBankType.BankDefinitionRef
+    | BankedBankType.BankDefinitionRef
+    | AddressBankDefinitionType.BankDefinitionRef
+    | BankedDefinitionBankType.BankDefinitionRef
+)
 type _BankContent = _Bank | BankDefinitions.BankDefinition
 
 
@@ -1035,18 +1058,41 @@ def _bank_storage(bank: _BankContent) -> tuple[list | tuple, str, tuple[type, ..
     return values, path, (BankedBlockType, bank_type, BankedSubspaceType), ref_type
 
 
-def _bank_content(bank: _Bank) -> _BankContent:
+def _bank_definition_reference(bankID: str) -> tuple[_Bank, _BankReference | None]:
+    bank = _require_bank(bankID)
     values, path, _types, ref_type = _bank_storage(bank)
     reference = next((item for item in values if ref_type is not None and isinstance(item, ref_type)), None)
+    if reference is not None:
+        _type_definition_reference_names(reference.value, reference.type_definitions)
+        register_parent(reference, bank, (path,), "list")
+    return bank, reference
+
+
+def _bank_content(bank: _Bank) -> _BankContent:
+    if isinstance(bank, _LOCAL_BANK_TYPES):
+        _bank_storage(bank)
+        return bank
+    _bank, reference = _bank_definition_reference(get_handle(bank))
     if reference is None:
         return bank
     name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
-    register_parent(reference, bank, (path,), "list")
     target = resolve_handle(_type_definition_target(bank, name, external, getTypeDefinitionsBankDefinitionIDs))
     if not isinstance(target, BankDefinitions.BankDefinition):
         raise TgiError("Invalid bankDefinition target", TgiFaultCode.INVALID_ID)
     _bank_storage(target)
     return target
+
+
+def _remap_definition_reference(
+    memoryRemapID: str,
+) -> tuple[MemoryRemapType, MemoryRemapType.RemapDefinitionRef | None]:
+    remap = _require_memory_remap(memoryRemapID)
+    values = _remap_choice(remap)
+    reference = next((item for item in values if isinstance(item, MemoryRemapType.RemapDefinitionRef)), None)
+    if reference is not None:
+        _type_definition_reference_names(reference.value, reference.type_definitions)
+        register_parent(reference, remap, ("choice",), "list")
+    return remap, reference
 
 
 def _bank_element_ids(bank: _Bank) -> list[str]:
@@ -1142,3 +1188,73 @@ def getBankVolatility(bankOrLocalBankID: str) -> bool | None:
     if type(node.value) is not bool:
         raise TgiError("Invalid bank volatile value", TgiFaultCode.INVALID_ID)
     return node.value
+
+
+def getBankBankDefinitionRefByExternalTypeDefID(bankID: str) -> str | None:
+    """Return the named owning-document external declaration handle (F.7.57.32)."""
+    owner, reference = _bank_definition_reference(bankID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return get_handle(_type_definition_external(owner, external))
+
+
+def getBankBankDefinitionRefByID(bankID: str) -> str | None:
+    """Resolve the actual definition in its declared registered library (F.7.57.33)."""
+    owner, reference = _bank_definition_reference(bankID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return _type_definition_target(owner, name, external, getTypeDefinitionsBankDefinitionIDs)
+
+
+def getBankBankDefinitionRefByName(bankID: str) -> str | None:
+    """Return the stored normalized definition Name without target resolution (F.7.57.34)."""
+    owner, reference = _bank_definition_reference(bankID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return name
+
+
+def getBankBankDefinitionRefID(bankID: str) -> str | None:
+    """Return the owned source reference wrapper without target resolution (F.7.57.35)."""
+    owner, reference = _bank_definition_reference(bankID)
+    if reference is None:
+        return None
+    return get_handle(reference)
+
+
+def getMemoryRemapRemapDefinitionRefByExternalTypeDefID(memoryRemapID: str) -> str | None:
+    """Return the named owning-document external declaration handle (F.7.57.65)."""
+    owner, reference = _remap_definition_reference(memoryRemapID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return get_handle(_type_definition_external(owner, external))
+
+
+def getMemoryRemapRemapDefinitionRefByID(memoryRemapID: str) -> str | None:
+    """Resolve the actual definition in its declared registered library (F.7.57.66)."""
+    owner, reference = _remap_definition_reference(memoryRemapID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return _type_definition_target(owner, name, external, getTypeDefinitionsMemoryRemapDefinitionIDs)
+
+
+def getMemoryRemapRemapDefinitionRefByName(memoryRemapID: str) -> str | None:
+    """Return the stored normalized definition Name without target resolution (F.7.57.67)."""
+    owner, reference = _remap_definition_reference(memoryRemapID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return name
+
+
+def getMemoryRemapRemapDefinitionRefID(memoryRemapID: str) -> str | None:
+    """Return the owned source reference wrapper without target resolution (F.7.57.68)."""
+    owner, reference = _remap_definition_reference(memoryRemapID)
+    if reference is None:
+        return None
+    return get_handle(reference)
