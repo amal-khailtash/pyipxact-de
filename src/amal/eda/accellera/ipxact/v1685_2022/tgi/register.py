@@ -11,6 +11,7 @@ with appropriate :class:`TgiFaultCode` values. Schema coverage remains partial.
 from types import SimpleNamespace
 from typing import Any
 
+from org.accellera.ipxact.v1685_2022.access_policies import AccessPolicies
 from org.accellera.ipxact.v1685_2022.address_block_type import AddressBlockType
 from org.accellera.ipxact.v1685_2022.alternate_registers import AlternateRegisters
 from org.accellera.ipxact.v1685_2022.banked_block_type import BankedBlockType
@@ -149,6 +150,8 @@ __all__ = [
     "removeBroadcastToMemoryMapRef",
     "removeBroadcastToRegisterFileRef",
     "removeBroadcastToRegisterRef",
+    "removeRegisterAlternateRegister",
+    "removeRegisterField",
     "removeRegisterFieldTypeIdentifier",
     "removeRegisterFieldVolatility",
     "removeRegisterTypeIdentifier",
@@ -339,6 +342,77 @@ def _register_size(register: _Register) -> UnsignedPositiveIntExpression | None:
         register_parent(sizes[0], register, ("choice",), "list")
         return sizes[0]
     return None
+
+
+def _register_fields(register: _Register) -> list[FieldType]:
+    choice = getattr(register, "choice", ())
+    if not isinstance(choice, (list, tuple)):
+        raise TgiError("Invalid register choice model", TgiFaultCode.INVALID_ID)
+    fields = [child for child in choice if isinstance(child, FieldType)]
+    allowed = (*_REGISTER_DEFINITION_REF_TYPES, str, UnsignedPositiveIntExpression, Volatile, AccessPolicies, FieldType)
+    if any(not isinstance(child, allowed) for child in choice):
+        raise TgiError("Invalid register choice child", TgiFaultCode.INVALID_ID)
+    return fields
+
+
+def _new_register_field(name: str, offset: str, width: str) -> FieldType:
+    """Validate and construct the common inline-width field used by these builders."""
+    field_name = _schema_name(name, "Name")
+    offset_source = _register_file_expression(offset, "offset", 0, _UINT32_MAX)
+    width_source = _register_file_expression(width, "width", 1, _UINT32_MAX)
+    return FieldType(
+        name=field_name,
+        bit_offset=UnsignedIntExpression(value=offset_source),
+        choice=[UnsignedPositiveIntExpression(value=width_source)],
+    )
+
+
+def _register_data_names(register: _Register) -> set[str]:
+    """Return names that share a registerData key scope with ``register``."""
+    own_name = getattr(register, "name", None)
+    if not isinstance(own_name, str):
+        raise TgiError("Invalid register name", TgiFaultCode.INVALID_ID)
+    names = {_schema_name(own_name, "Name")}
+    owner = _register_owned_child(register)
+    info = get_parent_info(get_handle(register))
+    if owner is None or info is None:
+        return names
+    if info.container != "list" or not info.path:
+        raise TgiError("Register has no supported registerData owner", TgiFaultCode.INVALID_ID)
+    siblings = getattr(owner, info.path[-1], None)
+    if not isinstance(siblings, (list, tuple)) or not any(item is register for item in siblings):
+        raise TgiError("Register has no supported registerData collection", TgiFaultCode.INVALID_ID)
+    for sibling in siblings:
+        if isinstance(sibling, _REGISTER_TYPES):
+            sibling_name = getattr(sibling, "name", None)
+            if isinstance(sibling_name, str):
+                names.add(_schema_name(sibling_name, "Name"))
+            holder = getattr(sibling, "alternate_registers", None)
+            if holder is not None:
+                if not isinstance(holder, AlternateRegisters):
+                    raise TgiError("Invalid alternateRegisters model", TgiFaultCode.INVALID_ID)
+                names.update(
+                    _schema_name(item.name, "Name")
+                    for item in holder.alternate_register
+                    if isinstance(item, AlternateRegisters.AlternateRegister) and isinstance(item.name, str)
+                )
+        elif isinstance(sibling, RegisterFile):
+            sibling_name = getattr(sibling, "name", None)
+            if isinstance(sibling_name, str):
+                names.add(_schema_name(sibling_name, "Name"))
+    return names
+
+
+def _check_new_field_containment(register: _Register, field: FieldType) -> None:
+    size_node = _inline_register_choice(register, "addRegisterField")
+    width_nodes = [child for child in field.choice if isinstance(child, UnsignedPositiveIntExpression)]
+    if len(width_nodes) != 1:
+        raise TgiError("Invalid register field model", TgiFaultCode.INVALID_ID)
+    width_node = width_nodes[0]
+    size_source = _register_file_expression(size_node.value, "size", 1, _UINT32_MAX, size_node)
+    _integer_expression(size_source, _UINT32_MAX, True)
+    width = _integer_expression(width_node.value, _UINT32_MAX, True)
+    _check_register_field_containment(register, field, width)
 
 
 def _register_definition_reference(register: _Register) -> _RegisterDefinitionRef | None:
@@ -884,9 +958,28 @@ def getRegisterAddressOffsetID(registerID: str) -> str | None:
 
 
 def getRegisterAlternateRegisterIDs(registerID: str) -> list[str]:
-    """Return alternateRegister handles (F.7.73.48)."""
-    r = _resolve(registerID)
-    return _list_handles(r, "alternate_register")
+    """Return the alternateRegister handles defined on a register.
+
+    Section: F.7.73.48.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handles to alternateRegister elements in schema order, or an empty list when none are defined.
+    """
+    register = _resolve_register(registerID)
+    holder = getattr(register, "alternate_registers", None)
+    if holder is None:
+        return []
+    if not isinstance(holder, AlternateRegisters):
+        raise TgiError("Invalid register alternateRegisters model", TgiFaultCode.INVALID_ID)
+    alternates = getattr(holder, "alternate_register", None)
+    if not isinstance(alternates, (list, tuple)) or any(
+        not isinstance(item, AlternateRegisters.AlternateRegister) for item in alternates
+    ):
+        raise TgiError("Invalid alternateRegister collection", TgiFaultCode.INVALID_ID)
+    return _register_file_child_ids(holder, alternates, ("alternate_register",))
 
 
 # Register Field getters (aliases, offsets, widths, enumeratedValues, resets)
@@ -1028,9 +1121,19 @@ def getRegisterFieldFieldDefinitionRefID(registerFieldID: str) -> str | None:
 
 
 def getRegisterFieldIDs(registerID: str) -> list[str]:
-    """Return register field handles (F.7.73.61)."""
-    r = _resolve(registerID)
-    return _list_handles(r, "field")
+    """Return inline field handles defined on a register.
+
+    Section: F.7.73.61.
+
+    Args:
+        registerID: Handle to a register element.
+
+    Returns:
+        Handles to inline fields in schema order, or an empty list on a register-definition reference.
+    """
+    register = _resolve_register(registerID)
+    fields = _register_fields(register)
+    return _register_file_child_ids(register, fields, ("choice",))
 
 
 def getRegisterFieldResetIDs(registerFieldID: str) -> list[str]:
@@ -1299,20 +1402,13 @@ def addAlternateRegisterField(alternateRegisterID: str, name: str, offset: str, 
         Handle to the new regField element.
     """
     alternate_register = _resolve_alternate_register(alternateRegisterID)
-    field_name = _schema_name(name, "Name")
-    offset_source = _register_file_expression(offset, "offset", 0, _UINT32_MAX)
-    width_source = _register_file_expression(width, "width", 1, _UINT32_MAX)
-    fields = alternate_register.field_value
-    if any(not isinstance(existing, FieldType) for existing in fields):
+    field = _new_register_field(name, offset, width)
+    fields = getattr(alternate_register, "field_value", None)
+    if not isinstance(fields, (list, tuple)) or any(not isinstance(existing, FieldType) for existing in fields):
         raise TgiError("Invalid alternate register field model", TgiFaultCode.INVALID_ID)
-    if any(existing.name == field_name for existing in fields):
-        raise TgiError(f"Alternate register field name {field_name!r} already exists", TgiFaultCode.INVALID_ARGUMENT)
-    field = FieldType(
-        name=field_name,
-        bit_offset=UnsignedIntExpression(value=offset_source),
-        choice=[UnsignedPositiveIntExpression(value=width_source)],
-    )
-    width_number = _integer_expression(width_source, _UINT32_MAX, True)
+    if any(existing.name == field.name for existing in fields):
+        raise TgiError(f"Alternate register field name {field.name!r} already exists", TgiFaultCode.INVALID_ARGUMENT)
+    width_number = _integer_expression(field.choice[0].value, _UINT32_MAX, True)
     holder = _register_owned_child(alternate_register, AlternateRegisters)
     register = _register_owned_child(holder, _REGISTER_TYPES) if holder is not None else None
     if register is not None:
@@ -1418,41 +1514,89 @@ def addRegisterAlternateRegister(
     fieldOffset: str,
     fieldWidth: str,
 ) -> str:
-    """Add alternateRegister (F.7.74.7)."""
-    r = _resolve(registerID)
-    if r is None:
-        raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
-    mr = _ns(value=modeRef, priority=priority)
-    fld = _ns(
-        name=fieldName,
-        bit_offset=_ns(value=_coerce_int(fieldOffset)),
-        bit_width=_ns(value=_coerce_int(fieldWidth)),
+    """Add an alternate register with its required mode and field.
+
+    Section: F.7.74.7.
+
+    Args:
+        registerID: Handle to a register element.
+        name: XML Name for the alternate register.
+        modeRef: XML Name of the referenced mode.
+        priority: Non-negative priority for the new modeRef.
+        fieldName: XML Name for the required field.
+        fieldOffset: Unsigned 32-bit field bitOffset expression.
+        fieldWidth: Positive unsigned 32-bit field bitWidth expression.
+
+    Returns:
+        Handle to the new alternateRegister element.
+    """
+    register = _resolve_register(registerID)
+    alternate_name = _schema_name(name, "Name")
+    mode_name = _schema_name(modeRef, "Name")
+    field = _new_register_field(fieldName, fieldOffset, fieldWidth)
+    holder = getattr(register, "alternate_registers", None)
+    if holder is not None and not isinstance(holder, AlternateRegisters):
+        raise TgiError("Invalid register alternateRegisters model", TgiFaultCode.INVALID_ID)
+    if holder is not None:
+        alternates = getattr(holder, "alternate_register", None)
+        if not isinstance(alternates, (list, tuple)) or any(
+            not isinstance(item, AlternateRegisters.AlternateRegister) for item in alternates
+        ):
+            raise TgiError("Invalid alternateRegister collection", TgiFaultCode.INVALID_ID)
+        if any(item.name == alternate_name for item in alternates):
+            raise TgiError(f"Alternate register name {alternate_name!r} already exists", TgiFaultCode.INVALID_ARGUMENT)
+        for sibling in alternates:
+            if any(getattr(item, "value", None) == mode_name for item in sibling.mode_ref):
+                raise TgiError(
+                    f"modeRef {mode_name!r} already exists in alternateRegisters", TgiFaultCode.INVALID_ARGUMENT
+                )
+    if alternate_name in _register_data_names(register):
+        raise TgiError(f"Register data name {alternate_name!r} already exists", TgiFaultCode.INVALID_ARGUMENT)
+    from .access_policy import _mode_ref_priority
+
+    priority_value = _mode_ref_priority((), mode_name, priority)
+    width_number = _integer_expression(field.choice[0].value, _UINT32_MAX, True)
+    _check_register_field_containment(register, field, width_number)
+    mode_ref_node = ModeRef(value=mode_name, priority=priority_value)
+    alternate = AlternateRegisters.AlternateRegister(
+        name=alternate_name,
+        mode_ref=[mode_ref_node],
+        field_value=[field],
     )
-    ar = _ns(name=name, mode_ref=[mr], field=[fld])
-    if not hasattr(r, "alternate_register"):
-        r.alternate_register = []  # type: ignore[attr-defined]
-    r.alternate_register.append(ar)  # type: ignore[attr-defined]
-    register_parent(ar, r, ("alternate_register",), "list")
-    register_parent(mr, ar, ("mode_ref",), "list")
-    register_parent(fld, ar, ("field",), "list")
-    return get_handle(ar)
+    if holder is None:
+        holder = AlternateRegisters(alternate_register=[])
+        register.alternate_registers = holder
+        register_parent(holder, register, ("alternate_registers",), "single")
+    _list_attr(holder, "alternate_register").append(alternate)
+    register_parent(alternate, holder, ("alternate_register",), "list")
+    _register_graph(alternate)
+    return get_handle(alternate)
 
 
 def addRegisterField(registerID: str, name: str, offset: str, width: str) -> str:
-    """Add field to register (F.7.74.8)."""
-    r = _resolve(registerID)
-    if r is None:
-        raise TgiError("Invalid register handle", TgiFaultCode.INVALID_ID)
-    f = _ns(
-        name=name,
-        bit_offset=_ns(value=_coerce_int(offset)),
-        bit_width=_ns(value=_coerce_int(width)),
-    )
-    if not hasattr(r, "field"):
-        r.field = []  # type: ignore[attr-defined]
-    r.field.append(f)  # type: ignore[attr-defined]
-    register_parent(f, r, ("field",), "list")
-    return get_handle(f)
+    """Add an inline field to a register with an existing inline size.
+
+    Section: F.7.74.8.
+
+    Args:
+        registerID: Handle to a register element.
+        name: XML Name for the new field.
+        offset: Unsigned 32-bit bitOffset expression.
+        width: Positive unsigned 32-bit bitWidth expression.
+
+    Returns:
+        Handle to the new regField element.
+    """
+    register = _resolve_register(registerID)
+    field = _new_register_field(name, offset, width)
+    fields = _register_fields(register)
+    if any(existing.name == field.name for existing in fields):
+        raise TgiError(f"Register field name {field.name!r} already exists", TgiFaultCode.INVALID_ARGUMENT)
+    _check_new_field_containment(register, field)
+    _list_attr(register, "choice").append(field)
+    register_parent(field, register, ("choice",), "list")
+    _register_graph(field)
+    return get_handle(field)
 
 
 def addRegisterFieldReset(registerFieldID: str, value: str) -> str:
@@ -1527,6 +1671,83 @@ def removeAlternateRegisterField(regFieldID: str) -> bool:
     _list_attr(alternate_register, "field_value")
     if not detach_child_by_handle(regFieldID):
         raise TgiError("Could not remove alternate register field", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeRegisterAlternateRegister(alternateRegisterID: str) -> bool:
+    """Remove an alternateRegister and prune its empty optional holder.
+
+    Section: F.7.74.25.
+
+    Args:
+        alternateRegisterID: Handle to an alternateRegister element.
+
+    Returns:
+        True when the alternateRegister was removed.
+    """
+    alternate = resolve_handle(alternateRegisterID)
+    if not isinstance(alternate, AlternateRegisters.AlternateRegister):
+        raise TgiError("Invalid alternateRegister handle", TgiFaultCode.INVALID_ID)
+    holder = _register_owned_child(alternate, AlternateRegisters)
+    info = get_parent_info(alternateRegisterID)
+    if (
+        holder is None
+        or info is None
+        or info.path != ("alternate_register",)
+        or info.container != "list"
+        or not any(item is alternate for item in getattr(holder, "alternate_register", ()))
+    ):
+        raise TgiError("alternateRegister is not owned by a register", TgiFaultCode.INVALID_ID)
+    register = _register_owned_child(holder, _REGISTER_TYPES)
+    holder_info = get_parent_info(get_handle(holder))
+    if (
+        register is None
+        or holder_info is None
+        or holder_info.path != ("alternate_registers",)
+        or holder_info.container != "single"
+        or getattr(register, "alternate_registers", None) is not holder
+    ):
+        raise TgiError("alternateRegisters has no supported register owner", TgiFaultCode.INVALID_ID)
+    _register_graph(register)
+    _list_attr(holder, "alternate_register")
+    if not detach_child_by_handle(alternateRegisterID):
+        raise TgiError("Could not remove alternateRegister", TgiFaultCode.INVALID_ID)
+    if not holder.alternate_register and not detach_child_by_handle(get_handle(holder)):
+        raise TgiError("Could not remove empty alternateRegisters holder", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeRegisterField(registerFieldID: str) -> bool:
+    """Remove an inline field from a register choice.
+
+    Section: F.7.74.26.
+
+    Args:
+        registerFieldID: Handle to a field owned directly by a register.
+
+    Returns:
+        True when the field was removed.
+
+    Removing the final field follows the TGI editing policy and can leave a model that
+    requires a subsequent edit before schema validation succeeds.
+    """
+    field = resolve_handle(registerFieldID)
+    if not isinstance(field, FieldType):
+        raise TgiError("Invalid register field handle", TgiFaultCode.INVALID_ID)
+    register = _register_owned_child(field, _REGISTER_TYPES)
+    info = get_parent_info(registerFieldID)
+    if (
+        register is None
+        or info is None
+        or info.path != ("choice",)
+        or info.container != "list"
+        or not any(item is field for item in getattr(register, "choice", ()))
+    ):
+        raise TgiError("Field is not owned directly by a register", TgiFaultCode.INVALID_ID)
+    _register_graph(register)
+    _list_attr(register, "choice")
+    if not detach_child_by_handle(registerFieldID):
+        raise TgiError("Could not remove register field", TgiFaultCode.INVALID_ID)
     return True
 
 

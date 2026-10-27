@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Complete six Register field and alternate-register child lifecycle operations with generated builders, shared validation, scoped identity checks, parsed ownership recovery, descendant invalidation, and empty-holder pruning.
 - Complete seven Alternate register field and mode-reference lifecycle operations with generated builders, expression and identity validation, parsed ownership recovery, descendant invalidation, and scoped mode priority edits.
 - Complete six Alternate register type-identifier and volatility operations with typed models, validated values, preserved wrapper ownership, removal invalidation, and unspecified absent-volatility semantics.
 - Complete six Register field type-identifier and volatility operations with validated ordered choices, inline default-false semantics, preserved alias/reference branches and sibling data, and exact setter keywords.
