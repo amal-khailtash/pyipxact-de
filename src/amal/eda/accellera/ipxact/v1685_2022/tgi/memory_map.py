@@ -57,8 +57,13 @@ from ._expressions import _integer
 from ._model import _walk_model
 from .port_map import _child, _name
 from .register_file import _child_ids, _numeric
-from .register import _type_definition_target, _type_definition_reference_names, _register_reference
-from .type_definitions import getTypeDefinitionsAddressBlockDefinitionIDs
+from .register import (
+    _type_definition_external,
+    _type_definition_target,
+    _type_definition_reference_names,
+    _register_reference,
+)
+from .type_definitions import getTypeDefinitionsAddressBlockDefinitionIDs, getTypeDefinitionsMemoryMapDefinitionIDs
 
 from .core import (
     TgiError,
@@ -72,6 +77,10 @@ from .core import (
 __all__ = [
     # BASE (F.7.57.x) – ordering matches spec numbering groups
     # AddressBlock getters (1–21) - subset implemented (schema coverage pending)
+    "getAddressBlockAddressBlockDefinitionRefByExternalTypeDefID",
+    "getAddressBlockAddressBlockDefinitionRefByID",
+    "getAddressBlockAddressBlockDefinitionRefByName",
+    "getAddressBlockAddressBlockDefinitionRefID",
     "getAddressBlockAccessPolicyIDs",
     "getAddressBlockArrayID",
     "getAddressBlockRefIndexIDs",
@@ -278,44 +287,50 @@ def getMemoryMapElementType(memoryMapElementID: str) -> str:
     raise TgiError("Invalid memory-map element handle", TgiFaultCode.INVALID_ID)
 
 
-def getMemoryMapMemoryMapDefinitionRefByExternalTypeDefID(
+def _memory_map_definition_reference(
     memoryMapID: str,
-) -> str | None:
-    """Return the referenced memoryMapDefinition name.
+) -> tuple[MemoryMapType, MemoryMapType.MemoryMapDefinitionRef | None]:
+    owner = _require_memory_map(memoryMapID)
+    values = _memory_map_choice(owner)
+    reference = next((item for item in values if isinstance(item, MemoryMapType.MemoryMapDefinitionRef)), None)
+    if reference is not None:
+        _type_definition_reference_names(reference.value, reference.type_definitions)
+        register_parent(reference, owner, ("choice",), "list")
+    return owner, reference
 
-    Section: F.7.57.51. Returns None if absent.
-    """
-    mm = _resolve_memory_map(memoryMapID)
-    if mm is None or mm.memory_map_definition_ref is None:
+
+def getMemoryMapMemoryMapDefinitionRefByExternalTypeDefID(memoryMapID: str) -> str | None:
+    """Return the named local externalTypeDefinitions declaration handle (F.7.57.51)."""
+    owner, reference = _memory_map_definition_reference(memoryMapID)
+    if reference is None:
         return None
-    return getattr(mm.memory_map_definition_ref, "value", None)
+    _name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return get_handle(_type_definition_external(owner, external))
 
 
 def getMemoryMapMemoryMapDefinitionRefByID(memoryMapID: str) -> str | None:
-    """Return memoryMapDefinition name via element handle.
-
-    Section: F.7.57.52.
-    """
-    return getMemoryMapMemoryMapDefinitionRefByExternalTypeDefID(memoryMapID)
+    """Resolve the actual memoryMapDefinition in its declared registered library (F.7.57.52)."""
+    owner, reference = _memory_map_definition_reference(memoryMapID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return _type_definition_target(owner, name, external, getTypeDefinitionsMemoryMapDefinitionIDs)
 
 
 def getMemoryMapMemoryMapDefinitionRefByName(memoryMapID: str) -> str | None:
-    """Return memoryMapDefinition name by its name lookup.
-
-    Section: F.7.57.53.
-    """
-    return getMemoryMapMemoryMapDefinitionRefByExternalTypeDefID(memoryMapID)
+    """Return stored normalized definition Name without resolving its target (F.7.57.53)."""
+    _owner, reference = _memory_map_definition_reference(memoryMapID)
+    return (
+        _type_definition_reference_names(reference.value, reference.type_definitions)[0]
+        if reference is not None
+        else None
+    )
 
 
 def getMemoryMapMemoryMapDefinitionRefID(memoryMapID: str) -> str | None:
-    """Return handle of ``memoryMapDefinitionRef`` element.
-
-    Section: F.7.57.54.
-    """
-    mm = _resolve_memory_map(memoryMapID)
-    if mm is None or mm.memory_map_definition_ref is None:
-        return None
-    return get_handle(mm.memory_map_definition_ref)
+    """Return the owned reference wrapper handle, independent of target availability (F.7.57.54)."""
+    _owner, reference = _memory_map_definition_reference(memoryMapID)
+    return get_handle(reference) if reference is not None else None
 
 
 def _map_collection_ids[T](owner: MemoryMapType, model_type: type[T]) -> list[str]:
@@ -645,10 +660,7 @@ def _require_address_block(addressBlockID: str, *, banked: bool = True) -> Addre
 type _BlockContent = AddressBlockType | BankedBlockType | AddressBlockDefinitions.AddressBlockDefinition
 
 
-def _address_block_content(block: AddressBlockType | BankedBlockType) -> _BlockContent:
-    """Validate inline content or resolve the declared external block definition."""
-    if isinstance(block, BankedBlockType):
-        return block
+def _address_block_choice(block: AddressBlockType) -> list | tuple:
     values = block.choice
     allowed = (
         str,
@@ -665,17 +677,8 @@ def _address_block_content(block: AddressBlockType | BankedBlockType) -> _BlockC
     if not isinstance(values, (list, tuple)) or any(not isinstance(item, allowed) for item in values):
         raise TgiError("Invalid addressBlock choice", TgiFaultCode.INVALID_ID)
     refs = [item for item in values if isinstance(item, AddressBlockType.AddressBlockDefinitionRef)]
-    if refs:
-        if len(values) != 1:
-            raise TgiError("Conflicting addressBlock definition and inline content", TgiFaultCode.INVALID_ID)
-        reference = refs[0]
-        register_parent(reference, block, ("choice",), "list")
-        name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
-        target_id = _type_definition_target(block, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
-        definition = resolve_handle(target_id)
-        if not isinstance(definition, AddressBlockDefinitions.AddressBlockDefinition):
-            raise TgiError("Invalid addressBlockDefinition target", TgiFaultCode.INVALID_ID)
-        return definition
+    if refs and len(values) != 1:
+        raise TgiError("Conflicting addressBlock definition and inline content", TgiFaultCode.INVALID_ID)
     for scalar in (
         str,
         UnsignedPositiveLongintExpression,
@@ -687,7 +690,34 @@ def _address_block_content(block: AddressBlockType | BankedBlockType) -> _BlockC
     ):
         if sum(isinstance(item, scalar) for item in values) > 1:
             raise TgiError("Duplicate addressBlock scalar child", TgiFaultCode.INVALID_ID)
-    return block
+    return values
+
+
+def _address_block_definition_reference(
+    addressBlockID: str,
+) -> tuple[AddressBlockType | BankedBlockType, AddressBlockType.AddressBlockDefinitionRef | None]:
+    block = _require_address_block(addressBlockID)
+    if isinstance(block, BankedBlockType):
+        return block, None
+    values = _address_block_choice(block)
+    reference = next((item for item in values if isinstance(item, AddressBlockType.AddressBlockDefinitionRef)), None)
+    if reference is not None:
+        _type_definition_reference_names(reference.value, reference.type_definitions)
+        register_parent(reference, block, ("choice",), "list")
+    return block, reference
+
+
+def _address_block_content(block: AddressBlockType | BankedBlockType) -> _BlockContent:
+    """Validate inline content or resolve the declared external block definition."""
+    _block, reference = _address_block_definition_reference(get_handle(block))
+    if reference is None:
+        return block
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    target_id = _type_definition_target(block, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
+    definition = resolve_handle(target_id)
+    if not isinstance(definition, AddressBlockDefinitions.AddressBlockDefinition):
+        raise TgiError("Invalid addressBlockDefinition target", TgiFaultCode.INVALID_ID)
+    return definition
 
 
 def _block_scalar[T](content: _BlockContent, attribute: str, model_type: type[T]) -> T | None:
@@ -893,3 +923,37 @@ def getAddressBlockVolatility(addressBlockID: str) -> bool | None:
     if type(node.value) is not bool:
         raise TgiError("Invalid addressBlock volatile value", TgiFaultCode.INVALID_ID)
     return node.value
+
+
+def getAddressBlockAddressBlockDefinitionRefByExternalTypeDefID(addressBlockID: str) -> str | None:
+    """Return the named local externalTypeDefinitions declaration handle (F.7.57.2)."""
+    owner, reference = _address_block_definition_reference(addressBlockID)
+    if reference is None:
+        return None
+    _name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return get_handle(_type_definition_external(owner, external))
+
+
+def getAddressBlockAddressBlockDefinitionRefByID(addressBlockID: str) -> str | None:
+    """Resolve the actual addressBlockDefinition in its declared registered library (F.7.57.3)."""
+    owner, reference = _address_block_definition_reference(addressBlockID)
+    if reference is None:
+        return None
+    name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+    return _type_definition_target(owner, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
+
+
+def getAddressBlockAddressBlockDefinitionRefByName(addressBlockID: str) -> str | None:
+    """Return stored normalized definition Name without resolving its target (F.7.57.4)."""
+    _owner, reference = _address_block_definition_reference(addressBlockID)
+    return (
+        _type_definition_reference_names(reference.value, reference.type_definitions)[0]
+        if reference is not None
+        else None
+    )
+
+
+def getAddressBlockAddressBlockDefinitionRefID(addressBlockID: str) -> str | None:
+    """Return the owned reference wrapper handle, independent of target availability (F.7.57.5)."""
+    _owner, reference = _address_block_definition_reference(addressBlockID)
+    return get_handle(reference) if reference is not None else None

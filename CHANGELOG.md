@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify eight AddressBlock and MemoryMap definition-reference getters with separate local declaration, resolved definition, source Name and owned wrapper results, scoped registered-library resolution, strict choice validation, and target-independent source access.
 - Verify eight AddressBlock structure and metadata getters with owned access-policy, array, index, register and register-file handles; scoped referenced-definition content; preserved Name/enum metadata; inferred usage defaults; and unspecified absent volatility.
 - Verify nine AddressBlock base-address, range, and width getters with unsigned expression bounds, typed local/banked storage, source and handle preservation, required-node checks, and scoped external address-block definition resolution.
 - Verify seven Memory map subspace and remap-mode getters with signed 64-bit address expressions and declared bounds, preserved source wrappers, optional segment Names, ordered owned mode references, and component-scoped mode target resolution.
