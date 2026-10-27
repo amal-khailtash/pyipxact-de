@@ -16,6 +16,16 @@ from collections.abc import Iterable
 from typing import Any
 
 from org.accellera.ipxact.v1685_2022 import (
+    AccessPolicies,
+    AddressBlockType,
+    AddressBlockDefinitions,
+    BaseAddress,
+    Parameters,
+    RegisterFile,
+    UnsignedPositiveLongintExpression,
+    UnsignedPositiveIntExpression,
+    UsageType,
+    Volatile,
     ComponentType,
     ModeRef,
     SignedLongintExpression,
@@ -42,6 +52,8 @@ from .bus_interface import _named_target
 from ._expressions import _integer
 from .port_map import _child, _name
 from .register_file import _child_ids, _numeric
+from .register import _type_definition_target, _type_definition_reference_names
+from .type_definitions import getTypeDefinitionsAddressBlockDefinitionIDs
 
 from .core import (
     TgiError,
@@ -55,6 +67,15 @@ from .core import (
 __all__ = [
     # BASE (F.7.57.x) – ordering matches spec numbering groups
     # AddressBlock getters (1–21) - subset implemented (schema coverage pending)
+    "getAddressBlockBaseAddress",
+    "getAddressBlockBaseAddressExpression",
+    "getAddressBlockBaseAddressID",
+    "getAddressBlockRange",
+    "getAddressBlockRangeExpression",
+    "getAddressBlockRangeID",
+    "getAddressBlockWidth",
+    "getAddressBlockWidthExpression",
+    "getAddressBlockWidthID",
     "getMemoryMapAddressBlockIDs",  # 44 (spec numbering within section)
     "getMemoryMapAddressUnitBits",
     "getMemoryMapAddressUnitBitsExpression",
@@ -596,3 +617,139 @@ def getSubspaceMapSegmentRefByName(subSpaceID: str) -> str | None:
     """Return optional segmentRef XML Name source on a subspace element (F.7.57.73)."""
     subspace = _require_subspace(subSpaceID)
     return _stored_name(subspace.segment_ref) if subspace.segment_ref is not None else None
+
+
+def _require_address_block(addressBlockID: str, *, banked: bool = True) -> AddressBlockType | BankedBlockType:
+    if not isinstance(addressBlockID, str):
+        raise TgiError("Invalid addressBlock handle", TgiFaultCode.INVALID_ID)
+    block = resolve_handle(addressBlockID)
+    allowed = (AddressBlockType, BankedBlockType) if banked else (AddressBlockType,)
+    if not isinstance(block, allowed):
+        raise TgiError("Invalid addressBlock handle", TgiFaultCode.INVALID_ID)
+    return block
+
+
+def _address_block_size_node[T: UnsignedPositiveLongintExpression | UnsignedPositiveIntExpression](
+    block: AddressBlockType | BankedBlockType, attribute: str, model_type: type[T]
+) -> T:
+    if isinstance(block, BankedBlockType):
+        node = _child(block, attribute, model_type)
+    else:
+        values = block.choice
+        allowed = (
+            str,
+            UnsignedPositiveLongintExpression,
+            UnsignedPositiveIntExpression,
+            UsageType,
+            Volatile,
+            AccessPolicies,
+            Parameters,
+            AddressBlockType.Register,
+            RegisterFile,
+            AddressBlockType.AddressBlockDefinitionRef,
+        )
+        if not isinstance(values, (list, tuple)) or any(not isinstance(item, allowed) for item in values):
+            raise TgiError("Invalid addressBlock choice", TgiFaultCode.INVALID_ID)
+        refs = [item for item in values if isinstance(item, AddressBlockType.AddressBlockDefinitionRef)]
+        if refs:
+            if len(values) != 1:
+                raise TgiError("Conflicting addressBlock definition and inline content", TgiFaultCode.INVALID_ID)
+            reference = refs[0]
+            register_parent(reference, block, ("choice",), "list")
+            name, external = _type_definition_reference_names(reference.value, reference.type_definitions)
+            target_id = _type_definition_target(block, name, external, getTypeDefinitionsAddressBlockDefinitionIDs)
+            definition = resolve_handle(target_id)
+            if not isinstance(definition, AddressBlockDefinitions.AddressBlockDefinition):
+                raise TgiError("Invalid addressBlockDefinition target", TgiFaultCode.INVALID_ID)
+            node = _child(definition, attribute, model_type)
+        else:
+            for scalar in (UnsignedPositiveLongintExpression, UnsignedPositiveIntExpression):
+                if sum(isinstance(item, scalar) for item in values) > 1:
+                    raise TgiError("Duplicate addressBlock size child", TgiFaultCode.INVALID_ID)
+            node = next((item for item in values if isinstance(item, model_type)), None)
+            if node is not None:
+                register_parent(node, block, ("choice",), "list")
+    if node is None:
+        raise TgiError(f"Missing required addressBlock {attribute}", TgiFaultCode.INVALID_ID)
+    return node
+
+
+def _address_block_base(addressBlockID: str) -> BaseAddress:
+    block = _require_address_block(addressBlockID, banked=False)
+    node = _child(block, "base_address", BaseAddress)
+    if node is None:
+        raise TgiError("Missing required addressBlock baseAddress", TgiFaultCode.INVALID_ID)
+    return node
+
+
+def _block_expression_source(
+    node: BaseAddress | UnsignedPositiveLongintExpression | UnsignedPositiveIntExpression,
+) -> str:
+    if not isinstance(node.value, str):
+        raise TgiError("Invalid addressBlock expression source", TgiFaultCode.INVALID_ID)
+    return node.value
+
+
+def _block_expression_value(
+    node: BaseAddress | UnsignedPositiveLongintExpression | UnsignedPositiveIntExpression,
+    label: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    _block_expression_source(node)
+    value = _numeric(node, label, minimum, maximum)
+    assert value is not None
+    return value
+
+
+def getAddressBlockBaseAddress(addressBlockID: str) -> int:
+    """Return evaluated unsigned 64-bit baseAddress (F.7.57.7)."""
+    return _block_expression_value(_address_block_base(addressBlockID), "baseAddress", 0, (1 << 64) - 1)
+
+
+def getAddressBlockBaseAddressExpression(addressBlockID: str) -> str:
+    """Return original local baseAddress source (F.7.57.8)."""
+    return _block_expression_source(_address_block_base(addressBlockID))
+
+
+def getAddressBlockBaseAddressID(addressBlockID: str) -> str:
+    """Return the owned local baseAddress wrapper handle (F.7.57.9)."""
+    return get_handle(_address_block_base(addressBlockID))
+
+
+def getAddressBlockRange(addressBlockID: str) -> int:
+    """Return evaluated positive unsigned 64-bit inline or referenced range (F.7.57.10)."""
+    node = _address_block_size_node(_require_address_block(addressBlockID), "range", UnsignedPositiveLongintExpression)
+    return _block_expression_value(node, "range", 1, (1 << 64) - 1)
+
+
+def getAddressBlockRangeExpression(addressBlockID: str) -> str:
+    """Return original inline or referenced range source (F.7.57.11)."""
+    node = _address_block_size_node(_require_address_block(addressBlockID), "range", UnsignedPositiveLongintExpression)
+    return _block_expression_source(node)
+
+
+def getAddressBlockRangeID(addressBlockID: str) -> str:
+    """Return the actual owned inline or definition range wrapper handle (F.7.57.12)."""
+    return get_handle(
+        _address_block_size_node(_require_address_block(addressBlockID), "range", UnsignedPositiveLongintExpression)
+    )
+
+
+def getAddressBlockWidth(addressBlockID: str) -> int:
+    """Return evaluated positive unsigned 32-bit inline or referenced width (F.7.57.19)."""
+    node = _address_block_size_node(_require_address_block(addressBlockID), "width", UnsignedPositiveIntExpression)
+    return _block_expression_value(node, "width", 1, (1 << 32) - 1)
+
+
+def getAddressBlockWidthExpression(addressBlockID: str) -> str:
+    """Return original inline or referenced width source (F.7.57.20)."""
+    node = _address_block_size_node(_require_address_block(addressBlockID), "width", UnsignedPositiveIntExpression)
+    return _block_expression_source(node)
+
+
+def getAddressBlockWidthID(addressBlockID: str) -> str:
+    """Return the actual owned inline or definition width wrapper handle (F.7.57.21)."""
+    return get_handle(
+        _address_block_size_node(_require_address_block(addressBlockID), "width", UnsignedPositiveIntExpression)
+    )

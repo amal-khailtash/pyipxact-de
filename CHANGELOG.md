@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify nine AddressBlock base-address, range, and width getters with unsigned expression bounds, typed local/banked storage, source and handle preservation, required-node checks, and scoped external address-block definition resolution.
 - Verify seven Memory map subspace and remap-mode getters with signed 64-bit address expressions and declared bounds, preserved source wrappers, optional segment Names, ordered owned mode references, and component-scoped mode target resolution.
 - Verify eight Memory map/remap collection and shared-value getters with ordered typed choices, owned descendant handles, correct local-map applicability and defaults, and distinct memory-map versus remap scopes. Move Memory map getter helper imports to module scope after checking dependencies.
 - Verify seven Memory map core getters with ordered generated choices, typed child ownership, local-map address units, standard absent-value defaults, constant-expression evaluation, and exact Annex argument and element-type names.
