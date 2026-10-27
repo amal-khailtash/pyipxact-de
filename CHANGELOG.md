@@ -9,6 +9,7 @@ This document lists notable changes for each release and follows:
 
 ### Fixed
 
+- Verify eight AddressBlock editing operations with schema-ordered metadata setters, identity-preserving volatility updates, instance-local removers, owned array/index invalidation, empty indices pruning, and definition-reference protection.
 - Complete the nine remaining Memory map BASE AliasOf getters with normalized source Names, ordered owned bank and scalar reference wrappers, qualified runtime remap target resolution, and strict choice/handle validation.
 - Verify eight Bank and Remap definition-reference getters with distinct local declaration, resolved definition, normalized source Name and owned wrapper handles; target-independent source access; strict model/choice validation; and scoped external-library resolution.
 - Verify nine Bank getters with ordered owned block/bank/subspace children, scoped referenced-definition content, unsigned local base-address expressions, model-specific input scopes, and unspecified absent usage and volatility.

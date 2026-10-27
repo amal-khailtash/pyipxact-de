@@ -1820,7 +1820,7 @@ def _register_reference[T](reference_id: str, model_type: type[T]) -> T:
     return reference
 
 
-def _register_reference_indices(reference: FieldRef | RegisterRef) -> Indices | None:
+def _register_reference_indices(reference: FieldRef | RegisterRef | AddressBlockRef) -> Indices | None:
     """Validate index wrappers and restore their immediate schema ownership."""
     from ._model import _owned_list_ids
 
@@ -1853,7 +1853,9 @@ def _add_register_reference_index(reference: FieldRef | RegisterRef, value: str)
     return get_handle(index)
 
 
-def _remove_register_reference_index(indexID: str, model_type: type[FieldRef] | type[RegisterRef]) -> bool:
+def _remove_register_reference_index(
+    indexID: str, model_type: type[FieldRef] | type[RegisterRef] | type[AddressBlockRef]
+) -> bool:
     """Remove an index only from its actual reference family, pruning an empty holder."""
     if not isinstance(indexID, str):
         raise TgiError("Invalid index handle", TgiFaultCode.INVALID_ID)

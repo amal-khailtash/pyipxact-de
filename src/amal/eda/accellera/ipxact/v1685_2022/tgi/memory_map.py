@@ -58,6 +58,7 @@ from org.accellera.ipxact.v1685_2022 import (
 )
 
 from .address_space import _register_owned_child
+from .component import _list_attr, _register_graph
 from .bus_interface import _named_target
 from ._expressions import _integer
 from ._model import _walk_model, _reference_list
@@ -71,6 +72,7 @@ from .register import (
     _type_definition_reference_names,
     _register_reference,
     _register_alias,
+    _remove_register_reference_index,
 )
 from .type_definitions import (
     getTypeDefinitionsAddressBlockDefinitionIDs,
@@ -89,6 +91,14 @@ from .core import (
 )
 
 __all__ = [
+    "removeAddressBlockArray",
+    "removeAddressBlockRefIndex",
+    "removeAddressBlockTypeIdentifier",
+    "removeAddressBlockUsage",
+    "removeAddressBlockVolatility",
+    "setAddressBlockTypeIdentifier",
+    "setAddressBlockUsage",
+    "setAddressBlockVolatility",
     "getAliasOfAddressBlockRefByName",
     "getAliasOfAddressBlockRefID",
     "getAliasOfBankRefByNames",
@@ -1343,3 +1353,154 @@ def getAliasOfMemoryRemapRefByName(aliasOfID: str) -> str | None:
 def getAliasOfMemoryRemapRefID(aliasOfID: str) -> str | None:
     """Return the owned memoryRemapRef source wrapper (F.7.57.30)."""
     return _memory_alias_reference_id(aliasOfID, "memoryRemapRef")
+
+
+def _address_block_edit_scalar[T: str | UsageType | Volatile](
+    block: AddressBlockType | BankedBlockType, attribute: str, model_type: type[T]
+) -> T | None:
+    """Read instance-local metadata without resolving or editing an external definition."""
+    _owner, reference = _address_block_definition_reference(get_handle(block))
+    if reference is not None:
+        return None
+    if model_type is str:
+        value = (
+            next((item for item in block.choice if isinstance(item, str)), None)
+            if isinstance(block, AddressBlockType)
+            else None
+        )
+        if value is not None:
+            _stored_name(value)
+        return value
+    node = _block_scalar(block, attribute, model_type)
+    if model_type is Volatile and node is not None and type(node.value) is not bool:
+        raise TgiError("Invalid addressBlock volatile value", TgiFaultCode.INVALID_ID)
+    return node
+
+
+def _remove_address_block_scalar(addressBlockID: str, attribute: str, model_type: type) -> bool:
+    block = _require_address_block(addressBlockID)
+    node = _address_block_edit_scalar(block, attribute, model_type)
+    if node is None:
+        return False
+    if model_type in (str, UsageType):
+        if isinstance(block, BankedBlockType):
+            setattr(block, attribute, None)
+        else:
+            values = _list_attr(block, "choice")
+            position = next(index for index, item in enumerate(values) if isinstance(item, model_type))
+            del values[position]
+        return True
+    if isinstance(block, AddressBlockType):
+        _list_attr(block, "choice")
+    _register_graph(node)
+    if not detach_child_by_handle(get_handle(node)):
+        raise TgiError("Could not remove addressBlock metadata", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeAddressBlockArray(addressBlockID: str) -> bool:
+    """Remove the instance array and invalidate its descendants (F.7.58.21)."""
+    block = _require_address_block(addressBlockID)
+    if isinstance(block, BankedBlockType):
+        return False
+    array = _child(block, "array", Array)
+    if array is None:
+        return False
+    _register_graph(array)
+    if not detach_child_by_handle(get_handle(array)):
+        raise TgiError("Could not remove addressBlock array", TgiFaultCode.INVALID_ID)
+    return True
+
+
+def removeAddressBlockRefIndex(indexID: str) -> bool:
+    """Remove an owned addressBlockRef index, pruning its empty holder (F.7.58.22)."""
+    return _remove_register_reference_index(indexID, AddressBlockRef)
+
+
+def removeAddressBlockTypeIdentifier(addressBlockID: str) -> bool:
+    """Remove the instance-local typeIdentifier, if present (F.7.58.25)."""
+    return _remove_address_block_scalar(addressBlockID, "type_identifier", str)
+
+
+def removeAddressBlockUsage(addressBlockID: str) -> bool:
+    """Remove explicit instance usage, restoring the standard presumption (F.7.58.26)."""
+    return _remove_address_block_scalar(addressBlockID, "usage", UsageType)
+
+
+def removeAddressBlockVolatility(addressBlockID: str) -> bool:
+    """Remove explicit instance volatility and invalidate its wrapper (F.7.58.27)."""
+    return _remove_address_block_scalar(addressBlockID, "volatile", Volatile)
+
+
+def _set_address_block_scalar(
+    addressBlockID: str, attribute: str, value: str | UsageType | bool, model_type: type
+) -> bool:
+    block = _require_address_block(addressBlockID)
+    current = _address_block_edit_scalar(block, attribute, model_type)
+    if isinstance(block, AddressBlockType) and any(
+        isinstance(item, AddressBlockType.AddressBlockDefinitionRef) for item in block.choice
+    ):
+        raise TgiError("Cannot set inline metadata on a referenced addressBlock", TgiFaultCode.INVALID_ARGUMENT)
+    if model_type is str and isinstance(block, BankedBlockType):
+        raise TgiError("Banked addressBlock has no typeIdentifier", TgiFaultCode.INVALID_ARGUMENT)
+    if current is not None and model_type is Volatile:
+        current.value = value
+        _register_graph(current)
+        return True
+    replacement = Volatile(value=value) if model_type is Volatile else value
+    if isinstance(block, BankedBlockType):
+        setattr(block, attribute, replacement)
+        if model_type is Volatile:
+            register_parent(replacement, block, (attribute,), "single")
+        return True
+    if current == replacement:
+        return True
+    ranks = (
+        str,
+        UnsignedPositiveLongintExpression,
+        UnsignedPositiveIntExpression,
+        UsageType,
+        Volatile,
+        AccessPolicies,
+        Parameters,
+    )
+    rank = ranks.index(model_type)
+    values = _list_attr(block, "choice")
+    if current is not None:
+        position = next(index for index, item in enumerate(values) if isinstance(item, model_type))
+        values[position] = replacement
+    else:
+        position = len(values)
+        for index, item in enumerate(values):
+            item_rank = next((i for i, model in enumerate(ranks) if isinstance(item, model)), len(ranks))
+            if item_rank > rank:
+                position = index
+                break
+        values.insert(position, replacement)
+    if model_type is Volatile:
+        register_parent(replacement, block, ("choice",), "list")
+    return True
+
+
+def setAddressBlockTypeIdentifier(addressBlockID: str, typeIdentifier: str) -> bool:
+    """Set the instance-local typeIdentifier XML Name (F.7.58.54)."""
+    value = _name(typeIdentifier, "Name")
+    return _set_address_block_scalar(addressBlockID, "type_identifier", value, str)
+
+
+def setAddressBlockUsage(addressBlockID: str, usage: str) -> bool:
+    """Set schema-defined instance usage without re-owning enum primitives (F.7.58.55)."""
+    if not isinstance(usage, str):
+        raise TgiError("Invalid addressBlock usage", TgiFaultCode.INVALID_ARGUMENT)
+    try:
+        value = UsageType(usage)
+    except ValueError as error:
+        raise TgiError("Invalid addressBlock usage", TgiFaultCode.INVALID_ARGUMENT) from error
+    return _set_address_block_scalar(addressBlockID, "usage", value, UsageType)
+
+
+def setAddressBlockVolatility(addressBlockID: str, _volatile: bool) -> bool:
+    """Set explicit instance volatility, preserving an existing wrapper (F.7.58.56)."""
+    if type(_volatile) is not bool:
+        raise TgiError("_volatile must be a boolean", TgiFaultCode.INVALID_ARGUMENT)
+    return _set_address_block_scalar(addressBlockID, "volatile", _volatile, Volatile)
