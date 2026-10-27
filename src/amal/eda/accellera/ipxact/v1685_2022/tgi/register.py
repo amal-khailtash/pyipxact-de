@@ -19,6 +19,7 @@ from org.accellera.ipxact.v1685_2022.enumerated_values import EnumeratedValues
 from org.accellera.ipxact.v1685_2022.enumerated_value_type import EnumeratedValueType
 from org.accellera.ipxact.v1685_2022.enumerated_value_type_usage import EnumeratedValueTypeUsage
 from org.accellera.ipxact.v1685_2022.enumeration_definitions import EnumerationDefinitions
+from org.accellera.ipxact.v1685_2022.external_type_definitions import ExternalTypeDefinitions
 from org.accellera.ipxact.v1685_2022.field_type import FieldType
 from org.accellera.ipxact.v1685_2022.field_definitions import FieldDefinitions
 from org.accellera.ipxact.v1685_2022.mode_ref import ModeRef
@@ -160,6 +161,7 @@ __all__ = [
     "removeEnumeratedValuesEnumeratedValue",
     "removeRegisterAlternateRegister",
     "removeRegisterField",
+    "removeRegisterFieldEnumeratedValues",
     "removeRegisterFieldReset",
     "removeRegisterFieldTypeIdentifier",
     "removeRegisterFieldVolatility",
@@ -168,6 +170,7 @@ __all__ = [
     "removeResetMask",
     "setAlternateRegisterTypeIdentifier",
     "setAlternateRegisterVolatility",
+    "setEnumeratedValuesEnumerationDefinitionRef",
     "setEnumeratedValueUsage",
     "setEnumeratedValueValue",
     "setFieldDefinitionBitWidth",
@@ -176,6 +179,7 @@ __all__ = [
     "setModeRefPriority",
     "setRegisterAddressOffset",
     "setRegisterFieldBitWidth",
+    "setRegisterFieldEnumeratedValues",
     "setRegisterFieldTypeIdentifier",
     "setRegisterFieldVolatility",
     "setRegisterSize",
@@ -1133,32 +1137,165 @@ def getEnumeratedValuesEnumeratedValueIDs(enumeratedValuesID: str) -> list[str]:
     return [get_handle(member) for member in members if isinstance(member, EnumeratedValueType)]
 
 
+def _enumerated_values_reference(
+    enumeratedValuesID: str,
+) -> tuple[EnumeratedValues, EnumeratedValues.EnumerationDefinitionRef | None]:
+    """Validate the enumeratedValues choice and return its optional typed reference."""
+    evs = resolve_handle(enumeratedValuesID) if isinstance(enumeratedValuesID, str) else None
+    if not isinstance(evs, EnumeratedValues):
+        raise TgiError("Invalid enumeratedValues handle", TgiFaultCode.INVALID_ID)
+    from .type_definitions import _field_enumeration_members
+
+    members = _field_enumeration_members(evs)
+    reference = members[0] if members and isinstance(members[0], EnumeratedValues.EnumerationDefinitionRef) else None
+    if reference is not None and (
+        not isinstance(reference.value, str) or not isinstance(reference.type_definitions, str)
+    ):
+        raise TgiError("Invalid enumerationDefinitionRef content", TgiFaultCode.INVALID_ID)
+    return evs, reference
+
+
+def _validated_enumeration_reference_names(
+    reference: EnumeratedValues.EnumerationDefinitionRef,
+) -> tuple[str, str]:
+    """Validate stored xs:Name values and map malformed XML content to INVALID_ID."""
+    try:
+        return _schema_name(reference.value, "Name"), _schema_name(reference.type_definitions, "Name")
+    except TgiError as error:
+        raise TgiError("Invalid enumerationDefinitionRef Name content", TgiFaultCode.INVALID_ID) from error
+
+
+def _enumeration_reference_external(
+    evs: EnumeratedValues, reference: EnumeratedValues.EnumerationDefinitionRef
+) -> ExternalTypeDefinitions:
+    """Find the referenced externalTypeDefinitions declaration in this XML document."""
+    from ._attribute_references import _root_for
+    from .core import register_parent
+    from org.accellera.ipxact.v1685_2022.type_definitions import TypeDefinitions
+    from org.accellera.ipxact.v1685_2022.component_type import ComponentType
+
+    _definition_name, external_name = _validated_enumeration_reference_names(reference)
+    root = _root_for(evs)
+    definitions = root if isinstance(root, TypeDefinitions) else getattr(root, "type_definitions", None)
+    if definitions is None:
+        raise TgiError("Referenced externalTypeDefinitions declaration was not found", TgiFaultCode.NOT_FOUND)
+    if not isinstance(definitions, (TypeDefinitions, ComponentType.TypeDefinitions)):
+        raise TgiError("Invalid local typeDefinitions model", TgiFaultCode.INVALID_ID)
+    if definitions is not root:
+        register_parent(definitions, root, ("type_definitions",), "single")
+    declarations = definitions.external_type_definitions
+    if not isinstance(declarations, (list, tuple)) or any(
+        not isinstance(item, ExternalTypeDefinitions) for item in declarations
+    ):
+        raise TgiError("Invalid externalTypeDefinitions list", TgiFaultCode.INVALID_ID)
+    matches = []
+    for item in declarations:
+        try:
+            declaration_name = _schema_name(item.name, "Name")
+        except TgiError as error:
+            raise TgiError("Invalid externalTypeDefinitions Name content", TgiFaultCode.INVALID_ID) from error
+        if declaration_name == external_name:
+            matches.append(item)
+    if len(matches) > 1:
+        raise TgiError(
+            f"Ambiguous externalTypeDefinitions name {external_name!r} in owning document",
+            TgiFaultCode.INVALID_ARGUMENT,
+        )
+    if not matches:
+        raise TgiError(f"No externalTypeDefinitions named {external_name!r} was found", TgiFaultCode.NOT_FOUND)
+    external = matches[0]
+    register_parent(external, definitions, ("external_type_definitions",), "list")
+    return external
+
+
 def getEnumeratedValuesEnumerationDefinitionRefByExternalTypeDefID(enumeratedValuesID: str) -> str | None:
-    """Return externalTypeDefinitions handle (F.7.73.34)."""
-    evs = _resolve(enumeratedValuesID)
-    ref = getattr(getattr(evs, "enumeration_definition_ref", None), "external_type_definitions", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the local externalTypeDefinitions declaration named by the reference.
+
+    Section: F.7.73.34.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+
+    Returns:
+        Handle to the matching externalTypeDefinitions element, or None when the optional reference is absent.
+    """
+    evs, reference = _enumerated_values_reference(enumeratedValuesID)
+    if reference is None:
+        return None
+    external = _enumeration_reference_external(evs, reference)
+    return get_handle(external)
 
 
 def getEnumeratedValuesEnumerationDefinitionRefByID(enumeratedValuesID: str) -> str | None:
-    """Return enumerationDefinition handle (F.7.73.35)."""
-    evs = _resolve(enumeratedValuesID)
-    ref = getattr(getattr(evs, "enumeration_definition_ref", None), "enumeration_definition", None)
-    return get_handle(ref) if ref is not None else None
+    """Resolve the referenced enumerationDefinition in the declared external type library.
+
+    Section: F.7.73.35.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+
+    Returns:
+        Handle to the matching enumerationDefinition; declared but unavailable targets raise NOT_FOUND.
+    """
+    _evs, reference = _enumerated_values_reference(enumeratedValuesID)
+    if reference is None:
+        return None
+    external_id = getEnumeratedValuesEnumerationDefinitionRefByExternalTypeDefID(enumeratedValuesID)
+    assert external_id is not None
+    from .type_definitions import getExternalTypeDefinitionsTypeDefinitionsRefByID
+    from .type_definitions import getTypeDefinitionsEnumerationDefinitionIDs
+
+    target_id = getExternalTypeDefinitionsTypeDefinitionsRefByID(external_id)
+    definition_ids = getTypeDefinitionsEnumerationDefinitionIDs(target_id)
+    matches = [resolve_handle(item_id) for item_id in definition_ids]
+    definition_name, _external_name = _validated_enumeration_reference_names(reference)
+    named_matches = []
+    for item in matches:
+        try:
+            candidate_name = _schema_name(item.name, "Name")
+        except (AttributeError, TgiError) as error:
+            raise TgiError("Invalid enumerationDefinition Name content", TgiFaultCode.INVALID_ID) from error
+        if candidate_name == definition_name:
+            named_matches.append(item)
+    matches = named_matches
+    if len(matches) > 1:
+        raise TgiError(f"Ambiguous enumerationDefinition reference {definition_name!r}", TgiFaultCode.INVALID_ARGUMENT)
+    if not matches:
+        raise TgiError(f"Referenced enumerationDefinition {definition_name!r} was not found", TgiFaultCode.NOT_FOUND)
+    return get_handle(matches[0])
 
 
 def getEnumeratedValuesEnumerationDefinitionRefByName(enumeratedValuesID: str) -> str | None:
-    """Return enumerationDefinitionRef value (F.7.73.36)."""
-    evs = _resolve(enumeratedValuesID)
-    ref = getattr(evs, "enumeration_definition_ref", None)
-    return _maybe_value(ref)
+    """Return the enumerationDefinitionRef Name value.
+
+    Section: F.7.73.36.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+
+    Returns:
+        Referenced enumerationDefinition name, or None when this holder uses inline values.
+    """
+    _evs, reference = _enumerated_values_reference(enumeratedValuesID)
+    if reference is None:
+        return None
+    definition_name, _external_name = _validated_enumeration_reference_names(reference)
+    return definition_name
 
 
 def getEnumeratedValuesEnumerationDefinitionRefID(enumeratedValuesID: str) -> str | None:
-    """Return handle of enumerationDefinitionRef (F.7.73.37)."""
-    evs = _resolve(enumeratedValuesID)
-    ref = getattr(evs, "enumeration_definition_ref", None)
-    return get_handle(ref) if ref is not None else None
+    """Return the owned enumerationDefinitionRef handle.
+
+    Section: F.7.73.37.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+
+    Returns:
+        Handle to the typed reference, or None when this holder uses inline values.
+    """
+    _evs, reference = _enumerated_values_reference(enumeratedValuesID)
+    return get_handle(reference) if reference is not None else None
 
 
 # Field / FieldDefinition / FieldRef
@@ -1210,9 +1347,24 @@ def getFieldDefinitionBitWidthID(fieldDefinitionID: str) -> str:
 
 
 def getFieldDefinitionEnumeratedValueIDs(fieldDefinitionID: str) -> list[str]:
-    """Return enumeratedValue handles (F.7.73.40)."""
-    fd = _resolve(fieldDefinitionID)
-    return _list_handles(fd, "enumerated_value")
+    """Return handles to inline values on a field definition.
+
+    Section: F.7.73.40.
+
+    Args:
+        fieldDefinitionID: Handle to a fieldDefinition element.
+
+    Returns:
+        Ordered inline value handles, or an empty list when absent or referenced.
+    """
+    field = _resolve_field_definition(fieldDefinitionID)
+    holder = field.enumerated_values
+    if holder is None:
+        return []
+    if not isinstance(holder, EnumeratedValues):
+        raise TgiError("Invalid field definition enumeratedValues model", TgiFaultCode.INVALID_ID)
+    register_parent(holder, field, ("enumerated_values",), "single")
+    return getEnumeratedValuesEnumeratedValueIDs(get_handle(holder))
 
 
 def getFieldDefinitionTypeIdentifier(fieldDefinitionID: str) -> str | None:
@@ -1435,11 +1587,36 @@ def getRegisterFieldBitWidthID(registerFieldID: str) -> str | None:
     return get_handle(width) if width is not None else None
 
 
+def _register_field_enumerated_values(field: FieldType) -> EnumeratedValues | None:
+    """Read and register a field's optional enumeration choice without normalizing it."""
+    width, reference, alias = _register_field_width_state(field)
+    holders = [child for child in field.choice if isinstance(child, EnumeratedValues)]
+    if len(holders) > 1 or (holders and (reference is not None or (width is None and alias is None))):
+        raise TgiError("Invalid register field enumeratedValues choice", TgiFaultCode.INVALID_ID)
+    if not holders:
+        return None
+    holder = holders[0]
+    register_parent(holder, field, ("choice",), "list")
+    from .type_definitions import _field_enumeration_members
+
+    _field_enumeration_members(holder)
+    return holder
+
+
 def getRegisterFieldEnumeratedValuesID(registerFieldID: str) -> str | None:
-    """Return enumeratedValues handle (F.7.73.56)."""
-    f = _resolve(registerFieldID)
-    evs = getattr(f, "enumerated_values", None)
-    return get_handle(evs) if evs is not None else None
+    """Return the field's optional enumeratedValues holder handle.
+
+    Section: F.7.73.56.
+
+    Args:
+        registerFieldID: Handle to a field on a register.
+
+    Returns:
+        The owned holder handle, or None when the optional element is absent.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    holder = _register_field_enumerated_values(field)
+    return get_handle(holder) if holder is not None else None
 
 
 def getRegisterFieldFieldDefinitionRefByExternalTypeDefID(registerFieldID: str) -> str | None:
@@ -2027,6 +2204,45 @@ def setEnumeratedValueValue(enumeratedValueID: str, expression: str) -> bool:
     return True
 
 
+def setEnumeratedValuesEnumerationDefinitionRef(
+    enumeratedValuesID: str, enumerationDefinitionRef: str, typeDefinitions: str
+) -> bool:
+    """Set the external enumeration-definition reference on an enumeratedValues holder.
+
+    Section: F.7.74.51.
+
+    Args:
+        enumeratedValuesID: Handle to an enumeratedValues element.
+        enumerationDefinitionRef: Name of the referenced enumerationDefinition.
+        typeDefinitions: Name of the local externalTypeDefinitions declaration.
+
+    Returns:
+        True after the reference choice has been assigned.
+    """
+    evs, reference = _enumerated_values_reference(enumeratedValuesID)
+    definition_name = _schema_name(enumerationDefinitionRef, "Name")
+    external_name = _schema_name(typeDefinitions, "Name")
+    if reference is not None:
+        # Keep the same model node and its handle when callers edit an existing reference.
+        reference.value = definition_name
+        reference.type_definitions = external_name
+        return True
+
+    choice = evs.enumeration_definition_ref_or_enumerated_value
+    evs.enumeration_definition_ref_or_enumerated_value = list(choice)
+    for member in choice:
+        if not detach_child_by_handle(get_handle(member)):
+            raise TgiError("Could not replace inline enumeration values", TgiFaultCode.INVALID_ID)
+
+    reference = EnumeratedValues.EnumerationDefinitionRef(value=definition_name, type_definitions=external_name)
+    _list_attr(evs, "enumeration_definition_ref_or_enumerated_value").append(reference)
+    register_parent(reference, evs, ("enumeration_definition_ref_or_enumerated_value",), "list")
+    from .type_definitions import _field_enumeration_members
+
+    _field_enumeration_members(evs)
+    return True
+
+
 def addFieldRefIndex(fieldRefID: str, value: str) -> str:
     """Add index to fieldRef (F.7.74.6)."""
     fr = _resolve(fieldRefID)
@@ -2446,6 +2662,27 @@ def removeBroadcastToRegisterRef(registerRefID: str) -> bool:
     return detach_child_by_handle(registerRefID)
 
 
+def removeRegisterFieldEnumeratedValues(registerFieldID: str) -> bool:
+    """Remove the field's optional enumeratedValues subtree.
+
+    Section: F.7.74.29.
+
+    Args:
+        registerFieldID: Handle to a field on a register.
+
+    Returns:
+        True when a holder was removed, or False when it was absent.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    holder = _register_field_enumerated_values(field)
+    if holder is None:
+        return False
+    _list_attr(field, "choice")
+    if not detach_child_by_handle(get_handle(holder)):
+        raise TgiError("Could not remove register field enumeratedValues", TgiFaultCode.INVALID_ID)
+    return True
+
+
 def removeRegisterFieldReset(resetID: str) -> bool:
     """Remove a reset from its owning inline register field (F.7.74.31).
 
@@ -2841,6 +3078,35 @@ def setRegisterFieldBitWidth(registerFieldID: str, value: str) -> bool:
     items.insert(position, width)
     register_parent(width, field, ("choice",), "list")
     _register_graph(width)
+    return True
+
+
+def setRegisterFieldEnumeratedValues(registerFieldID: str) -> bool:
+    """Ensure the field has an enumeratedValues holder.
+
+    Section: F.7.74.59.
+
+    Args:
+        registerFieldID: Handle to a field on a register.
+
+    Returns:
+        True after preserving or creating the optional holder.
+    """
+    field, _ = _resolve_register_field(registerFieldID)
+    holder = _register_field_enumerated_values(field)
+    if holder is not None:
+        return True
+    width, reference, alias = _register_field_width_state(field)
+    if reference is not None:
+        raise TgiError(
+            "Enumeration holder cannot coexist with a field-definition reference", TgiFaultCode.INVALID_ARGUMENT
+        )
+    if width is None and alias is None:
+        raise TgiError("Invalid register field definition choice", TgiFaultCode.INVALID_ID)
+    holder = EnumeratedValues()
+    _list_attr(field, "choice").append(holder)
+    register_parent(holder, field, ("choice",), "list")
+    _register_graph(holder)
     return True
 
 
