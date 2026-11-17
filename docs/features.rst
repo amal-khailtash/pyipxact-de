@@ -3316,3 +3316,9 @@ File BASE identity metadata
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 BASE file identity/source metadata traversal restores parsed child ownership and preserves optional states, lexical source and schema metadata.
+
+CI and release automation
+-------------------------
+
+- ☑ Select documentation-only CI conservatively while retaining full validation for mixed, workflow and dependency changes.
+- ☑ Validate release metadata separately and suppress ordinary documentation-only release proposals.
