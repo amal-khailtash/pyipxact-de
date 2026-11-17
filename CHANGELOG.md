@@ -7,6 +7,8 @@ This document lists notable changes for each release and follows:
 
 ## [Unreleased]
 
+- Select documentation-only CI without redundant test/package builds and suppress documentation-only release proposals; preserve project-specific publication validation.
+
 ## [0.10.0](https://github.com/amal-khailtash/pyipxact-de/compare/v0.9.0...v0.10.0) (2026-10-27)
 
 

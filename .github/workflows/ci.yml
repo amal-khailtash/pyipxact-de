@@ -34,6 +34,15 @@ jobs:
             uv lock --check
             echo 'mode=release' >> "$GITHUB_OUTPUT"
             echo 'Release metadata validated; full source CI already runs on feature PRs.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$BASE_REF" ] && [ -n "$HEAD_REF" ]; then
+            # Execute the trusted base classifier; PR changes cannot weaken it.
+            if ! git show "$BASE_REF:tools/select_ci.py" > "$RUNNER_TEMP/select_ci.py"; then
+              echo 'mode=full' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            mode=$(uv run --no-project python "$RUNNER_TEMP/select_ci.py" --base "$BASE_REF" --head "$HEAD_REF")
+            echo "mode=$mode" >> "$GITHUB_OUTPUT"
+            echo "Selected $mode validation from changed paths." >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'mode=full' >> "$GITHUB_OUTPUT"
             echo 'Running full feature validation.' >> "$GITHUB_STEP_SUMMARY"
@@ -57,7 +66,7 @@ jobs:
   documentation:
     name: Build documentation
     needs: plan
-    if: needs.plan.outputs.mode == 'full'
+    if: needs.plan.outputs.mode == 'full' || needs.plan.outputs.mode == 'docs'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

@@ -175,3 +175,18 @@ Run ``make docs`` to write HTML documentation directly to
 ``build/docs/index.html``; ``make view-docs`` opens that page. The documentation
 Makefile also supports ``uv run --locked make -C docs api html`` to regenerate
 API pages before building. Build outputs are ignored by Git.
+
+Focused CI selection
+--------------------
+
+Documentation-only pull requests build documentation and skip tests and
+package builds. Empty changes, mixed changes, workflow changes, dependencies,
+and manual CI dispatches run full validation. Both paths of a rename are
+classified. The classifier and release metadata checker run from the trusted
+base revision; the first rollout falls back to full validation.
+
+Release metadata PRs retain the strict four-file version consistency gate.
+Ordinary documentation, CI, test and chore commits are hidden from automated
+release notes and do not independently request a release. Breaking changes
+and explicit Release-As instructions still follow Release Please rules.
+Actual tagged publication retains its distribution and consumer validation.
